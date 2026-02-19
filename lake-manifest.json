@@ -1,0 +1,15 @@
+{"version": "1.1.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/Th0rgal/verity.git",
+   "type": "git",
+   "subDir": null,
+   "scope": "",
+   "rev": "f05500698165eae3cb44ca398c677c6a8db95b2b",
+   "name": "verity",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "main",
+   "inherited": false,
+   "configFile": "lakefile.lean"}],
+ "name": "«morpho-verity»",
+ "lakeDir": ".lake"}
