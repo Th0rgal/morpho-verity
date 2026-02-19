@@ -143,6 +143,21 @@ def morphoSpec : ContractSpec := {
       body := [Stmt.return (Expr.mappingUint "marketFee" (Expr.param "id"))]
     },
     {
+      name := "idToMarketParams"
+      params := [{ name := "id", ty := .bytes32 }]
+      returnType := none
+      returns := [.address, .address, .address, .address, .uint256]
+      body := [
+        Stmt.returnValues [
+          Expr.mappingUint "idToLoanToken" (Expr.param "id"),
+          Expr.mappingUint "idToCollateralToken" (Expr.param "id"),
+          Expr.mappingUint "idToOracle" (Expr.param "id"),
+          Expr.mappingUint "idToIrm" (Expr.param "id"),
+          Expr.mappingUint "idToLltv" (Expr.param "id")
+        ]
+      ]
+    },
+    {
       name := "extSloads"
       params := [{ name := "slots", ty := .array .bytes32 }]
       returnType := none
@@ -296,6 +311,7 @@ def morphoSelectors : List Nat := [
   0x12022eb9, -- totalBorrowAssets(bytes32)
   0x3f13c692, -- totalBorrowShares(bytes32)
   0x27cdab06, -- fee(bytes32)
+  0x2c3c9157, -- idToMarketParams(bytes32)
   0x7784c685, -- extSloads(bytes32[])
   0x13af4035, -- setOwner(address)
   0x5a64f51e, -- enableIrm(address)

@@ -39,25 +39,6 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
       throw (IO.userError s!"Unknown argument: {x}")
   go args "compiler/yul" [] false
 
-private def idToMarketParamsCase : String := "\
-            case 0x2c3c9157 {\n\
-                /* idToMarketParams(bytes32) */\n\
-                if callvalue() {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if lt(calldatasize(), 36) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let id := calldataload(4)\n\
-                let paramsBase := mappingSlot(8, id)\n\
-                mstore(0, sload(paramsBase))\n\
-                mstore(32, sload(add(paramsBase, 1)))\n\
-                mstore(64, sload(add(paramsBase, 2)))\n\
-                mstore(96, sload(add(paramsBase, 3)))\n\
-                mstore(128, sload(add(paramsBase, 4)))\n\
-                return(0, 160)\n\
-            }\n"
-
 private def supplyCase : String := "\
             case 0xa99aad89 {\n\
                 /* supply((address,address,address,address,uint256),uint256,uint256,address,bytes) */\n\
@@ -187,14 +168,6 @@ private def injectSupplyShim (text : String) : Except String String := do
   else
     throw "Could not inject supply shim: default dispatch branch not found"
 
-private def injectIdToMarketParamsShim (text : String) : Except String String := do
-  let needle := "            default {\n                revert(0, 0)\n            }\n"
-  let patched := text.replace needle (idToMarketParamsCase ++ needle)
-  if patched != text then
-    pure patched
-  else
-    throw "Could not inject idToMarketParams shim: default dispatch branch not found"
-
 private def replaceOrThrow (text oldFragment newFragment : String) (label : String) : Except String String := do
   let patched := text.replace oldFragment newFragment
   if patched != text then pure patched
@@ -256,8 +229,7 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
     else
       orThrow (renderWithLibraries yulObj allLibFunctions)
   let withSupply ← orThrow (injectSupplyShim baseText)
-  let withIdToParams ← orThrow (injectIdToMarketParamsShim withSupply)
-  let withGetters ← orThrow (injectGetterShims withIdToParams)
+  let withGetters ← orThrow (injectGetterShims withSupply)
   let text ← orThrow (injectEventLogs withGetters)
 
   IO.FS.createDirAll outDir
