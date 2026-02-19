@@ -39,7 +39,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (26/26 proven)
+    Invariants.lean       # Invariant proofs (27/27 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (7/7 proven)
 ```
@@ -54,12 +54,12 @@ lake build
 
 ## Proof progress
 
-**37 theorems proven, 0 sorry remaining.**
+**38 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 7 | 7 | Done |
-| Invariants | 26 | 26 | Done |
+| Invariants | 27 | 27 | Done |
 | Rounding | 4 | 4 | Done |
 
 Also proven in supporting libraries:
@@ -73,7 +73,7 @@ Invariant theorems include:
 - Timestamp monotonicity for interest accrual (1)
 - Collateralization preserved by liquidation (1)
 - Market isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
-- Position isolation for 6 user-facing operations: supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral (6)
+- Position isolation for all 7 user-facing operations: supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (7)
 
 ## Status
 
@@ -82,7 +82,7 @@ Invariant theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (7/7: withdraw/borrow/withdrawCollateral require auth, supply doesn't, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
-- [x] Invariant proofs (26/26: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 8 operations, position isolation for all 6 user-facing operations)
+- [x] Invariant proofs (27/27: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 8 operations, position isolation for all 7 user-facing operations including liquidation)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 
 ## License

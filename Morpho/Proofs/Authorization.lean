@@ -63,10 +63,10 @@ theorem borrow_requires_authorization (s : MorphoState) (id : Id)
 
 /-! ## Withdraw collateral requires authorization
 
-  This theorem needs fewer preconditions because the result is `none` regardless
-  of which branch causes it. If the market doesn't exist, assets are zero, or
-  receiver is empty, the function returns `none` from an earlier check. If those
-  checks pass, the authorization check returns `none`. -/
+  Unlike withdraw/borrow (which need preconditions to reach the auth check),
+  this theorem needs no preconditions: if the sender is unauthorized,
+  `withdrawCollateral` returns `none` regardless of input. Either an earlier
+  guard returns `none`, or the authorization check itself does. -/
 
 theorem withdrawCollateral_requires_authorization (s : MorphoState) (id : Id)
     (assets : Uint256) (onBehalf receiver : Address)
@@ -76,29 +76,7 @@ theorem withdrawCollateral_requires_authorization (s : MorphoState) (id : Id)
     : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv = none := by
   have h_auth := isSenderAuthorized_false s onBehalf h_not_auth h_not_delegated
   unfold Morpho.withdrawCollateral
-  -- The function has several early-return checks before the auth check.
-  -- In every branch, the result is none: either an early check returns none,
-  -- or the auth check (which we know fails) returns none.
-  simp only [h_auth]
-  -- After substituting auth = false, the auth branch always returns none.
-  -- We need to show that regardless of the earlier conditions, result is none.
-  -- Case split on each early-exit condition.
-  by_cases h1 : (s.market id).lastUpdate.val = 0
-  · -- Market not created → none from first check
-    have : ((s.market id).lastUpdate.val == 0) = true := by
-      rw [beq_iff_eq]; exact h1
-    simp [this]
-  · have h1' : ((s.market id).lastUpdate.val == 0) = false := by
-      rw [beq_eq_false_iff_ne]; exact h1
-    by_cases h2 : assets.val = 0
-    · have : (assets.val == 0) = true := by rw [beq_iff_eq]; exact h2
-      simp [h1', this]
-    · have h2' : (assets.val == 0) = false := by rw [beq_eq_false_iff_ne]; exact h2
-      by_cases h3 : receiver = ""
-      · have : (receiver == "") = true := by rw [beq_iff_eq]; exact h3
-        simp [h1', h2', this]
-      · have h3' : (receiver == "") = false := by rw [beq_eq_false_iff_ne]; exact h3
-        simp [h1', h2', h3']
+  simp [h_auth]
 
 /-! ## Supply doesn't require authorization
 

@@ -130,7 +130,8 @@ def marketIsolated (s s' : MorphoState) (id id' : Id) : Prop :=
   Each user's position is independent: operations targeting user A in market `id`
   cannot change user B's position in that same market. This is critical for
   security — your supply shares, borrow shares, and collateral cannot be modified
-  by someone else's transactions (except liquidation, which targets unhealthy borrowers). -/
+  by someone else's transactions. Even liquidation (which can seize collateral and
+  reduce debt) only modifies the targeted borrower's position, never anyone else's. -/
 
 /-- Operations on user `user` leave other users' positions unchanged. -/
 def positionIsolated (s s' : MorphoState) (id : Id) (user user' : Address) : Prop :=

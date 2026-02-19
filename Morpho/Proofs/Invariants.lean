@@ -357,7 +357,8 @@ theorem withdrawCollateral_market_isolated (s : MorphoState) (id id' : Id)
   Each user's position is independent. Operations targeting user `onBehalf`
   in market `id` leave every other user's position unchanged. This guarantees
   that your supply, debt, and collateral cannot be modified by someone else's
-  transactions (except liquidation, which can only target unhealthy borrowers). -/
+  transactions. Even liquidation — which can seize collateral and reduce debt —
+  only modifies the targeted borrower's position, never anyone else's. -/
 
 /-- Supply on behalf of `onBehalf` does not change `user'`'s position. -/
 theorem supply_position_isolated (s : MorphoState) (id : Id)
@@ -422,5 +423,21 @@ theorem withdrawCollateral_position_isolated (s : MorphoState) (id : Id)
   unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
   obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
   rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Liquidation of `borrower` does not change `user'`'s position.
+    Liquidation can only modify the targeted borrower's position (reducing their
+    collateral and debt). All other users' positions are completely untouched. -/
+theorem liquidate_position_isolated (s : MorphoState) (id : Id)
+    (borrower user' : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_ne : borrower ≠ user')
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    positionIsolated s s' id borrower user' := by
+  intro _
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  all_goals (rw [← h_ok.2.2.2.2.2.2]; simp [Ne.symm h_ne])
 
 end Morpho.Proofs.Invariants
