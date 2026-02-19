@@ -160,9 +160,112 @@ private def supplyCase : String := "\
                 return(0, 64)\n\
             }\n"
 
+private def withdrawCase : String := "\
+            case 0x5c2bea49 {\n\
+                /* withdraw((address,address,address,address,uint256),uint256,uint256,address,address) */\n\
+                if callvalue() {\n\
+                    revert(0, 0)\n\
+                }\n\
+                if lt(calldatasize(), 292) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let collateralToken := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let oracle := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let irm := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let lltv := calldataload(132)\n\
+                let assets := calldataload(164)\n\
+                let shares := calldataload(196)\n\
+                let onBehalf := and(calldataload(228), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let receiver := and(calldataload(260), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let id := keccakMarketParams(loanToken, collateralToken, oracle, irm, lltv)\n\
+                if iszero(gt(sload(add(mappingSlot(3, id), 2)), 0)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 18)\n\
+                    mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                if iszero(xor(iszero(assets), iszero(shares))) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 18)\n\
+                    mstore(68, 0x696e636f6e73697374656e7420696e7075740000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                if iszero(or(eq(caller(), onBehalf), eq(sload(mappingSlot(mappingSlot(4, onBehalf), caller())), 1))) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 14)\n\
+                    mstore(68, 0x6e6f7420617574686f72697a6564000000000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                let totalSupplyAssets := sload(mappingSlot(8, id))\n\
+                let totalSupplyShares := sload(mappingSlot(9, id))\n\
+                let virtualShares := 1000000\n\
+                let virtualAssets := 1\n\
+                let denomShares := add(totalSupplyShares, virtualShares)\n\
+                let denomAssets := add(totalSupplyAssets, virtualAssets)\n\
+                let assetsWithdrawn := assets\n\
+                let sharesWithdrawn := shares\n\
+                if gt(assetsWithdrawn, 0) {\n\
+                    sharesWithdrawn := div(add(mul(assetsWithdrawn, denomShares), sub(denomAssets, 1)), denomAssets)\n\
+                }\n\
+                if gt(sharesWithdrawn, 0) {\n\
+                    if iszero(gt(assetsWithdrawn, 0)) {\n\
+                        assetsWithdrawn := div(mul(sharesWithdrawn, denomAssets), denomShares)\n\
+                    }\n\
+                }\n\
+                let positionBase := mappingSlot(mappingSlot(17, id), onBehalf)\n\
+                let currentShares := sload(positionBase)\n\
+                if lt(currentShares, sharesWithdrawn) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                if or(lt(totalSupplyAssets, assetsWithdrawn), lt(totalSupplyShares, sharesWithdrawn)) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                sstore(positionBase, sub(currentShares, sharesWithdrawn))\n\
+                sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\n\
+                sstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\n\
+                if iszero(extcodesize(loanToken)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 7)\n\
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
+                mstore(4, receiver)\n\
+                mstore(36, assetsWithdrawn)\n\
+                if iszero(call(gas(), loanToken, 0, 0, 68, 0, 32)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 17)\n\
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                if eq(returndatasize(), 32) {\n\
+                    returndatacopy(0, 0, 32)\n\
+                    if iszero(mload(0)) {\n\
+                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                        mstore(4, 32)\n\
+                        mstore(36, 21)\n\
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
+                        revert(0, 100)\n\
+                    }\n\
+                }\n\
+                mstore(0, caller())\n\
+                mstore(32, assetsWithdrawn)\n\
+                mstore(64, sharesWithdrawn)\n\
+                log4(0, 96, 0xa56fc0ad5702ec05ce63666221f796fb62437c32db1aa1aa075fc6484cf58fbf, id, onBehalf, receiver)\n\
+                mstore(0, assetsWithdrawn)\n\
+                mstore(32, sharesWithdrawn)\n\
+                return(0, 64)\n\
+            }\n"
+
 private def injectSupplyShim (text : String) : Except String String := do
   let needle := "            default {\n                revert(0, 0)\n            }\n"
-  let patched := text.replace needle (supplyCase ++ needle)
+  let patched := text.replace needle (supplyCase ++ withdrawCase ++ needle)
   if patched != text then
     pure patched
   else

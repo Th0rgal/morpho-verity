@@ -56,6 +56,13 @@ interface IMorphoSubset {
         address onBehalf,
         bytes calldata data
     ) external returns (uint256 assetsSupplied, uint256 sharesSupplied);
+    function withdraw(
+        MarketParams calldata marketParams,
+        uint256 assets,
+        uint256 shares,
+        address onBehalf,
+        address receiver
+    ) external returns (uint256 assetsWithdrawn, uint256 sharesWithdrawn);
 }
 
 contract MockERC20 {
@@ -82,6 +89,14 @@ contract MockERC20 {
         require(bal >= amount, "balance");
         allowance[from][msg.sender] = allowed - amount;
         balanceOf[from] = bal - amount;
+        balanceOf[to] += amount;
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        uint256 bal = balanceOf[msg.sender];
+        require(bal >= amount, "balance");
+        balanceOf[msg.sender] = bal - amount;
         balanceOf[to] += amount;
         return true;
     }
@@ -283,6 +298,47 @@ contract VerityMorphoSmokeTest {
 
         morpho.accrueInterest(params);
         require(morpho.lastUpdate(id) == 1234567900, "lastUpdate should be stable at same timestamp");
+    }
+
+    function testWithdrawUpdatesMarketAndPosition() public {
+        MockERC20 loanToken = new MockERC20();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+        bytes32 id = keccak256(abi.encode(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether));
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        address receiver = address(0xC0FFEE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(supplier);
+        morpho.supply(params, 100 ether, 0, supplier, "");
+        uint256 sharesBeforeWithdraw = morpho.totalSupplyShares(id);
+        require(sharesBeforeWithdraw > 0, "sharesBeforeWithdraw should be positive");
+
+        vm.prank(supplier);
+        (uint256 assetsWithdrawn, uint256 sharesWithdrawn) = morpho.withdraw(params, 40 ether, 0, supplier, receiver);
+        require(assetsWithdrawn == 40 ether, "assetsWithdrawn mismatch");
+        require(sharesWithdrawn > 0, "sharesWithdrawn should be positive");
+
+        uint256 totalSupplyAssets = morpho.totalSupplyAssets(id);
+        uint256 totalSupplyShares = morpho.totalSupplyShares(id);
+        require(totalSupplyAssets == 60 ether, "totalSupplyAssets after withdraw mismatch");
+        require(totalSupplyShares == sharesBeforeWithdraw - sharesWithdrawn, "totalSupplyShares after withdraw mismatch");
+
+        (uint256 supplyShares,,) = morpho.position(id, supplier);
+        require(supplyShares == sharesBeforeWithdraw - sharesWithdrawn, "position.supplyShares after withdraw mismatch");
+        require(loanToken.balanceOf(receiver) == assetsWithdrawn, "receiver token balance mismatch");
     }
 
     function _loadBytecode(string memory path) internal view returns (bytes memory) {
