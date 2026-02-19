@@ -1076,4 +1076,311 @@ theorem accrueInterestPublic_preserves_alwaysCollateralized (s : MorphoState) (i
   rw [← h_ok.right]
   exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
 
+/-! ## Comprehensive monotonicity preservation
+
+  IRM and LLTV monotonicity: once enabled, they stay enabled across ALL operations.
+  `enableIrm_monotone` and `enableLltv_monotone` handle the non-trivial cases above.
+  The remaining operations don't touch `isIrmEnabled` or `isLltvEnabled` at all,
+  so preservation is trivial: the new state's `isIrmEnabled`/`isLltvEnabled` is
+  definitionally equal to the old one after extracting the state equality.
+
+  LastUpdate monotonicity: market timestamps never decrease. `accrueInterest`
+  sets `lastUpdate := blockTimestamp` (which is ≥ old lastUpdate since elapsed ≥ 0).
+  All other operations either don't touch lastUpdate or go through accrueInterest. -/
+
+-- IRM monotonicity for operations that don't touch isIrmEnabled
+
+theorem supply_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf : Address) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.supply s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.supply at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem withdraw_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.withdraw at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem borrow_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv
+      = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.borrow at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem repay_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf : Address) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.repay s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.repay at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem supplyCollateral_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf : Address) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem withdrawCollateral_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem liquidate_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares : Uint256)
+    (collateralPrice lltv : Uint256) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  all_goals (rw [← h_ok.2.2.2.2.2.2]; exact h_enabled)
+
+theorem setOwner_preserves_irmMonotone (s : MorphoState) (newOwner : Address) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.setOwner s newOwner = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.setOwner at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right]; exact h_enabled
+
+theorem setFee_preserves_irmMonotone (s : MorphoState) (id : Id) (newFee borrowRate : Uint256)
+    (hasIrm : Bool) (irm : Address) (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.setFee at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp; unfold Morpho.accrueInterest; simp
+  split
+  · exact h_enabled
+  · split <;> exact h_enabled
+
+theorem setFeeRecipient_preserves_irmMonotone (s : MorphoState) (newRecipient : Address)
+    (irm : Address) (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.setFeeRecipient at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right]; exact h_enabled
+
+theorem createMarket_preserves_irmMonotone (s : MorphoState) (params : MarketParams)
+    (marketId : Id) (irm : Address) (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.createMarket s params marketId = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.createMarket at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem setAuthorization_preserves_irmMonotone (s : MorphoState) (authorized : Address)
+    (newIsAuthorized : Bool) (irm : Address) (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.setAuthorization s authorized newIsAuthorized = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.setAuthorization at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok]; exact h_enabled
+
+theorem setAuthorizationWithSig_preserves_irmMonotone (s : MorphoState)
+    (auth : Authorization) (sig : Bool) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem accrueInterestPublic_preserves_irmMonotone (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (irm : Address)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s') :
+    s'.isIrmEnabled irm := by
+  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
+  rw [← h_ok.right]; unfold Morpho.accrueInterest; simp
+  split
+  · exact h_enabled
+  · split <;> exact h_enabled
+
+-- LLTV monotonicity for operations that don't touch isLltvEnabled
+
+theorem supply_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf : Address) (lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.supply s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.supply at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem withdraw_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address) (lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.withdraw at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem borrow_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltvParam lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltvParam
+      = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.borrow at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem repay_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf : Address) (lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.repay s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.repay at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem supplyCollateral_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf : Address) (lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem withdrawCollateral_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltvParam lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltvParam
+      = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem liquidate_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares : Uint256)
+    (collateralPrice lltvParam lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltvParam
+      = some (seized, repaid, s')) :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  all_goals (rw [← h_ok.2.2.2.2.2.2]; exact h_enabled)
+
+theorem setOwner_preserves_lltvMonotone (s : MorphoState) (newOwner : Address)
+    (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.setOwner s newOwner = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.setOwner at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right]; exact h_enabled
+
+theorem setFee_preserves_lltvMonotone (s : MorphoState) (id : Id) (newFee borrowRate : Uint256)
+    (hasIrm : Bool) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.setFee at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp; unfold Morpho.accrueInterest; simp
+  split
+  · exact h_enabled
+  · split <;> exact h_enabled
+
+theorem setFeeRecipient_preserves_lltvMonotone (s : MorphoState) (newRecipient : Address)
+    (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.setFeeRecipient at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right]; exact h_enabled
+
+theorem createMarket_preserves_lltvMonotone (s : MorphoState) (params : MarketParams)
+    (marketId : Id) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.createMarket s params marketId = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.createMarket at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem setAuthorization_preserves_lltvMonotone (s : MorphoState) (authorized : Address)
+    (newIsAuthorized : Bool) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.setAuthorization s authorized newIsAuthorized = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.setAuthorization at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok]; exact h_enabled
+
+theorem setAuthorizationWithSig_preserves_lltvMonotone (s : MorphoState)
+    (auth : Authorization) (sig : Bool) (lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; exact h_enabled
+
+theorem accrueInterestPublic_preserves_lltvMonotone (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (lltv : Uint256)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s') :
+    s'.isLltvEnabled lltv := by
+  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
+  rw [← h_ok.right]; unfold Morpho.accrueInterest; simp
+  split
+  · exact h_enabled
+  · split <;> exact h_enabled
+
+-- LastUpdate monotonicity: operations that go through accrueInterest
+
+/-- setFee accrues interest first, which updates lastUpdate to blockTimestamp. -/
+theorem setFee_lastUpdate_monotone (s : MorphoState) (id : Id) (newFee borrowRate : Uint256)
+    (hasIrm : Bool)
+    (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s')
+    (h_elapsed : s.blockTimestamp.val ≥ (s.market id).lastUpdate.val) :
+    lastUpdateMonotone s s' id := by
+  unfold lastUpdateMonotone
+  unfold Morpho.setFee at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp
+  have h_ai := accrueInterest_lastUpdate_monotone s id borrowRate hasIrm h_elapsed
+  unfold lastUpdateMonotone at h_ai
+  exact h_ai
+
+/-- accrueInterestPublic accrues interest, which updates lastUpdate to blockTimestamp. -/
+theorem accrueInterestPublic_lastUpdate_monotone (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool)
+    (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s')
+    (h_elapsed : s.blockTimestamp.val ≥ (s.market id).lastUpdate.val) :
+    lastUpdateMonotone s s' id := by
+  unfold lastUpdateMonotone
+  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
+  rw [← h_ok.right]
+  have h_ai := accrueInterest_lastUpdate_monotone s id borrowRate hasIrm h_elapsed
+  unfold lastUpdateMonotone at h_ai
+  exact h_ai
+
 end Morpho.Proofs.Invariants
