@@ -61,12 +61,12 @@ structure MorphoState where
   blockTimestamp : Uint256       -- block.timestamp
 
 instance : Inhabited MorphoState := ⟨{
-  owner := "", feeRecipient := "",
+  owner := 0, feeRecipient := 0,
   market := fun _ => default, position := fun _ _ => default,
   idToParams := fun _ => none,
   isIrmEnabled := fun _ => false, isLltvEnabled := fun _ => false,
   isAuthorized := fun _ _ => false, nonce := fun _ => 0,
-  sender := "", blockTimestamp := 0
+  sender := 0, blockTimestamp := 0
 }⟩
 
 /-- Compute market Id from params. In Solidity this is keccak256(abi.encode(params)).

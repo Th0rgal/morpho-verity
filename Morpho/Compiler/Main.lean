@@ -298,7 +298,11 @@ private def injectStorageCompat (text : String) : Except String String := do
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
   let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
-  replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
+  let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
+
+  let accrueOld := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"
+  let accrueNew := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n                        let __marketSlot := add(mappingSlot(3, id), 2)\n                        let __packed := sload(__marketSlot)\n                        sstore(__marketSlot, or(and(__packed, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), and(timestamp(), 0xffffffffffffffffffffffffffffffff)))\n"
+  replaceOrThrow t3 accrueOld accrueNew "accrueInterest packed slot compatibility"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
   let yulObj := _root_.Compiler.emitYul contract

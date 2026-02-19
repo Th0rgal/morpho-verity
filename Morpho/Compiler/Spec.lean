@@ -281,6 +281,12 @@ def morphoSpec : ContractSpec := {
             (Expr.param "newIsAuthorized")))
           "already set",
         Stmt.setMapping2 "isAuthorized" Expr.caller (Expr.param "authorized") (Expr.param "newIsAuthorized"),
+        Stmt.emit "SetAuthorization" [
+          Expr.caller,
+          Expr.caller,
+          Expr.param "authorized",
+          Expr.param "newIsAuthorized"
+        ],
         Stmt.stop
       ]
     },
@@ -425,6 +431,15 @@ def morphoSpec : ContractSpec := {
         { name := "prevBorrowRate", ty := .uint256, kind := .unindexed },
         { name := "interest", ty := .uint256, kind := .unindexed },
         { name := "feeShares", ty := .uint256, kind := .unindexed }
+      ]
+    },
+    {
+      name := "SetAuthorization"
+      params := [
+        { name := "caller", ty := .address, kind := .indexed },
+        { name := "authorizer", ty := .address, kind := .indexed },
+        { name := "authorized", ty := .address, kind := .indexed },
+        { name := "newIsAuthorized", ty := .uint256, kind := .unindexed }
       ]
     }
   ]

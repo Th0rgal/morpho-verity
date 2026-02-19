@@ -6,6 +6,8 @@ interface Vm {
     function parseBytes(string calldata) external pure returns (bytes memory);
     function prank(address caller) external;
     function warp(uint256) external;
+    function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter)
+        external;
 }
 
 interface IMorphoSubset {
@@ -24,7 +26,9 @@ interface IMorphoSubset {
     function enableIrm(address irm) external;
     function enableLltv(uint256 lltv) external;
     function setFeeRecipient(address newFeeRecipient) external;
+    function setAuthorization(address authorized, bool newIsAuthorized) external;
     function createMarket(MarketParams calldata marketParams) external;
+    function setFee(MarketParams calldata marketParams, uint256 newFee) external;
     function accrueInterest(MarketParams calldata marketParams) external;
     function lastUpdate(bytes32 id) external view returns (uint256);
     function market(bytes32 id)
@@ -108,6 +112,10 @@ contract VerityMorphoSmokeTest {
     address internal constant OWNER = address(0xBEEF);
     IMorphoSubset internal morpho;
 
+    event SetAuthorization(
+        address indexed caller, address indexed authorizer, address indexed authorized, uint256 newIsAuthorized
+    );
+
     function setUp() public {
         bytes memory initCode = bytes.concat(_loadBytecode("../compiler/yul/Morpho.bin"), abi.encode(OWNER));
         address deployed;
@@ -178,6 +186,17 @@ contract VerityMorphoSmokeTest {
     function testNonOwnerCannotEnableIrm() public {
         (bool ok,) = address(morpho).call(abi.encodeWithSignature("enableIrm(address)", address(0x1234)));
         require(!ok, "non-owner call should fail");
+    }
+
+    function testSetAuthorizationEmitsEvent() public {
+        address authorizer = address(0xA11CE);
+        address authorized = address(0xB0B);
+
+        vm.expectEmit(true, true, true, true, address(morpho));
+        emit SetAuthorization(authorizer, authorizer, authorized, 1);
+
+        vm.prank(authorizer);
+        morpho.setAuthorization(authorized, true);
     }
 
     function testSupplyUpdatesMarketAndPosition() public {
@@ -298,6 +317,45 @@ contract VerityMorphoSmokeTest {
 
         morpho.accrueInterest(params);
         require(morpho.lastUpdate(id) == 1234567900, "lastUpdate should be stable at same timestamp");
+    }
+
+    function testPackedMarketSlotTracksAccrueAndSetFee() public {
+        MockERC20 loanToken = new MockERC20();
+        address collateralToken = address(0x3333);
+        address oracle = address(0x4444);
+        address irm = address(0x1111);
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(address(loanToken), collateralToken, oracle, irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        bytes32[] memory slots = new bytes32[](1);
+        slots[0] = bytes32(uint256(_mappingSlot(3, id)) + 2); // packed Market[ID].{lastUpdate,fee}
+
+        bytes32[] memory packedAfterCreate = morpho.extSloads(slots);
+        require(uint128(uint256(packedAfterCreate[0])) == 1234567890, "packed lastUpdate after create mismatch");
+        require(uint256(packedAfterCreate[0]) >> 128 == 0, "packed fee after create mismatch");
+
+        vm.warp(1234567900);
+        morpho.accrueInterest(params);
+        bytes32[] memory packedAfterAccrue = morpho.extSloads(slots);
+        require(uint128(uint256(packedAfterAccrue[0])) == 1234567900, "packed lastUpdate after accrue mismatch");
+
+        vm.prank(OWNER);
+        morpho.setFee(params, 0.1 ether);
+        bytes32[] memory packedAfterSetFee = morpho.extSloads(slots);
+        require(uint128(uint256(packedAfterSetFee[0])) == 1234567900, "packed lastUpdate after setFee mismatch");
+        require(uint256(packedAfterSetFee[0]) >> 128 == 0.1 ether, "packed fee after setFee mismatch");
     }
 
     function testWithdrawUpdatesMarketAndPosition() public {

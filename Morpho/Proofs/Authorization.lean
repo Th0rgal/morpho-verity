@@ -30,7 +30,7 @@ theorem withdraw_requires_authorization (s : MorphoState) (id : Id)
     (assets shares : Uint256) (onBehalf receiver : Address)
     (h_market : (s.market id).lastUpdate.val ≠ 0)
     (h_valid : Libraries.UtilsLib.exactlyOneZero assets shares)
-    (h_recv : receiver ≠ "")
+    (h_recv : receiver ≠ 0)
     (h_not_auth : s.sender ≠ onBehalf)
     (h_not_delegated : s.isAuthorized onBehalf s.sender = false)
     : Morpho.withdraw s id assets shares onBehalf receiver = none := by
@@ -38,7 +38,7 @@ theorem withdraw_requires_authorization (s : MorphoState) (id : Id)
   unfold Morpho.withdraw
   have h1 : ((s.market id).lastUpdate.val == 0) = false := by
     rw [beq_eq_false_iff_ne]; exact h_market
-  have h3 : (receiver == "") = false := by
+  have h3 : (receiver == 0) = false := by
     rw [beq_eq_false_iff_ne]; exact h_recv
   simp [h1, h_valid, h3, h_auth]
 
@@ -49,7 +49,7 @@ theorem borrow_requires_authorization (s : MorphoState) (id : Id)
     (collateralPrice lltv : Uint256)
     (h_market : (s.market id).lastUpdate.val ≠ 0)
     (h_valid : Libraries.UtilsLib.exactlyOneZero assets shares)
-    (h_recv : receiver ≠ "")
+    (h_recv : receiver ≠ 0)
     (h_not_auth : s.sender ≠ onBehalf)
     (h_not_delegated : s.isAuthorized onBehalf s.sender = false)
     : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv = none := by
@@ -57,7 +57,7 @@ theorem borrow_requires_authorization (s : MorphoState) (id : Id)
   unfold Morpho.borrow
   have h1 : ((s.market id).lastUpdate.val == 0) = false := by
     rw [beq_eq_false_iff_ne]; exact h_market
-  have h3 : (receiver == "") = false := by
+  have h3 : (receiver == 0) = false := by
     rw [beq_eq_false_iff_ne]; exact h_recv
   simp [h1, h_valid, h3, h_auth]
 
@@ -88,12 +88,12 @@ theorem supply_no_authorization_needed (s : MorphoState) (id : Id)
     (assets shares : Uint256) (onBehalf : Address)
     (h_valid : Libraries.UtilsLib.exactlyOneZero assets shares)
     (h_market : (s.market id).lastUpdate.val ≠ 0)
-    (h_addr : onBehalf ≠ "")
+    (h_addr : onBehalf ≠ 0)
     : ∃ r, Morpho.supply s id assets shares onBehalf = some r := by
   unfold Morpho.supply
   have h1 : ((s.market id).lastUpdate.val == 0) = false := by
     rw [beq_eq_false_iff_ne]; exact h_market
-  have h3 : (onBehalf == "") = false := by
+  have h3 : (onBehalf == 0) = false := by
     rw [beq_eq_false_iff_ne]; exact h_addr
   simp [h1, h_valid, h3]
 
