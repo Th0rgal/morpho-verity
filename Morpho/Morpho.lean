@@ -11,6 +11,14 @@
   - State is passed explicitly rather than stored in contract storage slots.
   - We use Option for operations that can revert in Solidity.
   - Events and callbacks are omitted (I/O, not state logic).
+  - Interest accrual: In Solidity, supply/withdraw/borrow/repay/liquidate
+    each call `_accrueInterest` atomically at the start. Here, `accrueInterest`
+    is a separate function. Callers compose it externally:
+    `accrueInterest s id rate >>= supply ... `. This separates concerns and
+    simplifies proofs without losing any state-transition coverage.
+  - `collateralPrice` and `lltv` are explicit parameters (not read from
+    stored market params) because oracle lookups and param-to-id mapping
+    are external. Proofs can assume they match the market's actual values.
 -/
 import Morpho.Types
 import Morpho.Libraries.MathLib
@@ -183,6 +191,7 @@ def setAuthorization (s : MorphoState) (authorized : Address) (newIsAuthorized :
 
 /-- Supply assets to a market. Matches `supply` (Morpho.sol:169).
     Exactly one of `assets` or `shares` must be zero.
+    Caller must accrue interest first (see module header).
     Returns (suppliedAssets, suppliedShares, newState). -/
 def supply (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Address)
     : Option (Uint256 × Uint256 × MorphoState) :=
@@ -211,6 +220,7 @@ def supply (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Add
 /-- Withdraw assets from a market. Matches `withdraw` (Morpho.sol:200).
     Exactly one of `assets` or `shares` must be zero.
     `receiver` gets the tokens; `onBehalf`'s position is debited.
+    Caller must accrue interest first (see module header).
     Returns (withdrawnAssets, withdrawnShares, newState). -/
 def withdraw (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver : Address)
     : Option (Uint256 × Uint256 × MorphoState) :=
@@ -246,6 +256,7 @@ def withdraw (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf rec
 /-- Borrow assets from a market. Matches `borrow` (Morpho.sol:235).
     Exactly one of `assets` or `shares` must be zero.
     `receiver` gets the tokens; `onBehalf`'s position is debited.
+    Caller must accrue interest first (see module header).
     Returns (borrowedAssets, borrowedShares, newState). -/
 def borrow (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver : Address)
     (collateralPrice : Uint256) (lltv : Uint256)
@@ -280,6 +291,7 @@ def borrow (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf recei
 
 /-- Repay borrowed assets. Matches `repay` (Morpho.sol:269).
     Exactly one of `assets` or `shares` must be zero.
+    Caller must accrue interest first (see module header).
     Returns (repaidAssets, repaidShares, newState). -/
 def repay (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Address)
     : Option (Uint256 × Uint256 × MorphoState) :=
@@ -358,6 +370,7 @@ def withdrawCollateral (s : MorphoState) (id : Id) (assets : Uint256)
 /-- Liquidate an unhealthy position. Matches `liquidate` (Morpho.sol:347).
     Exactly one of `seizedAssets` or `repaidShares` must be zero.
     The borrower must be unhealthy. Bad debt is socialized if collateral hits zero.
+    Caller must accrue interest first (see module header).
     Returns (seizedAssets, repaidAssets, newState). -/
 def liquidate (s : MorphoState) (id : Id) (borrower : Address)
     (seizedAssets repaidShares : Uint256) (collateralPrice : Uint256) (lltv : Uint256)
@@ -371,14 +384,12 @@ def liquidate (s : MorphoState) (id : Id) (borrower : Address)
   else
     -- Liquidation incentive factor (Morpho.sol:366-369)
     -- = min(MAX_LIF, WAD.wDivDown(WAD - CURSOR.wMulDown(WAD - lltv)))
-    let wadMinusLltv := ConstantsLib.WAD - lltv.val
-    let cursorTerm := (ConstantsLib.LIQUIDATION_CURSOR * wadMinusLltv) / ConstantsLib.WAD
-    let denominator := ConstantsLib.WAD - cursorTerm
-    let computedLIF := (ConstantsLib.WAD * ConstantsLib.WAD) / denominator
-    let lif := if computedLIF > ConstantsLib.MAX_LIQUIDATION_INCENTIVE_FACTOR
-               then ConstantsLib.MAX_LIQUIDATION_INCENTIVE_FACTOR
-               else computedLIF
-    let lifU := u256 lif
+    let wadU := u256 ConstantsLib.WAD
+    let wadMinusLltv := u256 (ConstantsLib.WAD - lltv.val)
+    let cursorTerm := MathLib.wMulDown (u256 ConstantsLib.LIQUIDATION_CURSOR) wadMinusLltv
+    let denominator := u256 (wadU.val - cursorTerm.val)
+    let computedLIF := MathLib.wDivDown wadU denominator
+    let lifU := UtilsLib.min (u256 ConstantsLib.MAX_LIQUIDATION_INCENTIVE_FACTOR) computedLIF
     -- Compute seized/repaid pair (Morpho.sol:371-379)
     let (seizedAssets, repaidShares) :=
       if seizedAssets.val > 0 then
