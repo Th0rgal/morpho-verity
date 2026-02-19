@@ -79,6 +79,21 @@ theorem setFee_preserves_feeInRange (s : MorphoState) (id : Id) (newFee : Uint25
   simp
   exact h.right.right.left
 
+/-- Helper: if a ≤ b and d ≤ a, and both a,b < modulus, then (a-d)%mod ≤ (b-d)%mod. -/
+private theorem sub_mod_le_sub_mod {a b d modulus : Nat}
+    (h_le : a ≤ b) (h_d_le_a : d ≤ a) (h_a_lt : a < modulus) (h_b_lt : b < modulus) :
+    (a - d) % modulus ≤ (b - d) % modulus := by
+  rw [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le a d) h_a_lt),
+      Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le b d) h_b_lt)]
+  exact Nat.sub_le_sub_right h_le d
+
+/-- Helper: UtilsLib.min x y ≤ x. -/
+private theorem min_le_left (x y : Verity.Core.Uint256) :
+    (Libraries.UtilsLib.min x y).val ≤ x.val := by
+  unfold Libraries.UtilsLib.min; split
+  · exact Nat.le_of_lt (by assumption)
+  · exact Nat.le_refl _
+
 /-! ## Solvency preserved by core operations -/
 
 /-- Supply adds to totalSupplyAssets without changing totalBorrowAssets.
@@ -182,9 +197,9 @@ theorem accrueInterest_lastUpdate_monotone (s : MorphoState) (id : Id)
   totalSupplyAssets (Morpho.sol:490-491). Since both sides increase equally,
   the solvency invariant `totalBorrowAssets ≤ totalSupplyAssets` is preserved.
 
-  This closes the solvency invariant chain: user-facing operations (supply, withdraw,
-  borrow, repay) each call `accrueInterest` first. With this theorem, the invariant
-  is maintained across the full lifecycle. -/
+  Together with `liquidate_preserves_borrowLeSupply`, this closes the solvency invariant
+  chain: every state-mutating operation (supply, withdraw, borrow, repay, liquidate,
+  accrueInterest) preserves `totalBorrowAssets ≤ totalSupplyAssets`. -/
 
 /-- Interest accrual preserves solvency: both borrow and supply increase by
     the same amount, so borrow ≤ supply is maintained. -/
@@ -219,6 +234,52 @@ theorem accrueInterest_preserves_borrowLeSupply (s : MorphoState) (id : Id)
         Nat.lt_of_le_of_lt (Nat.add_le_add_right h_solvent _) h_no_overflow
       rw [Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_borrow_no_overflow]
       exact Nat.add_le_add_right h_solvent _
+
+/-- Liquidation preserves solvency. In the non-bad-debt path, `zeroFloorSub`
+    reduces borrow without touching supply. In the bad-debt path, both borrow
+    and supply decrease by the same `badDebtAssets`, preserving the order.
+
+    Unlike `supply` and `accrueInterest`, no overflow hypotheses are needed:
+    all subtractions produce values ≤ the original Uint256 fields, which are
+    already < 2^256 by construction. -/
+theorem liquidate_preserves_borrowLeSupply (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    borrowLeSupply s' id := by
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  -- After 3 rounds of split/simp we have 3 cases based on seizedAssets > 0
+  -- and the bad-debt condition. Each case's h_ok ends with a state record = s'.
+  case isFalse.isTrue.isFalse =>
+    -- seizedAssets > 0, non-bad-debt: totalBorrowAssets = zeroFloorSub, supply unchanged
+    unfold borrowLeSupply; rw [← h_ok.2.2.2.2.2.2]; simp only [beq_self_eq_true, ite_true]
+    exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
+  case isFalse.isTrue.isTrue =>
+    -- seizedAssets > 0, bad-debt: both sides decrease by badDebtAssets
+    unfold borrowLeSupply; rw [← h_ok.2.2.2.2.2.2]; simp only [beq_self_eq_true, ite_true]
+    simp only [Morpho.u256_val]
+    exact sub_mod_le_sub_mod
+      (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
+      (min_le_left _ _)
+      (Libraries.UtilsLib.zeroFloorSub _ _).isLt
+      (s.market id).totalSupplyAssets.isLt
+  case isFalse.isFalse =>
+    -- seizedAssets = 0: bad-debt if-then-else still present
+    unfold borrowLeSupply; rw [← h_ok.2.2.2.2.2.2]; simp only [beq_self_eq_true, ite_true]
+    split
+    · -- bad-debt path (newCollateral = 0)
+      simp only [Morpho.u256_val]
+      exact sub_mod_le_sub_mod
+        (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
+        (min_le_left _ _)
+        (Libraries.UtilsLib.zeroFloorSub _ _).isLt
+        (s.market id).totalSupplyAssets.isLt
+    · -- non-bad-debt path (newCollateral > 0)
+      exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
 
 /-! ## Collateralization preserved by liquidation
 
