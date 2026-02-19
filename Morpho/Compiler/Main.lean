@@ -173,34 +173,18 @@ private def replaceOrThrow (text oldFragment newFragment : String) (label : Stri
   if patched != text then pure patched
   else throw s!"Could not patch Yul output for {label}"
 
-private def injectEventLogs (text : String) : Except String String := do
+private def injectStorageCompat (text : String) : Except String String := do
   let constructorOld := "        sstore(0, arg0)\n        sstore(1, 0)\n"
   let constructorNew := "        sstore(0, arg0)\n        sstore(1, 0)\n        log2(0, 0, 0x167d3e9c1016ab80e58802ca9da10ce5c6a0f4debc46a2e7a2cd9e56899a4fb5, arg0)\n"
-  let t1 ← replaceOrThrow text constructorOld constructorNew "constructor SetOwner event"
+  let t0 ← replaceOrThrow text constructorOld constructorNew "constructor SetOwner event"
 
-  let setOwnerOld := "                sstore(0, newOwner)\n                stop()\n"
-  let setOwnerNew := "                sstore(0, newOwner)\n                log2(0, 0, 0x167d3e9c1016ab80e58802ca9da10ce5c6a0f4debc46a2e7a2cd9e56899a4fb5, newOwner)\n                stop()\n"
-  let t2 ← replaceOrThrow t1 setOwnerOld setOwnerNew "setOwner event"
+  let setFeeOld := "sstore(mappingSlot(7, id), newFee)\n"
+  let setFeeNew := "sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, or(and(__packed, 0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff), shl(128, newFee)))\n"
+  let t1 ← replaceOrThrow t0 setFeeOld setFeeNew "setFee packed slot compatibility"
 
-  let enableIrmOld := "                sstore(mappingSlot(2, irm), 1)\n                stop()\n"
-  let enableIrmNew := "                sstore(mappingSlot(2, irm), 1)\n                log2(0, 0, 0x590e04cdebeccba40f566186b9746ad295a4cd358ea4fefaaea6ce79630d96c0, irm)\n                stop()\n"
-  let t3 ← replaceOrThrow t2 enableIrmOld enableIrmNew "enableIrm event"
-
-  let enableLltvOld := "                sstore(mappingSlot(3, lltv), 1)\n                stop()\n"
-  let enableLltvNew := "                sstore(mappingSlot(3, lltv), 1)\n                mstore(0, lltv)\n                log1(0, 32, 0x297b80e7a896fad470c630f6575072d609bde997260ff3db851939405ec29139)\n                stop()\n"
-  let t4 ← replaceOrThrow t3 enableLltvOld enableLltvNew "enableLltv event"
-
-  let setFeeRecipientOld := "                sstore(1, newFeeRecipient)\n                stop()\n"
-  let setFeeRecipientNew := "                sstore(1, newFeeRecipient)\n                log2(0, 0, 0x2e979f80fe4d43055c584cf4a8467c55875ea36728fc37176c05acd784eb7a73, newFeeRecipient)\n                stop()\n"
-  let t5 ← replaceOrThrow t4 setFeeRecipientOld setFeeRecipientNew "setFeeRecipient event"
-
-  let setFeeOld := "                sstore(mappingSlot(7, id), newFee)\n                stop()\n"
-  let setFeeNew := "                sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, or(and(__packed, 0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff), shl(128, newFee)))\n                mstore(0, newFee)\n                log2(0, 32, 0x139d6f58e9a127229667c8e3b36e88890a66cfc8ab1024ddc513e189e125b75b, id)\n                stop()\n"
-  let t6 ← replaceOrThrow t5 setFeeOld setFeeNew "setFee event+packed slot"
-
-  let createMarketOld := "                sstore(mappingSlot(6, id), timestamp())\n                sstore(mappingSlot(7, id), 0)\n                sstore(mappingSlot(8, id), 0)\n                sstore(mappingSlot(9, id), 0)\n                sstore(mappingSlot(10, id), 0)\n                sstore(mappingSlot(11, id), 0)\n                sstore(mappingSlot(12, id), loanToken)\n                sstore(mappingSlot(13, id), collateralToken)\n                sstore(mappingSlot(14, id), oracle)\n                sstore(mappingSlot(15, id), irm)\n                sstore(mappingSlot(16, id), lltv)\n                stop()\n"
-  let createMarketNew := "                sstore(mappingSlot(6, id), timestamp())\n                sstore(mappingSlot(7, id), 0)\n                sstore(mappingSlot(8, id), 0)\n                sstore(mappingSlot(9, id), 0)\n                sstore(mappingSlot(10, id), 0)\n                sstore(mappingSlot(11, id), 0)\n                sstore(mappingSlot(12, id), loanToken)\n                sstore(mappingSlot(13, id), collateralToken)\n                sstore(mappingSlot(14, id), oracle)\n                sstore(mappingSlot(15, id), irm)\n                sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n                let __paramsBase := mappingSlot(8, id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n                mstore(0, loanToken)\n                mstore(32, collateralToken)\n                mstore(64, oracle)\n                mstore(96, irm)\n                mstore(128, lltv)\n                log2(0, 160, 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac, id)\n                stop()\n"
-  replaceOrThrow t6 createMarketOld createMarketNew "createMarket packed slots"
+  let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
+  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n                let __paramsBase := mappingSlot(8, id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n"
+  replaceOrThrow t1 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
   let yulObj := _root_.Compiler.emitYul contract
@@ -220,7 +204,7 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
     else
       orThrow (renderWithLibraries yulObj allLibFunctions)
   let withSupply ← orThrow (injectSupplyShim baseText)
-  let text ← orThrow (injectEventLogs withSupply)
+  let text ← orThrow (injectStorageCompat withSupply)
 
   IO.FS.createDirAll outDir
   IO.FS.writeFile s!"{outDir}/{contract.name}.yul" text

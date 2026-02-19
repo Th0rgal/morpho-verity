@@ -176,6 +176,7 @@ def morphoSpec : ContractSpec := {
           (Expr.logicalNot (Expr.eq (Expr.param "newOwner") (Expr.storage "owner")))
           "already set",
         Stmt.setStorage "owner" (Expr.param "newOwner"),
+        Stmt.emit "SetOwner" [Expr.param "newOwner"],
         Stmt.stop
       ]
     },
@@ -189,6 +190,7 @@ def morphoSpec : ContractSpec := {
           (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 0))
           "already set",
         Stmt.setMapping "isIrmEnabled" (Expr.param "irm") (Expr.literal 1),
+        Stmt.emit "EnableIrm" [Expr.param "irm"],
         Stmt.stop
       ]
     },
@@ -203,6 +205,7 @@ def morphoSpec : ContractSpec := {
           "already set",
         Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal wad)) "max LLTV exceeded",
         Stmt.setMappingUint "isLltvEnabled" (Expr.param "lltv") (Expr.literal 1),
+        Stmt.emit "EnableLltv" [Expr.param "lltv"],
         Stmt.stop
       ]
     },
@@ -216,6 +219,7 @@ def morphoSpec : ContractSpec := {
           (Expr.logicalNot (Expr.eq (Expr.param "newFeeRecipient") (Expr.storage "feeRecipient")))
           "already set",
         Stmt.setStorage "feeRecipient" (Expr.param "newFeeRecipient"),
+        Stmt.emit "SetFeeRecipient" [Expr.param "newFeeRecipient"],
         Stmt.stop
       ]
     },
@@ -264,6 +268,14 @@ def morphoSpec : ContractSpec := {
         Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.param "oracle"),
         Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.param "irm"),
         Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.param "lltv"),
+        Stmt.emit "CreateMarket" [
+          Expr.localVar "id",
+          Expr.param "loanToken",
+          Expr.param "collateralToken",
+          Expr.param "oracle",
+          Expr.param "irm",
+          Expr.param "lltv"
+        ],
         Stmt.stop
       ]
     },
@@ -286,7 +298,52 @@ def morphoSpec : ContractSpec := {
           "market not created",
         Stmt.require (Expr.le (Expr.param "newFee") (Expr.literal maxFee)) "max fee exceeded",
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.param "newFee"),
+        Stmt.emit "SetFee" [Expr.localVar "id", Expr.param "newFee"],
         Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    {
+      name := "SetOwner"
+      params := [
+        { name := "newOwner", ty := .address, kind := .indexed }
+      ]
+    },
+    {
+      name := "SetFee"
+      params := [
+        { name := "id", ty := .bytes32, kind := .indexed },
+        { name := "newFee", ty := .uint256, kind := .unindexed }
+      ]
+    },
+    {
+      name := "SetFeeRecipient"
+      params := [
+        { name := "newFeeRecipient", ty := .address, kind := .indexed }
+      ]
+    },
+    {
+      name := "EnableIrm"
+      params := [
+        { name := "irm", ty := .address, kind := .indexed }
+      ]
+    },
+    {
+      name := "EnableLltv"
+      params := [
+        { name := "lltv", ty := .uint256, kind := .unindexed }
+      ]
+    },
+    {
+      name := "CreateMarket"
+      params := [
+        { name := "id", ty := .bytes32, kind := .indexed },
+        { name := "loanToken", ty := .address, kind := .unindexed },
+        { name := "collateralToken", ty := .address, kind := .unindexed },
+        { name := "oracle", ty := .address, kind := .unindexed },
+        { name := "irm", ty := .address, kind := .unindexed },
+        { name := "lltv", ty := .uint256, kind := .unindexed }
       ]
     }
   ]
