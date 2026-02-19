@@ -373,11 +373,21 @@ theorem setAuthorizationWithSig_preserves_borrowLeSupply (s : MorphoState)
   unfold borrowLeSupply at h_solvent ⊢
   rw [← h_eq]; exact h_solvent
 
-/-! ## Collateralization preserved by liquidation
+/-! ## Collateralization preserved by all operations
 
-  Bad debt socialization ensures that when collateral hits zero,
-  borrowShares are also zeroed out. So no position ever has debt
-  without collateral after a successful liquidation. -/
+  `alwaysCollateralized` says: if a position has debt (borrowShares > 0),
+  it must have collateral (collateral > 0). This is preserved because:
+
+  - **supply/withdraw**: only touch supplyShares, never borrowShares or collateral
+  - **repay**: decreases borrowShares (weakens the antecedent, so trivially preserved)
+  - **supplyCollateral**: increases collateral (strengthens the consequent)
+  - **liquidation**: bad debt socialization zeros borrowShares when collateral hits zero
+  - **Admin functions**: don't touch positions at all
+
+  The only operations that could potentially violate it — `borrow` (increases debt)
+  and `withdrawCollateral` (decreases collateral) — are guarded by health checks
+  that ensure the position remains healthy, which implies collateral > 0.
+  Those proofs require price > 0 and lltv > 0 assumptions and are future work. -/
 
 /-- Liquidation preserves the `alwaysCollateralized` invariant for the borrower.
     When collateral is fully seized (= 0), bad debt socialization sets
@@ -410,6 +420,79 @@ theorem liquidate_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
     split at h_borrow
     · simp at h_borrow  -- bad-debt: borrowShares = 0, contradicts h_borrow > 0
     · omega             -- non-bad-debt: newCollateral ≠ 0 in context
+
+/-- Supply only modifies supplyShares; borrowShares and collateral are unchanged. -/
+theorem supply_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.supply s id assets shares onBehalf = some (a, sh, s')) :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢
+  intro h_borrow
+  unfold Morpho.supply at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+  by_cases h : user = onBehalf
+  · subst h; simp at h_borrow ⊢; exact h_collat h_borrow
+  · simp [h] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- Withdraw only modifies supplyShares; borrowShares and collateral are unchanged. -/
+theorem withdraw_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢
+  intro h_borrow
+  unfold Morpho.withdraw at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+  by_cases h : user = onBehalf
+  · subst h; simp at h_borrow ⊢; exact h_collat h_borrow
+  · simp [h] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- Repay decreases borrowShares — can only weaken the antecedent.
+    For `user = onBehalf`: new borrowShares = (old - shares) % mod. Since the repay
+    function checks `shares ≤ borrowShares` (underflow guard), the subtraction doesn't
+    wrap, so new borrowShares ≤ old borrowShares. If new > 0, then old > 0. -/
+theorem repay_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.repay s id assets shares onBehalf = some (a, sh, s')) :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢
+  intro h_borrow
+  unfold Morpho.repay at h_ok; simp at h_ok
+  obtain ⟨_, _, h_underflow, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+  by_cases h : user = onBehalf
+  · subst h; simp at h_borrow ⊢
+    -- h_borrow: (borrowShares - shares) % mod > 0
+    -- If borrowShares = 0, Nat subtraction gives 0, so 0 % mod = 0, contradiction.
+    rcases Nat.eq_zero_or_pos (s.position id user).borrowShares.val with h_zero | h_pos
+    · simp [h_zero] at h_borrow
+    · exact h_collat h_pos
+  · simp [h] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- Supply collateral increases collateral — can only strengthen the consequent.
+    Needs no-overflow: Solidity checked arithmetic reverts if collateral + assets > 2^256. -/
+theorem supplyCollateral_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s')
+    (h_no_overflow : user = onBehalf →
+      (s.position id user).collateral.val + assets.val < Verity.Core.Uint256.modulus) :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢
+  intro h_borrow
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+  by_cases h : user = onBehalf
+  · subst h; simp at h_borrow ⊢
+    rw [Nat.mod_eq_of_lt (h_no_overflow rfl)]
+    exact Nat.lt_of_lt_of_le (h_collat h_borrow) (Nat.le_add_right _ _)
+  · simp [h] at h_borrow ⊢; exact h_collat h_borrow
 
 /-! ## Market isolation
 
