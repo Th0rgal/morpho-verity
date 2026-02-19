@@ -341,6 +341,35 @@ contract VerityMorphoSmokeTest {
         require(loanToken.balanceOf(receiver) == assetsWithdrawn, "receiver token balance mismatch");
     }
 
+    function testWithdrawRejectsZeroReceiver() public {
+        MockERC20 loanToken = new MockERC20();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(supplier);
+        morpho.supply(params, 100 ether, 0, supplier, "");
+
+        vm.prank(supplier);
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(IMorphoSubset.withdraw.selector, params, 1 ether, 0, supplier, address(0))
+        );
+        require(!ok, "withdraw to zero receiver should fail");
+    }
+
     function _loadBytecode(string memory path) internal view returns (bytes memory) {
         bytes memory raw = bytes(vm.readFile(path));
         bytes memory trimmed = _trim(raw);

@@ -193,6 +193,13 @@ private def withdrawCase : String := "\
                     mstore(68, 0x696e636f6e73697374656e7420696e7075740000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
+                if iszero(iszero(eq(receiver, 0))) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 12)\n\
+                    mstore(68, 0x7a65726f20616464726573730000000000000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
                 if iszero(or(eq(caller(), onBehalf), eq(sload(mappingSlot(mappingSlot(4, onBehalf), caller())), 1))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
