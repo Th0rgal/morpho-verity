@@ -339,6 +339,28 @@ theorem setFeeRecipient_preserves_borrowLeSupply (s : MorphoState) (newRecipient
   unfold borrowLeSupply at h_solvent ⊢
   rw [← h_ok.right]; exact h_solvent
 
+/-- setFee accrues interest (preserving solvency) then changes only the fee field,
+    which does not affect totalBorrowAssets or totalSupplyAssets. -/
+theorem setFee_preserves_borrowLeSupply (s : MorphoState) (id : Id) (newFee borrowRate : Uint256)
+    (hasIrm : Bool) (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s')
+    (h_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Verity.Core.Uint256.modulus) :
+    borrowLeSupply s' id := by
+  unfold Morpho.setFee at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_eq]; simp
+  -- After accrueInterest, only fee changes. Market totals come from accrueInterest.
+  -- accrueInterest preserves solvency (already proven).
+  have h_ai := accrueInterest_preserves_borrowLeSupply s id borrowRate hasIrm h_solvent
+    h_no_overflow
+  unfold borrowLeSupply at h_ai
+  exact h_ai
+
 /-- createMarket only sets lastUpdate and idToParams, so solvency is trivially preserved. -/
 theorem createMarket_preserves_borrowLeSupply (s : MorphoState) (params : MarketParams)
     (marketId id : Id) (h_solvent : borrowLeSupply s id)
@@ -384,10 +406,12 @@ theorem setAuthorizationWithSig_preserves_borrowLeSupply (s : MorphoState)
   - **liquidation**: bad debt socialization zeros borrowShares when collateral hits zero
   - **Admin functions**: don't touch positions at all
 
-  The only operations that could potentially violate it — `borrow` (increases debt)
-  and `withdrawCollateral` (decreases collateral) — are guarded by health checks
-  that ensure the position remains healthy, which implies collateral > 0.
-  Those proofs require price > 0 and lltv > 0 assumptions and are future work. -/
+  `borrow` (increases debt) and `withdrawCollateral` (decreases collateral) are the
+  non-trivial cases: they are guarded by `isHealthy`, which ensures collateral > 0
+  whenever borrowShares > 0 (zero collateral would make maxBorrow = 0, failing the check).
+  These proofs require a `h_borrowed_pos` hypothesis (toAssetsUp gives positive result
+  for non-zero borrowShares, guaranteed by virtual shares in practice).
+  - **accrueInterest / admin functions**: don't touch positions at all -/
 
 /-- Liquidation preserves the `alwaysCollateralized` invariant for the borrower.
     When collateral is fully seized (= 0), bad debt socialization sets
@@ -493,6 +517,215 @@ theorem supplyCollateral_preserves_alwaysCollateralized (s : MorphoState) (id : 
     rw [Nat.mod_eq_of_lt (h_no_overflow rfl)]
     exact Nat.lt_of_lt_of_le (h_collat h_borrow) (Nat.le_add_right _ _)
   · simp [h] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- Key health-check lemma: if `isHealthy` returns true and borrowShares > 0,
+    then collateral > 0. The health check computes maxBorrow from collateral; if
+    collateral were 0, maxBorrow would be 0 and the check would require borrowed = 0.
+    The `h_borrowed_pos` hypothesis says that converting positive borrowShares to
+    assets gives a positive result (true in practice due to virtual shares preventing
+    zero-rounding, modeled here as a no-overflow assumption). -/
+private theorem isHealthy_collateral_pos (s : MorphoState) (id : Id) (user : Address)
+    (collateralPrice lltv : Uint256)
+    (h_healthy : Morpho.isHealthy s id user collateralPrice lltv = true)
+    (h_borrow_pos : (s.position id user).borrowShares.val > 0)
+    (h_borrowed_pos : (Libraries.SharesMathLib.toAssetsUp
+      (s.position id user).borrowShares
+      (s.market id).totalBorrowAssets
+      (s.market id).totalBorrowShares).val > 0) :
+    (s.position id user).collateral.val > 0 := by
+  -- isHealthy checks: if borrowShares == 0 then true else maxBorrow >= borrowed
+  -- Since borrowShares > 0, we're in the else branch.
+  unfold Morpho.isHealthy at h_healthy; dsimp at h_healthy
+  -- Split the if on borrowShares == 0
+  split at h_healthy
+  · -- borrowShares == 0, contradicts h_borrow_pos
+    rename_i h_eq; simp at h_eq; omega
+  · -- borrowShares != 0: h_healthy says maxBorrow >= borrowed
+    -- If collateral = 0, then maxBorrow = 0, but borrowed > 0, contradiction.
+    rcases Nat.eq_zero_or_pos (s.position id user).collateral.val with h_coll_zero | h_pos
+    · -- collateral = 0 => maxBorrow = wMulDown(mulDivDown(0, _, _), _) = 0
+      -- Unfold everything and rewrite with collateral = 0
+      unfold Libraries.MathLib.wMulDown Libraries.MathLib.mulDivDown u256 at h_healthy
+      simp [Core.Uint256.val_ofNat, h_coll_zero] at h_healthy
+      -- h_healthy now says 0 >= borrowed, but borrowed > 0 → contradiction
+      omega
+    · exact h_pos
+
+/-- Borrow preserves collateralization: the `isHealthy` guard ensures that
+    after increasing debt, the position still has collateral.
+    `h_borrowed_pos` says toAssetsUp gives a positive result for the post-borrow
+    borrowShares (always true in practice due to virtual shares). -/
+theorem borrow_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver user : Address)
+    (collateralPrice lltv : Uint256)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv
+      = some (a, sh, s'))
+    (h_borrowed_pos : user = onBehalf →
+      (Libraries.SharesMathLib.toAssetsUp
+        (s'.position id user).borrowShares
+        (s'.market id).totalBorrowAssets
+        (s'.market id).totalBorrowShares).val > 0) :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢
+  intro h_borrow
+  unfold Morpho.borrow at h_ok; simp at h_ok
+  -- Extract state equality and health check from the conjunction
+  obtain ⟨_, _, _, _, h_healthy, _, _, _, h_eq⟩ := h_ok
+  -- Rewrite s' as the constructed state in health check
+  have h_healthy' : Morpho.isHealthy s' id onBehalf collateralPrice lltv = true := by
+    rw [← h_eq]; exact h_healthy
+  by_cases h : user = onBehalf
+  · subst h
+    -- isHealthy was checked on the post-state s'; collateral unchanged by borrow.
+    exact isHealthy_collateral_pos s' id user collateralPrice lltv h_healthy' h_borrow
+      (h_borrowed_pos rfl)
+  · rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+    simp [h] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- WithdrawCollateral preserves collateralization: the `isHealthy` guard ensures
+    that after decreasing collateral, the position still has sufficient backing.
+    `h_borrowed_pos` says toAssetsUp gives a positive result for borrowShares
+    (always true in practice due to virtual shares). -/
+theorem withdrawCollateral_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf receiver user : Address)
+    (collateralPrice lltv : Uint256)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s')
+    (h_borrowed_pos : user = onBehalf →
+      (Libraries.SharesMathLib.toAssetsUp
+        (s'.position id user).borrowShares
+        (s'.market id).totalBorrowAssets
+        (s'.market id).totalBorrowShares).val > 0) :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢
+  intro h_borrow
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_healthy, h_eq⟩ := h_ok
+  have h_healthy' : Morpho.isHealthy s' id onBehalf collateralPrice lltv = true := by
+    rw [← h_eq]; exact h_healthy
+  by_cases h : user = onBehalf
+  · subst h
+    exact isHealthy_collateral_pos s' id user collateralPrice lltv h_healthy' h_borrow
+      (h_borrowed_pos rfl)
+  · rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+    simp [h] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- AccrueInterest only modifies fee recipient's supplyShares and market totals;
+    borrowShares and collateral of all positions are unchanged. -/
+theorem accrueInterest_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (user : Address)
+    (h_collat : alwaysCollateralized s id user) :
+    alwaysCollateralized (Morpho.accrueInterest s id borrowRate hasIrm) id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  -- Unfold accrueInterest in both h_borrow and goal separately
+  show ((Morpho.accrueInterest s id borrowRate hasIrm).position id user).collateral.val > 0
+  have h_borrow' : ((Morpho.accrueInterest s id borrowRate hasIrm).position id user).borrowShares.val > 0 := h_borrow
+  clear h_borrow
+  -- Now both are about accrueInterest. accrueInterest only modifies feeRecipient's supplyShares.
+  unfold Morpho.accrueInterest at h_borrow' ⊢
+  simp at h_borrow' ⊢
+  split at h_borrow'
+  · -- elapsed = 0: state unchanged
+    rename_i h_elapsed
+    simp [h_elapsed]; exact h_collat h_borrow'
+  · rename_i h_elapsed
+    simp [h_elapsed]
+    split at h_borrow'
+    · -- ¬hasIrm: position unchanged
+      rename_i h_irm
+      simp [h_irm]; exact h_collat h_borrow'
+    · -- hasIrm: fee recipient gets supplyShares, but borrowShares/collateral unchanged
+      rename_i h_irm
+      simp [h_irm]
+      by_cases h : user = s.feeRecipient
+      · subst h; simp at h_borrow' ⊢; exact h_collat h_borrow'
+      · simp [h] at h_borrow' ⊢; exact h_collat h_borrow'
+
+/-- enableIrm doesn't touch positions. -/
+theorem enableIrm_preserves_alwaysCollateralized (s : MorphoState) (irm : Address) (id : Id)
+    (user : Address) (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.enableIrm s irm = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.enableIrm at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- enableLltv doesn't touch positions. -/
+theorem enableLltv_preserves_alwaysCollateralized (s : MorphoState) (lltv : Uint256) (id : Id)
+    (user : Address) (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.enableLltv s lltv = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.enableLltv at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right.right] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- setOwner doesn't touch positions. -/
+theorem setOwner_preserves_alwaysCollateralized (s : MorphoState) (newOwner : Address) (id : Id)
+    (user : Address) (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.setOwner s newOwner = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.setOwner at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- setFee accrues interest (preserving positions for non-fee-recipients)
+    then changes only the fee field. -/
+theorem setFee_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (newFee borrowRate : Uint256) (hasIrm : Bool) (user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.setFee at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+  -- After accrueInterest + fee change, positions are same as after accrueInterest.
+  have h_ai := accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
+  unfold alwaysCollateralized at h_ai
+  exact h_ai h_borrow
+
+/-- setFeeRecipient doesn't touch positions. -/
+theorem setFeeRecipient_preserves_alwaysCollateralized (s : MorphoState)
+    (newRecipient : Address) (id : Id) (user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.setFeeRecipient at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok.right] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- createMarket doesn't touch positions. -/
+theorem createMarket_preserves_alwaysCollateralized (s : MorphoState) (params : MarketParams)
+    (marketId : Id) (id : Id) (user : Address) (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.createMarket s params marketId = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.createMarket at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- setAuthorization doesn't touch positions. -/
+theorem setAuthorization_preserves_alwaysCollateralized (s : MorphoState)
+    (authorized : Address) (newIsAuth : Bool) (id : Id) (user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.setAuthorization at h_ok; split at h_ok <;> simp at h_ok
+  rw [← h_ok] at h_borrow ⊢; exact h_collat h_borrow
+
+/-- setAuthorizationWithSig doesn't touch positions. -/
+theorem setAuthorizationWithSig_preserves_alwaysCollateralized (s : MorphoState)
+    (auth : Authorization) (sig : Bool) (id : Id) (user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
+    alwaysCollateralized s' id user := by
+  unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
+  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq] at h_borrow ⊢; exact h_collat h_borrow
 
 /-! ## Market isolation
 
