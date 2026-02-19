@@ -53,26 +53,28 @@ lake build
 
 ## Proof progress
 
-**10 theorems proven, 7 sorry remaining.**
+**14 theorems proven, 4 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 4 | 4 | Done |
-| Invariants (monotonicity, fee, market creation) | 5 | 8 | Solvency proofs remaining |
-| Rounding | 0 | 4 | Needs no-overflow reasoning |
+| Invariants | 8 | 8 | Done |
+| Rounding | 0 | 4 | Needs Uint256 overflow reasoning |
 
-Also proven: `mulDivDown_le_mulDivUp` (core rounding lemma in MathLib).
+Also proven in supporting libraries:
+- `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
+- `zeroFloorSub_le` — saturating subtraction never exceeds original (UtilsLib)
+- `u256_val` — simp lemma for Uint256 wrapping arithmetic
 
 ## Status
 
 - [x] Morpho types and state model
-- [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, authorization, owner functions, interest accrual)
+- [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, authorization, owner functions, interest accrual, flash loans)
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
-- [x] Formal specs (invariants, rounding, authorization)
+- [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (4/4)
-- [x] Configuration invariant proofs (5/5: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation)
-- [ ] Solvency proofs (0/3: supply/withdraw/repay preserve borrowLeSupply)
-- [ ] Rounding proofs (0/4: needs Uint256 overflow reasoning)
+- [x] Invariant proofs (8/8: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/repay)
+- [ ] Rounding proofs (0/4: toShares/toAssets Down ≤ Up, round-trip no-loss)
 
 ## License
 
