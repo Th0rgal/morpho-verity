@@ -176,4 +176,42 @@ theorem accrueInterest_lastUpdate_monotone (s : MorphoState) (id : Id)
       simp
       exact h_time
 
+/-! ## Collateralization preserved by liquidation
+
+  Bad debt socialization ensures that when collateral hits zero,
+  borrowShares are also zeroed out. So no position ever has debt
+  without collateral after a successful liquidation. -/
+
+/-- Liquidation preserves the `alwaysCollateralized` invariant for the borrower.
+    When collateral is fully seized (= 0), bad debt socialization sets
+    borrowShares to 0. When collateral remains, it's > 0. -/
+theorem liquidate_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    alwaysCollateralized s' id borrower := by
+  unfold alwaysCollateralized
+  intro h_borrow
+  unfold Morpho.liquidate at h_ok
+  -- Close guard branches (none = some) and split seizedAssets > 0.
+  -- `<;> simp at h_ok` closes isTrue branches and flattens isFalse conjunctions.
+  -- After 3 rounds, two goals remain (seizedAssets > 0 and ≤ 0).
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  -- Three remaining goals after split/simp. Address each by case label.
+  case isFalse.isTrue.isTrue =>
+    -- seizedAssets > 0, bad-debt condition = true (newCollateral = 0).
+    -- borrowShares = u256 0, so h_borrow gives 0 < 0: contradiction.
+    rw [← h_ok.2.2.2.2.2.2] at h_borrow; simp at h_borrow
+  case isFalse.isTrue.isFalse =>
+    -- seizedAssets > 0, bad-debt condition = false (newCollateral ≠ 0).
+    rw [← h_ok.2.2.2.2.2.2] at h_borrow ⊢; simp at h_borrow ⊢; omega
+  case isFalse.isFalse =>
+    -- seizedAssets = 0. Bad-debt if-then-else still in h_borrow.
+    rw [← h_ok.2.2.2.2.2.2] at h_borrow ⊢; simp at h_borrow ⊢
+    split at h_borrow
+    · simp at h_borrow  -- bad-debt: borrowShares = 0, contradicts h_borrow > 0
+    · omega             -- non-bad-debt: newCollateral ≠ 0 in context
+
 end Morpho.Proofs.Invariants

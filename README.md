@@ -38,7 +38,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (10/10 proven)
+    Invariants.lean       # Invariant proofs (11/11 proven)
     Rounding.lean         # Rounding proofs (2/4 proven)
     Authorization.lean    # Authorization proofs (4/4 proven)
 ```
@@ -53,12 +53,12 @@ lake build
 
 ## Proof progress
 
-**18 theorems proven, 2 sorry remaining.**
+**19 theorems proven, 2 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 4 | 4 | Done |
-| Invariants | 10 | 10 | Done |
+| Invariants | 11 | 11 | Done |
 | Rounding | 2 | 4 | Round-trip proofs need compositional division reasoning |
 
 Also proven in supporting libraries:
@@ -70,6 +70,7 @@ Invariant theorems include:
 - IRM/LLTV monotonicity (2), LLTV < WAD (1), market creation validity (1)
 - Fee bounds (1), solvency for supply/withdraw/borrow/repay (4)
 - Timestamp monotonicity for interest accrual (1)
+- Collateralization preserved by liquidation (1)
 
 ## Status
 
@@ -78,7 +79,7 @@ Invariant theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (4/4)
-- [x] Invariant proofs (10/10: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay, timestamp monotonicity)
+- [x] Invariant proofs (11/11: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay, timestamp monotonicity, collateralization preserved by liquidation)
 - [x] Rounding direction proofs (2/2: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp)
 - [ ] Rounding round-trip proofs (0/2: supply round-trip no-loss, withdraw round-trip no-loss)
 
