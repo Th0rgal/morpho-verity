@@ -10,3 +10,5 @@ import Morpho.Specs.Authorization
 import Morpho.Proofs.Invariants
 import Morpho.Proofs.Authorization
 import Morpho.Proofs.Rounding
+import Morpho.Proofs.NatListSum
+import Morpho.Proofs.ShareConsistency
