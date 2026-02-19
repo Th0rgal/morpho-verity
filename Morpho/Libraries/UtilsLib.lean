@@ -19,4 +19,19 @@ def min (x y : Uint256) : Uint256 :=
 def zeroFloorSub (x y : Uint256) : Uint256 :=
   if x.val > y.val then Uint256.ofNat (x.val - y.val) else Uint256.ofNat 0
 
+/-! ## Properties -/
+
+/-- Saturating subtraction never exceeds the original value. -/
+theorem zeroFloorSub_le (x y : Uint256) : (zeroFloorSub x y).val ≤ x.val := by
+  unfold zeroFloorSub
+  split
+  · -- x > y case: result = (x.val - y.val) % modulus
+    simp [Uint256.val_ofNat]
+    have h_lt : x.val - y.val < Uint256.modulus :=
+      Nat.lt_of_le_of_lt (Nat.sub_le x.val y.val) x.isLt
+    rw [Nat.mod_eq_of_lt h_lt]
+    exact Nat.sub_le x.val y.val
+  · -- x ≤ y case: result = 0 % modulus = 0
+    simp [Uint256.val_ofNat]
+
 end Morpho.Libraries.UtilsLib

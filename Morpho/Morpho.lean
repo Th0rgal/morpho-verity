@@ -24,7 +24,10 @@ open Verity
 open Morpho.Types
 open Morpho.Libraries
 
-private def u256 (n : Nat) : Uint256 := Verity.Core.Uint256.ofNat n
+/-- Convert a natural number to Uint256 (wrapping modulo 2^256). -/
+def u256 (n : Nat) : Uint256 := Verity.Core.Uint256.ofNat n
+
+@[simp] theorem u256_val (n : Nat) : (u256 n).val = n % Verity.Core.Uint256.modulus := rfl
 
 /-! ## Internal helpers -/
 
