@@ -149,12 +149,17 @@ def morphoSpec : ContractSpec := {
       returnType := none
       returns := [.address, .address, .address, .address, .uint256]
       body := [
+        Stmt.letVar "loanToken" (Expr.mappingUint "idToLoanToken" (Expr.param "id")),
+        Stmt.letVar "collateralToken" (Expr.mappingUint "idToCollateralToken" (Expr.param "id")),
+        Stmt.letVar "oracle" (Expr.mappingUint "idToOracle" (Expr.param "id")),
+        Stmt.letVar "irm" (Expr.mappingUint "idToIrm" (Expr.param "id")),
+        Stmt.letVar "lltv" (Expr.mappingUint "idToLltv" (Expr.param "id")),
         Stmt.returnValues [
-          Expr.mappingUint "idToLoanToken" (Expr.param "id"),
-          Expr.mappingUint "idToCollateralToken" (Expr.param "id"),
-          Expr.mappingUint "idToOracle" (Expr.param "id"),
-          Expr.mappingUint "idToIrm" (Expr.param "id"),
-          Expr.mappingUint "idToLltv" (Expr.param "id")
+          Expr.localVar "loanToken",
+          Expr.localVar "collateralToken",
+          Expr.localVar "oracle",
+          Expr.localVar "irm",
+          Expr.localVar "lltv"
         ]
       ]
     },
@@ -180,13 +185,19 @@ def morphoSpec : ContractSpec := {
       returnType := none
       returns := [.uint256, .uint256, .uint256, .uint256, .uint256, .uint256]
       body := [
+        Stmt.letVar "totalSupplyAssets" (Expr.mappingUint "marketTotalSupplyAssets" (Expr.param "id")),
+        Stmt.letVar "totalSupplyShares" (Expr.mappingUint "marketTotalSupplyShares" (Expr.param "id")),
+        Stmt.letVar "totalBorrowAssets" (Expr.mappingUint "marketTotalBorrowAssets" (Expr.param "id")),
+        Stmt.letVar "totalBorrowShares" (Expr.mappingUint "marketTotalBorrowShares" (Expr.param "id")),
+        Stmt.letVar "lastUpdate" (Expr.mappingUint "marketLastUpdate" (Expr.param "id")),
+        Stmt.letVar "fee" (Expr.mappingUint "marketFee" (Expr.param "id")),
         Stmt.returnValues [
-          Expr.mappingUint "marketTotalSupplyAssets" (Expr.param "id"),
-          Expr.mappingUint "marketTotalSupplyShares" (Expr.param "id"),
-          Expr.mappingUint "marketTotalBorrowAssets" (Expr.param "id"),
-          Expr.mappingUint "marketTotalBorrowShares" (Expr.param "id"),
-          Expr.mappingUint "marketLastUpdate" (Expr.param "id"),
-          Expr.mappingUint "marketFee" (Expr.param "id")
+          Expr.localVar "totalSupplyAssets",
+          Expr.localVar "totalSupplyShares",
+          Expr.localVar "totalBorrowAssets",
+          Expr.localVar "totalBorrowShares",
+          Expr.localVar "lastUpdate",
+          Expr.localVar "fee"
         ]
       ]
     },

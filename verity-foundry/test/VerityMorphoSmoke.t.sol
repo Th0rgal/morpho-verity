@@ -37,6 +37,10 @@ interface IMorphoSubset {
             uint256 lastUpdate_,
             uint256 fee
         );
+    function idToMarketParams(bytes32 id)
+        external
+        view
+        returns (address loanToken, address collateralToken, address oracle, address irm, uint256 lltv);
     function totalSupplyAssets(bytes32 id) external view returns (uint256);
     function totalSupplyShares(bytes32 id) external view returns (uint256);
     function position(bytes32 id, address user)
@@ -124,6 +128,19 @@ contract VerityMorphoSmokeTest {
         vm.prank(OWNER);
         morpho.createMarket(params);
         require(morpho.lastUpdate(id) == 1234567890, "lastUpdate mismatch");
+
+        (
+            address storedLoanToken,
+            address storedCollateralToken,
+            address storedOracle,
+            address storedIrm,
+            uint256 storedLltv
+        ) = morpho.idToMarketParams(id);
+        require(storedLoanToken == loanToken, "idToMarketParams.loanToken mismatch");
+        require(storedCollateralToken == collateralToken, "idToMarketParams.collateralToken mismatch");
+        require(storedOracle == oracle, "idToMarketParams.oracle mismatch");
+        require(storedIrm == irm, "idToMarketParams.irm mismatch");
+        require(storedLltv == lltv, "idToMarketParams.lltv mismatch");
 
         (
             ,
