@@ -14,30 +14,36 @@ open Morpho.Specs.Authorization
 /-! ## Withdraw requires authorization -/
 
 theorem withdraw_requires_authorization (s : MorphoState) (id : Id)
-    (assets shares : Uint256) (onBehalf : Address)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (h_market : (s.market id).lastUpdate.val ≠ 0)
+    (h_valid : Libraries.UtilsLib.exactlyOneZero assets shares)
+    (h_recv : receiver ≠ "")
     (h_not_auth : s.sender ≠ onBehalf)
     (h_not_delegated : s.isAuthorized onBehalf s.sender = false)
-    : Morpho.withdraw s id assets shares onBehalf = none := by
+    : Morpho.withdraw s id assets shares onBehalf receiver = none := by
   sorry
 
 /-! ## Borrow requires authorization -/
 
 theorem borrow_requires_authorization (s : MorphoState) (id : Id)
-    (assets shares : Uint256) (onBehalf : Address)
+    (assets shares : Uint256) (onBehalf receiver : Address)
     (collateralPrice lltv : Uint256)
+    (h_market : (s.market id).lastUpdate.val ≠ 0)
+    (h_valid : Libraries.UtilsLib.exactlyOneZero assets shares)
+    (h_recv : receiver ≠ "")
     (h_not_auth : s.sender ≠ onBehalf)
     (h_not_delegated : s.isAuthorized onBehalf s.sender = false)
-    : Morpho.borrow s id assets shares onBehalf collateralPrice lltv = none := by
+    : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv = none := by
   sorry
 
 /-! ## Withdraw collateral requires authorization -/
 
 theorem withdrawCollateral_requires_authorization (s : MorphoState) (id : Id)
-    (assets : Uint256) (onBehalf : Address)
+    (assets : Uint256) (onBehalf receiver : Address)
     (collateralPrice lltv : Uint256)
     (h_not_auth : s.sender ≠ onBehalf)
     (h_not_delegated : s.isAuthorized onBehalf s.sender = false)
-    : Morpho.withdrawCollateral s id assets onBehalf collateralPrice lltv = none := by
+    : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv = none := by
   sorry
 
 /-! ## Supply doesn't require authorization -/
@@ -46,6 +52,7 @@ theorem supply_no_authorization_needed (s : MorphoState) (id : Id)
     (assets shares : Uint256) (onBehalf : Address)
     (h_valid : Libraries.UtilsLib.exactlyOneZero assets shares)
     (h_market : (s.market id).lastUpdate.val ≠ 0)
+    (h_addr : onBehalf ≠ "")
     : ∃ r, Morpho.supply s id assets shares onBehalf = some r := by
   sorry
 

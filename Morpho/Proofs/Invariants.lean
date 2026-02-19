@@ -14,7 +14,8 @@ open Morpho.Specs.Invariants
 /-! ## Fee bounds preserved by setFee -/
 
 theorem setFee_preserves_feeInRange (s : MorphoState) (id : Id) (newFee : Uint256)
-    (h : Morpho.setFee s id newFee = some s') :
+    (borrowRate : Uint256) (hasIrm : Bool)
+    (h : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
     feeInRange s' id := by
   sorry
 
@@ -28,8 +29,8 @@ theorem supply_preserves_borrowLeSupply (s : MorphoState) (id : Id)
   sorry
 
 theorem withdraw_preserves_borrowLeSupply (s : MorphoState) (id : Id)
-    (assets shares : Uint256) (onBehalf : Address)
-    (h_ok : Morpho.withdraw s id assets shares onBehalf = some (a, sh, s')) :
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
     borrowLeSupply s' id := by
   sorry
 
