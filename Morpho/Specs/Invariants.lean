@@ -137,4 +137,15 @@ def marketIsolated (s s' : MorphoState) (id id' : Id) : Prop :=
 def positionIsolated (s s' : MorphoState) (id : Id) (user user' : Address) : Prop :=
   user ≠ user' → s.position id user' = s'.position id user'
 
+/-! ## Cross-market position isolation
+
+  Operations on market `id` must not affect any position in market `id'`.
+  This is stronger than same-market position isolation: it says that not even
+  the targeted user's position in a *different* market can change.
+  Together with market isolation, this guarantees complete independence between markets. -/
+
+/-- Operations on market `id` leave all positions in market `id'` unchanged. -/
+def crossMarketPositionIsolated (s s' : MorphoState) (id id' : Id) : Prop :=
+  id ≠ id' → ∀ user, s.position id' user = s'.position id' user
+
 end Morpho.Specs.Invariants

@@ -509,4 +509,105 @@ theorem liquidate_position_isolated (s : MorphoState) (id : Id)
   split at h_ok <;> simp at h_ok
   all_goals (rw [← h_ok.2.2.2.2.2.2]; simp [Ne.symm h_ne])
 
+/-! ## Cross-market position isolation
+
+  Operations on market `id` only modify positions in that market. All positions
+  in every other market `id'` are completely untouched. This is the cross-market
+  counterpart of the same-market position isolation above.
+
+  Every state update uses `if id' == id && addr == target then ... else s.position id' addr`,
+  so when `id' ≠ id` the condition is false and the old position is returned.
+
+  Combined with `marketIsolated`, this proves that markets are fully independent:
+  neither market-level state nor user positions in other markets can be affected. -/
+
+/-- Interest accrual on market `id` does not change any position in market `id'`. -/
+theorem accrueInterest_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (h_ne : id ≠ id') :
+    crossMarketPositionIsolated s (Morpho.accrueInterest s id borrowRate hasIrm) id id' := by
+  intro _ user
+  unfold Morpho.accrueInterest
+  simp
+  split
+  · rfl
+  · split <;> simp [Ne.symm h_ne]
+
+/-- Supply on market `id` does not change any position in market `id'`. -/
+theorem supply_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.supply s id assets shares onBehalf = some (a, sh, s')) :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.supply at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Withdraw on market `id` does not change any position in market `id'`. -/
+theorem withdraw_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.withdraw at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Borrow on market `id` does not change any position in market `id'`. -/
+theorem borrow_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256) (h_ne : id ≠ id')
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv
+      = some (a, sh, s')) :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.borrow at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Repay on market `id` does not change any position in market `id'`. -/
+theorem repay_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.repay s id assets shares onBehalf = some (a, sh, s')) :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.repay at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Supply collateral on market `id` does not change any position in market `id'`. -/
+theorem supplyCollateral_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (assets : Uint256) (onBehalf : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s') :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Withdraw collateral on market `id` does not change any position in market `id'`. -/
+theorem withdrawCollateral_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (assets : Uint256) (onBehalf receiver : Address) (collateralPrice lltv : Uint256)
+    (h_ne : id ≠ id')
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s') :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Liquidation on market `id` does not change any position in market `id'`. -/
+theorem liquidate_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_ne : id ≠ id')
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    crossMarketPositionIsolated s s' id id' := by
+  intro _ user
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  all_goals (rw [← h_ok.2.2.2.2.2.2]; simp [Ne.symm h_ne])
+
 end Morpho.Proofs.Invariants
