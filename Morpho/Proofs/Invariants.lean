@@ -272,6 +272,107 @@ theorem liquidate_preserves_borrowLeSupply (s : MorphoState) (id : Id)
     · -- non-bad-debt path (newCollateral > 0)
       exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
 
+/-! ## Solvency preserved by collateral and admin operations
+
+  Collateral operations (supplyCollateral, withdrawCollateral) only modify positions,
+  never market-level totals. Admin operations (setOwner, enableIrm, enableLltv,
+  setFeeRecipient, createMarket, setAuthorization, setAuthorizationWithSig) either
+  don't touch markets at all, or only modify non-total fields (lastUpdate, fee,
+  idToParams, isIrmEnabled, isLltvEnabled). All trivially preserve borrowLeSupply. -/
+
+/-- Supply collateral never changes market totals, so solvency is trivially preserved. -/
+theorem supplyCollateral_preserves_borrowLeSupply (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf : Address)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_eq]; exact h_solvent
+
+/-- Withdraw collateral never changes market totals, so solvency is trivially preserved. -/
+theorem withdrawCollateral_preserves_borrowLeSupply (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf receiver : Address) (collateralPrice lltv : Uint256)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_eq]; exact h_solvent
+
+/-- enableIrm doesn't touch market records, so solvency is trivially preserved. -/
+theorem enableIrm_preserves_borrowLeSupply (s : MorphoState) (irm : Address) (id : Id)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.enableIrm s irm = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.enableIrm at h_ok; split at h_ok <;> simp at h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_ok.right]; exact h_solvent
+
+/-- enableLltv doesn't touch market records, so solvency is trivially preserved. -/
+theorem enableLltv_preserves_borrowLeSupply (s : MorphoState) (lltv : Uint256) (id : Id)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.enableLltv s lltv = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.enableLltv at h_ok; split at h_ok <;> simp at h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_ok.right.right]; exact h_solvent
+
+/-- setOwner doesn't touch market records, so solvency is trivially preserved. -/
+theorem setOwner_preserves_borrowLeSupply (s : MorphoState) (newOwner : Address) (id : Id)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.setOwner s newOwner = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.setOwner at h_ok; split at h_ok <;> simp at h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_ok.right]; exact h_solvent
+
+/-- setFeeRecipient doesn't touch market records, so solvency is trivially preserved. -/
+theorem setFeeRecipient_preserves_borrowLeSupply (s : MorphoState) (newRecipient : Address)
+    (id : Id) (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.setFeeRecipient at h_ok; split at h_ok <;> simp at h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_ok.right]; exact h_solvent
+
+/-- createMarket only sets lastUpdate and idToParams, so solvency is trivially preserved. -/
+theorem createMarket_preserves_borrowLeSupply (s : MorphoState) (params : MarketParams)
+    (marketId id : Id) (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.createMarket s params marketId = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.createMarket at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_eq]; simp
+  by_cases h : id = marketId
+  · subst h; simp; exact h_solvent
+  · simp [h]; exact h_solvent
+
+/-- setAuthorization doesn't touch market records, so solvency is trivially preserved. -/
+theorem setAuthorization_preserves_borrowLeSupply (s : MorphoState) (authorized : Address)
+    (newIsAuth : Bool) (id : Id)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.setAuthorization at h_ok; split at h_ok <;> simp at h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_ok]; exact h_solvent
+
+/-- setAuthorizationWithSig doesn't touch market records, so solvency is trivially preserved. -/
+theorem setAuthorizationWithSig_preserves_borrowLeSupply (s : MorphoState)
+    (auth : Authorization) (sig : Bool) (id : Id)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
+    borrowLeSupply s' id := by
+  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  unfold borrowLeSupply at h_solvent ⊢
+  rw [← h_eq]; exact h_solvent
+
 /-! ## Collateralization preserved by liquidation
 
   Bad debt socialization ensures that when collateral hits zero,
