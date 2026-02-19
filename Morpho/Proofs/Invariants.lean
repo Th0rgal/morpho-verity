@@ -1076,6 +1076,190 @@ theorem accrueInterestPublic_preserves_alwaysCollateralized (s : MorphoState) (i
   rw [← h_ok.right]
   exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
 
+/-! ## Exchange rate monotonicity
+
+  The "exchange rate" of a supply share is `(totalSupplyAssets + VA) / (totalSupplyShares + VS)`
+  where VA = 1 (VIRTUAL_ASSETS) and VS = 10^6 (VIRTUAL_SHARES).
+
+  Interest accrual must never decrease this ratio. We use cross-multiplication to avoid division:
+  `(oldAssets + VA) * (newShares + VS) ≤ (newAssets + VA) * (oldShares + VS)`.
+
+  Three cases:
+  - elapsed = 0: state unchanged, trivially ≤.
+  - ¬hasIrm: assets/shares unchanged, only lastUpdate changes, trivially ≤.
+  - hasIrm, fee = 0: shares unchanged, assets increase by interest → ≤.
+  - hasIrm, fee ≠ 0: `feeShares = toSharesDown(feeAmount, newAssets - feeAmount, oldShares)`.
+    By `Nat.div_mul_le_self`, `feeShares * denom ≤ feeAmount * (oldShares + VS)`.
+    Since `denom ≥ oldAssets + VA`, we get `(oldAssets + VA) * feeShares ≤ feeAmount * (S + VS)`.
+    Since `feeAmount ≤ interest`, the result follows. -/
+
+/-- Pure arithmetic: `(A + VA) * (S + F + VS) ≤ (A + I + VA) * (S + VS)`
+    when `F * (A + I - feeAmt + VA) ≤ feeAmt * (S + VS)` and `feeAmt ≤ I`.
+    This is the core exchange rate inequality, stated on natural numbers. -/
+private theorem exchange_rate_ineq (A S I F feeAmt VA VS : Nat)
+    (h_floor : F * (A + I - feeAmt + VA) ≤ feeAmt * (S + VS))
+    (h_fee_le : feeAmt ≤ I)
+    (h_sub_ok : feeAmt ≤ A + I) :
+    (A + VA) * (S + F + VS) ≤ (A + I + VA) * (S + VS) := by
+  -- Suffices: (A+VA)*F ≤ I*(S+VS), then the rest is algebra
+  suffices h : (A + VA) * F ≤ I * (S + VS) by
+    -- (A+VA)*(S+F+VS) = (A+VA)*(S+VS) + (A+VA)*F
+    -- (A+I+VA)*(S+VS) = (A+VA)*(S+VS) + I*(S+VS)
+    have h1 : (A + VA) * (S + F + VS) = (A + VA) * (S + VS) + (A + VA) * F := by
+      have : S + F + VS = (S + VS) + F := by omega
+      rw [this, Nat.mul_add]
+    have h2 : (A + I + VA) * (S + VS) = (A + VA) * (S + VS) + I * (S + VS) := by
+      have : A + I + VA = (A + VA) + I := by omega
+      rw [this, Nat.add_mul]
+    rw [h1, h2]
+    exact Nat.add_le_add_left h _
+  -- Prove (A+VA)*F ≤ I*(S+VS) via the chain:
+  -- (A+VA)*F ≤ F*(A+I-feeAmt+VA) ≤ feeAmt*(S+VS) ≤ I*(S+VS)
+  have h_denom_ge : A + VA ≤ A + I - feeAmt + VA := by omega
+  calc (A + VA) * F
+      = F * (A + VA) := Nat.mul_comm _ _
+    _ ≤ F * (A + I - feeAmt + VA) := Nat.mul_le_mul_left F h_denom_ge
+    _ ≤ feeAmt * (S + VS) := h_floor
+    _ ≤ I * (S + VS) := Nat.mul_le_mul_right _ h_fee_le
+
+/-- Interest accrual preserves supply exchange rate monotonicity.
+    After `accrueInterest`, existing shareholders' per-share value never decreases. -/
+theorem accrueInterest_preserves_supplyExchangeRateMonotone (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool)
+    -- No overflow for totalSupplyAssets + interest
+    (h_supply_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Core.Uint256.modulus)
+    -- No overflow for totalSupplyShares + feeShares
+    (h_shares_no_overflow :
+      let interest := Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))
+      let feeAmount := Libraries.MathLib.wMulDown interest (s.market id).fee
+      let newSupplyAssets := Morpho.u256 ((s.market id).totalSupplyAssets.val + interest.val)
+      let feeShares := Libraries.SharesMathLib.toSharesDown feeAmount
+        (Morpho.u256 (newSupplyAssets.val - feeAmount.val)) (s.market id).totalSupplyShares
+      (s.market id).totalSupplyShares.val + feeShares.val < Core.Uint256.modulus)
+    -- feeAmount ≤ interest (follows from fee < WAD)
+    (h_fee_le_interest :
+      let interest := Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))
+      (Libraries.MathLib.wMulDown interest (s.market id).fee).val ≤ interest.val)
+    -- totalSupplyShares + VIRTUAL_SHARES doesn't overflow
+    (h_shares_vs_no_overflow :
+      (s.market id).totalSupplyShares.val + Libraries.SharesMathLib.VIRTUAL_SHARES
+        < Core.Uint256.modulus)
+    -- toSharesDown denominator doesn't overflow
+    (h_denom_no_overflow :
+      let interest := Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))
+      let feeAmount := Libraries.MathLib.wMulDown interest (s.market id).fee
+      (s.market id).totalSupplyAssets.val + interest.val - feeAmount.val +
+        Libraries.SharesMathLib.VIRTUAL_ASSETS < Core.Uint256.modulus) :
+    supplyExchangeRateMonotone s (Morpho.accrueInterest s id borrowRate hasIrm) id := by
+  unfold supplyExchangeRateMonotone
+  unfold Morpho.accrueInterest
+  simp
+  split
+  · -- elapsed = 0: state unchanged
+    exact Nat.le_refl _
+  · split
+    · -- ¬hasIrm: only lastUpdate changes, totals unchanged
+      simp
+    · -- hasIrm: interest accrues, optional fee shares minted
+      simp  -- reduces if id=id, struct projections etc.
+      split -- split on if fee.val = 0 (isTrue = fee=0, isFalse = fee≠0)
+      · -- fee = 0: no new shares, shares unchanged, assets increase by interest
+        -- Normalize u256 everywhere to expose % modulus, then eliminate
+        simp only [Morpho.u256] at h_supply_no_overflow
+        simp only [Morpho.u256, Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_supply_no_overflow]
+        -- Now: (A + VA) * (S + VS) ≤ (A + I + VA) * (S + VS)
+        apply Nat.mul_le_mul_right
+        omega
+      · -- fee ≠ 0: feeShares minted
+        -- Step 1: Normalize u256 → Core.Uint256.ofNat in all hypotheses
+        simp only [Morpho.u256] at h_supply_no_overflow h_shares_no_overflow h_denom_no_overflow
+        -- Step 2: Eliminate supply (A + I) % modulus in h_shares_no_overflow
+        simp only [Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_supply_no_overflow]
+          at h_shares_no_overflow
+        -- Step 3: Apply same simplifications to goal
+        simp only [Morpho.u256, Core.Uint256.val_ofNat,
+          Nat.mod_eq_of_lt h_supply_no_overflow,
+          Nat.mod_eq_of_lt h_shares_no_overflow]
+        apply exchange_rate_ineq
+        · -- h_floor: feeShares * denom ≤ feeAmount * (S + VS)
+          unfold Libraries.SharesMathLib.toSharesDown Libraries.MathLib.mulDivDown
+          simp only [Core.Uint256.val_ofNat]
+          -- Eliminate (S + VS) % modulus using h_shares_vs_no_overflow
+          rw [Nat.mod_eq_of_lt h_shares_vs_no_overflow]
+          -- Eliminate inner (A + I - feeAmt) % modulus
+          have h_sub_lt : (s.market id).totalSupplyAssets.val +
+              (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+                (Libraries.MathLib.wTaylorCompounded borrowRate
+                  (Core.Uint256.ofNat (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val -
+              (Libraries.MathLib.wMulDown
+                (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+                  (Libraries.MathLib.wTaylorCompounded borrowRate
+                    (Core.Uint256.ofNat (s.blockTimestamp.val - (s.market id).lastUpdate.val))))
+                (s.market id).fee).val < Core.Uint256.modulus :=
+            Nat.lt_of_le_of_lt (Nat.sub_le _ _) h_supply_no_overflow
+          rw [Nat.mod_eq_of_lt h_sub_lt]
+          -- Eliminate outer (A + I - feeAmt + VA) % modulus using h_denom_no_overflow
+          rw [Nat.mod_eq_of_lt h_denom_no_overflow]
+          -- Now: ((feeAmt * (S + VS)) / (A+I-feeAmt+VA)) % modulus * (A+I-feeAmt+VA) ≤ feeAmt * (S+VS)
+          -- Use Nat.mod_le to bound the % modulus, then Nat.div_mul_le_self
+          exact Nat.le_trans
+            (Nat.mul_le_mul_right _
+              (Nat.mod_le _ _))
+            (Nat.div_mul_le_self _ _)
+        · exact h_fee_le_interest
+        · exact Nat.le_trans h_fee_le_interest (Nat.le_add_left _ _)
+
+
+/-- Public accrueInterest preserves exchange rate monotonicity. -/
+theorem accrueInterestPublic_preserves_supplyExchangeRateMonotone (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool)
+    (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s')
+    (h_supply_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Core.Uint256.modulus)
+    (h_shares_no_overflow :
+      let interest := Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))
+      let feeAmount := Libraries.MathLib.wMulDown interest (s.market id).fee
+      let newSupplyAssets := Morpho.u256 ((s.market id).totalSupplyAssets.val + interest.val)
+      let feeShares := Libraries.SharesMathLib.toSharesDown feeAmount
+        (Morpho.u256 (newSupplyAssets.val - feeAmount.val)) (s.market id).totalSupplyShares
+      (s.market id).totalSupplyShares.val + feeShares.val < Core.Uint256.modulus)
+    (h_fee_le_interest :
+      let interest := Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))
+      (Libraries.MathLib.wMulDown interest (s.market id).fee).val ≤ interest.val)
+    (h_shares_vs_no_overflow :
+      (s.market id).totalSupplyShares.val + Libraries.SharesMathLib.VIRTUAL_SHARES
+        < Core.Uint256.modulus)
+    (h_denom_no_overflow :
+      let interest := Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))
+      let feeAmount := Libraries.MathLib.wMulDown interest (s.market id).fee
+      (s.market id).totalSupplyAssets.val + interest.val - feeAmount.val +
+        Libraries.SharesMathLib.VIRTUAL_ASSETS < Core.Uint256.modulus) :
+    supplyExchangeRateMonotone s s' id := by
+  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
+  rw [← h_ok.right]
+  exact accrueInterest_preserves_supplyExchangeRateMonotone s id borrowRate hasIrm
+    h_supply_no_overflow h_shares_no_overflow h_fee_le_interest
+    h_shares_vs_no_overflow h_denom_no_overflow
+
 /-! ## Comprehensive monotonicity preservation
 
   IRM and LLTV monotonicity: once enabled, they stay enabled across ALL operations.

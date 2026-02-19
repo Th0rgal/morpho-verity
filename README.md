@@ -16,6 +16,7 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 - **Fee bounds**: market fees stay within the 25% cap
 - **Collateralization**: positions with debt always have collateral, preserved by all 16 operations including borrow and withdrawCollateral (guarded by health checks; bad debt is socialized by liquidation)
 - **Monotonicity**: enabled IRMs/LLTVs cannot be disabled across all operations; market timestamps only increase through accrueInterest, setFee, and accrueInterestPublic
+- **Exchange rate safety**: supply share exchange rate never decreases after interest accrual (accrueInterest and accrueInterestPublic); existing shareholders' per-share value is protected
 - **Market isolation**: operations on one market never affect any other market's state, same-market user positions, or any position in other markets
 
 ### What this does not prove
@@ -39,7 +40,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (96/96 proven)
+    Invariants.lean       # Invariant proofs (98/98 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (11/11 proven)
 ```
@@ -54,12 +55,12 @@ lake build
 
 ## Proof progress
 
-**111 theorems proven, 0 sorry remaining.**
+**113 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 11 | 11 | Done |
-| Invariants | 96 | 96 | Done |
+| Invariants | 98 | 98 | Done |
 | Rounding | 4 | 4 | Done |
 
 Also proven in supporting libraries:
@@ -77,6 +78,7 @@ Invariant theorems include:
 - Market isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
 - Same-market position isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (8)
 - Cross-market position isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (8)
+- Exchange rate monotonicity for accrueInterest/accrueInterestPublic (2)
 - Flash loan rejects zero assets (1), accrueInterestPublic rejects uninitialized markets (1)
 - accrueInterestPublic preserves solvency and collateralization (2)
 
@@ -94,7 +96,7 @@ Authorization theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (11/11: withdraw/borrow/withdrawCollateral require auth, supply doesn't, withdraw/borrow/withdrawCollateral satisfy postcondition specs, liquidation requires unhealthy position, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
-- [x] Invariant proofs (96/96: IRM/LLTV monotonicity preserved by all 16 operations, LLTV < WAD, fee bounds, market creation, solvency for all 16 operations, timestamp monotonicity for accrueInterest/setFee/accrueInterestPublic, collateralization preserved by all 16 operations, market isolation for all 8 operations, same-market position isolation for all 8 operations, cross-market position isolation for all 8 operations, flashLoan rejects zero assets, accrueInterestPublic rejects uninitialized/preserves solvency/preserves collateralization)
+- [x] Invariant proofs (98/98: IRM/LLTV monotonicity preserved by all 16 operations, LLTV < WAD, fee bounds, market creation, solvency for all 16 operations, timestamp monotonicity for accrueInterest/setFee/accrueInterestPublic, exchange rate monotonicity for accrueInterest/accrueInterestPublic, collateralization preserved by all 16 operations, market isolation for all 8 operations, same-market position isolation for all 8 operations, cross-market position isolation for all 8 operations, flashLoan rejects zero assets, accrueInterestPublic rejects uninitialized/preserves solvency/preserves collateralization)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 
 ## License
