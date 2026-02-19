@@ -1,8 +1,12 @@
 /-
   MathLib — Fixed-point arithmetic matching morpho-blue/src/libraries/MathLib.sol
 
-  All operations use WAD = 1e18 scaling. Overflow behavior matches Solidity 0.8.19:
-  checked arithmetic reverts on overflow.
+  All operations use WAD = 1e18 scaling. Solidity 0.8.19 uses checked arithmetic:
+  overflow/underflow/division-by-zero all revert. In our model, these functions
+  compute on natural numbers and wrap to Uint256 via `Uint256.ofNat`. Callers
+  that can revert (supply, withdraw, etc.) use `Option` to model failure.
+  Proofs carry `h_no_overflow` hypotheses where needed to ensure the wrapping
+  is identity (i.e., the Solidity execution would not have reverted).
 -/
 import Verity.Core
 
@@ -36,12 +40,17 @@ def wDivUp (x y : Uint256) : Uint256 :=
   Third-order Taylor expansion of e^(x*n) - 1 around 0.
   Matches `wTaylorCompounded` in MathLib.sol.
   Used for continuous interest rate compounding.
+
+  Each intermediate step uses uint256 arithmetic (wrapping via Uint256.ofNat
+  or mulDivDown), matching Solidity's checked arithmetic where each operation
+  is on uint256 values. In Solidity, overflow at any step reverts; here,
+  wrapping models the same truncation boundary.
 -/
 def wTaylorCompounded (x n : Uint256) : Uint256 :=
-  let firstTerm := x.val * n.val
-  let secondTerm := (firstTerm * firstTerm) / (2 * WAD)
-  let thirdTerm := (secondTerm * firstTerm) / (3 * WAD)
-  Uint256.ofNat (firstTerm + secondTerm + thirdTerm)
+  let firstTerm := Uint256.ofNat (x.val * n.val)
+  let secondTerm := mulDivDown firstTerm firstTerm (Uint256.ofNat (2 * WAD))
+  let thirdTerm := mulDivDown secondTerm firstTerm (Uint256.ofNat (3 * WAD))
+  Uint256.ofNat (firstTerm.val + secondTerm.val + thirdTerm.val)
 
 /-! ## Rounding lemmas -/
 
