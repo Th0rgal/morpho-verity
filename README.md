@@ -16,7 +16,7 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 - **Fee bounds**: market fees stay within the 25% cap
 - **Collateralization**: positions with debt always have collateral (bad debt is socialized immediately)
 - **Monotonicity**: enabled IRMs/LLTVs cannot be disabled; market timestamps only increase
-- **Market isolation**: operations on one market never affect any other market's state
+- **Market isolation**: operations on one market never affect any other market's state or other users' positions
 
 ### What this does not prove
 
@@ -39,7 +39,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (18/18 proven)
+    Invariants.lean       # Invariant proofs (26/26 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (7/7 proven)
 ```
@@ -54,12 +54,12 @@ lake build
 
 ## Proof progress
 
-**31 theorems proven, 0 sorry remaining.**
+**37 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 7 | 7 | Done |
-| Invariants | 18 | 18 | Done |
+| Invariants | 26 | 26 | Done |
 | Rounding | 4 | 4 | Done |
 
 Also proven in supporting libraries:
@@ -72,7 +72,8 @@ Invariant theorems include:
 - Fee bounds (1), solvency for supply/withdraw/borrow/repay/accrueInterest (5)
 - Timestamp monotonicity for interest accrual (1)
 - Collateralization preserved by liquidation (1)
-- Market isolation for accrueInterest/supply/withdraw/borrow/repay/liquidate (6)
+- Market isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
+- Position isolation for 6 user-facing operations: supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral (6)
 
 ## Status
 
@@ -81,7 +82,7 @@ Invariant theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (7/7: withdraw/borrow/withdrawCollateral require auth, supply doesn't, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
-- [x] Invariant proofs (18/18: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 6 operations)
+- [x] Invariant proofs (26/26: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 8 operations, position isolation for all 6 user-facing operations)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 
 ## License

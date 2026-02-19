@@ -331,4 +331,96 @@ theorem liquidate_market_isolated (s : MorphoState) (id id' : Id)
   split at h_ok <;> simp at h_ok
   all_goals (rw [← h_ok.2.2.2.2.2.2]; simp [Ne.symm h_ne])
 
+/-- Supply collateral only changes positions, never market records. -/
+theorem supplyCollateral_market_isolated (s : MorphoState) (id id' : Id)
+    (assets : Uint256) (onBehalf : Address)
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s') :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]
+
+/-- Withdraw collateral only changes positions, never market records. -/
+theorem withdrawCollateral_market_isolated (s : MorphoState) (id id' : Id)
+    (assets : Uint256) (onBehalf receiver : Address) (collateralPrice lltv : Uint256)
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s') :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
+  rw [← h_eq]
+
+/-! ## Position isolation
+
+  Each user's position is independent. Operations targeting user `onBehalf`
+  in market `id` leave every other user's position unchanged. This guarantees
+  that your supply, debt, and collateral cannot be modified by someone else's
+  transactions (except liquidation, which can only target unhealthy borrowers). -/
+
+/-- Supply on behalf of `onBehalf` does not change `user'`'s position. -/
+theorem supply_position_isolated (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf user' : Address) (h_ne : onBehalf ≠ user')
+    (h_ok : Morpho.supply s id assets shares onBehalf = some (a, sh, s')) :
+    positionIsolated s s' id onBehalf user' := by
+  intro _
+  unfold Morpho.supply at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Withdraw on behalf of `onBehalf` does not change `user'`'s position. -/
+theorem withdraw_position_isolated (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver user' : Address) (h_ne : onBehalf ≠ user')
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    positionIsolated s s' id onBehalf user' := by
+  intro _
+  unfold Morpho.withdraw at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Borrow on behalf of `onBehalf` does not change `user'`'s position. -/
+theorem borrow_position_isolated (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver user' : Address)
+    (collateralPrice lltv : Uint256) (h_ne : onBehalf ≠ user')
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv
+      = some (a, sh, s')) :
+    positionIsolated s s' id onBehalf user' := by
+  intro _
+  unfold Morpho.borrow at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Repay on behalf of `onBehalf` does not change `user'`'s position. -/
+theorem repay_position_isolated (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf user' : Address) (h_ne : onBehalf ≠ user')
+    (h_ok : Morpho.repay s id assets shares onBehalf = some (a, sh, s')) :
+    positionIsolated s s' id onBehalf user' := by
+  intro _
+  unfold Morpho.repay at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Supply collateral on behalf of `onBehalf` does not change `user'`'s position. -/
+theorem supplyCollateral_position_isolated (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf user' : Address) (h_ne : onBehalf ≠ user')
+    (h_ok : Morpho.supplyCollateral s id assets onBehalf = some s') :
+    positionIsolated s s' id onBehalf user' := by
+  intro _
+  unfold Morpho.supplyCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Withdraw collateral on behalf of `onBehalf` does not change `user'`'s position. -/
+theorem withdrawCollateral_position_isolated (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf receiver user' : Address)
+    (collateralPrice lltv : Uint256) (h_ne : onBehalf ≠ user')
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s') :
+    positionIsolated s s' id onBehalf user' := by
+  intro _
+  unfold Morpho.withdrawCollateral at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, ⟨_, _, h_eq⟩⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
 end Morpho.Proofs.Invariants

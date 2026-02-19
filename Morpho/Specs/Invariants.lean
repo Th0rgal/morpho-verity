@@ -42,12 +42,17 @@ def feeInRange (s : MorphoState) (id : Id) : Prop :=
 def borrowLeSupply (s : MorphoState) (id : Id) : Prop :=
   (s.market id).totalBorrowAssets.val ≤ (s.market id).totalSupplyAssets.val
 
-/-! ## Share accounting
+/-! ## Share accounting (future work)
 
   The share system tracks each user's pro-rata ownership of the supply/borrow pools.
   The sum of all individual shares must equal the market's total shares. If this
   invariant breaks, users could extract more than their fair share.
--/
+
+  These predicates are defined for reference but not yet proven. Proving them requires
+  reasoning about sums over a finite set of users, which needs either an explicit user
+  list tracked in `MorphoState` or a more advanced accounting argument. Each operation
+  adds/subtracts the same `shares` amount to both the user position and the market total,
+  so the invariant is preserved — but formalizing this requires list membership proofs. -/
 
 /-- Total supply shares = sum of all individual supply shares. -/
 def supplySharesConsistent (s : MorphoState) (id : Id) (allUsers : List Address) : Prop :=
@@ -119,5 +124,16 @@ def lastUpdateMonotone (s s' : MorphoState) (id : Id) : Prop :=
 /-- Operations on market `id` leave market `id'` completely unchanged. -/
 def marketIsolated (s s' : MorphoState) (id id' : Id) : Prop :=
   id ≠ id' → s.market id' = s'.market id'
+
+/-! ## Position isolation
+
+  Each user's position is independent: operations targeting user A in market `id`
+  cannot change user B's position in that same market. This is critical for
+  security — your supply shares, borrow shares, and collateral cannot be modified
+  by someone else's transactions (except liquidation, which targets unhealthy borrowers). -/
+
+/-- Operations on user `user` leave other users' positions unchanged. -/
+def positionIsolated (s s' : MorphoState) (id : Id) (user user' : Address) : Prop :=
+  user ≠ user' → s.position id user' = s'.position id user'
 
 end Morpho.Specs.Invariants
