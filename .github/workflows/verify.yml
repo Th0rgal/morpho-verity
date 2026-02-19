@@ -1,0 +1,81 @@
+name: Verify Morpho Verity
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  verity-proofs:
+    name: Lean proofs (Verity)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Lean toolchain
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build and check proofs
+        run: lake build
+
+  solidity-tests:
+    name: Solidity tests (Foundry)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run Morpho Blue tests
+        working-directory: morpho-blue
+        run: forge test -vvv
+        env:
+          FOUNDRY_FUZZ_RUNS: 10000
+          FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
+          FOUNDRY_INVARIANT_RUNS: 10000
+          FOUNDRY_INVARIANT_DEPTH: 32
+
+  verity-compiled-tests:
+    name: Verity compiled artifact smoke tests (Foundry)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Lean toolchain
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install solc
+        run: |
+          pip3 install solc-select
+          solc-select install 0.8.28
+          solc-select use 0.8.28
+
+      - name: Compile Morpho Verity artifact
+        run: ./scripts/prepare_verity_morpho_artifact.sh
+
+      - name: Run Verity artifact smoke tests
+        working-directory: verity-foundry
+        run: forge test -vvv
