@@ -9,20 +9,16 @@ HASH_LIB="${ROOT_DIR}/compiler/external-libs/MarketParamsHash.yul"
 
 mkdir -p "${OUT_DIR}"
 
-if [[ -f "${MORPHO_YUL}" ]]; then
-  echo "Found existing Verity artifact: ${MORPHO_YUL}"
-else
-  if [[ ! -f "${HASH_LIB}" ]]; then
-    echo "ERROR: missing hash library: ${HASH_LIB}"
-    exit 1
-  fi
-
-  echo "Building Morpho Verity compiler target..."
-  (cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
-
-  echo "Running Morpho Verity compiler..."
-  (cd "${ROOT_DIR}" && lake exe morpho-verity-compiler --output "${OUT_DIR}" --link "${HASH_LIB}" --verbose)
+if [[ ! -f "${HASH_LIB}" ]]; then
+  echo "ERROR: missing hash library: ${HASH_LIB}"
+  exit 1
 fi
+
+echo "Building Morpho Verity compiler target..."
+(cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
+
+echo "Running Morpho Verity compiler..."
+(cd "${ROOT_DIR}" && lake exe morpho-verity-compiler --output "${OUT_DIR}" --link "${HASH_LIB}" --verbose)
 
 if [[ ! -f "${MORPHO_YUL}" ]]; then
   cat <<'EOF'

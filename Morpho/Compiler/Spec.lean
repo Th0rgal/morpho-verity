@@ -8,7 +8,7 @@ private def wad : Nat := 1000000000000000000
 private def maxFee : Nat := 250000000000000000
 
 private def requireOwner : Stmt :=
-  Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "NOT_OWNER"
+  Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "not owner"
 
 private def marketIdExpr (params : Array Expr) : Expr :=
   Expr.externalCall "keccakMarketParams" params.toList
@@ -48,7 +48,7 @@ def morphoSpec : ContractSpec := {
     body := [
       Stmt.require
         (Expr.logicalNot (Expr.eq (Expr.constructorArg 0) (Expr.literal 0)))
-        "ZERO_ADDRESS",
+        "zero address",
       Stmt.setStorage "owner" (Expr.constructorArg 0),
       Stmt.setStorage "feeRecipient" (Expr.literal 0)
     ]
@@ -152,7 +152,7 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.logicalNot (Expr.eq (Expr.param "newOwner") (Expr.storage "owner")))
-          "ALREADY_SET",
+          "already set",
         Stmt.setStorage "owner" (Expr.param "newOwner"),
         Stmt.stop
       ]
@@ -165,7 +165,7 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 0))
-          "ALREADY_SET",
+          "already set",
         Stmt.setMapping "isIrmEnabled" (Expr.param "irm") (Expr.literal 1),
         Stmt.stop
       ]
@@ -178,8 +178,8 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 0))
-          "ALREADY_SET",
-        Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal wad)) "MAX_LLTV_EXCEEDED",
+          "already set",
+        Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal wad)) "max LLTV exceeded",
         Stmt.setMappingUint "isLltvEnabled" (Expr.param "lltv") (Expr.literal 1),
         Stmt.stop
       ]
@@ -192,7 +192,7 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.logicalNot (Expr.eq (Expr.param "newFeeRecipient") (Expr.storage "feeRecipient")))
-          "ALREADY_SET",
+          "already set",
         Stmt.setStorage "feeRecipient" (Expr.param "newFeeRecipient"),
         Stmt.stop
       ]
@@ -209,7 +209,7 @@ def morphoSpec : ContractSpec := {
           (Expr.logicalNot (Expr.eq
             (Expr.mapping2 "isAuthorized" Expr.caller (Expr.param "authorized"))
             (Expr.param "newIsAuthorized")))
-          "ALREADY_SET",
+          "already set",
         Stmt.setMapping2 "isAuthorized" Expr.caller (Expr.param "authorized") (Expr.param "newIsAuthorized"),
         Stmt.stop
       ]
@@ -228,9 +228,9 @@ def morphoSpec : ContractSpec := {
       returnType := none
       body := [
         Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
-        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM_NOT_ENABLED",
-        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV_NOT_ENABLED",
-        Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "MARKET_ALREADY_CREATED",
+        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM not enabled",
+        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV not enabled",
+        Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "market already created",
         Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.literal 0),
         Stmt.setMappingUint "marketTotalSupplyAssets" (Expr.localVar "id") (Expr.literal 0),
@@ -261,8 +261,8 @@ def morphoSpec : ContractSpec := {
         Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
         Stmt.require
           (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
-          "MARKET_NOT_CREATED",
-        Stmt.require (Expr.le (Expr.param "newFee") (Expr.literal maxFee)) "MAX_FEE_EXCEEDED",
+          "market not created",
+        Stmt.require (Expr.le (Expr.param "newFee") (Expr.literal maxFee)) "max fee exceeded",
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.param "newFee"),
         Stmt.stop
       ]
