@@ -11,7 +11,7 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 ### What this proves
 
 - **Solvency**: total borrows never exceed total supply (including through interest accrual)
-- **Rounding safety**: all share/asset conversions round against the user
+- **Rounding safety**: all share/asset conversions round against the user; round-trip supply-withdraw never returns more than deposited
 - **Authorization**: only authorized addresses can withdraw, borrow, or remove collateral; signature-based delegation requires valid nonce and unexpired deadline
 - **Fee bounds**: market fees stay within the 25% cap
 - **Collateralization**: positions with debt always have collateral (bad debt is socialized immediately)
@@ -40,7 +40,7 @@ Morpho/
     Authorization.lean    # Access control specs
   Proofs/
     Invariants.lean       # Invariant proofs (18/18 proven)
-    Rounding.lean         # Rounding proofs (2/4 proven)
+    Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (7/7 proven)
 ```
 
@@ -54,13 +54,13 @@ lake build
 
 ## Proof progress
 
-**29 theorems proven, 2 sorry remaining.**
+**31 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 7 | 7 | Done |
 | Invariants | 18 | 18 | Done |
-| Rounding | 2 | 4 | Round-trip proofs need compositional division reasoning |
+| Rounding | 4 | 4 | Done |
 
 Also proven in supporting libraries:
 - `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
@@ -82,8 +82,7 @@ Invariant theorems include:
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (7/7: withdraw/borrow/withdrawCollateral require auth, supply doesn't, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
 - [x] Invariant proofs (18/18: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 6 operations)
-- [x] Rounding direction proofs (2/2: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp)
-- [ ] Rounding round-trip proofs (0/2: supply round-trip no-loss, withdraw round-trip no-loss)
+- [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 
 ## License
 

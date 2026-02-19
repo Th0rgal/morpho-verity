@@ -44,4 +44,27 @@ def assetsDownLeUp (shares totalAssets totalShares : Uint256) : Prop :=
   (toAssetsDown shares totalAssets totalShares).val ≤
     (toAssetsUp shares totalAssets totalShares).val
 
+/-! ## Round-trip safety
+
+  The rounding directions ensure a fundamental economic invariant: the protocol
+  never gives back more than it received in a supply-then-withdraw cycle.
+
+  When a user supplies `a` assets:
+  1. They receive `toSharesDown(a)` shares (fewer shares = protocol's favor)
+  2. If they immediately withdraw those shares, they get `toAssetsDown(toSharesDown(a))` assets
+
+  The protocol keeps the difference: `a - toAssetsDown(toSharesDown(a)) ≥ 0`.
+  This prevents rounding exploitation where an attacker repeatedly converts
+  between assets and shares to extract value. -/
+
+/-- Supply round-trip: assets returned ≤ assets deposited. -/
+def supplyRoundtripSafe (assets totalAssets totalShares : Uint256) : Prop :=
+  (toAssetsDown (toSharesDown assets totalAssets totalShares) totalAssets totalShares).val
+    ≤ assets.val
+
+/-- Withdraw round-trip: shares re-minted ≤ shares burned. -/
+def withdrawRoundtripSafe (shares totalAssets totalShares : Uint256) : Prop :=
+  (toSharesDown (toAssetsDown shares totalAssets totalShares) totalAssets totalShares).val
+    ≤ shares.val
+
 end Morpho.Specs.Rounding
