@@ -97,6 +97,59 @@ theorem supply_no_authorization_needed (s : MorphoState) (id : Id)
     rw [beq_eq_false_iff_ne]; exact h_addr
   simp [h1, h_valid, h3]
 
+/-! ## Postcondition-style authorization proofs
+
+  The specs define authorization as postconditions: "if a position field changed
+  adversely, the sender was authorized." The proofs above show the precondition
+  form ("if unauthorized, returns none"). These theorems connect the two:
+  for any successful operation, the spec postcondition holds. -/
+
+/-- Helper: if isSenderAuthorized is true, the spec's Bool disjunction holds. -/
+private theorem auth_of_isSenderAuthorized (s : MorphoState) (onBehalf : Address)
+    (h : Morpho.isSenderAuthorized s onBehalf = true) :
+    (s.sender == onBehalf || s.isAuthorized onBehalf s.sender) = true := by
+  unfold Morpho.isSenderAuthorized at h; exact h
+
+/-- Withdraw satisfies onlyAuthorizedDecreaseSupply: if supply shares decreased,
+    the sender was authorized to act on behalf of the user. -/
+theorem withdraw_onlyAuthorizedDecreaseSupply (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    onlyAuthorizedDecreaseSupply s s' id onBehalf := by
+  unfold onlyAuthorizedDecreaseSupply
+  intro _
+  unfold Morpho.withdraw at h_ok
+  simp at h_ok
+  exact auth_of_isSenderAuthorized s onBehalf h_ok.2.2.2.1
+
+/-- Borrow satisfies onlyAuthorizedIncreaseBorrow: if borrow shares increased,
+    the sender was authorized to act on behalf of the user. -/
+theorem borrow_onlyAuthorizedIncreaseBorrow (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256)
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv
+      = some (a, sh, s')) :
+    onlyAuthorizedIncreaseBorrow s s' id onBehalf := by
+  unfold onlyAuthorizedIncreaseBorrow
+  intro _
+  unfold Morpho.borrow at h_ok
+  simp at h_ok
+  exact auth_of_isSenderAuthorized s onBehalf h_ok.2.2.2.1
+
+/-- WithdrawCollateral satisfies onlyAuthorizedDecreaseCollateral: if collateral
+    decreased, the sender was authorized to act on behalf of the user. -/
+theorem withdrawCollateral_onlyAuthorizedDecreaseCollateral (s : MorphoState) (id : Id)
+    (assets : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256)
+    (h_ok : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
+      = some s') :
+    onlyAuthorizedDecreaseCollateral s s' id onBehalf := by
+  unfold onlyAuthorizedDecreaseCollateral
+  intro _
+  unfold Morpho.withdrawCollateral at h_ok
+  simp at h_ok
+  exact auth_of_isSenderAuthorized s onBehalf h_ok.2.2.2.1
+
 /-! ## Signature-based authorization proofs
 
   `setAuthorizationWithSig` allows gasless delegation via EIP-712 signatures.
