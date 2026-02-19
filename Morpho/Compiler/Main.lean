@@ -174,17 +174,29 @@ private def replaceOrThrow (text oldFragment newFragment : String) (label : Stri
   else throw s!"Could not patch Yul output for {label}"
 
 private def injectStorageCompat (text : String) : Except String String := do
+  let mappingSlotOld := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0, key)\n                mstore(32, baseSlot)\n                slot := keccak256(0, 64)\n            }\n"
+  let mappingSlotNew := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0x200, key)\n                mstore(0x220, baseSlot)\n                slot := keccak256(0x200, 64)\n            }\n"
+  let t0 ← replaceOrThrow text mappingSlotOld mappingSlotNew "mappingSlot scratch memory safety"
+
   let constructorOld := "        sstore(0, arg0)\n        sstore(1, 0)\n"
   let constructorNew := "        sstore(0, arg0)\n        sstore(1, 0)\n        log2(0, 0, 0x167d3e9c1016ab80e58802ca9da10ce5c6a0f4debc46a2e7a2cd9e56899a4fb5, arg0)\n"
-  let t0 ← replaceOrThrow text constructorOld constructorNew "constructor SetOwner event"
+  let t1 ← replaceOrThrow t0 constructorOld constructorNew "constructor SetOwner event"
 
   let setFeeOld := "sstore(mappingSlot(7, id), newFee)\n"
   let setFeeNew := "sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, or(and(__packed, 0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff), shl(128, newFee)))\n"
-  let t1 ← replaceOrThrow t0 setFeeOld setFeeNew "setFee packed slot compatibility"
+  let t2 ← replaceOrThrow t1 setFeeOld setFeeNew "setFee packed slot compatibility"
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
   let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
-  replaceOrThrow t1 createMarketOld createMarketNew "createMarket packed slot compatibility"
+  let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
+
+  let idToMarketParamsOld := "                let id := calldataload(4)\n                mstore(0, sload(mappingSlot(12, id)))\n                mstore(32, sload(mappingSlot(13, id)))\n                mstore(64, sload(mappingSlot(14, id)))\n                mstore(96, sload(mappingSlot(15, id)))\n                mstore(128, sload(mappingSlot(16, id)))\n                return(0, 160)\n"
+  let idToMarketParamsNew := "                let id := calldataload(4)\n                let __loanToken := sload(mappingSlot(12, id))\n                let __collateralToken := sload(mappingSlot(13, id))\n                let __oracle := sload(mappingSlot(14, id))\n                let __irm := sload(mappingSlot(15, id))\n                let __lltv := sload(mappingSlot(16, id))\n                mstore(0, __loanToken)\n                mstore(32, __collateralToken)\n                mstore(64, __oracle)\n                mstore(96, __irm)\n                mstore(128, __lltv)\n                return(0, 160)\n"
+  let t4 ← replaceOrThrow t3 idToMarketParamsOld idToMarketParamsNew "idToMarketParams multi-return safety"
+
+  let marketOld := "                let id := calldataload(4)\n                mstore(0, sload(mappingSlot(8, id)))\n                mstore(32, sload(mappingSlot(9, id)))\n                mstore(64, sload(mappingSlot(10, id)))\n                mstore(96, sload(mappingSlot(11, id)))\n                mstore(128, sload(mappingSlot(6, id)))\n                mstore(160, sload(mappingSlot(7, id)))\n                return(0, 192)\n"
+  let marketNew := "                let id := calldataload(4)\n                let __totalSupplyAssets := sload(mappingSlot(8, id))\n                let __totalSupplyShares := sload(mappingSlot(9, id))\n                let __totalBorrowAssets := sload(mappingSlot(10, id))\n                let __totalBorrowShares := sload(mappingSlot(11, id))\n                let __lastUpdate := sload(mappingSlot(6, id))\n                let __fee := sload(mappingSlot(7, id))\n                mstore(0, __totalSupplyAssets)\n                mstore(32, __totalSupplyShares)\n                mstore(64, __totalBorrowAssets)\n                mstore(96, __totalBorrowShares)\n                mstore(128, __lastUpdate)\n                mstore(160, __fee)\n                return(0, 192)\n"
+  replaceOrThrow t4 marketOld marketNew "market multi-return safety"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
   let yulObj := _root_.Compiler.emitYul contract

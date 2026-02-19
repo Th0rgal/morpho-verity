@@ -182,7 +182,16 @@ contract VerityMorphoSmokeTest {
         require(totalSupplyAssets == assetsSupplied, "totalSupplyAssets mismatch");
         require(totalSupplyShares == sharesSupplied, "totalSupplyShares mismatch");
 
-        (,,,,uint256 marketLastUpdate, uint256 marketFee) = morpho.market(id);
+        (
+            uint256 marketTotalSupplyAssets,
+            uint256 marketTotalSupplyShares,
+            ,
+            ,
+            uint256 marketLastUpdate,
+            uint256 marketFee
+        ) = morpho.market(id);
+        require(marketTotalSupplyAssets == assetsSupplied, "market.totalSupplyAssets mismatch");
+        require(marketTotalSupplyShares == sharesSupplied, "market.totalSupplyShares mismatch");
         require(marketLastUpdate == 1234567890, "market.lastUpdate mismatch");
         require(marketFee == 0, "market.fee mismatch");
 
