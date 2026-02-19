@@ -53,6 +53,33 @@ Requires [Lean 4](https://leanprover.github.io/lean4/doc/setup.html) (v4.15.0).
 lake build
 ```
 
+## Test
+
+Run Solidity Morpho Blue tests (default deployment path):
+
+```bash
+cd morpho-blue
+forge test -vvv
+```
+
+Build the Morpho Verity artifact:
+
+```bash
+./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Run Foundry smoke tests on the compiled Verity artifact:
+
+```bash
+cd verity-foundry
+forge test -vvv
+```
+
+Current status:
+- Solidity test parity is still run from `morpho-blue` (`forge test`).
+- Verity mode currently validates a best-effort Morpho `ContractSpec` subset that compiles to `compiler/yul/Morpho.yul`.
+- Full IMorpho test parity is not yet possible with current `ContractSpec` constraints (notably multi-value returns and full ABI surface).
+
 ## Proof progress
 
 **113 theorems proven, 0 sorry remaining.**

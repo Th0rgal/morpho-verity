@@ -1,3 +1,6 @@
 .lake/
 lake-packages/
 build/
+compiler/yul/
+verity-foundry/cache/
+verity-foundry/out/
