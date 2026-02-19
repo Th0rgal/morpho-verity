@@ -142,6 +142,13 @@ def morphoSpec : ContractSpec := {
       returnType := some .uint256
       body := [Stmt.return (Expr.mappingUint "marketFee" (Expr.param "id"))]
     },
+    {
+      name := "extSloads"
+      params := [{ name := "slots", ty := .array .bytes32 }]
+      returnType := none
+      returns := [.array .uint256]
+      body := [Stmt.returnStorageWords "slots"]
+    },
 
     -- Owner/configuration
     {
@@ -289,6 +296,7 @@ def morphoSelectors : List Nat := [
   0x12022eb9, -- totalBorrowAssets(bytes32)
   0x3f13c692, -- totalBorrowShares(bytes32)
   0x27cdab06, -- fee(bytes32)
+  0x7784c685, -- extSloads(bytes32[])
   0x13af4035, -- setOwner(address)
   0x5a64f51e, -- enableIrm(address)
   0x4d98a93b, -- enableLltv(uint256)

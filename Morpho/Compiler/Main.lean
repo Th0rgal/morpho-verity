@@ -39,38 +39,6 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
       throw (IO.userError s!"Unknown argument: {x}")
   go args "compiler/yul" [] false
 
-private def extSloadsCase : String := "\
-            case 0x7784c685 {\n\
-                /* extSloads(bytes32[]) */\n\
-                if callvalue() {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if lt(calldatasize(), 36) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let slotsOffset := calldataload(4)\n\
-                let head := add(4, slotsOffset)\n\
-                if gt(head, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let len := calldataload(head)\n\
-                let dataStart := add(head, 32)\n\
-                if gt(dataStart, calldatasize()) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if gt(len, div(sub(calldatasize(), dataStart), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                mstore(0, 32)\n\
-                mstore(32, len)\n\
-                let outPtr := 64\n\
-                for { let i := 0 } lt(i, len) { i := add(i, 1) } {\n\
-                    let slot := calldataload(add(dataStart, mul(i, 32)))\n\
-                    mstore(add(outPtr, mul(i, 32)), sload(slot))\n\
-                }\n\
-                return(0, add(64, mul(len, 32)))\n\
-            }\n"
-
 private def idToMarketParamsCase : String := "\
             case 0x2c3c9157 {\n\
                 /* idToMarketParams(bytes32) */\n\
@@ -219,14 +187,6 @@ private def injectSupplyShim (text : String) : Except String String := do
   else
     throw "Could not inject supply shim: default dispatch branch not found"
 
-private def injectExtSloadsShim (text : String) : Except String String := do
-  let needle := "            default {\n                revert(0, 0)\n            }\n"
-  let patched := text.replace needle (extSloadsCase ++ needle)
-  if patched != text then
-    pure patched
-  else
-    throw "Could not inject extSloads shim: default dispatch branch not found"
-
 private def injectIdToMarketParamsShim (text : String) : Except String String := do
   let needle := "            default {\n                revert(0, 0)\n            }\n"
   let patched := text.replace needle (idToMarketParamsCase ++ needle)
@@ -297,8 +257,7 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
       orThrow (renderWithLibraries yulObj allLibFunctions)
   let withSupply ← orThrow (injectSupplyShim baseText)
   let withIdToParams ← orThrow (injectIdToMarketParamsShim withSupply)
-  let withExtSloads ← orThrow (injectExtSloadsShim withIdToParams)
-  let withGetters ← orThrow (injectGetterShims withExtSloads)
+  let withGetters ← orThrow (injectGetterShims withIdToParams)
   let text ← orThrow (injectEventLogs withGetters)
 
   IO.FS.createDirAll outDir
