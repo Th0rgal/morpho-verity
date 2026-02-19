@@ -79,9 +79,8 @@ private def supplyCase : String := "\
                     mstore(68, 0x7a65726f20616464726573730000000000000000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                let marketSupplyWord := sload(mappingSlot(3, id))\n\
-                let totalSupplyAssets := and(marketSupplyWord, 0xffffffffffffffffffffffffffffffff)\n\
-                let totalSupplyShares := shr(128, marketSupplyWord)\n\
+                let totalSupplyAssets := sload(mappingSlot(8, id))\n\
+                let totalSupplyShares := sload(mappingSlot(9, id))\n\
                 let virtualShares := 1000000\n\
                 let virtualAssets := 1\n\
                 let denomShares := add(totalSupplyShares, virtualShares)\n\
@@ -100,7 +99,8 @@ private def supplyCase : String := "\
                 sstore(positionBase, add(sload(positionBase), sharesSupplied))\n\
                 let newTotalSupplyAssets := add(totalSupplyAssets, assetsSupplied)\n\
                 let newTotalSupplyShares := add(totalSupplyShares, sharesSupplied)\n\
-                sstore(mappingSlot(3, id), or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\n\
+                sstore(mappingSlot(8, id), newTotalSupplyAssets)\n\
+                sstore(mappingSlot(9, id), newTotalSupplyShares)\n\
                 mstore(0, assetsSupplied)\n\
                 mstore(32, sharesSupplied)\n\
                 log4(0, 64, 0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0, id, caller(), onBehalf)\n\
@@ -202,15 +202,6 @@ private def injectEventLogs (text : String) : Except String String := do
   let createMarketNew := "                sstore(mappingSlot(6, id), timestamp())\n                sstore(mappingSlot(7, id), 0)\n                sstore(mappingSlot(8, id), 0)\n                sstore(mappingSlot(9, id), 0)\n                sstore(mappingSlot(10, id), 0)\n                sstore(mappingSlot(11, id), 0)\n                sstore(mappingSlot(12, id), loanToken)\n                sstore(mappingSlot(13, id), collateralToken)\n                sstore(mappingSlot(14, id), oracle)\n                sstore(mappingSlot(15, id), irm)\n                sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n                let __paramsBase := mappingSlot(8, id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n                mstore(0, loanToken)\n                mstore(32, collateralToken)\n                mstore(64, oracle)\n                mstore(96, irm)\n                mstore(128, lltv)\n                log2(0, 160, 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac, id)\n                stop()\n"
   replaceOrThrow t6 createMarketOld createMarketNew "createMarket packed slots"
 
-private def injectGetterShims (text : String) : Except String String := do
-  let totalSupplyAssetsOld := "                let id := calldataload(4)\n                mstore(0, sload(mappingSlot(8, id)))\n                return(0, 32)\n"
-  let totalSupplyAssetsNew := "                let id := calldataload(4)\n                let __marketWord := sload(mappingSlot(3, id))\n                mstore(0, and(__marketWord, 0xffffffffffffffffffffffffffffffff))\n                return(0, 32)\n"
-  let t1 ← replaceOrThrow text totalSupplyAssetsOld totalSupplyAssetsNew "totalSupplyAssets packed getter"
-
-  let totalSupplySharesOld := "                let id := calldataload(4)\n                mstore(0, sload(mappingSlot(9, id)))\n                return(0, 32)\n"
-  let totalSupplySharesNew := "                let id := calldataload(4)\n                let __marketWord := sload(mappingSlot(3, id))\n                mstore(0, shr(128, __marketWord))\n                return(0, 32)\n"
-  replaceOrThrow t1 totalSupplySharesOld totalSupplySharesNew "totalSupplyShares packed getter"
-
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
   let yulObj := _root_.Compiler.emitYul contract
   let libraries ← libraryPaths.mapM loadLibrary
@@ -229,8 +220,7 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
     else
       orThrow (renderWithLibraries yulObj allLibFunctions)
   let withSupply ← orThrow (injectSupplyShim baseText)
-  let withGetters ← orThrow (injectGetterShims withSupply)
-  let text ← orThrow (injectEventLogs withGetters)
+  let text ← orThrow (injectEventLogs withSupply)
 
   IO.FS.createDirAll outDir
   IO.FS.writeFile s!"{outDir}/{contract.name}.yul" text
