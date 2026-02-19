@@ -37,10 +37,49 @@ interface IMorphoSubset {
             uint256 lastUpdate_,
             uint256 fee
         );
+    function totalSupplyAssets(bytes32 id) external view returns (uint256);
+    function totalSupplyShares(bytes32 id) external view returns (uint256);
     function position(bytes32 id, address user)
         external
         view
         returns (uint256 supplyShares, uint256 borrowShares, uint256 collateral);
+    function extSloads(bytes32[] calldata slots) external view returns (bytes32[] memory);
+    function supply(
+        MarketParams calldata marketParams,
+        uint256 assets,
+        uint256 shares,
+        address onBehalf,
+        bytes calldata data
+    ) external returns (uint256 assetsSupplied, uint256 sharesSupplied);
+}
+
+contract MockERC20 {
+    string public name = "Mock";
+    string public symbol = "MOCK";
+    uint8 public decimals = 18;
+
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
+
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        uint256 allowed = allowance[from][msg.sender];
+        require(allowed >= amount, "allowance");
+        uint256 bal = balanceOf[from];
+        require(bal >= amount, "balance");
+        allowance[from][msg.sender] = allowed - amount;
+        balanceOf[from] = bal - amount;
+        balanceOf[to] += amount;
+        return true;
+    }
 }
 
 contract VerityMorphoSmokeTest {
@@ -108,6 +147,88 @@ contract VerityMorphoSmokeTest {
         require(!ok, "non-owner call should fail");
     }
 
+    function testSupplyUpdatesMarketAndPosition() public {
+        MockERC20 loanToken = new MockERC20();
+        address collateralToken = address(0x3333);
+        address oracle = address(0x4444);
+        address irm = address(0x1111);
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(address(loanToken), collateralToken, oracle, irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(supplier);
+        (uint256 assetsSupplied, uint256 sharesSupplied) = morpho.supply(params, 100 ether, 0, supplier, "");
+        require(assetsSupplied == 100 ether, "assetsSupplied mismatch");
+        require(sharesSupplied > 0, "sharesSupplied should be positive");
+
+        uint256 totalSupplyAssets = morpho.totalSupplyAssets(id);
+        uint256 totalSupplyShares = morpho.totalSupplyShares(id);
+        require(totalSupplyAssets == assetsSupplied, "totalSupplyAssets mismatch");
+        require(totalSupplyShares == sharesSupplied, "totalSupplyShares mismatch");
+
+        (,,,,uint256 marketLastUpdate, uint256 marketFee) = morpho.market(id);
+        require(marketLastUpdate == 1234567890, "market.lastUpdate mismatch");
+        require(marketFee == 0, "market.fee mismatch");
+
+        (uint256 supplyShares,,) = morpho.position(id, supplier);
+        require(supplyShares == sharesSupplied, "position.supplyShares mismatch");
+    }
+
+    function testExtSloadsMatchesGetters() public {
+        MockERC20 loanToken = new MockERC20();
+        address collateralToken = address(0x3333);
+        address oracle = address(0x4444);
+        address irm = address(0x1111);
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(address(loanToken), collateralToken, oracle, irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(supplier);
+        (uint256 assetsSupplied, uint256 sharesSupplied) = morpho.supply(params, 100 ether, 0, supplier, "");
+
+        bytes32[] memory slots = new bytes32[](3);
+        slots[0] = _mappingSlot(8, id); // marketTotalSupplyAssets[id]
+        slots[1] = _mappingSlot(9, id); // marketTotalSupplyShares[id]
+        slots[2] = _nestedMappingSlot(17, id, supplier); // positionSupplyShares[id][supplier]
+
+        bytes32[] memory values = morpho.extSloads(slots);
+        require(values.length == 3, "extSloads length mismatch");
+        require(uint256(values[0]) == assetsSupplied, "extSloads assets mismatch");
+        require(uint256(values[1]) == sharesSupplied, "extSloads shares mismatch");
+        require(uint256(values[2]) == sharesSupplied, "extSloads position mismatch");
+    }
+
     function _loadBytecode(string memory path) internal view returns (bytes memory) {
         bytes memory raw = bytes(vm.readFile(path));
         bytes memory trimmed = _trim(raw);
@@ -127,5 +248,14 @@ contract VerityMorphoSmokeTest {
 
     function _isWhitespace(bytes1 c) internal pure returns (bool) {
         return c == 0x20 || c == 0x0a || c == 0x0d || c == 0x09;
+    }
+
+    function _mappingSlot(uint256 slot, bytes32 key) internal pure returns (bytes32) {
+        return keccak256(abi.encode(key, slot));
+    }
+
+    function _nestedMappingSlot(uint256 slot, bytes32 key1, address key2) internal pure returns (bytes32) {
+        bytes32 outer = keccak256(abi.encode(key1, slot));
+        return keccak256(abi.encode(key2, outer));
     }
 }
