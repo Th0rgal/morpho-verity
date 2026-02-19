@@ -1027,4 +1027,53 @@ theorem liquidate_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
   split at h_ok <;> simp at h_ok
   all_goals (rw [← h_ok.2.2.2.2.2.2]; simp [Ne.symm h_ne])
 
+/-! ## Flash loan safety
+
+  Flash loans (`flashLoan`) return `Option Unit`, not `Option MorphoState` — they
+  never modify protocol state. All invariants (solvency, collateralization, isolation,
+  etc.) are trivially preserved because the state is unchanged. The only property
+  to verify is the zero-assets guard. -/
+
+/-- Flash loans reject zero assets. -/
+theorem flashLoan_rejects_zero_assets (s : MorphoState) :
+    Morpho.flashLoan s 0 = none := by
+  unfold Morpho.flashLoan; simp
+
+/-! ## Public accrueInterest
+
+  `accrueInterestPublic` wraps `accrueInterest` with a `lastUpdate == 0` guard
+  (uninitialized markets are rejected). All invariant proofs compose directly
+  with the internal `accrueInterest` proofs. -/
+
+/-- Public accrueInterest rejects uninitialized markets. -/
+theorem accrueInterestPublic_rejects_uninitialized (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool)
+    (h_uninit : (s.market id).lastUpdate.val = 0) :
+    Morpho.accrueInterestPublic s id borrowRate hasIrm = none := by
+  unfold Morpho.accrueInterestPublic; simp [h_uninit]
+
+/-- Public accrueInterest preserves solvency. -/
+theorem accrueInterestPublic_preserves_borrowLeSupply (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s')
+    (h_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Verity.Core.Uint256.modulus) :
+    borrowLeSupply s' id := by
+  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
+  rw [← h_ok.right]
+  exact accrueInterest_preserves_borrowLeSupply s id borrowRate hasIrm h_solvent h_no_overflow
+
+/-- Public accrueInterest preserves collateralization. -/
+theorem accrueInterestPublic_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (user : Address)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s') :
+    alwaysCollateralized s' id user := by
+  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
+  rw [← h_ok.right]
+  exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
+
 end Morpho.Proofs.Invariants

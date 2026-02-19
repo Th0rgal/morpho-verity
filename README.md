@@ -39,7 +39,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (62/62 proven)
+    Invariants.lean       # Invariant proofs (66/66 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (11/11 proven)
 ```
@@ -54,12 +54,12 @@ lake build
 
 ## Proof progress
 
-**77 theorems proven, 0 sorry remaining.**
+**81 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 11 | 11 | Done |
-| Invariants | 62 | 62 | Done |
+| Invariants | 66 | 66 | Done |
 | Rounding | 4 | 4 | Done |
 
 Also proven in supporting libraries:
@@ -75,6 +75,8 @@ Invariant theorems include:
 - Market isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
 - Same-market position isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (8)
 - Cross-market position isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (8)
+- Flash loan rejects zero assets (1), accrueInterestPublic rejects uninitialized markets (1)
+- accrueInterestPublic preserves solvency and collateralization (2)
 
 Authorization theorems include:
 - Precondition style: unauthorized sender → withdraw/borrow/withdrawCollateral return none (3)
@@ -90,7 +92,7 @@ Authorization theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (11/11: withdraw/borrow/withdrawCollateral require auth, supply doesn't, withdraw/borrow/withdrawCollateral satisfy postcondition specs, liquidation requires unhealthy position, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
-- [x] Invariant proofs (62/62: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for all 16 operations, timestamp monotonicity, collateralization preserved by all 16 operations, market isolation for all 8 operations, same-market position isolation for all 8 operations, cross-market position isolation for all 8 operations)
+- [x] Invariant proofs (66/66: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for all 16 operations, timestamp monotonicity, collateralization preserved by all 16 operations, market isolation for all 8 operations, same-market position isolation for all 8 operations, cross-market position isolation for all 8 operations, flashLoan rejects zero assets, accrueInterestPublic rejects uninitialized/preserves solvency/preserves collateralization)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 
 ## License
