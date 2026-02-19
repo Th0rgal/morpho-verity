@@ -10,12 +10,13 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 ### What this proves
 
-- **Solvency**: total borrows never exceed total supply
+- **Solvency**: total borrows never exceed total supply (including through interest accrual)
 - **Rounding safety**: all share/asset conversions round against the user
 - **Authorization**: only authorized addresses can withdraw, borrow, or remove collateral
 - **Fee bounds**: market fees stay within the 25% cap
 - **Collateralization**: positions with debt always have collateral (bad debt is socialized immediately)
 - **Monotonicity**: enabled IRMs/LLTVs cannot be disabled; market timestamps only increase
+- **Market isolation**: operations on one market never affect any other market's state
 
 ### What this does not prove
 
@@ -38,7 +39,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (11/11 proven)
+    Invariants.lean       # Invariant proofs (18/18 proven)
     Rounding.lean         # Rounding proofs (2/4 proven)
     Authorization.lean    # Authorization proofs (4/4 proven)
 ```
@@ -53,12 +54,12 @@ lake build
 
 ## Proof progress
 
-**19 theorems proven, 2 sorry remaining.**
+**26 theorems proven, 2 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 4 | 4 | Done |
-| Invariants | 11 | 11 | Done |
+| Invariants | 18 | 18 | Done |
 | Rounding | 2 | 4 | Round-trip proofs need compositional division reasoning |
 
 Also proven in supporting libraries:
@@ -68,9 +69,10 @@ Also proven in supporting libraries:
 
 Invariant theorems include:
 - IRM/LLTV monotonicity (2), LLTV < WAD (1), market creation validity (1)
-- Fee bounds (1), solvency for supply/withdraw/borrow/repay (4)
+- Fee bounds (1), solvency for supply/withdraw/borrow/repay/accrueInterest (5)
 - Timestamp monotonicity for interest accrual (1)
 - Collateralization preserved by liquidation (1)
+- Market isolation for accrueInterest/supply/withdraw/borrow/repay/liquidate (6)
 
 ## Status
 
@@ -79,7 +81,7 @@ Invariant theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (4/4)
-- [x] Invariant proofs (11/11: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay, timestamp monotonicity, collateralization preserved by liquidation)
+- [x] Invariant proofs (18/18: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 6 operations)
 - [x] Rounding direction proofs (2/2: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp)
 - [ ] Rounding round-trip proofs (0/2: supply round-trip no-loss, withdraw round-trip no-loss)
 

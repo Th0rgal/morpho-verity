@@ -108,4 +108,16 @@ def lltvMonotone (s s' : MorphoState) (lltv : Uint256) : Prop :=
 def lastUpdateMonotone (s s' : MorphoState) (id : Id) : Prop :=
   (s.market id).lastUpdate.val ≤ (s'.market id).lastUpdate.val
 
+/-! ## Market isolation
+
+  Morpho Blue is a singleton contract managing many independent markets.
+  Operations on one market must not affect any other market's state.
+  This is critical for composability: reasoning about market A requires
+  knowing that transactions on market B cannot interfere.
+-/
+
+/-- Operations on market `id` leave market `id'` completely unchanged. -/
+def marketIsolated (s s' : MorphoState) (id id' : Id) : Prop :=
+  id ≠ id' → s.market id' = s'.market id'
+
 end Morpho.Specs.Invariants

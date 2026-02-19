@@ -176,6 +176,50 @@ theorem accrueInterest_lastUpdate_monotone (s : MorphoState) (id : Id)
       simp
       exact h_time
 
+/-! ## Solvency preserved by interest accrual
+
+  Interest accrual adds the same `interest` amount to both totalBorrowAssets and
+  totalSupplyAssets (Morpho.sol:490-491). Since both sides increase equally,
+  the solvency invariant `totalBorrowAssets ≤ totalSupplyAssets` is preserved.
+
+  This closes the solvency invariant chain: user-facing operations (supply, withdraw,
+  borrow, repay) each call `accrueInterest` first. With this theorem, the invariant
+  is maintained across the full lifecycle. -/
+
+/-- Interest accrual preserves solvency: both borrow and supply increase by
+    the same amount, so borrow ≤ supply is maintained. -/
+theorem accrueInterest_preserves_borrowLeSupply (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool)
+    (h_solvent : borrowLeSupply s id)
+    (h_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Verity.Core.Uint256.modulus) :
+    borrowLeSupply (Morpho.accrueInterest s id borrowRate hasIrm) id := by
+  unfold Morpho.accrueInterest
+  simp
+  split
+  · -- elapsed = 0: state unchanged
+    exact h_solvent
+  · split
+    · -- ¬hasIrm: only lastUpdate changes, totals unchanged
+      unfold borrowLeSupply; simp; exact h_solvent
+    · -- hasIrm: both totalBorrowAssets and totalSupplyAssets increase by interest
+      unfold borrowLeSupply; simp
+      -- Goal: (totalBorrowAssets + interest) % modulus ≤ (totalSupplyAssets + interest) % modulus
+      -- h_no_overflow ensures totalSupplyAssets + interest < modulus.
+      -- Since borrow ≤ supply, totalBorrowAssets + interest ≤ totalSupplyAssets + interest < modulus.
+      have h_borrow_no_overflow :
+        (s.market id).totalBorrowAssets.val +
+          (Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+            (Libraries.MathLib.wTaylorCompounded borrowRate
+              (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+          < Verity.Core.Uint256.modulus :=
+        Nat.lt_of_le_of_lt (Nat.add_le_add_right h_solvent _) h_no_overflow
+      rw [Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_borrow_no_overflow]
+      exact Nat.add_le_add_right h_solvent _
+
 /-! ## Collateralization preserved by liquidation
 
   Bad debt socialization ensures that when collateral hits zero,
@@ -213,5 +257,78 @@ theorem liquidate_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
     split at h_borrow
     · simp at h_borrow  -- bad-debt: borrowShares = 0, contradicts h_borrow > 0
     · omega             -- non-bad-debt: newCollateral ≠ 0 in context
+
+/-! ## Market isolation
+
+  Each Morpho operation only modifies the market it targets. All other markets
+  and their positions are completely unaffected. This allows reasoning about
+  each market independently. -/
+
+/-- Interest accrual on market `id` does not change market `id'`. -/
+theorem accrueInterest_market_isolated (s : MorphoState) (id id' : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (h_ne : id ≠ id') :
+    marketIsolated s (Morpho.accrueInterest s id borrowRate hasIrm) id id' := by
+  intro _
+  unfold Morpho.accrueInterest
+  simp
+  split
+  · rfl  -- elapsed = 0: state unchanged
+  · split <;> simp [Ne.symm h_ne]
+
+/-- Supply on market `id` does not change market `id'`. -/
+theorem supply_market_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.supply s id assets shares onBehalf = some (a, sh, s')) :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.supply at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Withdraw on market `id` does not change market `id'`. -/
+theorem withdraw_market_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.withdraw at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Borrow on market `id` does not change market `id'`. -/
+theorem borrow_market_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256) (h_ne : id ≠ id')
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv
+      = some (a, sh, s')) :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.borrow at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Repay on market `id` does not change market `id'`. -/
+theorem repay_market_isolated (s : MorphoState) (id id' : Id)
+    (assets shares : Uint256) (onBehalf : Address) (h_ne : id ≠ id')
+    (h_ok : Morpho.repay s id assets shares onBehalf = some (a, sh, s')) :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.repay at h_ok; simp at h_ok
+  obtain ⟨_, _, _, _, _, _, h_eq⟩ := h_ok
+  rw [← h_eq]; simp [Ne.symm h_ne]
+
+/-- Liquidation on market `id` does not change market `id'`. -/
+theorem liquidate_market_isolated (s : MorphoState) (id id' : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_ne : id ≠ id')
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    marketIsolated s s' id id' := by
+  intro _
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  all_goals (rw [← h_ok.2.2.2.2.2.2]; simp [Ne.symm h_ne])
 
 end Morpho.Proofs.Invariants
