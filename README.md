@@ -39,7 +39,7 @@ Morpho/
     Authorization.lean    # Access control specs
   Proofs/
     Invariants.lean       # Invariant proofs (10/10 proven)
-    Rounding.lean         # Rounding proofs (0/4 proven)
+    Rounding.lean         # Rounding proofs (2/4 proven)
     Authorization.lean    # Authorization proofs (4/4 proven)
 ```
 
@@ -53,13 +53,13 @@ lake build
 
 ## Proof progress
 
-**16 theorems proven, 4 sorry remaining.**
+**18 theorems proven, 2 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 4 | 4 | Done |
 | Invariants | 10 | 10 | Done |
-| Rounding | 0 | 4 | Needs Uint256 overflow reasoning |
+| Rounding | 2 | 4 | Round-trip proofs need compositional division reasoning |
 
 Also proven in supporting libraries:
 - `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
@@ -79,7 +79,8 @@ Invariant theorems include:
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (4/4)
 - [x] Invariant proofs (10/10: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay, timestamp monotonicity)
-- [ ] Rounding proofs (0/4: toShares/toAssets Down ≤ Up, round-trip no-loss)
+- [x] Rounding direction proofs (2/2: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp)
+- [ ] Rounding round-trip proofs (0/2: supply round-trip no-loss, withdraw round-trip no-loss)
 
 ## License
 
