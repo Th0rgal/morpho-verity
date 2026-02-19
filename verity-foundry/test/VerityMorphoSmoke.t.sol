@@ -25,6 +25,7 @@ interface IMorphoSubset {
     function enableLltv(uint256 lltv) external;
     function setFeeRecipient(address newFeeRecipient) external;
     function createMarket(MarketParams calldata marketParams) external;
+    function accrueInterest(MarketParams calldata marketParams) external;
     function lastUpdate(bytes32 id) external view returns (uint256);
     function market(bytes32 id)
         external
@@ -253,6 +254,35 @@ contract VerityMorphoSmokeTest {
         require(uint256(values[0]) == assetsSupplied, "extSloads assets mismatch");
         require(uint256(values[1]) == sharesSupplied, "extSloads shares mismatch");
         require(uint256(values[2]) == sharesSupplied, "extSloads position mismatch");
+    }
+
+    function testAccrueInterestUpdatesLastUpdate() public {
+        MockERC20 loanToken = new MockERC20();
+        address collateralToken = address(0x3333);
+        address oracle = address(0x4444);
+        address irm = address(0x1111);
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(address(loanToken), collateralToken, oracle, irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+        require(morpho.lastUpdate(id) == 1234567890, "lastUpdate after create mismatch");
+
+        vm.warp(1234567900);
+        morpho.accrueInterest(params);
+        require(morpho.lastUpdate(id) == 1234567900, "lastUpdate after accrue mismatch");
+
+        morpho.accrueInterest(params);
+        require(morpho.lastUpdate(id) == 1234567900, "lastUpdate should be stable at same timestamp");
     }
 
     function _loadBytecode(string memory path) internal view returns (bytes memory) {

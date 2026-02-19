@@ -345,6 +345,34 @@ def morphoSpec : ContractSpec := {
         Stmt.emit "SetFee" [Expr.localVar "id", Expr.param "newFee"],
         Stmt.stop
       ]
+    },
+    {
+      name := "accrueInterest"
+      params := [
+        { name := "loanToken", ty := .address },
+        { name := "collateralToken", ty := .address },
+        { name := "oracle", ty := .address },
+        { name := "irm", ty := .address },
+        { name := "lltv", ty := .uint256 }
+      ]
+      returnType := none
+      body := [
+        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.require
+          (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
+          "market not created",
+        Stmt.ite
+          (Expr.gt Expr.blockTimestamp (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")))
+          [
+            Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
+            Stmt.ite
+              (Expr.logicalNot (Expr.eq (Expr.param "irm") (Expr.literal 0)))
+              [Stmt.emit "AccrueInterest" [Expr.localVar "id", Expr.literal 0, Expr.literal 0, Expr.literal 0]]
+              [],
+            Stmt.stop
+          ]
+          [Stmt.stop]
+      ]
     }
   ]
   events := [
@@ -389,6 +417,15 @@ def morphoSpec : ContractSpec := {
         { name := "irm", ty := .address, kind := .unindexed },
         { name := "lltv", ty := .uint256, kind := .unindexed }
       ]
+    },
+    {
+      name := "AccrueInterest"
+      params := [
+        { name := "id", ty := .bytes32, kind := .indexed },
+        { name := "prevBorrowRate", ty := .uint256, kind := .unindexed },
+        { name := "interest", ty := .uint256, kind := .unindexed },
+        { name := "feeShares", ty := .uint256, kind := .unindexed }
+      ]
     }
   ]
 }
@@ -422,7 +459,8 @@ def morphoSelectors : List Nat := [
   0xe74b981b, -- setFeeRecipient(address)
   0xeecea000, -- setAuthorization(address,bool)
   0x8c1358a2, -- createMarket((address,address,address,address,uint256))
-  0x2b4f013c  -- setFee((address,address,address,address,uint256),uint256)
+  0x2b4f013c, -- setFee((address,address,address,address,uint256),uint256)
+  0x151c1ade  -- accrueInterest((address,address,address,address,uint256))
 ]
 
 end Morpho.Compiler.Spec
