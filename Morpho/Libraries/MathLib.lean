@@ -43,4 +43,32 @@ def wTaylorCompounded (x n : Uint256) : Uint256 :=
   let thirdTerm := (secondTerm * firstTerm) / (3 * WAD)
   Uint256.ofNat (firstTerm + secondTerm + thirdTerm)
 
+/-! ## Rounding lemmas -/
+
+/-- mulDivDown ≤ mulDivUp when d > 0 and neither overflows.
+    This is the core rounding direction property. -/
+theorem mulDivDown_le_mulDivUp (x y d : Uint256)
+    (h_d : d.val > 0)
+    (h_no_overflow : (x.val * y.val + (d.val - 1)) / d.val < Uint256.modulus) :
+    (mulDivDown x y d).val ≤ (mulDivUp x y d).val := by
+  unfold mulDivDown mulDivUp
+  simp [Uint256.val_ofNat]
+  -- Goal: (x.val * y.val) / d.val % modulus ≤ (x.val * y.val + (d.val - 1)) / d.val % modulus
+  -- Since mulDivUp result < modulus, and mulDivDown ≤ mulDivUp (as naturals),
+  -- mulDivDown also < modulus, so both mod are identity.
+  have h_up : (x.val * y.val + (d.val - 1)) / d.val % Uint256.modulus
+      = (x.val * y.val + (d.val - 1)) / d.val := Nat.mod_eq_of_lt h_no_overflow
+  rw [h_up]
+  have h_le : (x.val * y.val) / d.val ≤ (x.val * y.val + (d.val - 1)) / d.val := by
+    rw [Nat.le_div_iff_mul_le h_d]
+    calc (x.val * y.val) / d.val * d.val
+        ≤ x.val * y.val := Nat.div_mul_le_self _ _
+      _ ≤ x.val * y.val + (d.val - 1) := Nat.le_add_right _ _
+  have h_down_lt : (x.val * y.val) / d.val < Uint256.modulus :=
+    Nat.lt_of_le_of_lt h_le h_no_overflow
+  have h_down : (x.val * y.val) / d.val % Uint256.modulus
+      = (x.val * y.val) / d.val := Nat.mod_eq_of_lt h_down_lt
+  rw [h_down]
+  exact h_le
+
 end Morpho.Libraries.MathLib
