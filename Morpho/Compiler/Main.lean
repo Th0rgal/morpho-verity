@@ -95,7 +95,7 @@ private def supplyCase : String := "\
                         assetsSupplied := div(add(mul(sharesSupplied, denomAssets), sub(denomShares, 1)), denomShares)\n\
                     }\n\
                 }\n\
-                let positionBase := mappingSlot(mappingSlot(2, id), onBehalf)\n\
+                let positionBase := mappingSlot(mappingSlot(17, id), onBehalf)\n\
                 sstore(positionBase, add(sload(positionBase), sharesSupplied))\n\
                 let newTotalSupplyAssets := add(totalSupplyAssets, assetsSupplied)\n\
                 let newTotalSupplyShares := add(totalSupplyShares, sharesSupplied)\n\
@@ -183,7 +183,7 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t1 ← replaceOrThrow t0 setFeeOld setFeeNew "setFee packed slot compatibility"
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
-  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n                let __paramsBase := mappingSlot(8, id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n"
+  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
   replaceOrThrow t1 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do

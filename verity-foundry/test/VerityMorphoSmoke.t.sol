@@ -26,6 +26,21 @@ interface IMorphoSubset {
     function setFeeRecipient(address newFeeRecipient) external;
     function createMarket(MarketParams calldata marketParams) external;
     function lastUpdate(bytes32 id) external view returns (uint256);
+    function market(bytes32 id)
+        external
+        view
+        returns (
+            uint256 totalSupplyAssets,
+            uint256 totalSupplyShares,
+            uint256 totalBorrowAssets,
+            uint256 totalBorrowShares,
+            uint256 lastUpdate_,
+            uint256 fee
+        );
+    function position(bytes32 id, address user)
+        external
+        view
+        returns (uint256 supplyShares, uint256 borrowShares, uint256 collateral);
 }
 
 contract VerityMorphoSmokeTest {
@@ -70,6 +85,22 @@ contract VerityMorphoSmokeTest {
         vm.prank(OWNER);
         morpho.createMarket(params);
         require(morpho.lastUpdate(id) == 1234567890, "lastUpdate mismatch");
+
+        (
+            ,
+            ,
+            ,
+            ,
+            uint256 marketLastUpdate,
+            uint256 marketFee
+        ) = morpho.market(id);
+        require(marketLastUpdate == 1234567890, "market.lastUpdate mismatch");
+        require(marketFee == 0, "market.fee mismatch");
+
+        (uint256 supplyShares, uint256 borrowShares, uint256 collateral) = morpho.position(id, OWNER);
+        require(supplyShares == 0, "position.supplyShares mismatch");
+        require(borrowShares == 0, "position.borrowShares mismatch");
+        require(collateral == 0, "position.collateral mismatch");
     }
 
     function testNonOwnerCannotEnableIrm() public {

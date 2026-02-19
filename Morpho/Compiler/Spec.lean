@@ -41,7 +41,8 @@ def morphoSpec : ContractSpec := {
     { name := "idToCollateralToken", ty := .mappingTyped (.simple .uint256) },
     { name := "idToOracle", ty := .mappingTyped (.simple .uint256) },
     { name := "idToIrm", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToLltv", ty := .mappingTyped (.simple .uint256) }
+    { name := "idToLltv", ty := .mappingTyped (.simple .uint256) },
+    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) }
   ]
   constructor := some {
     params := [{ name := "initialOwner", ty := .address }]
@@ -154,6 +155,38 @@ def morphoSpec : ContractSpec := {
           Expr.mappingUint "idToOracle" (Expr.param "id"),
           Expr.mappingUint "idToIrm" (Expr.param "id"),
           Expr.mappingUint "idToLltv" (Expr.param "id")
+        ]
+      ]
+    },
+    {
+      name := "position"
+      params := [
+        { name := "id", ty := .bytes32 },
+        { name := "user", ty := .address }
+      ]
+      returnType := none
+      returns := [.uint256, .uint256, .uint256]
+      body := [
+        Stmt.returnValues [
+          Expr.mapping2 "positionSupplyShares" (Expr.param "id") (Expr.param "user"),
+          Expr.literal 0,
+          Expr.literal 0
+        ]
+      ]
+    },
+    {
+      name := "market"
+      params := [{ name := "id", ty := .bytes32 }]
+      returnType := none
+      returns := [.uint256, .uint256, .uint256, .uint256, .uint256, .uint256]
+      body := [
+        Stmt.returnValues [
+          Expr.mappingUint "marketTotalSupplyAssets" (Expr.param "id"),
+          Expr.mappingUint "marketTotalSupplyShares" (Expr.param "id"),
+          Expr.mappingUint "marketTotalBorrowAssets" (Expr.param "id"),
+          Expr.mappingUint "marketTotalBorrowShares" (Expr.param "id"),
+          Expr.mappingUint "marketLastUpdate" (Expr.param "id"),
+          Expr.mappingUint "marketFee" (Expr.param "id")
         ]
       ]
     },
@@ -369,6 +402,8 @@ def morphoSelectors : List Nat := [
   0x3f13c692, -- totalBorrowShares(bytes32)
   0x27cdab06, -- fee(bytes32)
   0x2c3c9157, -- idToMarketParams(bytes32)
+  0x93c52062, -- position(bytes32,address)
+  0x5c60e39a, -- market(bytes32)
   0x7784c685, -- extSloads(bytes32[])
   0x13af4035, -- setOwner(address)
   0x5a64f51e, -- enableIrm(address)
