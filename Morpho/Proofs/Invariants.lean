@@ -79,20 +79,13 @@ theorem setFee_preserves_feeInRange (s : MorphoState) (id : Id) (newFee : Uint25
   simp
   exact h.right.right.left
 
-/-- Helper: if a ≤ b and d ≤ a, and both a,b < modulus, then (a-d)%mod ≤ (b-d)%mod. -/
+/-- Helper: if a ≤ b and both a,b < modulus, then (a-d)%mod ≤ (b-d)%mod. -/
 private theorem sub_mod_le_sub_mod {a b d modulus : Nat}
-    (h_le : a ≤ b) (h_d_le_a : d ≤ a) (h_a_lt : a < modulus) (h_b_lt : b < modulus) :
+    (h_le : a ≤ b) (h_a_lt : a < modulus) (h_b_lt : b < modulus) :
     (a - d) % modulus ≤ (b - d) % modulus := by
   rw [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le a d) h_a_lt),
       Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le b d) h_b_lt)]
   exact Nat.sub_le_sub_right h_le d
-
-/-- Helper: UtilsLib.min x y ≤ x. -/
-private theorem min_le_left (x y : Verity.Core.Uint256) :
-    (Libraries.UtilsLib.min x y).val ≤ x.val := by
-  unfold Libraries.UtilsLib.min; split
-  · exact Nat.le_of_lt (by assumption)
-  · exact Nat.le_refl _
 
 /-! ## Solvency preserved by core operations -/
 
@@ -264,7 +257,6 @@ theorem liquidate_preserves_borrowLeSupply (s : MorphoState) (id : Id)
     simp only [Morpho.u256_val]
     exact sub_mod_le_sub_mod
       (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
-      (min_le_left _ _)
       (Libraries.UtilsLib.zeroFloorSub _ _).isLt
       (s.market id).totalSupplyAssets.isLt
   case isFalse.isFalse =>
@@ -275,7 +267,6 @@ theorem liquidate_preserves_borrowLeSupply (s : MorphoState) (id : Id)
       simp only [Morpho.u256_val]
       exact sub_mod_le_sub_mod
         (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
-        (min_le_left _ _)
         (Libraries.UtilsLib.zeroFloorSub _ _).isLt
         (s.market id).totalSupplyAssets.isLt
     · -- non-bad-debt path (newCollateral > 0)
@@ -419,7 +410,24 @@ theorem withdrawCollateral_market_isolated (s : MorphoState) (id id' : Id)
   in market `id` leave every other user's position unchanged. This guarantees
   that your supply, debt, and collateral cannot be modified by someone else's
   transactions. Even liquidation — which can seize collateral and reduce debt —
-  only modifies the targeted borrower's position, never anyone else's. -/
+  only modifies the targeted borrower's position, never anyone else's.
+
+  Interest accrual only modifies the fee recipient's position (to credit fee shares).
+  All other users' positions are completely unchanged. -/
+
+/-- Interest accrual does not change any non-fee-recipient's position. -/
+theorem accrueInterest_position_isolated (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool) (user' : Address)
+    (h_ne : s.feeRecipient ≠ user') :
+    (Morpho.accrueInterest s id borrowRate hasIrm).position id user' =
+      s.position id user' := by
+  unfold Morpho.accrueInterest
+  simp
+  split
+  · rfl  -- elapsed = 0: state unchanged
+  · split
+    · rfl  -- ¬hasIrm: only market changes, positions unchanged
+    · simp [Ne.symm h_ne]
 
 /-- Supply on behalf of `onBehalf` does not change `user'`'s position. -/
 theorem supply_position_isolated (s : MorphoState) (id : Id)

@@ -33,7 +33,11 @@ def onlyAuthorizedIncreaseBorrow (s s' : MorphoState) (id : Id) (user : Address)
   (s'.position id user).borrowShares.val > (s.position id user).borrowShares.val →
     s.sender == user || s.isAuthorized user s.sender
 
-/-- No one can remove your collateral without your authorization (except liquidation). -/
+/-- No one can remove your collateral via `withdrawCollateral` without your authorization.
+
+  Liquidation is the one exception: it can seize collateral without the borrower's consent,
+  but only when the position is unhealthy. See `liquidate_requires_unhealthy` in
+  `Proofs/Authorization.lean` for the complementary guarantee. -/
 def onlyAuthorizedDecreaseCollateral (s s' : MorphoState) (id : Id) (user : Address) : Prop :=
   (s'.position id user).collateral.val < (s.position id user).collateral.val →
     s.sender == user || s.isAuthorized user s.sender

@@ -150,6 +150,24 @@ theorem withdrawCollateral_onlyAuthorizedDecreaseCollateral (s : MorphoState) (i
   simp at h_ok
   exact auth_of_isSenderAuthorized s onBehalf h_ok.2.2.2.1
 
+/-! ## Liquidation requires unhealthy position
+
+  Liquidation bypasses the normal authorization check — anyone can liquidate anyone.
+  But it requires the borrower's position to be unhealthy. This is the protocol's
+  safety valve: bad positions must be liquidatable regardless of the borrower's consent. -/
+
+/-- A successful liquidation implies the borrower's position was unhealthy. -/
+theorem liquidate_requires_unhealthy (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    Morpho.isHealthy s id borrower collateralPrice lltv = false := by
+  unfold Morpho.liquidate at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  split at h_ok <;> simp at h_ok
+  all_goals exact h_ok.2.1
+
 /-! ## Signature-based authorization proofs
 
   `setAuthorizationWithSig` allows gasless delegation via EIP-712 signatures.
