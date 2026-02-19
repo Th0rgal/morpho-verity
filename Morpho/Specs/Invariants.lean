@@ -113,6 +113,31 @@ def lltvMonotone (s s' : MorphoState) (lltv : Uint256) : Prop :=
 def lastUpdateMonotone (s s' : MorphoState) (id : Id) : Prop :=
   (s.market id).lastUpdate.val ≤ (s'.market id).lastUpdate.val
 
+/-! ## Exchange rate monotonicity
+
+  The "exchange rate" of a supply share is the ratio of total assets to total shares
+  (with virtual offsets for inflation protection):
+  `(totalSupplyAssets + VIRTUAL_ASSETS) / (totalSupplyShares + VIRTUAL_SHARES)`.
+
+  Interest accrual must never decrease this ratio — lenders should never lose value
+  from the passage of time. When fees are zero, this is obvious (assets increase,
+  shares don't). When fees are positive, the fee recipient gets new shares computed
+  via `toSharesDown` which rounds down, ensuring existing shareholders' per-share
+  value does not decrease.
+
+  We use cross-multiplication to avoid division:
+  `oldAssets * newShares ≤ newAssets * oldShares`
+  is equivalent to `oldAssets / oldShares ≤ newAssets / newShares`.
+-/
+
+/-- Supply share value never decreases: interest accrual can only increase
+    the assets-per-share ratio (with virtual offsets). -/
+def supplyExchangeRateMonotone (s s' : MorphoState) (id : Id) : Prop :=
+  ((s.market id).totalSupplyAssets.val + SharesMathLib.VIRTUAL_ASSETS) *
+    ((s'.market id).totalSupplyShares.val + SharesMathLib.VIRTUAL_SHARES) ≤
+  ((s'.market id).totalSupplyAssets.val + SharesMathLib.VIRTUAL_ASSETS) *
+    ((s.market id).totalSupplyShares.val + SharesMathLib.VIRTUAL_SHARES)
+
 /-! ## Market isolation
 
   Morpho Blue is a singleton contract managing many independent markets.
