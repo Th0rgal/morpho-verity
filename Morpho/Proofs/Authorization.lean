@@ -119,4 +119,42 @@ theorem supply_no_authorization_needed (s : MorphoState) (id : Id)
     rw [beq_eq_false_iff_ne]; exact h_addr
   simp [h1, h_valid, h3]
 
+/-! ## Signature-based authorization proofs
+
+  `setAuthorizationWithSig` allows gasless delegation via EIP-712 signatures.
+  We prove three properties about its pure state logic:
+  - Expired deadlines are rejected
+  - Wrong nonces are rejected
+  - Successful calls increment the authorizer's nonce -/
+
+/-- setAuthorizationWithSig rejects expired deadlines. -/
+theorem sig_rejects_expired_deadline (s : MorphoState) (auth : Authorization) (sig : Bool)
+    (h_expired : s.blockTimestamp.val > auth.deadline.val) :
+    Morpho.setAuthorizationWithSig s auth sig = none := by
+  unfold Morpho.setAuthorizationWithSig
+  simp
+  intro h_le
+  omega
+
+/-- setAuthorizationWithSig rejects wrong nonces. -/
+theorem sig_rejects_wrong_nonce (s : MorphoState) (auth : Authorization) (sig : Bool)
+    (h_nonce : auth.nonce ≠ s.nonce auth.authorizer) :
+    Morpho.setAuthorizationWithSig s auth sig = none := by
+  unfold Morpho.setAuthorizationWithSig
+  simp
+  intro _
+  intro h_eq
+  exact absurd h_eq h_nonce
+
+/-- Successful setAuthorizationWithSig increments the authorizer's nonce. -/
+theorem sig_increments_nonce (s : MorphoState) (auth : Authorization) (sig : Bool)
+    (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
+    nonceIncremented s s' auth.authorizer := by
+  unfold Morpho.setAuthorizationWithSig at h_ok
+  simp at h_ok
+  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  unfold nonceIncremented
+  rw [← h_eq]
+  simp [Morpho.u256, Nat.add_comm]
+
 end Morpho.Proofs.Authorization

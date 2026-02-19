@@ -77,4 +77,14 @@ def marketId (_params : MarketParams) : Id :=
   -- For verification purposes, we work with Id abstractly.
   0
 
+/-- EIP-712 authorization struct. Matches `Authorization` (IMorpho.sol:35).
+    Used by `setAuthorizationWithSig` for gasless delegation via signatures. -/
+structure Authorization where
+  authorizer   : Address
+  authorized   : Address
+  isAuthorized : Bool
+  nonce        : Uint256
+  deadline     : Uint256
+  deriving DecidableEq, Repr
+
 end Morpho.Types

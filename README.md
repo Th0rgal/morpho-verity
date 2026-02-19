@@ -12,7 +12,7 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 - **Solvency**: total borrows never exceed total supply (including through interest accrual)
 - **Rounding safety**: all share/asset conversions round against the user
-- **Authorization**: only authorized addresses can withdraw, borrow, or remove collateral
+- **Authorization**: only authorized addresses can withdraw, borrow, or remove collateral; signature-based delegation requires valid nonce and unexpired deadline
 - **Fee bounds**: market fees stay within the 25% cap
 - **Collateralization**: positions with debt always have collateral (bad debt is socialized immediately)
 - **Monotonicity**: enabled IRMs/LLTVs cannot be disabled; market timestamps only increase
@@ -20,15 +20,15 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 ### What this does not prove
 
-The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers) is modeled as parameters, not verified end-to-end.
+The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers, EIP-712 signature verification) is modeled as parameters, not verified end-to-end.
 
 ## Structure
 
 ```
 morpho-blue/              # Morpho Blue Solidity (git submodule)
 Morpho/
-  Types.lean              # MarketParams, Position, Market, MorphoState
-  Morpho.lean             # Core logic: supply, withdraw, borrow, repay, liquidate
+  Types.lean              # MarketParams, Position, Market, MorphoState, Authorization
+  Morpho.lean             # Core logic: supply, withdraw, borrow, repay, liquidate, setAuthorizationWithSig
   Libraries/
     MathLib.lean          # WAD arithmetic (mulDivDown/Up, wMulDown, wTaylorCompounded)
     SharesMathLib.lean    # Share/asset conversion with virtual offset
@@ -41,7 +41,7 @@ Morpho/
   Proofs/
     Invariants.lean       # Invariant proofs (18/18 proven)
     Rounding.lean         # Rounding proofs (2/4 proven)
-    Authorization.lean    # Authorization proofs (4/4 proven)
+    Authorization.lean    # Authorization proofs (7/7 proven)
 ```
 
 ## Build
@@ -54,11 +54,11 @@ lake build
 
 ## Proof progress
 
-**26 theorems proven, 2 sorry remaining.**
+**29 theorems proven, 2 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
-| Authorization | 4 | 4 | Done |
+| Authorization | 7 | 7 | Done |
 | Invariants | 18 | 18 | Done |
 | Rounding | 2 | 4 | Round-trip proofs need compositional division reasoning |
 
@@ -77,10 +77,10 @@ Invariant theorems include:
 ## Status
 
 - [x] Morpho types and state model
-- [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, authorization, owner functions, interest accrual, flash loans)
+- [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, setAuthorization, setAuthorizationWithSig, owner functions, interest accrual, flash loans)
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
-- [x] Authorization proofs (4/4)
+- [x] Authorization proofs (7/7: withdraw/borrow/withdrawCollateral require auth, supply doesn't, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
 - [x] Invariant proofs (18/18: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay/accrueInterest, timestamp monotonicity, collateralization preserved by liquidation, market isolation for all 6 operations)
 - [x] Rounding direction proofs (2/2: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp)
 - [ ] Rounding round-trip proofs (0/2: supply round-trip no-loss, withdraw round-trip no-loss)

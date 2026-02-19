@@ -38,4 +38,17 @@ def onlyAuthorizedDecreaseCollateral (s s' : MorphoState) (id : Id) (user : Addr
   (s'.position id user).collateral.val < (s.position id user).collateral.val →
     s.sender == user || s.isAuthorized user s.sender
 
+/-! ## Signature-based authorization
+
+  `setAuthorizationWithSig` allows gasless delegation via EIP-712 signatures.
+  It has two pure state-logic guarantees:
+  - **Replay protection**: the nonce must match and is incremented on every call
+  - **Expiry**: the authorization is rejected if the deadline has passed
+
+  The cryptographic guarantee (valid ecrecover) is modeled as a parameter. -/
+
+/-- After a signature-based authorization, the authorizer's nonce has increased. -/
+def nonceIncremented (s s' : MorphoState) (authorizer : Address) : Prop :=
+  s'.nonce authorizer = Verity.Core.Uint256.ofNat ((s.nonce authorizer).val + 1)
+
 end Morpho.Specs.Authorization

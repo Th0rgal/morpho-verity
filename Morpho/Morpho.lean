@@ -187,6 +187,33 @@ def setAuthorization (s : MorphoState) (authorized : Address) (newIsAuthorized :
       if authorizer == s.sender && auth == authorized then newIsAuthorized
       else s.isAuthorized authorizer auth }
 
+/-- Authorize via EIP-712 signature. Matches `setAuthorizationWithSig` (Morpho.sol:445).
+    The signature verification (EIP-712 digest + ecrecover) is cryptographic and cannot
+    be modeled in pure state logic. We take `signatureValid : Bool` as a parameter,
+    consistent with how oracle prices and IRM rates are externalized.
+    The pure state logic — nonce check, nonce increment, deadline check — is fully modeled.
+
+    Note: unlike `setAuthorization`, there is NO `ALREADY_SET` check. The Solidity comment
+    says "Do not check whether authorization is already set because the nonce increment
+    is a desired side effect." (Morpho.sol:446). -/
+def setAuthorizationWithSig (s : MorphoState) (auth : Authorization) (signatureValid : Bool)
+    : Option MorphoState :=
+  -- Deadline check (Morpho.sol:447)
+  if s.blockTimestamp.val > auth.deadline.val then none
+  -- Nonce check (Morpho.sol:448)
+  else if auth.nonce != s.nonce auth.authorizer then none
+  -- Signature validity (Morpho.sol:450-454, modeled as parameter)
+  else if ¬signatureValid then none
+  else some { s with
+    -- Nonce increment (Morpho.sol:448, the ++ in nonce[authorizer]++)
+    nonce := fun addr =>
+      if addr == auth.authorizer then u256 ((s.nonce auth.authorizer).val + 1)
+      else s.nonce addr
+    -- Authorization update (Morpho.sol:458)
+    isAuthorized := fun authorizer authorized =>
+      if authorizer == auth.authorizer && authorized == auth.authorized then auth.isAuthorized
+      else s.isAuthorized authorizer authorized }
+
 /-! ## Core operations -/
 
 /-- Supply assets to a market. Matches `supply` (Morpho.sol:169).
