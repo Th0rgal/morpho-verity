@@ -38,9 +38,9 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (WIP)
-    Rounding.lean         # Rounding proofs (WIP)
-    Authorization.lean    # Authorization proofs (WIP)
+    Invariants.lean       # Invariant proofs (5/8 proven)
+    Rounding.lean         # Rounding proofs (0/4 proven)
+    Authorization.lean    # Authorization proofs (4/4 proven)
 ```
 
 ## Build
@@ -51,13 +51,28 @@ Requires [Lean 4](https://leanprover.github.io/lean4/doc/setup.html) (v4.15.0).
 lake build
 ```
 
+## Proof progress
+
+**10 theorems proven, 7 sorry remaining.**
+
+| Category | Proven | Total | Status |
+|----------|--------|-------|--------|
+| Authorization | 4 | 4 | Done |
+| Invariants (monotonicity, fee, market creation) | 5 | 8 | Solvency proofs remaining |
+| Rounding | 0 | 4 | Needs no-overflow reasoning |
+
+Also proven: `mulDivDown_le_mulDivUp` (core rounding lemma in MathLib).
+
 ## Status
 
 - [x] Morpho types and state model
 - [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, authorization, owner functions, interest accrual)
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs (invariants, rounding, authorization)
-- [ ] Proofs (in progress)
+- [x] Authorization proofs (4/4)
+- [x] Configuration invariant proofs (5/5: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation)
+- [ ] Solvency proofs (0/3: supply/withdraw/repay preserve borrowLeSupply)
+- [ ] Rounding proofs (0/4: needs Uint256 overflow reasoning)
 
 ## License
 
