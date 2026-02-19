@@ -10,3 +10,6 @@ require verity from git
 @[default_target]
 lean_lib «Morpho» where
   globs := #[.andSubmodules `Morpho]
+
+lean_exe «morpho-verity-compiler» where
+  root := `MorphoCompiler
