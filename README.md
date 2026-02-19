@@ -38,7 +38,7 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (5/8 proven)
+    Invariants.lean       # Invariant proofs (10/10 proven)
     Rounding.lean         # Rounding proofs (0/4 proven)
     Authorization.lean    # Authorization proofs (4/4 proven)
 ```
@@ -53,18 +53,23 @@ lake build
 
 ## Proof progress
 
-**14 theorems proven, 4 sorry remaining.**
+**16 theorems proven, 4 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 4 | 4 | Done |
-| Invariants | 8 | 8 | Done |
+| Invariants | 10 | 10 | Done |
 | Rounding | 0 | 4 | Needs Uint256 overflow reasoning |
 
 Also proven in supporting libraries:
 - `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
 - `zeroFloorSub_le` — saturating subtraction never exceeds original (UtilsLib)
 - `u256_val` — simp lemma for Uint256 wrapping arithmetic
+
+Invariant theorems include:
+- IRM/LLTV monotonicity (2), LLTV < WAD (1), market creation validity (1)
+- Fee bounds (1), solvency for supply/withdraw/borrow/repay (4)
+- Timestamp monotonicity for interest accrual (1)
 
 ## Status
 
@@ -73,7 +78,7 @@ Also proven in supporting libraries:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (4/4)
-- [x] Invariant proofs (8/8: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/repay)
+- [x] Invariant proofs (10/10: IRM/LLTV monotonicity, LLTV < WAD, fee bounds, market creation, solvency for supply/withdraw/borrow/repay, timestamp monotonicity)
 - [ ] Rounding proofs (0/4: toShares/toAssets Down ≤ Up, round-trip no-loss)
 
 ## License

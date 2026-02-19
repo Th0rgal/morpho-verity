@@ -138,4 +138,42 @@ theorem repay_preserves_borrowLeSupply (s : MorphoState) (id : Id)
       ≤ (s.market id).totalBorrowAssets.val := Libraries.UtilsLib.zeroFloorSub_le _ _
     _ ≤ (s.market id).totalSupplyAssets.val := h_solvent
 
+/-- Borrow adds to totalBorrowAssets but the liquidity check (Morpho.sol:259)
+    ensures totalBorrowAssets ≤ totalSupplyAssets in the resulting state. -/
+theorem borrow_preserves_borrowLeSupply (s : MorphoState) (id : Id)
+    (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256)
+    (h_ok : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv = some (a, sh, s')) :
+    borrowLeSupply s' id := by
+  unfold Morpho.borrow at h_ok
+  simp at h_ok
+  obtain ⟨_, _, _, _, _, h_liq, _, _, h_eq⟩ := h_ok
+  unfold borrowLeSupply
+  rw [← h_eq]
+  simp
+  exact h_liq
+
+/-! ## Timestamp monotonicity -/
+
+/-- Interest accrual never decreases a market's lastUpdate timestamp.
+    In the elapsed=0 case, state is unchanged. Otherwise, lastUpdate is set
+    to blockTimestamp which is ≥ lastUpdate (time moves forward). -/
+theorem accrueInterest_lastUpdate_monotone (s : MorphoState) (id : Id)
+    (borrowRate : Uint256) (hasIrm : Bool)
+    (h_time : (s.market id).lastUpdate.val ≤ s.blockTimestamp.val) :
+    (s.market id).lastUpdate.val ≤
+      ((Morpho.accrueInterest s id borrowRate hasIrm).market id).lastUpdate.val := by
+  unfold Morpho.accrueInterest
+  simp
+  split
+  · -- elapsed = 0: state unchanged
+    exact Nat.le_refl _
+  · split
+    · -- ¬hasIrm: lastUpdate := blockTimestamp
+      simp
+      exact h_time
+    · -- hasIrm: lastUpdate := blockTimestamp (in the full interest case)
+      simp
+      exact h_time
+
 end Morpho.Proofs.Invariants
