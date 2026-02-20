@@ -151,7 +151,7 @@ private def supplyCase : String := "\
                     if iszero(mload(0)) {\n\
                         mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                         mstore(4, 32)\n\
-                        mstore(36, 25)\n\
+                        mstore(36, 27)\n\
                         mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
                         revert(0, 100)\n\
                     }\n\
@@ -261,7 +261,7 @@ private def withdrawCase : String := "\
                     if iszero(mload(0)) {\n\
                         mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                         mstore(4, 32)\n\
-                        mstore(36, 21)\n\
+                        mstore(36, 23)\n\
                         mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
                         revert(0, 100)\n\
                     }\n\

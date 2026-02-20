@@ -95,7 +95,7 @@ contract MockERC20 {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) external virtual returns (bool) {
         uint256 allowed = allowance[from][msg.sender];
         require(allowed >= amount, "allowance");
         uint256 bal = balanceOf[from];
@@ -107,13 +107,25 @@ contract MockERC20 {
         return true;
     }
 
-    function transfer(address to, uint256 amount) external returns (bool) {
+    function transfer(address to, uint256 amount) external virtual returns (bool) {
         uint256 bal = balanceOf[msg.sender];
         require(bal >= amount, "balance");
         balanceOf[msg.sender] = bal - amount;
         balanceOf[to] += amount;
         emit Transfer(msg.sender, to, amount);
         return true;
+    }
+}
+
+contract MockERC20FalseTransferFrom is MockERC20 {
+    function transferFrom(address, address, uint256) external pure override returns (bool) {
+        return false;
+    }
+}
+
+contract MockERC20FalseTransfer is MockERC20 {
+    function transfer(address, uint256) external pure override returns (bool) {
+        return false;
     }
 }
 
@@ -285,6 +297,34 @@ contract VerityMorphoSmokeTest {
 
         (uint256 supplyShares,,) = morpho.position(id, supplier);
         require(supplyShares == sharesSupplied, "position.supplyShares mismatch");
+    }
+
+    function testSupplyRevertReasonOnFalseTransferFromReturn() public {
+        MockERC20FalseTransferFrom loanToken = new MockERC20FalseTransferFrom();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(supplier);
+        (bool ok, bytes memory ret) = address(morpho).call(
+            abi.encodeWithSelector(IMorphoSubset.supply.selector, params, 100 ether, 0, supplier, bytes(""))
+        );
+        require(!ok, "supply should revert");
+        require(
+            keccak256(bytes(_decodeErrorString(ret))) == keccak256(bytes("transferFrom returned false")),
+            "supply revert reason mismatch"
+        );
     }
 
     function testExtSloadsMatchesGetters() public {
@@ -480,6 +520,37 @@ contract VerityMorphoSmokeTest {
         require(loanToken.balanceOf(receiver) == assetsWithdrawn, "receiver token balance mismatch");
     }
 
+    function testWithdrawRevertReasonOnFalseTransferReturn() public {
+        MockERC20FalseTransfer loanToken = new MockERC20FalseTransfer();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(supplier);
+        morpho.supply(params, 100 ether, 0, supplier, "");
+
+        vm.prank(supplier);
+        (bool ok, bytes memory ret) = address(morpho).call(
+            abi.encodeWithSelector(IMorphoSubset.withdraw.selector, params, 10 ether, 0, supplier, address(0xC0FFEE))
+        );
+        require(!ok, "withdraw should revert");
+        require(
+            keccak256(bytes(_decodeErrorString(ret))) == keccak256(bytes("transfer returned false")),
+            "withdraw revert reason mismatch"
+        );
+    }
+
     function testWithdrawEmitsEventBeforeTokenTransfer() public {
         MockERC20 loanToken = new MockERC20();
         IMorphoSubset.MarketParams memory params =
@@ -617,6 +688,20 @@ contract VerityMorphoSmokeTest {
         bytes memory out = new bytes(end - start);
         for (uint256 i = 0; i < out.length; i++) out[i] = input[start + i];
         return out;
+    }
+
+    function _decodeErrorString(bytes memory ret) internal pure returns (string memory) {
+        if (ret.length < 68) return "";
+        bytes4 selector;
+        assembly {
+            selector := mload(add(ret, 0x20))
+        }
+        if (selector != 0x08c379a0) return "";
+        bytes memory payload = new bytes(ret.length - 4);
+        for (uint256 i = 0; i < payload.length; ++i) {
+            payload[i] = ret[i + 4];
+        }
+        return abi.decode(payload, (string));
     }
 
     function _isWhitespace(bytes1 c) internal pure returns (bool) {
