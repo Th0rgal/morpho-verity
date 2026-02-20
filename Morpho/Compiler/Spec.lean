@@ -10,8 +10,20 @@ private def maxFee : Nat := 250000000000000000
 private def requireOwner : Stmt :=
   Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "not owner"
 
+private def marketParamsTy : ParamType :=
+  .tuple [.address, .address, .address, .address, .uint256]
+
 private def marketIdExpr (params : Array Expr) : Expr :=
   Expr.externalCall "keccakMarketParams" params.toList
+
+private def marketIdFromTupleParam (paramName : String) : Expr :=
+  marketIdExpr #[
+    Expr.param s!"{paramName}_0",
+    Expr.param s!"{paramName}_1",
+    Expr.param s!"{paramName}_2",
+    Expr.param s!"{paramName}_3",
+    Expr.param s!"{paramName}_4"
+  ]
 
 /--
 A best-effort Morpho ContractSpec target that compiles to Yul and preserves the
@@ -19,8 +31,6 @@ core owner/market-creation configuration behavior used in proof scaffolding.
 
 Notes:
 - ABI selectors are set manually to match IMorpho tuple signatures.
-- Some IMorpho functions are intentionally omitted because current Verity
-  ContractSpec does not yet support multi-value returns needed for full parity.
 -/
 def morphoSpec : ContractSpec := {
   name := "Morpho"
@@ -297,15 +307,16 @@ def morphoSpec : ContractSpec := {
     {
       name := "createMarket"
       params := [
-        { name := "loanToken", ty := .address },
-        { name := "collateralToken", ty := .address },
-        { name := "oracle", ty := .address },
-        { name := "irm", ty := .address },
-        { name := "lltv", ty := .uint256 }
+        { name := "marketParams", ty := marketParamsTy }
       ]
       returnType := none
       body := [
-        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
+        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
+        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
+        Stmt.letVar "irm" (Expr.param "marketParams_3"),
+        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
+        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM not enabled",
         Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV not enabled",
         Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "market already created",
@@ -334,17 +345,18 @@ def morphoSpec : ContractSpec := {
     {
       name := "setFee"
       params := [
-        { name := "loanToken", ty := .address },
-        { name := "collateralToken", ty := .address },
-        { name := "oracle", ty := .address },
-        { name := "irm", ty := .address },
-        { name := "lltv", ty := .uint256 },
+        { name := "marketParams", ty := marketParamsTy },
         { name := "newFee", ty := .uint256 }
       ]
       returnType := none
       body := [
         requireOwner,
-        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
+        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
+        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
+        Stmt.letVar "irm" (Expr.param "marketParams_3"),
+        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
+        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require
           (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
           "market not created",
@@ -357,15 +369,16 @@ def morphoSpec : ContractSpec := {
     {
       name := "accrueInterest"
       params := [
-        { name := "loanToken", ty := .address },
-        { name := "collateralToken", ty := .address },
-        { name := "oracle", ty := .address },
-        { name := "irm", ty := .address },
-        { name := "lltv", ty := .uint256 }
+        { name := "marketParams", ty := marketParamsTy }
       ]
       returnType := none
       body := [
-        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
+        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
+        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
+        Stmt.letVar "irm" (Expr.param "marketParams_3"),
+        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
+        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require
           (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
           "market not created",
@@ -447,11 +460,7 @@ def morphoSpec : ContractSpec := {
   ]
 }
 
-/--
-Function selectors aligned with IMorpho signatures. For tuple params in IMorpho,
-selectors are intentionally taken from tuple signatures even though the current
-ContractSpec expresses flattened static parameters.
--/
+/-- Function selectors aligned with IMorpho signatures. -/
 def morphoSelectors : List Nat := [
   0x3644e515, -- DOMAIN_SEPARATOR()
   0x8da5cb5b, -- owner()

@@ -12,13 +12,22 @@ run_suite() {
   local impl="$1"
   local log_file="${LOG_DIR}/morpho_blue_${impl}.log"
   local status=0
+  local foundry_profile=""
+
+  if rg -q "^\[profile\.difftest\]" "${ROOT_DIR}/morpho-blue/foundry.toml"; then
+    foundry_profile="difftest"
+  fi
 
   echo "==> Running Morpho Blue suite with MORPHO_IMPL=${impl}"
   set +e
   (
     cd "${ROOT_DIR}/morpho-blue"
-    FOUNDRY_PROFILE=difftest MORPHO_IMPL="${impl}" \
-      forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
+    if [[ -n "${foundry_profile}" ]]; then
+      FOUNDRY_PROFILE="${foundry_profile}" MORPHO_IMPL="${impl}" \
+        forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
+    else
+      MORPHO_IMPL="${impl}" forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
+    fi
   ) | tee "${log_file}"
   status=${PIPESTATUS[0]}
   set -e

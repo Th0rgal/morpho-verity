@@ -646,12 +646,12 @@ contract VerityMorphoSmokeTest {
                 continue;
             }
             found = true;
-            require(entries[i].topics.length == 4, "supply event should have 3 indexed args");
+            require(entries[i].topics.length == 3, "supply event should have 2 indexed args");
             require(entries[i].topics[1] == id, "supply topic id mismatch");
-            require(entries[i].topics[2] == bytes32(uint256(uint160(supplier))), "supply topic caller mismatch");
-            require(entries[i].topics[3] == bytes32(uint256(uint160(supplier))), "supply topic onBehalf mismatch");
-            require(entries[i].data.length == 64, "supply event data length mismatch");
-            (uint256 assets_, uint256 shares_) = abi.decode(entries[i].data, (uint256, uint256));
+            require(entries[i].topics[2] == bytes32(uint256(uint160(supplier))), "supply topic onBehalf mismatch");
+            require(entries[i].data.length == 96, "supply event data length mismatch");
+            (address caller_, uint256 assets_, uint256 shares_) = abi.decode(entries[i].data, (address, uint256, uint256));
+            require(caller_ == supplier, "supply caller data mismatch");
             require(assets_ == assetsSupplied, "supply assets data mismatch");
             require(shares_ == sharesSupplied, "supply shares data mismatch");
             break;

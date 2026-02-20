@@ -23,6 +23,11 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers, EIP-712 signature verification) is modeled as parameters, not verified end-to-end.
 
+### Solidity Equivalence Bridge
+
+`Morpho/Proofs/SolidityBridge.lean` adds proof-transfer theorems for core solvency invariants.
+If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation (`supply`, `withdraw`, `borrow`, `repay`, `liquidate`, `accrueInterest`), the existing Morpho solvency proofs transfer directly to Solidity.
+
 ## Structure
 
 ```
@@ -43,6 +48,7 @@ Morpho/
     Invariants.lean       # Invariant proofs (98/98 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (11/11 proven)
+    SolidityBridge.lean   # Formal transfer lemmas from Yul semantic equivalence to Solidity guarantees
 ```
 
 ## Build
