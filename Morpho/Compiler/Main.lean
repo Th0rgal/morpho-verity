@@ -283,6 +283,9 @@ private def replaceOrThrow (text oldFragment newFragment : String) (label : Stri
   if patched != text then pure patched
   else throw s!"Could not patch Yul output for {label}"
 
+private def packMarketSupplySlot0Expr (totalSupplyAssets totalSupplyShares : String) : String :=
+  s!"or(and({totalSupplyAssets}, 0xffffffffffffffffffffffffffffffff), shl(128, and({totalSupplyShares}, 0xffffffffffffffffffffffffffffffff)))"
+
 private def injectStorageCompat (text : String) : Except String String := do
   let mappingSlotOld := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0, key)\n                mstore(32, baseSlot)\n                slot := keccak256(0, 64)\n            }\n"
   let mappingSlotNew := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0x200, key)\n                mstore(0x220, baseSlot)\n                slot := keccak256(0x200, 64)\n            }\n"
@@ -304,11 +307,13 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
   let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nmstore(0, assetsSupplied)\n"
-  let supplyNew := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\nmstore(0, assetsSupplied)\n"
+  let supplySlot0Packed := packMarketSupplySlot0Expr "newTotalSupplyAssets" "newTotalSupplyShares"
+  let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {supplySlot0Packed})\nmstore(0, assetsSupplied)\n"
   let t4 ← replaceOrThrow t3 supplyOld supplyNew "supply packed slot compatibility"
 
   let withdrawOld := "sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\nsstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\nmstore(0, caller())\n"
-  let withdrawNew := "let __newTotalSupplyAssets := sub(totalSupplyAssets, assetsWithdrawn)\nlet __newTotalSupplyShares := sub(totalSupplyShares, sharesWithdrawn)\nsstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, or(and(__newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(__newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\nmstore(0, caller())\n"
+  let withdrawSlot0Packed := packMarketSupplySlot0Expr "__newTotalSupplyAssets" "__newTotalSupplyShares"
+  let withdrawNew := s!"let __newTotalSupplyAssets := sub(totalSupplyAssets, assetsWithdrawn)\nlet __newTotalSupplyShares := sub(totalSupplyShares, sharesWithdrawn)\nsstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {withdrawSlot0Packed})\nmstore(0, caller())\n"
   let t5 ← replaceOrThrow t4 withdrawOld withdrawNew "withdraw packed slot compatibility"
 
   let accrueOld := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"
