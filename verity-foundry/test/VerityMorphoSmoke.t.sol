@@ -250,9 +250,9 @@ contract VerityMorphoSmokeTest {
                 continue;
             }
             found = true;
-            require(entries[i].topics.length == 2, "EnableLltv should have one indexed arg");
-            require(entries[i].topics[1] == bytes32(lltv), "EnableLltv topic lltv mismatch");
-            require(entries[i].data.length == 0, "EnableLltv should not encode lltv in data");
+            require(entries[i].topics.length == 1, "EnableLltv should have no indexed args");
+            require(entries[i].data.length == 32, "EnableLltv should encode lltv in data");
+            require(abi.decode(entries[i].data, (uint256)) == lltv, "EnableLltv data lltv mismatch");
             break;
         }
         require(found, "EnableLltv event missing");
@@ -373,16 +373,15 @@ contract VerityMorphoSmokeTest {
         vm.prank(supplier);
         (uint256 assetsSupplied, uint256 sharesSupplied) = morpho.supply(params, 100 ether, 0, supplier, "");
 
-        bytes32[] memory slots = new bytes32[](3);
-        slots[0] = _mappingSlot(8, id); // marketTotalSupplyAssets[id]
-        slots[1] = _mappingSlot(9, id); // marketTotalSupplyShares[id]
-        slots[2] = _nestedMappingSlot(17, id, supplier); // positionSupplyShares[id][supplier]
+        bytes32[] memory slots = new bytes32[](2);
+        slots[0] = _mappingSlot(3, id); // packed Market[id].{totalSupplyAssets,totalSupplyShares}
+        slots[1] = _nestedMappingSlot(17, id, supplier); // positionSupplyShares[id][supplier]
 
         bytes32[] memory values = morpho.extSloads(slots);
-        require(values.length == 3, "extSloads length mismatch");
-        require(uint256(values[0]) == assetsSupplied, "extSloads assets mismatch");
-        require(uint256(values[1]) == sharesSupplied, "extSloads shares mismatch");
-        require(uint256(values[2]) == sharesSupplied, "extSloads position mismatch");
+        require(values.length == 2, "extSloads length mismatch");
+        require(uint128(uint256(values[0])) == assetsSupplied, "extSloads assets mismatch");
+        require(uint256(values[0]) >> 128 == sharesSupplied, "extSloads shares mismatch");
+        require(uint256(values[1]) == sharesSupplied, "extSloads position mismatch");
     }
 
     function testAccrueInterestUpdatesLastUpdate() public {

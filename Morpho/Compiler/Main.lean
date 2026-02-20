@@ -239,10 +239,19 @@ private def withdrawCase : String := "\
                 if or(lt(totalSupplyAssets, assetsWithdrawn), lt(totalSupplyShares, sharesWithdrawn)) {\n\
                     revert(0, 0)\n\
                 }\n\
+                let __newTotalSupplyAssets := sub(totalSupplyAssets, assetsWithdrawn)\n\
+                let __newTotalSupplyShares := sub(totalSupplyShares, sharesWithdrawn)\n\
+                if gt(sload(mappingSlot(10, id)), __newTotalSupplyAssets) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 22)\n\
+                    mstore(68, 0x696e73756666696369656e74206c697175696469747900000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
                 sstore(positionBase, sub(currentShares, sharesWithdrawn))\n\
                 sstore(__posBaseCompat, sub(__currentSharesCompat, sharesWithdrawn))\n\
-                sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\n\
-                sstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\n\
+                sstore(mappingSlot(8, id), __newTotalSupplyAssets)\n\
+                sstore(mappingSlot(9, id), __newTotalSupplyShares)\n\
                 mstore(0, caller())\n\
                 mstore(32, assetsWithdrawn)\n\
                 mstore(64, sharesWithdrawn)\n\
@@ -520,6 +529,55 @@ private def borrowCase : String := "\
                     mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
+                let elapsed := sub(timestamp(), sload(mappingSlot(6, id)))\n\
+                if gt(elapsed, 0) {\n\
+                    sstore(mappingSlot(6, id), timestamp())\n\
+                    let __marketSlot2Accrue := add(mappingSlot(3, id), 2)\n\
+                    let __packed2Accrue := sload(__marketSlot2Accrue)\n\
+                    sstore(__marketSlot2Accrue, or(and(__packed2Accrue, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), and(timestamp(), 0xffffffffffffffffffffffffffffffff)))\n\
+                    if iszero(eq(irm, 0)) {\n\
+                        let totalBorrowAssetsAccrue := sload(mappingSlot(10, id))\n\
+                        let totalBorrowSharesAccrue := sload(mappingSlot(11, id))\n\
+                        let totalSupplyAssetsAccrue := sload(mappingSlot(8, id))\n\
+                        let totalSupplySharesAccrue := sload(mappingSlot(9, id))\n\
+                        let borrowRateAccrue := 0\n\
+                        if gt(totalSupplyAssetsAccrue, 0) {\n\
+                            borrowRateAccrue := div(div(mul(totalBorrowAssetsAccrue, 1000000000000000000), totalSupplyAssetsAccrue), 31536000)\n\
+                        }\n\
+                        let firstTermAccrue := mul(borrowRateAccrue, elapsed)\n\
+                        let secondTermAccrue := div(mul(firstTermAccrue, firstTermAccrue), 2000000000000000000)\n\
+                        let thirdTermAccrue := div(mul(secondTermAccrue, firstTermAccrue), 3000000000000000000)\n\
+                        let growthAccrue := add(firstTermAccrue, add(secondTermAccrue, thirdTermAccrue))\n\
+                        let interestAccrue := div(mul(totalBorrowAssetsAccrue, growthAccrue), 1000000000000000000)\n\
+                        let newTotalBorrowAssetsAccrue := add(totalBorrowAssetsAccrue, interestAccrue)\n\
+                        let newTotalSupplyAssetsAccrue := add(totalSupplyAssetsAccrue, interestAccrue)\n\
+                        sstore(mappingSlot(10, id), newTotalBorrowAssetsAccrue)\n\
+                        sstore(mappingSlot(8, id), newTotalSupplyAssetsAccrue)\n\
+                        let feeSharesAccrue := 0\n\
+                        let feeAccrue := sload(mappingSlot(7, id))\n\
+                        let newTotalSupplySharesAccrue := totalSupplySharesAccrue\n\
+                        if gt(feeAccrue, 0) {\n\
+                            let feeAmountAccrue := div(mul(interestAccrue, feeAccrue), 1000000000000000000)\n\
+                            let feeDenominatorAccrue := sub(newTotalSupplyAssetsAccrue, feeAmountAccrue)\n\
+                            feeSharesAccrue := div(mul(feeAmountAccrue, add(totalSupplySharesAccrue, 1000000)), add(feeDenominatorAccrue, 1))\n\
+                            let feeRecipientAccrue := and(sload(1), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                            let feePosSlotAccrue := mappingSlot(mappingSlot(17, id), feeRecipientAccrue)\n\
+                            sstore(feePosSlotAccrue, add(sload(feePosSlotAccrue), feeSharesAccrue))\n\
+                            let feePosCompatAccrue := mappingSlot(mappingSlot(2, id), feeRecipientAccrue)\n\
+                            sstore(feePosCompatAccrue, add(sload(feePosCompatAccrue), feeSharesAccrue))\n\
+                            newTotalSupplySharesAccrue := add(totalSupplySharesAccrue, feeSharesAccrue)\n\
+                            sstore(mappingSlot(9, id), newTotalSupplySharesAccrue)\n\
+                        }\n\
+                        let __marketSlot0Accrue := mappingSlot(3, id)\n\
+                        sstore(__marketSlot0Accrue, or(and(newTotalSupplyAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplySharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
+                        let __marketSlot1Accrue := add(__marketSlot0Accrue, 1)\n\
+                        sstore(__marketSlot1Accrue, or(and(newTotalBorrowAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalBorrowSharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
+                        mstore(0, borrowRateAccrue)\n\
+                        mstore(32, interestAccrue)\n\
+                        mstore(64, feeSharesAccrue)\n\
+                        log2(0, 96, 0x9d9bd501d0657d7dfe415f779a620a62b78bc508ddc0891fbbd8b7ac0f8fce87, id)\n\
+                    }\n\
+                }\n\
                 if iszero(xor(iszero(assets), iszero(shares))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -654,6 +712,12 @@ private def repayCase : String := "\
                     mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
+                if gt(timestamp(), sload(mappingSlot(6, id))) {\n\
+                    sstore(mappingSlot(6, id), timestamp())\n\
+                    let __marketSlotAccrue := add(mappingSlot(3, id), 2)\n\
+                    let __packedAccrue := sload(__marketSlotAccrue)\n\
+                    sstore(__marketSlotAccrue, or(and(__packedAccrue, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), and(timestamp(), 0xffffffffffffffffffffffffffffffff)))\n\
+                }\n\
                 if iszero(xor(iszero(assets), iszero(shares))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -755,6 +819,259 @@ private def repayCase : String := "\
                 }\n\
                 mstore(0, assetsRepaid)\n\
                 mstore(32, sharesRepaid)\n\
+                return(0, 64)\n\
+            }\n"
+
+private def liquidateCase : String := "\
+            case 0xd8eabcb8 {\n\
+                /* liquidate((address,address,address,address,uint256),address,uint256,uint256,bytes) */\n\
+                if callvalue() {\n\
+                    revert(0, 0)\n\
+                }\n\
+                if lt(calldatasize(), 292) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let collateralToken := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let oracle := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let irm := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let lltv := calldataload(132)\n\
+                let borrower := and(calldataload(164), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let seizedAssets := calldataload(196)\n\
+                let repaidShares := calldataload(228)\n\
+                let dataOffset := calldataload(260)\n\
+                let id := keccakMarketParams(loanToken, collateralToken, oracle, irm, lltv)\n\
+                if iszero(gt(sload(add(mappingSlot(3, id), 2)), 0)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 18)\n\
+                    mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                if iszero(xor(iszero(seizedAssets), iszero(repaidShares))) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 18)\n\
+                    mstore(68, 0x696e636f6e73697374656e7420696e7075740000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                let elapsed := sub(timestamp(), sload(mappingSlot(6, id)))\n\
+                if gt(elapsed, 0) {\n\
+                    sstore(mappingSlot(6, id), timestamp())\n\
+                    let __marketSlot2 := add(mappingSlot(3, id), 2)\n\
+                    let __packed2 := sload(__marketSlot2)\n\
+                    sstore(__marketSlot2, or(and(__packed2, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), and(timestamp(), 0xffffffffffffffffffffffffffffffff)))\n\
+                    if iszero(eq(irm, 0)) {\n\
+                        let totalBorrowAssetsAccrue := sload(mappingSlot(10, id))\n\
+                        let totalBorrowSharesAccrue := sload(mappingSlot(11, id))\n\
+                        let totalSupplyAssetsAccrue := sload(mappingSlot(8, id))\n\
+                        let totalSupplySharesAccrue := sload(mappingSlot(9, id))\n\
+                        let borrowRate := 0\n\
+                        if gt(totalSupplyAssetsAccrue, 0) {\n\
+                            borrowRate := div(div(mul(totalBorrowAssetsAccrue, 1000000000000000000), totalSupplyAssetsAccrue), 31536000)\n\
+                        }\n\
+                        let firstTerm := mul(borrowRate, elapsed)\n\
+                        let secondTerm := div(mul(firstTerm, firstTerm), 2000000000000000000)\n\
+                        let thirdTerm := div(mul(secondTerm, firstTerm), 3000000000000000000)\n\
+                        let growth := add(firstTerm, add(secondTerm, thirdTerm))\n\
+                        let interest := div(mul(totalBorrowAssetsAccrue, growth), 1000000000000000000)\n\
+                        let newTotalBorrowAssetsAccrue := add(totalBorrowAssetsAccrue, interest)\n\
+                        let newTotalSupplyAssetsAccrue := add(totalSupplyAssetsAccrue, interest)\n\
+                        sstore(mappingSlot(10, id), newTotalBorrowAssetsAccrue)\n\
+                        sstore(mappingSlot(8, id), newTotalSupplyAssetsAccrue)\n\
+                        let feeShares := 0\n\
+                        let fee := sload(mappingSlot(7, id))\n\
+                        let newTotalSupplySharesAccrue := totalSupplySharesAccrue\n\
+                        if gt(fee, 0) {\n\
+                            let feeAmount := div(mul(interest, fee), 1000000000000000000)\n\
+                            let feeDenominator := sub(newTotalSupplyAssetsAccrue, feeAmount)\n\
+                            feeShares := div(mul(feeAmount, add(totalSupplySharesAccrue, 1000000)), add(feeDenominator, 1))\n\
+                            let feeRecipient := and(sload(1), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                            let feePosSlot := mappingSlot(mappingSlot(17, id), feeRecipient)\n\
+                            sstore(feePosSlot, add(sload(feePosSlot), feeShares))\n\
+                            let feePosCompat := mappingSlot(mappingSlot(2, id), feeRecipient)\n\
+                            sstore(feePosCompat, add(sload(feePosCompat), feeShares))\n\
+                            newTotalSupplySharesAccrue := add(totalSupplySharesAccrue, feeShares)\n\
+                            sstore(mappingSlot(9, id), newTotalSupplySharesAccrue)\n\
+                        }\n\
+                        let __marketSlot0Accrue := mappingSlot(3, id)\n\
+                        sstore(__marketSlot0Accrue, or(and(newTotalSupplyAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplySharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
+                        let __marketSlot1Accrue := add(__marketSlot0Accrue, 1)\n\
+                        sstore(__marketSlot1Accrue, or(and(newTotalBorrowAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalBorrowSharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
+                        mstore(0, borrowRate)\n\
+                        mstore(32, interest)\n\
+                        mstore(64, feeShares)\n\
+                        log2(0, 96, 0x9d9bd501d0657d7dfe415f779a620a62b78bc508ddc0891fbbd8b7ac0f8fce87, id)\n\
+                    }\n\
+                }\n\
+                if iszero(extcodesize(oracle)) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                mstore(0, 0xa035b1fe00000000000000000000000000000000000000000000000000000000)\n\
+                if iszero(staticcall(gas(), oracle, 0, 4, 0, 32)) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let collateralPrice := mload(0)\n\
+                let totalBorrowAssetsBefore := sload(mappingSlot(10, id))\n\
+                let totalBorrowSharesBefore := sload(mappingSlot(11, id))\n\
+                let totalSupplyAssetsBefore := sload(mappingSlot(8, id))\n\
+                let totalSupplySharesBefore := sload(mappingSlot(9, id))\n\
+                let posBorrowSlot := mappingSlot(mappingSlot(18, id), borrower)\n\
+                let borrowerBorrowSharesBefore := sload(posBorrowSlot)\n\
+                let posCollateralSlot := mappingSlot(mappingSlot(19, id), borrower)\n\
+                let borrowerCollateralBefore := sload(posCollateralSlot)\n\
+                let borrowedAssets := div(add(mul(borrowerBorrowSharesBefore, add(totalBorrowAssetsBefore, 1)), sub(add(totalBorrowSharesBefore, 1000000), 1)), add(totalBorrowSharesBefore, 1000000))\n\
+                let maxBorrow := div(mul(div(mul(borrowerCollateralBefore, collateralPrice), 1000000000000000000000000000000000000), lltv), 1000000000000000000)\n\
+                if iszero(gt(borrowedAssets, maxBorrow)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 19)\n\
+                    mstore(68, 0x706f736974696f6e206973206865616c74687900000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                let liquidationIncentiveFactorDenom := sub(1000000000000000000, div(mul(300000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000))\n\
+                if iszero(liquidationIncentiveFactorDenom) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let liquidationIncentiveFactor := div(mul(1000000000000000000, 1000000000000000000), liquidationIncentiveFactorDenom)\n\
+                if gt(liquidationIncentiveFactor, 1150000000000000000) {\n\
+                    liquidationIncentiveFactor := 1150000000000000000\n\
+                }\n\
+                let repaidSharesOut := repaidShares\n\
+                let seizedAssetsOut := seizedAssets\n\
+                if gt(seizedAssetsOut, 0) {\n\
+                    let seizedAssetsQuoted := div(add(mul(seizedAssetsOut, collateralPrice), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000)\n\
+                    let repaidAssetsQuoted := div(add(mul(seizedAssetsQuoted, 1000000000000000000), sub(liquidationIncentiveFactor, 1)), liquidationIncentiveFactor)\n\
+                    repaidSharesOut := div(add(mul(repaidAssetsQuoted, add(totalBorrowSharesBefore, 1000000)), sub(add(totalBorrowAssetsBefore, 1), 1)), add(totalBorrowAssetsBefore, 1))\n\
+                }\n\
+                if iszero(gt(seizedAssetsOut, 0)) {\n\
+                    let repaidAssetsDown := div(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), add(totalBorrowSharesBefore, 1000000))\n\
+                    seizedAssetsOut := div(mul(div(mul(repaidAssetsDown, liquidationIncentiveFactor), 1000000000000000000), 1000000000000000000000000000000000000), collateralPrice)\n\
+                }\n\
+                let repaidAssetsOut := div(add(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), sub(add(totalBorrowSharesBefore, 1000000), 1)), add(totalBorrowSharesBefore, 1000000))\n\
+                if lt(borrowerBorrowSharesBefore, repaidSharesOut) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let newBorrowerBorrowShares := sub(borrowerBorrowSharesBefore, repaidSharesOut)\n\
+                if lt(borrowerCollateralBefore, seizedAssetsOut) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let newBorrowerCollateral := sub(borrowerCollateralBefore, seizedAssetsOut)\n\
+                let newTotalBorrowShares := sub(totalBorrowSharesBefore, repaidSharesOut)\n\
+                let newTotalBorrowAssets := mul(gt(totalBorrowAssetsBefore, repaidAssetsOut), sub(totalBorrowAssetsBefore, repaidAssetsOut))\n\
+                let newTotalSupplyAssets := totalSupplyAssetsBefore\n\
+                let badDebtShares := 0\n\
+                let badDebtAssets := 0\n\
+                if iszero(newBorrowerCollateral) {\n\
+                    badDebtShares := newBorrowerBorrowShares\n\
+                    badDebtAssets := newTotalBorrowAssets\n\
+                    if gt(badDebtShares, 0) {\n\
+                        let badDebtAssetsCandidate := div(add(mul(badDebtShares, add(newTotalBorrowAssets, 1)), sub(add(newTotalBorrowShares, 1000000), 1)), add(newTotalBorrowShares, 1000000))\n\
+                        if lt(badDebtAssetsCandidate, badDebtAssets) {\n\
+                            badDebtAssets := badDebtAssetsCandidate\n\
+                        }\n\
+                    }\n\
+                    newTotalBorrowAssets := sub(newTotalBorrowAssets, badDebtAssets)\n\
+                    newTotalSupplyAssets := sub(newTotalSupplyAssets, badDebtAssets)\n\
+                    newTotalBorrowShares := sub(newTotalBorrowShares, badDebtShares)\n\
+                    newBorrowerBorrowShares := 0\n\
+                }\n\
+                sstore(posBorrowSlot, newBorrowerBorrowShares)\n\
+                sstore(posCollateralSlot, newBorrowerCollateral)\n\
+                let posCompatSlot := add(mappingSlot(mappingSlot(2, id), borrower), 1)\n\
+                sstore(posCompatSlot, or(and(newBorrowerBorrowShares, 0xffffffffffffffffffffffffffffffff), shl(128, and(newBorrowerCollateral, 0xffffffffffffffffffffffffffffffff))))\n\
+                sstore(mappingSlot(11, id), newTotalBorrowShares)\n\
+                sstore(mappingSlot(10, id), newTotalBorrowAssets)\n\
+                sstore(mappingSlot(8, id), newTotalSupplyAssets)\n\
+                let __marketBase := mappingSlot(3, id)\n\
+                sstore(__marketBase, or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalSupplySharesBefore, 0xffffffffffffffffffffffffffffffff))))\n\
+                sstore(add(__marketBase, 1), or(and(newTotalBorrowAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalBorrowShares, 0xffffffffffffffffffffffffffffffff))))\n\
+                mstore(0, repaidAssetsOut)\n\
+                mstore(32, repaidSharesOut)\n\
+                mstore(64, seizedAssetsOut)\n\
+                mstore(96, badDebtAssets)\n\
+                mstore(128, badDebtShares)\n\
+                log4(0, 160, 0xa4946ede45d0c6f06a0f5ce92c9ad3b4751452d2fe0e25010783bcab57a67e41, id, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), borrower)\n\
+                if iszero(extcodesize(collateralToken)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 7)\n\
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
+                mstore(4, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
+                mstore(36, seizedAssetsOut)\n\
+                if iszero(call(gas(), collateralToken, 0, 0, 68, 0, 32)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 17)\n\
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                if eq(returndatasize(), 32) {\n\
+                    returndatacopy(0, 0, 32)\n\
+                    if iszero(mload(0)) {\n\
+                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                        mstore(4, 32)\n\
+                        mstore(36, 23)\n\
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
+                        revert(0, 100)\n\
+                    }\n\
+                }\n\
+                if gt(dataOffset, sub(calldatasize(), 32)) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let dataHead := add(4, dataOffset)\n\
+                if gt(dataHead, sub(calldatasize(), 32)) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let dataLen := calldataload(dataHead)\n\
+                let dataStart := add(dataHead, 32)\n\
+                if gt(dataLen, sub(calldatasize(), dataStart)) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                if gt(dataLen, 0) {\n\
+                    mstore(0, 0xcf7ea19600000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, repaidAssetsOut)\n\
+                    mstore(36, 64)\n\
+                    mstore(68, dataLen)\n\
+                    calldatacopy(100, dataStart, dataLen)\n\
+                    if iszero(call(gas(), caller(), 0, 0, add(100, dataLen), 0, 0)) {\n\
+                        returndatacopy(0, 0, returndatasize())\n\
+                        revert(0, returndatasize())\n\
+                    }\n\
+                }\n\
+                if iszero(extcodesize(loanToken)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 7)\n\
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
+                mstore(4, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
+                mstore(36, address())\n\
+                mstore(68, repaidAssetsOut)\n\
+                if iszero(call(gas(), loanToken, 0, 0, 100, 0, 32)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 21)\n\
+                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                if eq(returndatasize(), 32) {\n\
+                    returndatacopy(0, 0, 32)\n\
+                    if iszero(mload(0)) {\n\
+                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                        mstore(4, 32)\n\
+                        mstore(36, 27)\n\
+                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
+                        revert(0, 100)\n\
+                    }\n\
+                }\n\
+                mstore(0, seizedAssetsOut)\n\
+                mstore(32, repaidAssetsOut)\n\
                 return(0, 64)\n\
             }\n"
 
@@ -885,6 +1202,7 @@ private def setAuthorizationWithSigCase : String := "\
                     revert(0, 100)\n\
                 }\n\
                 sstore(nonceSlot, add(currentNonce, 1))\n\
+                sstore(mappingSlot(7, authorizer), add(currentNonce, 1))\n\
                 mstore(0, 0x81d0284fb0e2cde18d0553b06189d6f7613c96a01bb5b5e7828eade6a0dcac91)\n\
                 mstore(32, authorizer)\n\
                 mstore(64, authorized)\n\
@@ -918,6 +1236,7 @@ private def setAuthorizationWithSigCase : String := "\
                 mstore(0, expectedNonce)\n\
                 log3(0, 32, 0xa58af1a0c70dba0c7aa60d1a1a147ebd61000d1690a968828ac718bca927f2c7, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), authorizer)\n\
                 sstore(mappingSlot(mappingSlot(4, authorizer), authorized), newIsAuthorized)\n\
+                sstore(mappingSlot(mappingSlot(6, authorizer), authorized), newIsAuthorized)\n\
                 mstore(0, newIsAuthorized)\n\
                 log4(0, 32, 0xd5e969f01efe921d3f766bdebad25f0a05e3f237311f56482bf132d0326309c0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), authorizer, authorized)\n\
                 stop()\n\
@@ -925,7 +1244,7 @@ private def setAuthorizationWithSigCase : String := "\
 
 private def injectSupplyShim (text : String) : Except String String := do
   let needle := "            default {\n                revert(0, 0)\n            }\n"
-  let patched := text.replace needle (supplyCase ++ withdrawCase ++ supplyCollateralCase ++ withdrawCollateralCase ++ borrowCase ++ repayCase ++ flashLoanCase ++ setAuthorizationWithSigCase ++ needle)
+  let patched := text.replace needle (supplyCase ++ withdrawCase ++ supplyCollateralCase ++ withdrawCollateralCase ++ borrowCase ++ repayCase ++ liquidateCase ++ flashLoanCase ++ setAuthorizationWithSigCase ++ needle)
   if patched != text then
     pure patched
   else
@@ -966,7 +1285,7 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t2 ← replaceOrThrow t1 setFeeOld setFeeNew "setFee packed slot compatibility"
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
-  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
+  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                sstore(mappingSlot(8,id), loanToken)\n                sstore(add(mappingSlot(8,id), 1), collateralToken)\n                sstore(add(mappingSlot(8,id), 2), oracle)\n                sstore(add(mappingSlot(8,id), 3), irm)\n                sstore(add(mappingSlot(8,id), 4), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
   let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
   -- IMorpho defines CreateMarket as `CreateMarket(bytes32,(address,address,address,address,uint256))`.
@@ -977,20 +1296,43 @@ private def injectStorageCompat (text : String) : Except String String := do
     "let __evt_topic0 := 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac\n"
   let t3a ← replaceOrThrow t3 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
 
+  let enableIrmOld := "sstore(mappingSlot(2, irm), 1)\n"
+  let enableIrmNew := "sstore(mappingSlot(2, irm), 1)\n                sstore(mappingSlot(4, irm), 1)\n"
+  let t3b ← replaceOrThrow t3a enableIrmOld enableIrmNew "enableIrm canonical storage slot compatibility"
+
+  let enableLltvOld := "sstore(mappingSlot(3, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    log2(__evt_ptr, 0, __evt_topic0, lltv)\n                }\n"
+  let enableLltvNew := "sstore(mappingSlot(3, lltv), 1)\n                sstore(mappingSlot(5, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    mstore(add(__evt_ptr, 0), lltv)\n                    log1(__evt_ptr, 32, __evt_topic0)\n                }\n"
+  let t3c ← replaceOrThrow t3b enableLltvOld enableLltvNew "enableLltv event and canonical storage slot compatibility"
+
+  let setAuthorizationOld := "sstore(mappingSlot(mappingSlot(4, caller()), authorized), newIsAuthorized)\n"
+  let setAuthorizationNew := "sstore(mappingSlot(mappingSlot(4, caller()), authorized), newIsAuthorized)\n                sstore(mappingSlot(mappingSlot(6, caller()), authorized), newIsAuthorized)\n"
+  let t3d ← replaceOrThrow t3c setAuthorizationOld setAuthorizationNew "setAuthorization canonical storage slot compatibility"
+
   let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nmstore(0, assetsSupplied)\n"
   let supplySlot0Packed := packMarketSupplySlot0Expr "newTotalSupplyAssets" "newTotalSupplyShares"
   let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {supplySlot0Packed})\nmstore(0, assetsSupplied)\n"
-  let t4 ← replaceOrThrow t3a supplyOld supplyNew "supply packed slot compatibility"
+  let t4 ← replaceOrThrow t3d supplyOld supplyNew "supply packed slot compatibility"
 
-  let withdrawOld := "sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\nsstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\nmstore(0, caller())\n"
+  let withdrawOld := "sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nmstore(0, caller())\n"
   let withdrawSlot0Packed := packMarketSupplySlot0Expr "__newTotalSupplyAssets" "__newTotalSupplyShares"
-  let withdrawNew := s!"let __newTotalSupplyAssets := sub(totalSupplyAssets, assetsWithdrawn)\nlet __newTotalSupplyShares := sub(totalSupplyShares, sharesWithdrawn)\nsstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {withdrawSlot0Packed})\nmstore(0, caller())\n"
+  let withdrawNew := s!"sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {withdrawSlot0Packed})\nmstore(0, caller())\n"
   let t5 ← replaceOrThrow t4 withdrawOld withdrawNew "withdraw packed slot compatibility"
 
   let accrueOld := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"
   let accruePacked := packMarketLastUpdateSlot2Expr "__packed" "timestamp()"
-  let accrueNew := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n                        let __marketSlot := add(mappingSlot(3, id), 2)\n                        let __packed := sload(__marketSlot)\n                        sstore(__marketSlot, " ++ accruePacked ++ ")\n"
-  replaceOrThrow t5 accrueOld accrueNew "accrueInterest packed slot compatibility"
+  let accrueNew := "let __prevLastUpdate := sload(mappingSlot(6, id))\n                    let __ite_cond := gt(timestamp(), __prevLastUpdate)\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n                        let __marketSlot := add(mappingSlot(3, id), 2)\n                        let __packed := sload(__marketSlot)\n                        sstore(__marketSlot, " ++ accruePacked ++ ")\n"
+  let t6 ← replaceOrThrow t5 accrueOld accrueNew "accrueInterest packed slot compatibility"
+
+  let accrueEventOld :=
+    "if iszero(eq(irm, 0)) {\n                            {\n                                let __evt_ptr := mload(64)\n                                mstore(add(__evt_ptr, 0), 0x416363727565496e74657265737428627974657333322c75696e743235362c75)\n                                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e74323536290000000000000000000000000000000000)\n                                let __evt_topic0 := keccak256(__evt_ptr, 47)\n                                mstore(add(__evt_ptr, 0), 0)\n                                mstore(add(__evt_ptr, 32), 0)\n                                mstore(add(__evt_ptr, 64), 0)\n                                log2(__evt_ptr, 96, __evt_topic0, id)\n                            }\n                        }\n"
+  let accrueEventNew :=
+    "if iszero(eq(irm, 0)) {\n                            let totalBorrowAssets := sload(mappingSlot(10, id))\n                            let totalBorrowShares := sload(mappingSlot(11, id))\n                            let totalSupplyAssets := sload(mappingSlot(8, id))\n                            let totalSupplyShares := sload(mappingSlot(9, id))\n                            let borrowRate := 0\n                            if gt(totalSupplyAssets, 0) {\n                                borrowRate := div(div(mul(totalBorrowAssets, 1000000000000000000), totalSupplyAssets), 31536000)\n                            }\n                            let elapsed := sub(timestamp(), __prevLastUpdate)\n                            let firstTerm := mul(borrowRate, elapsed)\n                            let secondTerm := div(mul(firstTerm, firstTerm), 2000000000000000000)\n                            let thirdTerm := div(mul(secondTerm, firstTerm), 3000000000000000000)\n                            let growth := add(firstTerm, add(secondTerm, thirdTerm))\n                            let interest := div(mul(totalBorrowAssets, growth), 1000000000000000000)\n                            let newTotalBorrowAssets := add(totalBorrowAssets, interest)\n                            let newTotalSupplyAssets := add(totalSupplyAssets, interest)\n                            sstore(mappingSlot(10, id), newTotalBorrowAssets)\n                            sstore(mappingSlot(8, id), newTotalSupplyAssets)\n                            let feeShares := 0\n                            let fee := sload(mappingSlot(7, id))\n                            let newTotalSupplyShares := totalSupplyShares\n                            if gt(fee, 0) {\n                                let feeAmount := div(mul(interest, fee), 1000000000000000000)\n                                let feeDenominator := sub(newTotalSupplyAssets, feeAmount)\n                                feeShares := div(mul(feeAmount, add(totalSupplyShares, 1000000)), add(feeDenominator, 1))\n                                let feeRecipient := and(sload(1), 0xffffffffffffffffffffffffffffffffffffffff)\n                                let feePosSlot := mappingSlot(mappingSlot(17, id), feeRecipient)\n                                sstore(feePosSlot, add(sload(feePosSlot), feeShares))\n                                let feePosCompat := mappingSlot(mappingSlot(2, id), feeRecipient)\n                                sstore(feePosCompat, add(sload(feePosCompat), feeShares))\n                                newTotalSupplyShares := add(totalSupplyShares, feeShares)\n                                sstore(mappingSlot(9, id), newTotalSupplyShares)\n                            }\n                            let __marketSlot0 := mappingSlot(3, id)\n                            sstore(__marketSlot0, or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\n                            sstore(add(__marketSlot0, 1), or(and(newTotalBorrowAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalBorrowShares, 0xffffffffffffffffffffffffffffffff))))\n                            {\n                                let __evt_ptr := mload(64)\n                                mstore(add(__evt_ptr, 0), 0x416363727565496e74657265737428627974657333322c75696e743235362c75)\n                                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e74323536290000000000000000000000000000000000)\n                                let __evt_topic0 := keccak256(__evt_ptr, 47)\n                                mstore(add(__evt_ptr, 0), borrowRate)\n                                mstore(add(__evt_ptr, 32), interest)\n                                mstore(add(__evt_ptr, 64), feeShares)\n                                log2(__evt_ptr, 96, __evt_topic0, id)\n                            }\n                        }\n"
+  let t7 ← replaceOrThrow t6 accrueEventOld accrueEventNew "accrueInterest event/math compatibility"
+
+  let t8 ← replaceOrThrow t7 "mappingSlot(8, id)" "mappingSlot(20, id)" "totalSupplyAssets storage remap"
+  let t9 ← replaceOrThrow t8 "mappingSlot(9, id)" "mappingSlot(21, id)" "totalSupplyShares storage remap"
+  let t10 ← replaceOrThrow t9 "mappingSlot(10, id)" "mappingSlot(22, id)" "totalBorrowAssets storage remap"
+  replaceOrThrow t10 "mappingSlot(11, id)" "mappingSlot(23, id)" "totalBorrowShares storage remap"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
   let yulObj := _root_.Compiler.emitYul contract
