@@ -147,4 +147,15 @@ theorem solidity_accrueInterest_preserves_borrowLeSupply
   rw [h_eq_morpho]
   exact accrueInterest_preserves_borrowLeSupply s id borrowRate hasIrm h_solvent h_no_overflow
 
+theorem solidity_accrueInterest_preserves_alwaysCollateralized
+    (solidityAccrue : AccrueInterestSem)
+    (h_eq : accrueInterestSemEq solidityAccrue)
+    (s : MorphoState) (id : Id) (borrowRate : Uint256) (hasIrm : Bool) (user : Address)
+    (h_collat : alwaysCollateralized s id user) :
+    alwaysCollateralized (solidityAccrue s id borrowRate hasIrm) id user := by
+  have h_eq_morpho : solidityAccrue s id borrowRate hasIrm = Morpho.accrueInterest s id borrowRate hasIrm :=
+    h_eq s id borrowRate hasIrm
+  rw [h_eq_morpho]
+  exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
+
 end Morpho.Proofs.SolidityBridge

@@ -504,32 +504,7 @@ private def withdrawCollateralCase : String := "\
                 stop()\n\
             }\n"
 
-private def borrowCase : String := "\
-            case 0x50d8cd4b {\n\
-                /* borrow((address,address,address,address,uint256),uint256,uint256,address,address) */\n\
-                if callvalue() {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if lt(calldatasize(), 292) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                let collateralToken := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                let oracle := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                let irm := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                let lltv := calldataload(132)\n\
-                let assets := calldataload(164)\n\
-                let shares := calldataload(196)\n\
-                let onBehalf := and(calldataload(228), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                let receiver := and(calldataload(260), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                let id := keccakMarketParams(loanToken, collateralToken, oracle, irm, lltv)\n\
-                if iszero(gt(sload(add(mappingSlot(3, id), 2)), 0)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 18)\n\
-                    mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
+private def accrueInterestCompatBlock : String := "\
                 let elapsed := sub(timestamp(), sload(mappingSlot(6, id)))\n\
                 if gt(elapsed, 0) {\n\
                     sstore(mappingSlot(6, id), timestamp())\n\
@@ -578,7 +553,35 @@ private def borrowCase : String := "\
                         mstore(64, feeSharesAccrue)\n\
                         log2(0, 96, 0x9d9bd501d0657d7dfe415f779a620a62b78bc508ddc0891fbbd8b7ac0f8fce87, id)\n\
                     }\n\
+                }\n"
+
+private def borrowCase : String := "\
+            case 0x50d8cd4b {\n\
+                /* borrow((address,address,address,address,uint256),uint256,uint256,address,address) */\n\
+                if callvalue() {\n\
+                    revert(0, 0)\n\
                 }\n\
+                if lt(calldatasize(), 292) {\n\
+                    revert(0, 0)\n\
+                }\n\
+                let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let collateralToken := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let oracle := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let irm := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let lltv := calldataload(132)\n\
+                let assets := calldataload(164)\n\
+                let shares := calldataload(196)\n\
+                let onBehalf := and(calldataload(228), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let receiver := and(calldataload(260), 0xffffffffffffffffffffffffffffffffffffffff)\n\
+                let id := keccakMarketParams(loanToken, collateralToken, oracle, irm, lltv)\n\
+                if iszero(gt(sload(add(mappingSlot(3, id), 2)), 0)) {\n\
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+                    mstore(4, 32)\n\
+                    mstore(36, 18)\n\
+                    mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
+                    revert(0, 100)\n\
+                }\n\
+                " ++ accrueInterestCompatBlock ++ "\
                 if iszero(xor(iszero(assets), iszero(shares))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -713,55 +716,7 @@ private def repayCase : String := "\
                     mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                let elapsed := sub(timestamp(), sload(mappingSlot(6, id)))\n\
-                if gt(elapsed, 0) {\n\
-                    sstore(mappingSlot(6, id), timestamp())\n\
-                    let __marketSlot2Accrue := add(mappingSlot(3, id), 2)\n\
-                    let __packed2Accrue := sload(__marketSlot2Accrue)\n\
-                    sstore(__marketSlot2Accrue, or(and(__packed2Accrue, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), and(timestamp(), 0xffffffffffffffffffffffffffffffff)))\n\
-                    if iszero(eq(irm, 0)) {\n\
-                        let totalBorrowAssetsAccrue := sload(mappingSlot(10, id))\n\
-                        let totalBorrowSharesAccrue := sload(mappingSlot(11, id))\n\
-                        let totalSupplyAssetsAccrue := sload(mappingSlot(8, id))\n\
-                        let totalSupplySharesAccrue := sload(mappingSlot(9, id))\n\
-                        let borrowRateAccrue := 0\n\
-                        if gt(totalSupplyAssetsAccrue, 0) {\n\
-                            borrowRateAccrue := div(div(mul(totalBorrowAssetsAccrue, 1000000000000000000), totalSupplyAssetsAccrue), 31536000)\n\
-                        }\n\
-                        let firstTermAccrue := mul(borrowRateAccrue, elapsed)\n\
-                        let secondTermAccrue := div(mul(firstTermAccrue, firstTermAccrue), 2000000000000000000)\n\
-                        let thirdTermAccrue := div(mul(secondTermAccrue, firstTermAccrue), 3000000000000000000)\n\
-                        let growthAccrue := add(firstTermAccrue, add(secondTermAccrue, thirdTermAccrue))\n\
-                        let interestAccrue := div(mul(totalBorrowAssetsAccrue, growthAccrue), 1000000000000000000)\n\
-                        let newTotalBorrowAssetsAccrue := add(totalBorrowAssetsAccrue, interestAccrue)\n\
-                        let newTotalSupplyAssetsAccrue := add(totalSupplyAssetsAccrue, interestAccrue)\n\
-                        sstore(mappingSlot(10, id), newTotalBorrowAssetsAccrue)\n\
-                        sstore(mappingSlot(8, id), newTotalSupplyAssetsAccrue)\n\
-                        let feeSharesAccrue := 0\n\
-                        let feeAccrue := sload(mappingSlot(7, id))\n\
-                        let newTotalSupplySharesAccrue := totalSupplySharesAccrue\n\
-                        if gt(feeAccrue, 0) {\n\
-                            let feeAmountAccrue := div(mul(interestAccrue, feeAccrue), 1000000000000000000)\n\
-                            let feeDenominatorAccrue := sub(newTotalSupplyAssetsAccrue, feeAmountAccrue)\n\
-                            feeSharesAccrue := div(mul(feeAmountAccrue, add(totalSupplySharesAccrue, 1000000)), add(feeDenominatorAccrue, 1))\n\
-                            let feeRecipientAccrue := and(sload(1), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                            let feePosSlotAccrue := mappingSlot(mappingSlot(17, id), feeRecipientAccrue)\n\
-                            sstore(feePosSlotAccrue, add(sload(feePosSlotAccrue), feeSharesAccrue))\n\
-                            let feePosCompatAccrue := mappingSlot(mappingSlot(2, id), feeRecipientAccrue)\n\
-                            sstore(feePosCompatAccrue, add(sload(feePosCompatAccrue), feeSharesAccrue))\n\
-                            newTotalSupplySharesAccrue := add(totalSupplySharesAccrue, feeSharesAccrue)\n\
-                            sstore(mappingSlot(9, id), newTotalSupplySharesAccrue)\n\
-                        }\n\
-                        let __marketSlot0Accrue := mappingSlot(3, id)\n\
-                        sstore(__marketSlot0Accrue, or(and(newTotalSupplyAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplySharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
-                        let __marketSlot1Accrue := add(__marketSlot0Accrue, 1)\n\
-                        sstore(__marketSlot1Accrue, or(and(newTotalBorrowAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalBorrowSharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
-                        mstore(0, borrowRateAccrue)\n\
-                        mstore(32, interestAccrue)\n\
-                        mstore(64, feeSharesAccrue)\n\
-                        log2(0, 96, 0x9d9bd501d0657d7dfe415f779a620a62b78bc508ddc0891fbbd8b7ac0f8fce87, id)\n\
-                    }\n\
-                }\n\
+                " ++ accrueInterestCompatBlock ++ "\
                 if iszero(xor(iszero(assets), iszero(shares))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -899,55 +854,7 @@ private def liquidateCase : String := "\
                     mstore(68, 0x696e636f6e73697374656e7420696e7075740000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                let elapsed := sub(timestamp(), sload(mappingSlot(6, id)))\n\
-                if gt(elapsed, 0) {\n\
-                    sstore(mappingSlot(6, id), timestamp())\n\
-                    let __marketSlot2 := add(mappingSlot(3, id), 2)\n\
-                    let __packed2 := sload(__marketSlot2)\n\
-                    sstore(__marketSlot2, or(and(__packed2, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000), and(timestamp(), 0xffffffffffffffffffffffffffffffff)))\n\
-                    if iszero(eq(irm, 0)) {\n\
-                        let totalBorrowAssetsAccrue := sload(mappingSlot(10, id))\n\
-                        let totalBorrowSharesAccrue := sload(mappingSlot(11, id))\n\
-                        let totalSupplyAssetsAccrue := sload(mappingSlot(8, id))\n\
-                        let totalSupplySharesAccrue := sload(mappingSlot(9, id))\n\
-                        let borrowRate := 0\n\
-                        if gt(totalSupplyAssetsAccrue, 0) {\n\
-                            borrowRate := div(div(mul(totalBorrowAssetsAccrue, 1000000000000000000), totalSupplyAssetsAccrue), 31536000)\n\
-                        }\n\
-                        let firstTerm := mul(borrowRate, elapsed)\n\
-                        let secondTerm := div(mul(firstTerm, firstTerm), 2000000000000000000)\n\
-                        let thirdTerm := div(mul(secondTerm, firstTerm), 3000000000000000000)\n\
-                        let growth := add(firstTerm, add(secondTerm, thirdTerm))\n\
-                        let interest := div(mul(totalBorrowAssetsAccrue, growth), 1000000000000000000)\n\
-                        let newTotalBorrowAssetsAccrue := add(totalBorrowAssetsAccrue, interest)\n\
-                        let newTotalSupplyAssetsAccrue := add(totalSupplyAssetsAccrue, interest)\n\
-                        sstore(mappingSlot(10, id), newTotalBorrowAssetsAccrue)\n\
-                        sstore(mappingSlot(8, id), newTotalSupplyAssetsAccrue)\n\
-                        let feeShares := 0\n\
-                        let fee := sload(mappingSlot(7, id))\n\
-                        let newTotalSupplySharesAccrue := totalSupplySharesAccrue\n\
-                        if gt(fee, 0) {\n\
-                            let feeAmount := div(mul(interest, fee), 1000000000000000000)\n\
-                            let feeDenominator := sub(newTotalSupplyAssetsAccrue, feeAmount)\n\
-                            feeShares := div(mul(feeAmount, add(totalSupplySharesAccrue, 1000000)), add(feeDenominator, 1))\n\
-                            let feeRecipient := and(sload(1), 0xffffffffffffffffffffffffffffffffffffffff)\n\
-                            let feePosSlot := mappingSlot(mappingSlot(17, id), feeRecipient)\n\
-                            sstore(feePosSlot, add(sload(feePosSlot), feeShares))\n\
-                            let feePosCompat := mappingSlot(mappingSlot(2, id), feeRecipient)\n\
-                            sstore(feePosCompat, add(sload(feePosCompat), feeShares))\n\
-                            newTotalSupplySharesAccrue := add(totalSupplySharesAccrue, feeShares)\n\
-                            sstore(mappingSlot(9, id), newTotalSupplySharesAccrue)\n\
-                        }\n\
-                        let __marketSlot0Accrue := mappingSlot(3, id)\n\
-                        sstore(__marketSlot0Accrue, or(and(newTotalSupplyAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplySharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
-                        let __marketSlot1Accrue := add(__marketSlot0Accrue, 1)\n\
-                        sstore(__marketSlot1Accrue, or(and(newTotalBorrowAssetsAccrue, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalBorrowSharesAccrue, 0xffffffffffffffffffffffffffffffff))))\n\
-                        mstore(0, borrowRate)\n\
-                        mstore(32, interest)\n\
-                        mstore(64, feeShares)\n\
-                        log2(0, 96, 0x9d9bd501d0657d7dfe415f779a620a62b78bc508ddc0891fbbd8b7ac0f8fce87, id)\n\
-                    }\n\
-                }\n\
+                " ++ accrueInterestCompatBlock ++ "\
                 if iszero(extcodesize(oracle)) {\n\
                     revert(0, 0)\n\
                 }\n\
@@ -1277,7 +1184,7 @@ private def setAuthorizationWithSigCase : String := "\
                     mstore(68, 0x696e76616c6964207369676e6174757265000000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                mstore(0, expectedNonce)\n\
+                mstore(0, add(currentNonce, 1))\n\
                 log3(0, 32, 0xa58af1a0c70dba0c7aa60d1a1a147ebd61000d1690a968828ac718bca927f2c7, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), authorizer)\n\
                 sstore(mappingSlot(mappingSlot(4, authorizer), authorized), newIsAuthorized)\n\
                 sstore(mappingSlot(mappingSlot(6, authorizer), authorized), newIsAuthorized)\n\
