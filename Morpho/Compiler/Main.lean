@@ -289,6 +289,12 @@ private def upper128Mask : String := "0xffffffffffffffffffffffffffffffff00000000
 private def packMarketSupplySlot0Expr (totalSupplyAssets totalSupplyShares : String) : String :=
   s!"or(and({totalSupplyAssets}, {lower128Mask}), shl(128, and({totalSupplyShares}, {lower128Mask})))"
 
+private def packMarketFeeSlot2Expr (packed fee : String) : String :=
+  s!"or(and({packed}, {lower128Mask}), shl(128, {fee}))"
+
+private def packMarketLastUpdateSlot2Expr (packed lastUpdate : String) : String :=
+  s!"or(and({packed}, {upper128Mask}), and({lastUpdate}, {lower128Mask}))"
+
 private def injectStorageCompat (text : String) : Except String String := do
   let mappingSlotOld := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0, key)\n                mstore(32, baseSlot)\n                slot := keccak256(0, 64)\n            }\n"
   let mappingSlotNew := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0x200, key)\n                mstore(0x220, baseSlot)\n                slot := keccak256(0x200, 64)\n            }\n"
@@ -302,7 +308,8 @@ private def injectStorageCompat (text : String) : Except String String := do
   -- in `markets[id].slot2`, so the Yul patch must keep this packed mirror in sync
   -- with the spec-level mapping writes used by the compiler.
   let setFeeOld := "sstore(mappingSlot(7, id), newFee)\n"
-  let setFeeNew := "sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, or(and(__packed, " ++ lower128Mask ++ "), shl(128, newFee)))\n"
+  let setFeePacked := packMarketFeeSlot2Expr "__packed" "newFee"
+  let setFeeNew := "sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, " ++ setFeePacked ++ ")\n"
   let t2 ← replaceOrThrow t1 setFeeOld setFeeNew "setFee packed slot compatibility"
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
@@ -320,7 +327,8 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t5 ← replaceOrThrow t4 withdrawOld withdrawNew "withdraw packed slot compatibility"
 
   let accrueOld := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"
-  let accrueNew := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n                        let __marketSlot := add(mappingSlot(3, id), 2)\n                        let __packed := sload(__marketSlot)\n                        sstore(__marketSlot, or(and(__packed, " ++ upper128Mask ++ "), and(timestamp(), " ++ lower128Mask ++ ")))\n"
+  let accruePacked := packMarketLastUpdateSlot2Expr "__packed" "timestamp()"
+  let accrueNew := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n                        let __marketSlot := add(mappingSlot(3, id), 2)\n                        let __packed := sload(__marketSlot)\n                        sstore(__marketSlot, " ++ accruePacked ++ ")\n"
   replaceOrThrow t5 accrueOld accrueNew "accrueInterest packed slot compatibility"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
