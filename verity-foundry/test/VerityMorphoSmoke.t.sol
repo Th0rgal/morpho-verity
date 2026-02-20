@@ -126,6 +126,7 @@ contract VerityMorphoSmokeTest {
     event SetAuthorization(
         address indexed caller, address indexed authorizer, address indexed authorized, bool newIsAuthorized
     );
+    event Supply(bytes32 indexed id, address caller, address indexed onBehalf, uint256 assets, uint256 shares);
 
     function setUp() public {
         bytes memory initCode = bytes.concat(_loadBytecode("../compiler/yul/Morpho.bin"), abi.encode(OWNER));
@@ -501,6 +502,51 @@ contract VerityMorphoSmokeTest {
         require(withdrawIndex != type(uint256).max, "withdraw event missing");
         require(transferIndex != type(uint256).max, "transfer event missing");
         require(withdrawIndex < transferIndex, "withdraw event emitted after token transfer");
+    }
+
+    function testSupplyEventLayoutMatchesMorphoAbi() public {
+        MockERC20 loanToken = new MockERC20();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+        bytes32 id = keccak256(abi.encode(params.loanToken, params.collateralToken, params.oracle, params.irm, params.lltv));
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.recordLogs();
+        vm.prank(supplier);
+        (uint256 assetsSupplied, uint256 sharesSupplied) = morpho.supply(params, 100 ether, 0, supplier, "");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 supplySig = keccak256("Supply(bytes32,address,address,uint256,uint256)");
+        bool found;
+        for (uint256 i = 0; i < entries.length; ++i) {
+            if (entries[i].emitter != address(morpho) || entries[i].topics.length == 0 || entries[i].topics[0] != supplySig) {
+                continue;
+            }
+            found = true;
+            require(entries[i].topics.length == 3, "supply event should have 2 indexed args");
+            require(entries[i].topics[1] == id, "supply topic id mismatch");
+            require(entries[i].topics[2] == bytes32(uint256(uint160(supplier))), "supply topic onBehalf mismatch");
+            require(entries[i].data.length == 96, "supply event data length mismatch");
+            (address caller_, uint256 assets_, uint256 shares_) = abi.decode(entries[i].data, (address, uint256, uint256));
+            require(caller_ == supplier, "supply caller data mismatch");
+            require(assets_ == assetsSupplied, "supply assets data mismatch");
+            require(shares_ == sharesSupplied, "supply shares data mismatch");
+            break;
+        }
+        require(found, "supply event missing");
     }
 
     function testWithdrawRejectsZeroReceiver() public {

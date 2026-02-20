@@ -101,9 +101,10 @@ private def supplyCase : String := "\
                 let newTotalSupplyShares := add(totalSupplyShares, sharesSupplied)\n\
                 sstore(mappingSlot(8, id), newTotalSupplyAssets)\n\
                 sstore(mappingSlot(9, id), newTotalSupplyShares)\n\
-                mstore(0, assetsSupplied)\n\
-                mstore(32, sharesSupplied)\n\
-                log4(0, 64, 0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0, id, caller(), onBehalf)\n\
+                mstore(0, caller())\n\
+                mstore(32, assetsSupplied)\n\
+                mstore(64, sharesSupplied)\n\
+                log3(0, 96, 0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0, id, onBehalf)\n\
                 if gt(dataOffset, sub(calldatasize(), 32)) {\n\
                     revert(0, 0)\n\
                 }\n\
@@ -316,9 +317,9 @@ private def injectStorageCompat (text : String) : Except String String := do
   let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
   let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
-  let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nmstore(0, assetsSupplied)\n"
+  let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nmstore(0, caller())\n"
   let supplySlot0Packed := packMarketSupplySlot0Expr "newTotalSupplyAssets" "newTotalSupplyShares"
-  let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {supplySlot0Packed})\nmstore(0, assetsSupplied)\n"
+  let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {supplySlot0Packed})\nmstore(0, caller())\n"
   let t4 ← replaceOrThrow t3 supplyOld supplyNew "supply packed slot compatibility"
 
   let withdrawOld := "sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\nsstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\nmstore(0, caller())\n"
