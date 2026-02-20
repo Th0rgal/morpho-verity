@@ -208,6 +208,27 @@ contract VerityMorphoSmokeTest {
         require(collateral == 0, "position.collateral mismatch");
     }
 
+    function testCreateMarketWithHighBitAddresses() public {
+        address irm = address(0xc7183455a4C133Ae270771860664b6B7ec320bB1);
+        uint256 lltv = 0.8 ether;
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        address loanToken = address(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+        address collateralToken = address(0xF62849F9A0B5Bf2913b396098F7c7019b51A820a);
+        address oracle = address(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9);
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(loanToken, collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(loanToken, collateralToken, oracle, irm, lltv));
+
+        vm.warp(1700000000);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+        require(morpho.lastUpdate(id) == 1700000000, "lastUpdate mismatch");
+    }
+
     function testNonOwnerCannotEnableIrm() public {
         (bool ok,) = address(morpho).call(abi.encodeWithSignature("enableIrm(address)", address(0x1234)));
         require(!ok, "non-owner call should fail");
@@ -626,12 +647,12 @@ contract VerityMorphoSmokeTest {
                 continue;
             }
             found = true;
-            require(entries[i].topics.length == 3, "supply event should have 2 indexed args");
+            require(entries[i].topics.length == 4, "supply event should have 3 indexed args");
             require(entries[i].topics[1] == id, "supply topic id mismatch");
-            require(entries[i].topics[2] == bytes32(uint256(uint160(supplier))), "supply topic onBehalf mismatch");
-            require(entries[i].data.length == 96, "supply event data length mismatch");
-            (address caller_, uint256 assets_, uint256 shares_) = abi.decode(entries[i].data, (address, uint256, uint256));
-            require(caller_ == supplier, "supply caller data mismatch");
+            require(entries[i].topics[2] == bytes32(uint256(uint160(supplier))), "supply topic caller mismatch");
+            require(entries[i].topics[3] == bytes32(uint256(uint160(supplier))), "supply topic onBehalf mismatch");
+            require(entries[i].data.length == 64, "supply event data length mismatch");
+            (uint256 assets_, uint256 shares_) = abi.decode(entries[i].data, (uint256, uint256));
             require(assets_ == assetsSupplied, "supply assets data mismatch");
             require(shares_ == sharesSupplied, "supply shares data mismatch");
             break;

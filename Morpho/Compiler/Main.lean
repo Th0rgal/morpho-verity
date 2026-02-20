@@ -101,10 +101,9 @@ private def supplyCase : String := "\
                 let newTotalSupplyShares := add(totalSupplyShares, sharesSupplied)\n\
                 sstore(mappingSlot(8, id), newTotalSupplyAssets)\n\
                 sstore(mappingSlot(9, id), newTotalSupplyShares)\n\
-                mstore(0, caller())\n\
-                mstore(32, assetsSupplied)\n\
-                mstore(64, sharesSupplied)\n\
-                log3(0, 96, 0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0, id, onBehalf)\n\
+                mstore(0, assetsSupplied)\n\
+                mstore(32, sharesSupplied)\n\
+                log4(0, 64, 0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0, id, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), onBehalf)\n\
                 if gt(dataOffset, sub(calldatasize(), 32)) {\n\
                     revert(0, 0)\n\
                 }\n\
@@ -319,10 +318,18 @@ private def injectStorageCompat (text : String) : Except String String := do
   let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
   let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
-  let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nmstore(0, caller())\n"
+  -- IMorpho defines CreateMarket as `CreateMarket(bytes32,(address,address,address,address,uint256))`.
+  -- The current IR event renderer flattens tuple components, so patch topic0 to the canonical tuple hash.
+  let createMarketTopicOld :=
+    "mstore(add(__evt_ptr, 0), 0x4372656174654d61726b657428627974657333322c616464726573732c616464)\n                    mstore(add(__evt_ptr, 32), 0x726573732c616464726573732c616464726573732c75696e7432353629000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 61)\n"
+  let createMarketTopicNew :=
+    "let __evt_topic0 := 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac\n"
+  let t3a ← replaceOrThrow t3 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
+
+  let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nmstore(0, assetsSupplied)\n"
   let supplySlot0Packed := packMarketSupplySlot0Expr "newTotalSupplyAssets" "newTotalSupplyShares"
-  let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {supplySlot0Packed})\nmstore(0, caller())\n"
-  let t4 ← replaceOrThrow t3 supplyOld supplyNew "supply packed slot compatibility"
+  let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {supplySlot0Packed})\nmstore(0, assetsSupplied)\n"
+  let t4 ← replaceOrThrow t3a supplyOld supplyNew "supply packed slot compatibility"
 
   let withdrawOld := "sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\nsstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\nmstore(0, caller())\n"
   let withdrawSlot0Packed := packMarketSupplySlot0Expr "__newTotalSupplyAssets" "__newTotalSupplyShares"
