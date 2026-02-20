@@ -200,6 +200,30 @@ contract VerityMorphoSmokeTest {
         require(!ok, "non-owner call should fail");
     }
 
+    function testEnableLltvEventLayoutMatchesMorphoAbi() public {
+        uint256 lltv = 0.8 ether;
+
+        vm.recordLogs();
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 enableLltvSig = keccak256("EnableLltv(uint256)");
+        bool found;
+        for (uint256 i = 0; i < entries.length; ++i) {
+            if (entries[i].emitter != address(morpho) || entries[i].topics.length == 0 || entries[i].topics[0] != enableLltvSig)
+            {
+                continue;
+            }
+            found = true;
+            require(entries[i].topics.length == 2, "EnableLltv should have one indexed arg");
+            require(entries[i].topics[1] == bytes32(lltv), "EnableLltv topic lltv mismatch");
+            require(entries[i].data.length == 0, "EnableLltv should not encode lltv in data");
+            break;
+        }
+        require(found, "EnableLltv event missing");
+    }
+
     function testSetAuthorizationEmitsEvent() public {
         address authorizer = address(0xA11CE);
         address authorized = address(0xB0B);
