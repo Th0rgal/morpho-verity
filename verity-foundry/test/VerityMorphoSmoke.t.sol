@@ -84,6 +84,7 @@ contract MockERC20 {
 
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
+    event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
@@ -321,10 +322,7 @@ contract VerityMorphoSmokeTest {
             abi.encodeWithSelector(IMorphoSubset.supply.selector, params, 100 ether, 0, supplier, bytes(""))
         );
         require(!ok, "supply should revert");
-        require(
-            keccak256(bytes(_decodeErrorString(ret))) == keccak256(bytes("transferFrom returned false")),
-            "supply revert reason mismatch"
-        );
+        _assertDecodedError(ret, "transferFrom returned false", "supply revert reason mismatch");
     }
 
     function testExtSloadsMatchesGetters() public {
@@ -545,10 +543,7 @@ contract VerityMorphoSmokeTest {
             abi.encodeWithSelector(IMorphoSubset.withdraw.selector, params, 10 ether, 0, supplier, address(0xC0FFEE))
         );
         require(!ok, "withdraw should revert");
-        require(
-            keccak256(bytes(_decodeErrorString(ret))) == keccak256(bytes("transfer returned false")),
-            "withdraw revert reason mismatch"
-        );
+        _assertDecodedError(ret, "transfer returned false", "withdraw revert reason mismatch");
     }
 
     function testWithdrawEmitsEventBeforeTokenTransfer() public {
@@ -704,6 +699,10 @@ contract VerityMorphoSmokeTest {
         return abi.decode(payload, (string));
     }
 
+    function _assertDecodedError(bytes memory ret, string memory expected, string memory context) internal pure {
+        require(keccak256(bytes(_decodeErrorString(ret))) == keccak256(bytes(expected)), context);
+    }
+
     function _isWhitespace(bytes1 c) internal pure returns (bool) {
         return c == 0x20 || c == 0x0a || c == 0x0d || c == 0x09;
     }
@@ -717,4 +716,3 @@ contract VerityMorphoSmokeTest {
         return keccak256(abi.encode(key2, outer));
     }
 }
-    event Transfer(address indexed from, address indexed to, uint256 amount);
