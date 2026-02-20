@@ -62,6 +62,12 @@ cd morpho-blue
 forge test -vvv
 ```
 
+Run the exact same Morpho Blue suite against both implementations (Solidity and Verity-compiled):
+
+```bash
+./scripts/run_morpho_blue_parity.sh
+```
+
 Build the Morpho Verity artifact:
 
 ```bash
@@ -76,9 +82,9 @@ forge test -vvv
 ```
 
 Current status:
-- Solidity test parity is still run from `morpho-blue` (`forge test`).
-- Verity mode currently validates a best-effort Morpho `ContractSpec` subset that compiles to `compiler/yul/Morpho.yul`.
-- Full IMorpho test parity is not yet possible with current `ContractSpec` constraints (notably multi-value returns and full ABI surface).
+- The full Morpho Blue Foundry suite is wired to run against both implementations via `MORPHO_IMPL=solidity|verity` in `morpho-blue/test/BaseTest.sol`.
+- `./scripts/run_morpho_blue_parity.sh` runs that exact suite for both targets and stores logs in `out/parity/`.
+- Current differential result: Solidity suite is green (excluding `test/tmp_yul_deploy.t.sol` helper), while Verity mode still fails during `setUp()` in multiple suites (first hard failure on `createMarket` in current traces).
 
 ## Proof progress
 

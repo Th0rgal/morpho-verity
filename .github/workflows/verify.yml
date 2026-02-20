@@ -79,3 +79,30 @@ jobs:
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
         run: forge test -vvv
+
+  morpho-blue-parity:
+    name: Morpho Blue differential suite (Solidity vs Verity)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Lean toolchain
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install solc
+        run: |
+          pip3 install solc-select
+          solc-select install 0.8.28
+          solc-select use 0.8.28
+
+      - name: Run full Morpho Blue parity script
+        run: ./scripts/run_morpho_blue_parity.sh
