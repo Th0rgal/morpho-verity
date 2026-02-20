@@ -124,7 +124,7 @@ contract VerityMorphoSmokeTest {
     IMorphoSubset internal morpho;
 
     event SetAuthorization(
-        address indexed caller, address indexed authorizer, address indexed authorized, uint256 newIsAuthorized
+        address indexed caller, address indexed authorizer, address indexed authorized, bool newIsAuthorized
     );
 
     function setUp() public {
@@ -204,7 +204,7 @@ contract VerityMorphoSmokeTest {
         address authorized = address(0xB0B);
 
         vm.expectEmit(true, true, true, true, address(morpho));
-        emit SetAuthorization(authorizer, authorizer, authorized, 1);
+        emit SetAuthorization(authorizer, authorizer, authorized, true);
 
         vm.prank(authorizer);
         morpho.setAuthorization(authorized, true);

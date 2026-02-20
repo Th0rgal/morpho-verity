@@ -271,7 +271,7 @@ def morphoSpec : ContractSpec := {
       name := "setAuthorization"
       params := [
         { name := "authorized", ty := .address },
-        { name := "newIsAuthorized", ty := .uint256 }
+        { name := "newIsAuthorized", ty := .bool }
       ]
       returnType := none
       body := [
@@ -439,7 +439,7 @@ def morphoSpec : ContractSpec := {
         { name := "caller", ty := .address, kind := .indexed },
         { name := "authorizer", ty := .address, kind := .indexed },
         { name := "authorized", ty := .address, kind := .indexed },
-        { name := "newIsAuthorized", ty := .uint256, kind := .unindexed }
+        { name := "newIsAuthorized", ty := .bool, kind := .unindexed }
       ]
     }
   ]

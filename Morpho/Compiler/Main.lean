@@ -307,7 +307,7 @@ private def injectStorageCompat (text : String) : Except String String := do
   let supplyNew := "sstore(mappingSlot(9, id), newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\nmstore(0, assetsSupplied)\n"
   let t4 ← replaceOrThrow t3 supplyOld supplyNew "supply packed slot compatibility"
 
-  let withdrawOld := "sstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\nmstore(0, caller())\n"
+  let withdrawOld := "sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\nsstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\nmstore(0, caller())\n"
   let withdrawNew := "let __newTotalSupplyAssets := sub(totalSupplyAssets, assetsWithdrawn)\nlet __newTotalSupplyShares := sub(totalSupplyShares, sharesWithdrawn)\nsstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, or(and(__newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(__newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\nmstore(0, caller())\n"
   let t5 ← replaceOrThrow t4 withdrawOld withdrawNew "withdraw packed slot compatibility"
 
