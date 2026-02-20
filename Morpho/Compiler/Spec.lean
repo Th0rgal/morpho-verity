@@ -8,7 +8,7 @@ private def wad : Nat := 1000000000000000000
 private def maxFee : Nat := 250000000000000000
 
 private def requireOwner : Stmt :=
-  Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "NOT_OWNER"
+  Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "not owner"
 
 private def marketIdExpr (params : Array Expr) : Expr :=
   Expr.externalCall "keccakMarketParams" params.toList
@@ -41,14 +41,15 @@ def morphoSpec : ContractSpec := {
     { name := "idToCollateralToken", ty := .mappingTyped (.simple .uint256) },
     { name := "idToOracle", ty := .mappingTyped (.simple .uint256) },
     { name := "idToIrm", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToLltv", ty := .mappingTyped (.simple .uint256) }
+    { name := "idToLltv", ty := .mappingTyped (.simple .uint256) },
+    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) }
   ]
   constructor := some {
     params := [{ name := "initialOwner", ty := .address }]
     body := [
       Stmt.require
         (Expr.logicalNot (Expr.eq (Expr.constructorArg 0) (Expr.literal 0)))
-        "ZERO_ADDRESS",
+        "zero address",
       Stmt.setStorage "owner" (Expr.constructorArg 0),
       Stmt.setStorage "feeRecipient" (Expr.literal 0)
     ]
@@ -142,6 +143,71 @@ def morphoSpec : ContractSpec := {
       returnType := some .uint256
       body := [Stmt.return (Expr.mappingUint "marketFee" (Expr.param "id"))]
     },
+    {
+      name := "idToMarketParams"
+      params := [{ name := "id", ty := .bytes32 }]
+      returnType := none
+      returns := [.address, .address, .address, .address, .uint256]
+      body := [
+        Stmt.letVar "loanToken" (Expr.mappingUint "idToLoanToken" (Expr.param "id")),
+        Stmt.letVar "collateralToken" (Expr.mappingUint "idToCollateralToken" (Expr.param "id")),
+        Stmt.letVar "oracle" (Expr.mappingUint "idToOracle" (Expr.param "id")),
+        Stmt.letVar "irm" (Expr.mappingUint "idToIrm" (Expr.param "id")),
+        Stmt.letVar "lltv" (Expr.mappingUint "idToLltv" (Expr.param "id")),
+        Stmt.returnValues [
+          Expr.localVar "loanToken",
+          Expr.localVar "collateralToken",
+          Expr.localVar "oracle",
+          Expr.localVar "irm",
+          Expr.localVar "lltv"
+        ]
+      ]
+    },
+    {
+      name := "position"
+      params := [
+        { name := "id", ty := .bytes32 },
+        { name := "user", ty := .address }
+      ]
+      returnType := none
+      returns := [.uint256, .uint256, .uint256]
+      body := [
+        Stmt.returnValues [
+          Expr.mapping2 "positionSupplyShares" (Expr.param "id") (Expr.param "user"),
+          Expr.literal 0,
+          Expr.literal 0
+        ]
+      ]
+    },
+    {
+      name := "market"
+      params := [{ name := "id", ty := .bytes32 }]
+      returnType := none
+      returns := [.uint256, .uint256, .uint256, .uint256, .uint256, .uint256]
+      body := [
+        Stmt.letVar "totalSupplyAssets" (Expr.mappingUint "marketTotalSupplyAssets" (Expr.param "id")),
+        Stmt.letVar "totalSupplyShares" (Expr.mappingUint "marketTotalSupplyShares" (Expr.param "id")),
+        Stmt.letVar "totalBorrowAssets" (Expr.mappingUint "marketTotalBorrowAssets" (Expr.param "id")),
+        Stmt.letVar "totalBorrowShares" (Expr.mappingUint "marketTotalBorrowShares" (Expr.param "id")),
+        Stmt.letVar "lastUpdate" (Expr.mappingUint "marketLastUpdate" (Expr.param "id")),
+        Stmt.letVar "fee" (Expr.mappingUint "marketFee" (Expr.param "id")),
+        Stmt.returnValues [
+          Expr.localVar "totalSupplyAssets",
+          Expr.localVar "totalSupplyShares",
+          Expr.localVar "totalBorrowAssets",
+          Expr.localVar "totalBorrowShares",
+          Expr.localVar "lastUpdate",
+          Expr.localVar "fee"
+        ]
+      ]
+    },
+    {
+      name := "extSloads"
+      params := [{ name := "slots", ty := .array .bytes32 }]
+      returnType := none
+      returns := [.array .uint256]
+      body := [Stmt.returnStorageWords "slots"]
+    },
 
     -- Owner/configuration
     {
@@ -152,8 +218,9 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.logicalNot (Expr.eq (Expr.param "newOwner") (Expr.storage "owner")))
-          "ALREADY_SET",
+          "already set",
         Stmt.setStorage "owner" (Expr.param "newOwner"),
+        Stmt.emit "SetOwner" [Expr.param "newOwner"],
         Stmt.stop
       ]
     },
@@ -165,8 +232,9 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 0))
-          "ALREADY_SET",
+          "already set",
         Stmt.setMapping "isIrmEnabled" (Expr.param "irm") (Expr.literal 1),
+        Stmt.emit "EnableIrm" [Expr.param "irm"],
         Stmt.stop
       ]
     },
@@ -178,9 +246,10 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 0))
-          "ALREADY_SET",
-        Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal wad)) "MAX_LLTV_EXCEEDED",
+          "already set",
+        Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal wad)) "max LLTV exceeded",
         Stmt.setMappingUint "isLltvEnabled" (Expr.param "lltv") (Expr.literal 1),
+        Stmt.emit "EnableLltv" [Expr.param "lltv"],
         Stmt.stop
       ]
     },
@@ -192,8 +261,9 @@ def morphoSpec : ContractSpec := {
         requireOwner,
         Stmt.require
           (Expr.logicalNot (Expr.eq (Expr.param "newFeeRecipient") (Expr.storage "feeRecipient")))
-          "ALREADY_SET",
+          "already set",
         Stmt.setStorage "feeRecipient" (Expr.param "newFeeRecipient"),
+        Stmt.emit "SetFeeRecipient" [Expr.param "newFeeRecipient"],
         Stmt.stop
       ]
     },
@@ -201,7 +271,7 @@ def morphoSpec : ContractSpec := {
       name := "setAuthorization"
       params := [
         { name := "authorized", ty := .address },
-        { name := "newIsAuthorized", ty := .uint256 }
+        { name := "newIsAuthorized", ty := .bool }
       ]
       returnType := none
       body := [
@@ -209,8 +279,14 @@ def morphoSpec : ContractSpec := {
           (Expr.logicalNot (Expr.eq
             (Expr.mapping2 "isAuthorized" Expr.caller (Expr.param "authorized"))
             (Expr.param "newIsAuthorized")))
-          "ALREADY_SET",
+          "already set",
         Stmt.setMapping2 "isAuthorized" Expr.caller (Expr.param "authorized") (Expr.param "newIsAuthorized"),
+        Stmt.emit "SetAuthorization" [
+          Expr.caller,
+          Expr.caller,
+          Expr.param "authorized",
+          Expr.param "newIsAuthorized"
+        ],
         Stmt.stop
       ]
     },
@@ -228,9 +304,9 @@ def morphoSpec : ContractSpec := {
       returnType := none
       body := [
         Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
-        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM_NOT_ENABLED",
-        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV_NOT_ENABLED",
-        Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "MARKET_ALREADY_CREATED",
+        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM not enabled",
+        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV not enabled",
+        Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "market already created",
         Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.literal 0),
         Stmt.setMappingUint "marketTotalSupplyAssets" (Expr.localVar "id") (Expr.literal 0),
@@ -242,6 +318,14 @@ def morphoSpec : ContractSpec := {
         Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.param "oracle"),
         Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.param "irm"),
         Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.param "lltv"),
+        Stmt.emit "CreateMarket" [
+          Expr.localVar "id",
+          Expr.param "loanToken",
+          Expr.param "collateralToken",
+          Expr.param "oracle",
+          Expr.param "irm",
+          Expr.param "lltv"
+        ],
         Stmt.stop
       ]
     },
@@ -261,10 +345,101 @@ def morphoSpec : ContractSpec := {
         Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
         Stmt.require
           (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
-          "MARKET_NOT_CREATED",
-        Stmt.require (Expr.le (Expr.param "newFee") (Expr.literal maxFee)) "MAX_FEE_EXCEEDED",
+          "market not created",
+        Stmt.require (Expr.le (Expr.param "newFee") (Expr.literal maxFee)) "max fee exceeded",
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.param "newFee"),
+        Stmt.emit "SetFee" [Expr.localVar "id", Expr.param "newFee"],
         Stmt.stop
+      ]
+    },
+    {
+      name := "accrueInterest"
+      params := [
+        { name := "loanToken", ty := .address },
+        { name := "collateralToken", ty := .address },
+        { name := "oracle", ty := .address },
+        { name := "irm", ty := .address },
+        { name := "lltv", ty := .uint256 }
+      ]
+      returnType := none
+      body := [
+        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.require
+          (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
+          "market not created",
+        Stmt.ite
+          (Expr.gt Expr.blockTimestamp (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")))
+          [
+            Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
+            Stmt.ite
+              (Expr.logicalNot (Expr.eq (Expr.param "irm") (Expr.literal 0)))
+              [Stmt.emit "AccrueInterest" [Expr.localVar "id", Expr.literal 0, Expr.literal 0, Expr.literal 0]]
+              [],
+            Stmt.stop
+          ]
+          [Stmt.stop]
+      ]
+    }
+  ]
+  events := [
+    {
+      name := "SetOwner"
+      params := [
+        { name := "newOwner", ty := .address, kind := .indexed }
+      ]
+    },
+    {
+      name := "SetFee"
+      params := [
+        { name := "id", ty := .bytes32, kind := .indexed },
+        { name := "newFee", ty := .uint256, kind := .unindexed }
+      ]
+    },
+    {
+      name := "SetFeeRecipient"
+      params := [
+        { name := "newFeeRecipient", ty := .address, kind := .indexed }
+      ]
+    },
+    {
+      name := "EnableIrm"
+      params := [
+        { name := "irm", ty := .address, kind := .indexed }
+      ]
+    },
+    {
+      name := "EnableLltv"
+      params := [
+        { name := "lltv", ty := .uint256, kind := .indexed }
+      ]
+    },
+    {
+      name := "CreateMarket"
+      params := [
+        { name := "id", ty := .bytes32, kind := .indexed },
+        { name := "loanToken", ty := .address, kind := .unindexed },
+        { name := "collateralToken", ty := .address, kind := .unindexed },
+        { name := "oracle", ty := .address, kind := .unindexed },
+        { name := "irm", ty := .address, kind := .unindexed },
+        { name := "lltv", ty := .uint256, kind := .unindexed }
+      ]
+    },
+    {
+      name := "AccrueInterest"
+      params := [
+        { name := "id", ty := .bytes32, kind := .indexed },
+        { name := "prevBorrowRate", ty := .uint256, kind := .unindexed },
+        { name := "interest", ty := .uint256, kind := .unindexed },
+        { name := "feeShares", ty := .uint256, kind := .unindexed }
+      ]
+    },
+    {
+      name := "SetAuthorization"
+      params := [
+        { name := "caller", ty := .address, kind := .indexed },
+        { name := "authorizer", ty := .address, kind := .indexed },
+        { name := "authorized", ty := .address, kind := .indexed },
+        { name := "newIsAuthorized", ty := .bool, kind := .unindexed }
       ]
     }
   ]
@@ -289,13 +464,18 @@ def morphoSelectors : List Nat := [
   0x12022eb9, -- totalBorrowAssets(bytes32)
   0x3f13c692, -- totalBorrowShares(bytes32)
   0x27cdab06, -- fee(bytes32)
+  0x2c3c9157, -- idToMarketParams(bytes32)
+  0x93c52062, -- position(bytes32,address)
+  0x5c60e39a, -- market(bytes32)
+  0x7784c685, -- extSloads(bytes32[])
   0x13af4035, -- setOwner(address)
   0x5a64f51e, -- enableIrm(address)
   0x4d98a93b, -- enableLltv(uint256)
   0xe74b981b, -- setFeeRecipient(address)
   0xeecea000, -- setAuthorization(address,bool)
   0x8c1358a2, -- createMarket((address,address,address,address,uint256))
-  0x2b4f013c  -- setFee((address,address,address,address,uint256),uint256)
+  0x2b4f013c, -- setFee((address,address,address,address,uint256),uint256)
+  0x151c1ade  -- accrueInterest((address,address,address,address,uint256))
 ]
 
 end Morpho.Compiler.Spec

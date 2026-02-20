@@ -225,7 +225,7 @@ def supply (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Add
   let m := s.market id
   if m.lastUpdate.val == 0 then none
   else if ¬(UtilsLib.exactlyOneZero assets shares) then none
-  else if onBehalf == "" then none  -- ZERO_ADDRESS (Morpho.sol:179)
+  else if onBehalf == 0 then none  -- ZERO_ADDRESS (Morpho.sol:179)
   else
     let (assets, shares) :=
       if assets.val > 0 then
@@ -254,7 +254,7 @@ def withdraw (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf rec
   let m := s.market id
   if m.lastUpdate.val == 0 then none
   else if ¬(UtilsLib.exactlyOneZero assets shares) then none
-  else if receiver == "" then none  -- ZERO_ADDRESS (Morpho.sol:210)
+  else if receiver == 0 then none  -- ZERO_ADDRESS (Morpho.sol:210)
   else if ¬(isSenderAuthorized s onBehalf) then none
   else
     let (assets, shares) :=
@@ -291,7 +291,7 @@ def borrow (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf recei
   let m := s.market id
   if m.lastUpdate.val == 0 then none
   else if ¬(UtilsLib.exactlyOneZero assets shares) then none
-  else if receiver == "" then none  -- ZERO_ADDRESS (Morpho.sol:245)
+  else if receiver == 0 then none  -- ZERO_ADDRESS (Morpho.sol:245)
   else if ¬(isSenderAuthorized s onBehalf) then none
   else
     let (assets, shares) :=
@@ -325,7 +325,7 @@ def repay (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Addr
   let m := s.market id
   if m.lastUpdate.val == 0 then none
   else if ¬(UtilsLib.exactlyOneZero assets shares) then none
-  else if onBehalf == "" then none  -- ZERO_ADDRESS (Morpho.sol:279)
+  else if onBehalf == 0 then none  -- ZERO_ADDRESS (Morpho.sol:279)
   else
     let (assets, shares) :=
       if assets.val > 0 then
@@ -356,7 +356,7 @@ def supplyCollateral (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf : 
   let m := s.market id
   if m.lastUpdate.val == 0 then none
   else if assets.val == 0 then none  -- ZERO_ASSETS (Morpho.sol:308)
-  else if onBehalf == "" then none   -- ZERO_ADDRESS (Morpho.sol:309)
+  else if onBehalf == 0 then none   -- ZERO_ADDRESS (Morpho.sol:309)
   else
     let pos := s.position id onBehalf
     let newPos := { pos with
@@ -375,7 +375,7 @@ def withdrawCollateral (s : MorphoState) (id : Id) (assets : Uint256)
   let m := s.market id
   if m.lastUpdate.val == 0 then none
   else if assets.val == 0 then none    -- ZERO_ASSETS (Morpho.sol:328)
-  else if receiver == "" then none     -- ZERO_ADDRESS (Morpho.sol:329)
+  else if receiver == 0 then none     -- ZERO_ADDRESS (Morpho.sol:329)
   else if ¬(isSenderAuthorized s onBehalf) then none
   else
     let pos := s.position id onBehalf
