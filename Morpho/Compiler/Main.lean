@@ -897,6 +897,9 @@ private def liquidateCase : String := "\
                 }\n\
                 if iszero(gt(seizedAssetsOut, 0)) {\n\
                     let repaidAssetsDown := div(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), add(totalBorrowSharesBefore, 1000000))\n\
+                    if iszero(collateralPrice) {\n\
+                        revert(0, 0)\n\
+                    }\n\
                     seizedAssetsOut := div(mul(div(mul(repaidAssetsDown, liquidationIncentiveFactor), 1000000000000000000), 1000000000000000000000000000000000000), collateralPrice)\n\
                 }\n\
                 let repaidAssetsOut := div(add(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), sub(add(totalBorrowSharesBefore, 1000000), 1)), add(totalBorrowSharesBefore, 1000000))\n\
@@ -1153,7 +1156,6 @@ private def setAuthorizationWithSigCase : String := "\
                     revert(0, 100)\n\
                 }\n\
                 sstore(nonceSlot, add(currentNonce, 1))\n\
-                sstore(mappingSlot(7, authorizer), add(currentNonce, 1))\n\
                 mstore(0, 0x81d0284fb0e2cde18d0553b06189d6f7613c96a01bb5b5e7828eade6a0dcac91)\n\
                 mstore(32, authorizer)\n\
                 mstore(64, authorized)\n\
