@@ -42,7 +42,9 @@ def morphoSpec : ContractSpec := {
     { name := "idToOracle", ty := .mappingTyped (.simple .uint256) },
     { name := "idToIrm", ty := .mappingTyped (.simple .uint256) },
     { name := "idToLltv", ty := .mappingTyped (.simple .uint256) },
-    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) }
+    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) },
+    { name := "positionBorrowShares", ty := .mappingTyped (.nested .uint256 .address) },
+    { name := "positionCollateral", ty := .mappingTyped (.nested .uint256 .address) }
   ]
   constructor := some {
     params := [{ name := "initialOwner", ty := .address }]
@@ -174,8 +176,8 @@ def morphoSpec : ContractSpec := {
       body := [
         Stmt.returnValues [
           Expr.mapping2 "positionSupplyShares" (Expr.param "id") (Expr.param "user"),
-          Expr.literal 0,
-          Expr.literal 0
+          Expr.mapping2 "positionBorrowShares" (Expr.param "id") (Expr.param "user"),
+          Expr.mapping2 "positionCollateral" (Expr.param "id") (Expr.param "user")
         ]
       ]
     },
