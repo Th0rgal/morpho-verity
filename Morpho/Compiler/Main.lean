@@ -234,6 +234,10 @@ private def withdrawCase : String := "\
                 sstore(positionBase, sub(currentShares, sharesWithdrawn))\n\
                 sstore(mappingSlot(8, id), sub(totalSupplyAssets, assetsWithdrawn))\n\
                 sstore(mappingSlot(9, id), sub(totalSupplyShares, sharesWithdrawn))\n\
+                mstore(0, caller())\n\
+                mstore(32, assetsWithdrawn)\n\
+                mstore(64, sharesWithdrawn)\n\
+                log4(0, 96, 0xa56fc0ad5702ec05ce63666221f796fb62437c32db1aa1aa075fc6484cf58fbf, id, onBehalf, receiver)\n\
                 if iszero(extcodesize(loanToken)) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -261,10 +265,6 @@ private def withdrawCase : String := "\
                         revert(0, 100)\n\
                     }\n\
                 }\n\
-                mstore(0, caller())\n\
-                mstore(32, assetsWithdrawn)\n\
-                mstore(64, sharesWithdrawn)\n\
-                log4(0, 96, 0xa56fc0ad5702ec05ce63666221f796fb62437c32db1aa1aa075fc6484cf58fbf, id, onBehalf, receiver)\n\
                 mstore(0, assetsWithdrawn)\n\
                 mstore(32, sharesWithdrawn)\n\
                 return(0, 64)\n\
