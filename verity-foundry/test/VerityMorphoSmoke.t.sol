@@ -369,6 +369,51 @@ contract VerityMorphoSmokeTest {
         require(uint256(packedAfterSetFee[0]) >> 128 == 0.1 ether, "packed fee after setFee mismatch");
     }
 
+    function testPackedMarketSlotTracksSupplyAndWithdraw() public {
+        MockERC20 loanToken = new MockERC20();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+        bytes32 id = keccak256(abi.encode(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether));
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        address receiver = address(0xC0FFEE);
+        loanToken.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        bytes32[] memory slots = new bytes32[](1);
+        slots[0] = bytes32(uint256(_mappingSlot(3, id))); // packed Market[ID].{totalSupplyAssets,totalSupplyShares}
+
+        vm.prank(supplier);
+        morpho.supply(params, 100 ether, 0, supplier, "");
+
+        bytes32[] memory packedAfterSupply = morpho.extSloads(slots);
+        require(uint128(uint256(packedAfterSupply[0])) == morpho.totalSupplyAssets(id), "packed assets after supply mismatch");
+        require(uint256(packedAfterSupply[0]) >> 128 == morpho.totalSupplyShares(id), "packed shares after supply mismatch");
+
+        vm.prank(supplier);
+        morpho.withdraw(params, 40 ether, 0, supplier, receiver);
+
+        bytes32[] memory packedAfterWithdraw = morpho.extSloads(slots);
+        require(
+            uint128(uint256(packedAfterWithdraw[0])) == morpho.totalSupplyAssets(id),
+            "packed assets after withdraw mismatch"
+        );
+        require(
+            uint256(packedAfterWithdraw[0]) >> 128 == morpho.totalSupplyShares(id),
+            "packed shares after withdraw mismatch"
+        );
+    }
+
     function testWithdrawUpdatesMarketAndPosition() public {
         MockERC20 loanToken = new MockERC20();
         IMorphoSubset.MarketParams memory params =
