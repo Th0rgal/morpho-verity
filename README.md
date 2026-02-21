@@ -18,6 +18,7 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 - **Monotonicity**: enabled IRMs/LLTVs cannot be disabled across all operations; market timestamps only increase through accrueInterest, setFee, and accrueInterestPublic
 - **Exchange rate safety**: supply share exchange rate never decreases after interest accrual (accrueInterest and accrueInterestPublic); existing shareholders' per-share value is protected
 - **Market isolation**: operations on one market never affect any other market's state, same-market user positions, or any position in other markets
+- **Share accounting**: totalSupplyShares = sum of individual supplyShares and totalBorrowShares = sum of individual borrowShares, preserved by all 17 operations (supply, withdraw, borrow, repay, liquidate, accrueInterest, supplyCollateral, withdrawCollateral, createMarket, setFee, enableIrm, enableLltv, setOwner, setFeeRecipient, setAuthorization, setAuthorizationWithSig, accrueInterestPublic)
 
 ### What this does not prove
 
@@ -43,6 +44,8 @@ Morpho/
     Invariants.lean       # Invariant proofs (98/98 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (11/11 proven)
+    ShareConsistency.lean # Share accounting proofs (34/34 proven)
+    NatListSum.lean       # List sum lemmas for share accounting (4/4 proven)
 ```
 
 ## Build
@@ -82,13 +85,15 @@ Current status:
 
 ## Proof progress
 
-**113 theorems proven, 0 sorry remaining.**
+**151 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Authorization | 11 | 11 | Done |
 | Invariants | 98 | 98 | Done |
 | Rounding | 4 | 4 | Done |
+| Share consistency | 34 | 34 | Done |
+| List sum lemmas | 4 | 4 | Done |
 
 Also proven in supporting libraries:
 - `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
@@ -116,6 +121,10 @@ Authorization theorems include:
 - Liquidation requires unhealthy position (1)
 - Signature-based: expired deadline rejected, wrong nonce rejected, nonce incremented (3)
 
+Share consistency theorems include:
+- supplySharesConsistent preserved by all 17 operations: enableIrm/enableLltv/setOwner/setFeeRecipient/createMarket/setAuthorization/setAuthorizationWithSig/supplyCollateral/withdrawCollateral/supply/withdraw/borrow/repay/liquidate/accrueInterest/setFee/accrueInterestPublic (17)
+- borrowSharesConsistent preserved by all 17 operations: enableIrm/enableLltv/setOwner/setFeeRecipient/createMarket/setAuthorization/setAuthorizationWithSig/supplyCollateral/withdrawCollateral/supply/withdraw/borrow/repay/liquidate/accrueInterest/setFee/accrueInterestPublic (17)
+
 ## Status
 
 - [x] Morpho types and state model
@@ -123,8 +132,9 @@ Authorization theorems include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (11/11: withdraw/borrow/withdrawCollateral require auth, supply doesn't, withdraw/borrow/withdrawCollateral satisfy postcondition specs, liquidation requires unhealthy position, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
-- [x] Invariant proofs (98/98: IRM/LLTV monotonicity preserved by all 16 operations, LLTV < WAD, fee bounds, market creation, solvency for all 16 operations, timestamp monotonicity for accrueInterest/setFee/accrueInterestPublic, exchange rate monotonicity for accrueInterest/accrueInterestPublic, collateralization preserved by all 16 operations, market isolation for all 8 operations, same-market position isolation for all 8 operations, cross-market position isolation for all 8 operations, flashLoan rejects zero assets, accrueInterestPublic rejects uninitialized/preserves solvency/preserves collateralization)
+- [x] Invariant proofs (98/98: IRM/LLTV monotonicity × 16 operations, LLTV < WAD, fee bounds, market creation, solvency × 16 operations, timestamp monotonicity × 3, exchange rate monotonicity × 2, collateralization × 16 operations, market/position isolation × 24, flashLoan rejects zero, accrueInterestPublic rejects uninitialized/preserves solvency/preserves collateralization)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
+- [x] Share consistency proofs (34/34: supplySharesConsistent and borrowSharesConsistent preserved by all 17 operations including liquidate bad-debt socialization)
 
 ## License
 

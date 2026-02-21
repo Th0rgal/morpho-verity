@@ -415,14 +415,39 @@ theorem liquidate_preserves_borrowSharesConsistent (s : MorphoState) (lid : Id)
     borrowSharesConsistent s' lid allUsers := by
   unfold Morpho.liquidate at h_ok; simp at h_ok
   split at h_ok <;> simp at h_ok
-  all_goals obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
-  all_goals rw [← h_eq]
-  -- The liquidate function has nested branching (seizedAssets > 0, then bad-debt check).
-  -- In all cases: totalBorrowShares and borrower.borrowShares change by the same delta,
-  -- preserving the sum invariant. The proof requires distributing tuple projections through
-  -- the bad-debt if-then-else before applying list_sum_map_sub/list_sum_map_zero.
-  -- Left as sorry pending a more ergonomic approach to the nested ite + % modulus elimination.
-  all_goals sorry
+  all_goals (
+    try (split at h_ok <;> simp at h_ok)
+    all_goals (
+      try (split at h_ok <;> simp at h_ok)
+      all_goals (
+        obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
+        rw [← h_eq]
+        unfold borrowSharesConsistent
+        simp only [beq_iff_eq, ite_true, true_and, apply_ite, Morpho.u256_val, Nat.zero_mod]
+        -- All goals now have `X % Core.Uint256.modulus` terms from u256 wrapping.
+        -- Every such X is a Nat subtraction where X ≤ some Uint256.val < modulus.
+        -- We eliminate modulus by repeated rewriting, then use list sum lemmas + omega.
+        --
+        -- Helper: for Uint256 values, any subtraction of their .val fields is < modulus.
+        have elim_mod_pos (n : Nat) :
+            (s.position lid borrower).borrowShares.val - n < Core.Uint256.modulus :=
+          Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.position lid borrower).borrowShares.isLt
+        have elim_mod_total (n : Nat) :
+            (s.market lid).totalBorrowShares.val - n < Core.Uint256.modulus :=
+          Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market lid).totalBorrowShares.isLt
+        simp only [Nat.mod_eq_of_lt (elim_mod_pos _), Nat.mod_eq_of_lt (elim_mod_total _)]
+        -- After first round, bad-debt goals may still have (total - rs - (pos - rs)) % mod.
+        -- This is ≤ total - rs ≤ total < modulus.
+        try simp only [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) (elim_mod_total _))]
+        first
+        | -- No-bad-debt: total - rs = sum where each user's shares subtract rs for borrower
+          (rw [list_sum_map_sub allUsers (fun u => (s.position lid u).borrowShares.val) borrower _
+             h_mem h_nodup (by dsimp; omega)]
+           unfold borrowSharesConsistent at h_consistent; omega)
+        | -- Bad-debt: borrower → 0, total drops by original borrower shares
+          (rw [list_sum_map_zero allUsers (fun u => (s.position lid u).borrowShares.val) borrower
+             h_mem h_nodup]
+           unfold borrowSharesConsistent at h_consistent; omega))))
 
 /-! ## accrueInterest -/
 
