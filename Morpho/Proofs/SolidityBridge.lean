@@ -29,6 +29,9 @@ abbrev BorrowSem :=
 abbrev RepaySem :=
   MorphoState → Id → Uint256 → Uint256 → Address → Option (Uint256 × Uint256 × MorphoState)
 
+abbrev SupplyCollateralSem :=
+  MorphoState → Id → Uint256 → Address → Option MorphoState
+
 abbrev WithdrawCollateralSem :=
   MorphoState → Id → Uint256 → Address → Address → Uint256 → Uint256 → Option MorphoState
 
@@ -56,6 +59,10 @@ def borrowSemEq (solidityBorrow : BorrowSem) : Prop :=
 def repaySemEq (solidityRepay : RepaySem) : Prop :=
   ∀ s id assets shares onBehalf,
     solidityRepay s id assets shares onBehalf = Morpho.repay s id assets shares onBehalf
+
+def supplyCollateralSemEq (soliditySupplyCollateral : SupplyCollateralSem) : Prop :=
+  ∀ s id assets onBehalf,
+    soliditySupplyCollateral s id assets onBehalf = Morpho.supplyCollateral s id assets onBehalf
 
 def withdrawCollateralSemEq (solidityWithdrawCollateral : WithdrawCollateralSem) : Prop :=
   ∀ s id assets onBehalf receiver collateralPrice lltv,
@@ -121,6 +128,34 @@ theorem solidity_repay_preserves_borrowLeSupply
   have h_ok_morpho : Morpho.repay s id assets shares onBehalf = some (a, sh, s') := by
     simpa [repaySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
   exact repay_preserves_borrowLeSupply s id assets shares onBehalf h_solvent h_ok_morpho
+
+theorem solidity_supplyCollateral_preserves_borrowLeSupply
+    (soliditySupplyCollateral : SupplyCollateralSem)
+    (h_eq : supplyCollateralSemEq soliditySupplyCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf : Address)
+    (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : soliditySupplyCollateral s id assets onBehalf = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.supplyCollateral s id assets onBehalf = some s' := by
+    simpa [supplyCollateralSemEq] using (h_eq s id assets onBehalf).symm.trans h_ok
+  exact supplyCollateral_preserves_borrowLeSupply s id assets onBehalf h_solvent h_ok_morpho
+
+theorem solidity_withdrawCollateral_preserves_borrowLeSupply
+    (solidityWithdrawCollateral : WithdrawCollateralSem)
+    (h_eq : withdrawCollateralSemEq solidityWithdrawCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltv : Uint256) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok :
+      solidityWithdrawCollateral s id assets onBehalf receiver collateralPrice lltv = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv =
+      some s' := by
+    simpa [withdrawCollateralSemEq] using
+      (h_eq s id assets onBehalf receiver collateralPrice lltv).symm.trans h_ok
+  exact withdrawCollateral_preserves_borrowLeSupply
+    s id assets onBehalf receiver collateralPrice lltv h_solvent h_ok_morpho
 
 theorem solidity_liquidate_preserves_borrowLeSupply
     (solidityLiquidate : LiquidateSem)

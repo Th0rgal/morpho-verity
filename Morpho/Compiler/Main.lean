@@ -336,8 +336,9 @@ private def supplyCollateralCase : String := "\
                 let __packedBorrowCollateral := sload(add(__posBaseCompat, 1))\n\
                 let __borrowSharesCompat := and(__packedBorrowCollateral, 0xffffffffffffffffffffffffffffffff)\n\
                 sstore(add(__posBaseCompat, 1), or(__borrowSharesCompat, shl(128, and(newCollateral, 0xffffffffffffffffffffffffffffffff))))\n\
-                mstore(0, assets)\n\
-                log4(0, 32, 0xa3b9472a1399e17e123f3c2e6586c23e504184d504de59cdaa2b375e880c6184, id, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), onBehalf)\n\
+                mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
+                mstore(32, assets)\n\
+                log3(0, 64, 0xa3b9472a1399e17e123f3c2e6586c23e504184d504de59cdaa2b375e880c6184, id, onBehalf)\n\
                 if gt(dataOffset, sub(calldatasize(), 32)) {\n\
                     revert(0, 0)\n\
                 }\n\
@@ -763,9 +764,10 @@ private def repayCase : String := "\
                 let __packedBorrowCollateral := sload(packedPosCompatSlot)\n\
                 let __collateralCompat := and(shr(128, __packedBorrowCollateral), 0xffffffffffffffffffffffffffffffff)\n\
                 sstore(packedPosCompatSlot, or(and(newBorrowShares, 0xffffffffffffffffffffffffffffffff), shl(128, __collateralCompat)))\n\
-                mstore(0, assetsRepaid)\n\
-                mstore(32, sharesRepaid)\n\
-                log4(0, 64, 0x52acb05cebbd3cd39715469f22afbf5a17496295ef3bc9bb5944056c63ccaa09, id, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), onBehalf)\n\
+                mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
+                mstore(32, assetsRepaid)\n\
+                mstore(64, sharesRepaid)\n\
+                log3(0, 96, 0x52acb05cebbd3cd39715469f22afbf5a17496295ef3bc9bb5944056c63ccaa09, id, onBehalf)\n\
                 if gt(dataOffset, sub(calldatasize(), 32)) {\n\
                     revert(0, 0)\n\
                 }\n\
@@ -941,12 +943,13 @@ private def liquidateCase : String := "\
                 let __marketBase := mappingSlot(3, id)\n\
                 sstore(__marketBase, or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalSupplySharesBefore, 0xffffffffffffffffffffffffffffffff))))\n\
                 sstore(add(__marketBase, 1), or(and(newTotalBorrowAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalBorrowShares, 0xffffffffffffffffffffffffffffffff))))\n\
-                mstore(0, repaidAssetsOut)\n\
-                mstore(32, repaidSharesOut)\n\
-                mstore(64, seizedAssetsOut)\n\
-                mstore(96, badDebtAssets)\n\
-                mstore(128, badDebtShares)\n\
-                log4(0, 160, 0xa4946ede45d0c6f06a0f5ce92c9ad3b4751452d2fe0e25010783bcab57a67e41, id, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), borrower)\n\
+                mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
+                mstore(32, repaidAssetsOut)\n\
+                mstore(64, repaidSharesOut)\n\
+                mstore(96, seizedAssetsOut)\n\
+                mstore(128, badDebtAssets)\n\
+                mstore(160, badDebtShares)\n\
+                log3(0, 192, 0xa4946ede45d0c6f06a0f5ce92c9ad3b4751452d2fe0e25010783bcab57a67e41, id, borrower)\n\
                 if iszero(extcodesize(collateralToken)) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
