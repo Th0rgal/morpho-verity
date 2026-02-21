@@ -425,7 +425,7 @@ def morphoSpec : ContractSpec := {
     {
       name := "EnableLltv"
       params := [
-        { name := "lltv", ty := .uint256, kind := .indexed }
+        { name := "lltv", ty := .uint256, kind := .unindexed }
       ]
     },
     {

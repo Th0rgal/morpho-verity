@@ -40,8 +40,9 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
   go args "compiler/yul" [] false
 
 private def accrueInterestCompatBlock : String := "\
-                let elapsed := sub(timestamp(), sload(mappingSlot(6, id)))\n\
-                if gt(elapsed, 0) {\n\
+                let __prevLastUpdateAccrue := sload(mappingSlot(6, id))\n\
+                if gt(timestamp(), __prevLastUpdateAccrue) {\n\
+                    let elapsed := sub(timestamp(), __prevLastUpdateAccrue)\n\
                     sstore(mappingSlot(6, id), timestamp())\n\
                     let __marketSlot2Accrue := add(mappingSlot(3, id), 2)\n\
                     let __packed2Accrue := sload(__marketSlot2Accrue)\n\
