@@ -42,6 +42,9 @@ abbrev LiquidateSem :=
 abbrev AccrueInterestSem :=
   MorphoState → Id → Uint256 → Bool → MorphoState
 
+abbrev SetAuthorizationSem :=
+  MorphoState → Address → Bool → Option MorphoState
+
 abbrev SetAuthorizationWithSigSem :=
   MorphoState → Authorization → Bool → Option MorphoState
 
@@ -80,6 +83,11 @@ def liquidateSemEq (solidityLiquidate : LiquidateSem) : Prop :=
 def accrueInterestSemEq (solidityAccrue : AccrueInterestSem) : Prop :=
   ∀ s id borrowRate hasIrm,
     solidityAccrue s id borrowRate hasIrm = Morpho.accrueInterest s id borrowRate hasIrm
+
+def setAuthorizationSemEq (soliditySetAuthorization : SetAuthorizationSem) : Prop :=
+  ∀ s authorized newIsAuthorized,
+    soliditySetAuthorization s authorized newIsAuthorized =
+      Morpho.setAuthorization s authorized newIsAuthorized
 
 def setAuthorizationWithSigSemEq (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem) : Prop :=
   ∀ s auth signatureValid,
@@ -563,5 +571,54 @@ theorem solidity_setAuthorizationWithSig_preserves_lltvMonotone
   have h_ok_morpho : Morpho.setAuthorizationWithSig s auth signatureValid = some s' := by
     simpa [setAuthorizationWithSigSemEq] using (h_eq s auth signatureValid).symm.trans h_ok
   exact setAuthorizationWithSig_preserves_lltvMonotone s auth signatureValid lltv h_enabled h_ok_morpho
+
+theorem solidity_setAuthorization_preserves_borrowLeSupply
+    (soliditySetAuthorization : SetAuthorizationSem)
+    (h_eq : setAuthorizationSemEq soliditySetAuthorization)
+    (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
+    (id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
+    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+  exact setAuthorization_preserves_borrowLeSupply s authorized newIsAuthorized id h_solvent h_ok_morpho
+
+theorem solidity_setAuthorization_preserves_alwaysCollateralized
+    (soliditySetAuthorization : SetAuthorizationSem)
+    (h_eq : setAuthorizationSemEq soliditySetAuthorization)
+    (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
+    (id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
+    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+  exact setAuthorization_preserves_alwaysCollateralized
+    s authorized newIsAuthorized id user h_collat h_ok_morpho
+
+theorem solidity_setAuthorization_preserves_irmMonotone
+    (soliditySetAuthorization : SetAuthorizationSem)
+    (h_eq : setAuthorizationSemEq soliditySetAuthorization)
+    (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
+    (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
+    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+  exact setAuthorization_preserves_irmMonotone s authorized newIsAuthorized irm h_enabled h_ok_morpho
+
+theorem solidity_setAuthorization_preserves_lltvMonotone
+    (soliditySetAuthorization : SetAuthorizationSem)
+    (h_eq : setAuthorizationSemEq soliditySetAuthorization)
+    (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
+    (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
+    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+  exact setAuthorization_preserves_lltvMonotone s authorized newIsAuthorized lltv h_enabled h_ok_morpho
 
 end Morpho.Proofs.SolidityBridge

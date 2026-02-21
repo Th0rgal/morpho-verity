@@ -136,6 +136,7 @@ private def supplyCase : String := "\
                     mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
+                " ++ accrueInterestCompatBlock ++ "\
                 if iszero(xor(iszero(assets), iszero(shares))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -150,7 +151,6 @@ private def supplyCase : String := "\
                     mstore(68, 0x7a65726f20616464726573730000000000000000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                " ++ accrueInterestCompatBlock ++ "\
                 let totalSupplyAssets := sload(mappingSlot(8, id))\n\
                 let totalSupplyShares := sload(mappingSlot(9, id))\n\
                 let virtualShares := 1000000\n\
@@ -262,6 +262,7 @@ private def withdrawCase : String := "\
                     mstore(68, 0x6d61726b6574206e6f7420637265617465640000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
+                " ++ accrueInterestCompatBlock ++ "\
                 if iszero(xor(iszero(assets), iszero(shares))) {\n\
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
                     mstore(4, 32)\n\
@@ -283,7 +284,6 @@ private def withdrawCase : String := "\
                     mstore(68, 0x756e617574686f72697a65640000000000000000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                " ++ accrueInterestCompatBlock ++ "\
                 let totalSupplyAssets := sload(mappingSlot(8, id))\n\
                 let totalSupplyShares := sload(mappingSlot(9, id))\n\
                 let virtualShares := 1000000\n\
@@ -1275,15 +1275,15 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t3a ← replaceOrThrow t2 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
 
   let enableIrmOld := "sstore(mappingSlot(2, irm), 1)\n"
-  let enableIrmNew := "sstore(mappingSlot(2, irm), 1)\n                sstore(mappingSlot(4, irm), 1)\n"
+  let enableIrmNew := "sstore(mappingSlot(2, irm), 1)\n"
   let t3b ← replaceOrThrow t3a enableIrmOld enableIrmNew "enableIrm canonical storage slot compatibility"
 
   let enableLltvOld := "sstore(mappingSlot(3, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    log2(__evt_ptr, 0, __evt_topic0, lltv)\n                }\n"
-  let enableLltvNew := "sstore(mappingSlot(3, lltv), 1)\n                sstore(mappingSlot(5, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    mstore(add(__evt_ptr, 0), lltv)\n                    log1(__evt_ptr, 32, __evt_topic0)\n                }\n"
+  let enableLltvNew := "sstore(mappingSlot(3, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    mstore(add(__evt_ptr, 0), lltv)\n                    log1(__evt_ptr, 32, __evt_topic0)\n                }\n"
   let t3c ← replaceOrThrow t3b enableLltvOld enableLltvNew "enableLltv event and canonical storage slot compatibility"
 
   let setAuthorizationOld := "sstore(mappingSlot(mappingSlot(4, caller()), authorized), newIsAuthorized)\n"
-  let setAuthorizationNew := "sstore(mappingSlot(mappingSlot(4, caller()), authorized), newIsAuthorized)\n                sstore(mappingSlot(mappingSlot(6, caller()), authorized), newIsAuthorized)\n"
+  let setAuthorizationNew := "sstore(mappingSlot(mappingSlot(4, caller()), authorized), newIsAuthorized)\n"
   let t3d ← replaceOrThrow t3c setAuthorizationOld setAuthorizationNew "setAuthorization canonical storage slot compatibility"
 
   let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\n"
