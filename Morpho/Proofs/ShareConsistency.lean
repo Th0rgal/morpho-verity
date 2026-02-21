@@ -17,11 +17,6 @@ open Morpho.Specs.Invariants
 
 /-! ## Helpers -/
 
--- Distribute field access through ite: (if p then a else b).field = if p then a.field else b.field
-private theorem ite_dot {α β : Type} (p : Prop) [Decidable p] (a b : α) (f : α → β) :
-    f (if p then a else b) = if p then f a else f b := by
-  split <;> rfl
-
 private theorem supplyConsistent_of_eq_market_position {s s' : MorphoState}
     {id : Id} {allUsers : List Address}
     (h_market : (s'.market id).totalSupplyShares = (s.market id).totalSupplyShares)
@@ -252,7 +247,7 @@ theorem supply_preserves_supplySharesConsistent (s : MorphoState) (sid : Id)
   subst h_sh; rw [← h_eq]; unfold supplySharesConsistent
   by_cases h_assets : 0 < assets.val <;>
     simp only [h_assets, ite_true, ite_false] at h_no_overflow h_pos_no_overflow ⊢ <;> (
-    simp only [beq_iff_eq, true_and, ite_dot, Morpho.u256_val,
+    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_add allUsers (fun u => (s.position sid u).supplyShares.val) onBehalf _ h_mem h_nodup]
     unfold supplySharesConsistent at h_consistent; omega)
@@ -277,15 +272,19 @@ theorem withdraw_preserves_supplySharesConsistent (s : MorphoState) (wid : Id)
     (allUsers : List Address)
     (h_nodup : allUsers.Nodup) (h_mem : onBehalf ∈ allUsers)
     (h_consistent : supplySharesConsistent s wid allUsers)
-    (h_ok : Morpho.withdraw s wid assets shares onBehalf receiver = some (a, sh, s'))
-    (h_pos_no_overflow : (s.position wid onBehalf).supplyShares.val - sh.val < Core.Uint256.modulus)
-    (h_total_no_overflow : (s.market wid).totalSupplyShares.val - sh.val < Core.Uint256.modulus) :
+    (h_ok : Morpho.withdraw s wid assets shares onBehalf receiver = some (a, sh, s')) :
     supplySharesConsistent s' wid allUsers := by
   unfold Morpho.withdraw at h_ok; simp at h_ok
   obtain ⟨_, _, _, _, _, _, _, h_sh, h_eq⟩ := h_ok
+  have h_pos_no_overflow :
+      (s.position wid onBehalf).supplyShares.val - sh.val < Core.Uint256.modulus :=
+    Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.position wid onBehalf).supplyShares.isLt
+  have h_total_no_overflow :
+      (s.market wid).totalSupplyShares.val - sh.val < Core.Uint256.modulus :=
+    Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market wid).totalSupplyShares.isLt
   subst h_sh; rw [← h_eq]; unfold supplySharesConsistent
   by_cases h_assets : 0 < assets.val <;> simp only [h_assets, ite_true, ite_false] at * <;> (
-    simp only [beq_iff_eq, true_and, ite_dot, Morpho.u256_val,
+    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_total_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_sub allUsers (fun u => (s.position wid u).supplyShares.val) onBehalf _ h_mem h_nodup (by dsimp; omega)]
     unfold supplySharesConsistent at h_consistent; omega)
@@ -323,7 +322,7 @@ theorem borrow_preserves_borrowSharesConsistent (s : MorphoState) (bid : Id)
   subst h_sh; rw [← h_eq]; unfold borrowSharesConsistent
   by_cases h_assets : 0 < assets.val <;>
     simp only [h_assets, ite_true, ite_false] at h_no_overflow h_pos_no_overflow ⊢ <;> (
-    simp only [beq_iff_eq, true_and, ite_dot, Morpho.u256_val,
+    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_add allUsers (fun u => (s.position bid u).borrowShares.val) onBehalf _ h_mem h_nodup]
     unfold borrowSharesConsistent at h_consistent; omega)
@@ -350,15 +349,19 @@ theorem repay_preserves_borrowSharesConsistent (s : MorphoState) (rid : Id)
     (allUsers : List Address)
     (h_nodup : allUsers.Nodup) (h_mem : onBehalf ∈ allUsers)
     (h_consistent : borrowSharesConsistent s rid allUsers)
-    (h_ok : Morpho.repay s rid assets shares onBehalf = some (a, sh, s'))
-    (h_pos_no_overflow : (s.position rid onBehalf).borrowShares.val - sh.val < Core.Uint256.modulus)
-    (h_total_no_overflow : (s.market rid).totalBorrowShares.val - sh.val < Core.Uint256.modulus) :
+    (h_ok : Morpho.repay s rid assets shares onBehalf = some (a, sh, s')) :
     borrowSharesConsistent s' rid allUsers := by
   unfold Morpho.repay at h_ok; simp at h_ok
   obtain ⟨_, _, _, _, _, h_sh, h_eq⟩ := h_ok
+  have h_pos_no_overflow :
+      (s.position rid onBehalf).borrowShares.val - sh.val < Core.Uint256.modulus :=
+    Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.position rid onBehalf).borrowShares.isLt
+  have h_total_no_overflow :
+      (s.market rid).totalBorrowShares.val - sh.val < Core.Uint256.modulus :=
+    Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market rid).totalBorrowShares.isLt
   subst h_sh; rw [← h_eq]; unfold borrowSharesConsistent
   by_cases h_assets : 0 < assets.val <;> simp only [h_assets, ite_true, ite_false] at * <;> (
-    simp only [beq_iff_eq, true_and, ite_dot, Morpho.u256_val,
+    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_total_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_sub allUsers (fun u => (s.position rid u).borrowShares.val) onBehalf _ h_mem h_nodup (by dsimp; omega)]
     unfold borrowSharesConsistent at h_consistent; omega)
@@ -496,13 +499,13 @@ theorem accrueInterest_preserves_supplySharesConsistent (s : MorphoState) (id : 
       split
       · -- fee ≠ 0
         simp only [beq_self_eq_true, Bool.true_and, beq_iff_eq, ite_true,
-          ite_dot, Morpho.u256_val,
+          apply_ite, Morpho.u256_val,
           Nat.mod_eq_of_lt h_total_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
         rw [list_sum_map_add allUsers (fun u => (s.position id u).supplyShares.val) s.feeRecipient _ h_mem_fee h_nodup]
         unfold supplySharesConsistent at h_consistent; omega
       · -- fee = 0: feeShares.val = 0 so positions and total effectively unchanged
         simp only [beq_self_eq_true, Bool.true_and, beq_iff_eq, ite_true,
-          ite_dot, Morpho.u256_val, Nat.zero_mod, Nat.add_zero,
+          apply_ite, Morpho.u256_val, Nat.zero_mod, Nat.add_zero,
           Nat.mod_eq_of_lt h_total_no_overflow]
         -- The map still has (pos.val % modulus) for feeRecipient; show it equals (pos.val)
         have h_map_eq : allUsers.map (fun u =>
