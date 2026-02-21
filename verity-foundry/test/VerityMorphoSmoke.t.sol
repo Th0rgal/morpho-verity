@@ -16,6 +16,8 @@ interface Vm {
     function getRecordedLogs() external returns (Log[] memory);
     function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter)
         external;
+    function addr(uint256 privateKey) external returns (address);
+    function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
 }
 
 interface IMorphoSubset {
@@ -26,15 +28,29 @@ interface IMorphoSubset {
         address irm;
         uint256 lltv;
     }
+    struct Authorization {
+        address authorizer;
+        address authorized;
+        bool isAuthorized;
+        uint256 nonce;
+        uint256 deadline;
+    }
+    struct Signature {
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
 
     function owner() external view returns (address);
     function feeRecipient() external view returns (address);
     function isIrmEnabled(address irm) external view returns (bool);
     function isLltvEnabled(uint256 lltv) external view returns (bool);
+    function isAuthorized(address authorizer, address authorized) external view returns (bool);
     function enableIrm(address irm) external;
     function enableLltv(uint256 lltv) external;
     function setFeeRecipient(address newFeeRecipient) external;
     function setAuthorization(address authorized, bool newIsAuthorized) external;
+    function setAuthorizationWithSig(Authorization calldata authorization, Signature calldata signature) external;
     function createMarket(MarketParams calldata marketParams) external;
     function setFee(MarketParams calldata marketParams, uint256 newFee) external;
     function accrueInterest(MarketParams calldata marketParams) external;
@@ -75,6 +91,7 @@ interface IMorphoSubset {
         address onBehalf,
         address receiver
     ) external returns (uint256 assetsWithdrawn, uint256 sharesWithdrawn);
+    function nonce(address authorizer) external view returns (uint256);
 }
 
 contract MockERC20 {
@@ -132,6 +149,10 @@ contract MockERC20FalseTransfer is MockERC20 {
 
 contract VerityMorphoSmokeTest {
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    bytes32 internal constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(uint256 chainId,address verifyingContract)");
+    bytes32 internal constant AUTHORIZATION_TYPEHASH =
+        keccak256("Authorization(address authorizer,address authorized,bool isAuthorized,uint256 nonce,uint256 deadline)");
 
     address internal constant OWNER = address(0xBEEF);
     IMorphoSubset internal morpho;
@@ -267,6 +288,41 @@ contract VerityMorphoSmokeTest {
 
         vm.prank(authorizer);
         morpho.setAuthorization(authorized, true);
+    }
+
+    function testSetAuthorizationWithSig() public {
+        uint256 authorizerPk = 0xA11CE;
+        address authorizer = vm.addr(authorizerPk);
+        address authorized = address(0xB0B);
+        uint256 deadline = block.timestamp + 1 days;
+
+        IMorphoSubset.Authorization memory authorization = IMorphoSubset.Authorization({
+            authorizer: authorizer,
+            authorized: authorized,
+            isAuthorized: true,
+            nonce: morpho.nonce(authorizer),
+            deadline: deadline
+        });
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                AUTHORIZATION_TYPEHASH,
+                authorization.authorizer,
+                authorization.authorized,
+                authorization.isAuthorized,
+                authorization.nonce,
+                authorization.deadline
+            )
+        );
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, block.chainid, address(morpho)));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(authorizerPk, digest);
+
+        IMorphoSubset.Signature memory signature = IMorphoSubset.Signature({v: v, r: r, s: s});
+        morpho.setAuthorizationWithSig(authorization, signature);
+
+        require(morpho.nonce(authorizer) == 1, "nonce should increment");
+        require(morpho.isAuthorized(authorizer, authorized), "authorization should be set");
     }
 
     function testSupplyUpdatesMarketAndPosition() public {
