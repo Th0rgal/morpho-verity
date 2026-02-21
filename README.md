@@ -25,8 +25,10 @@ The Lean implementation targets logical equivalence with Morpho's Solidity, not 
 
 ### Solidity Equivalence Bridge
 
-`Morpho/Proofs/SolidityBridge.lean` adds proof-transfer theorems for core solvency invariants.
-If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation (`supply`, `withdraw`, `borrow`, `repay`, `liquidate`, `accrueInterest`), the existing Morpho solvency proofs transfer directly to Solidity.
+`Morpho/Proofs/SolidityBridge.lean` adds proof-transfer theorems for core invariants.
+If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation
+(`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`),
+the existing Verity proofs for `borrowLeSupply` and `alwaysCollateralized` transfer directly to Solidity.
 
 ## Structure
 
@@ -90,7 +92,7 @@ forge test -vvv
 Current status:
 - The full Morpho Blue Foundry suite is wired to run against both implementations via `MORPHO_IMPL=solidity|verity` in `morpho-blue/test/BaseTest.sol`.
 - `./scripts/run_morpho_blue_parity.sh` runs that exact suite for both targets and stores logs in `out/parity/`.
-- Current differential result: Solidity suite is green (excluding `test/tmp_yul_deploy.t.sol` helper), while Verity mode still fails during `setUp()` in multiple suites (first hard failure on `createMarket` in current traces).
+- Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
 
 ## Proof progress
 

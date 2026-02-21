@@ -238,6 +238,21 @@ theorem solidity_repay_preserves_alwaysCollateralized
     simpa [repaySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
   exact repay_preserves_alwaysCollateralized s id assets shares onBehalf user h_collat h_ok_morpho
 
+theorem solidity_supplyCollateral_preserves_alwaysCollateralized
+    (soliditySupplyCollateral : SupplyCollateralSem)
+    (h_eq : supplyCollateralSemEq soliditySupplyCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf user : Address)
+    (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : soliditySupplyCollateral s id assets onBehalf = some s')
+    (h_no_overflow : user = onBehalf →
+      (s.position id user).collateral.val + assets.val < Verity.Core.Uint256.modulus) :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.supplyCollateral s id assets onBehalf = some s' := by
+    simpa [supplyCollateralSemEq] using (h_eq s id assets onBehalf).symm.trans h_ok
+  exact supplyCollateral_preserves_alwaysCollateralized
+    s id assets onBehalf user h_collat h_ok_morpho h_no_overflow
+
 theorem solidity_borrow_preserves_alwaysCollateralized
     (solidityBorrow : BorrowSem)
     (h_eq : borrowSemEq solidityBorrow)
