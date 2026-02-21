@@ -42,6 +42,12 @@ abbrev LiquidateSem :=
 abbrev AccrueInterestSem :=
   MorphoState → Id → Uint256 → Bool → MorphoState
 
+abbrev EnableIrmSem :=
+  MorphoState → Address → Option MorphoState
+
+abbrev EnableLltvSem :=
+  MorphoState → Uint256 → Option MorphoState
+
 abbrev SetAuthorizationSem :=
   MorphoState → Address → Bool → Option MorphoState
 
@@ -83,6 +89,14 @@ def liquidateSemEq (solidityLiquidate : LiquidateSem) : Prop :=
 def accrueInterestSemEq (solidityAccrue : AccrueInterestSem) : Prop :=
   ∀ s id borrowRate hasIrm,
     solidityAccrue s id borrowRate hasIrm = Morpho.accrueInterest s id borrowRate hasIrm
+
+def enableIrmSemEq (solidityEnableIrm : EnableIrmSem) : Prop :=
+  ∀ s irm,
+    solidityEnableIrm s irm = Morpho.enableIrm s irm
+
+def enableLltvSemEq (solidityEnableLltv : EnableLltvSem) : Prop :=
+  ∀ s lltv,
+    solidityEnableLltv s lltv = Morpho.enableLltv s lltv
 
 def setAuthorizationSemEq (soliditySetAuthorization : SetAuthorizationSem) : Prop :=
   ∀ s authorized newIsAuthorized,
@@ -215,6 +229,100 @@ theorem solidity_accrueInterest_preserves_alwaysCollateralized
     h_eq s id borrowRate hasIrm
   rw [h_eq_morpho]
   exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
+
+theorem solidity_enableIrm_preserves_borrowLeSupply
+    (solidityEnableIrm : EnableIrmSem)
+    (h_eq : enableIrmSemEq solidityEnableIrm)
+    (s : MorphoState) (irm : Address) (id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : solidityEnableIrm s irm = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.enableIrm s irm = some s' := by
+    simpa [enableIrmSemEq] using (h_eq s irm).symm.trans h_ok
+  exact enableIrm_preserves_borrowLeSupply s irm id h_solvent h_ok_morpho
+
+theorem solidity_enableIrm_preserves_alwaysCollateralized
+    (solidityEnableIrm : EnableIrmSem)
+    (h_eq : enableIrmSemEq solidityEnableIrm)
+    (s : MorphoState) (irm : Address) (id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : solidityEnableIrm s irm = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.enableIrm s irm = some s' := by
+    simpa [enableIrmSemEq] using (h_eq s irm).symm.trans h_ok
+  exact enableIrm_preserves_alwaysCollateralized s irm id user h_collat h_ok_morpho
+
+theorem solidity_enableIrm_preserves_irmMonotone
+    (solidityEnableIrm : EnableIrmSem)
+    (h_eq : enableIrmSemEq solidityEnableIrm)
+    (s : MorphoState) (irmCall irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityEnableIrm s irmCall = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.enableIrm s irmCall = some s' := by
+    simpa [enableIrmSemEq] using (h_eq s irmCall).symm.trans h_ok
+  exact enableIrm_monotone s irmCall irm h_ok_morpho h_enabled
+
+theorem solidity_enableIrm_preserves_lltvMonotone
+    (solidityEnableIrm : EnableIrmSem)
+    (h_eq : enableIrmSemEq solidityEnableIrm)
+    (s : MorphoState) (irmCall : Address) (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityEnableIrm s irmCall = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.enableIrm s irmCall = some s' := by
+    simpa [enableIrmSemEq] using (h_eq s irmCall).symm.trans h_ok
+  unfold Morpho.enableIrm at h_ok_morpho
+  split at h_ok_morpho <;> simp at h_ok_morpho
+  rw [← h_ok_morpho.right]
+  simpa using h_enabled
+
+theorem solidity_enableLltv_preserves_borrowLeSupply
+    (solidityEnableLltv : EnableLltvSem)
+    (h_eq : enableLltvSemEq solidityEnableLltv)
+    (s : MorphoState) (lltv : Uint256) (id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : solidityEnableLltv s lltv = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.enableLltv s lltv = some s' := by
+    simpa [enableLltvSemEq] using (h_eq s lltv).symm.trans h_ok
+  exact enableLltv_preserves_borrowLeSupply s lltv id h_solvent h_ok_morpho
+
+theorem solidity_enableLltv_preserves_alwaysCollateralized
+    (solidityEnableLltv : EnableLltvSem)
+    (h_eq : enableLltvSemEq solidityEnableLltv)
+    (s : MorphoState) (lltv : Uint256) (id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : solidityEnableLltv s lltv = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.enableLltv s lltv = some s' := by
+    simpa [enableLltvSemEq] using (h_eq s lltv).symm.trans h_ok
+  exact enableLltv_preserves_alwaysCollateralized s lltv id user h_collat h_ok_morpho
+
+theorem solidity_enableLltv_preserves_irmMonotone
+    (solidityEnableLltv : EnableLltvSem)
+    (h_eq : enableLltvSemEq solidityEnableLltv)
+    (s : MorphoState) (lltvCall : Uint256) (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityEnableLltv s lltvCall = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.enableLltv s lltvCall = some s' := by
+    simpa [enableLltvSemEq] using (h_eq s lltvCall).symm.trans h_ok
+  unfold Morpho.enableLltv at h_ok_morpho
+  split at h_ok_morpho <;> simp at h_ok_morpho
+  rw [← h_ok_morpho.right.right]
+  simpa using h_enabled
+
+theorem solidity_enableLltv_preserves_lltvMonotone
+    (solidityEnableLltv : EnableLltvSem)
+    (h_eq : enableLltvSemEq solidityEnableLltv)
+    (s : MorphoState) (lltvCall lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityEnableLltv s lltvCall = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.enableLltv s lltvCall = some s' := by
+    simpa [enableLltvSemEq] using (h_eq s lltvCall).symm.trans h_ok
+  exact enableLltv_monotone s lltvCall lltv h_ok_morpho h_enabled
 
 theorem solidity_supply_preserves_alwaysCollateralized
     (soliditySupply : SupplySem)
