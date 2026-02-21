@@ -29,6 +29,9 @@ abbrev BorrowSem :=
 abbrev RepaySem :=
   MorphoState → Id → Uint256 → Uint256 → Address → Option (Uint256 × Uint256 × MorphoState)
 
+abbrev WithdrawCollateralSem :=
+  MorphoState → Id → Uint256 → Address → Address → Uint256 → Uint256 → Option MorphoState
+
 abbrev LiquidateSem :=
   MorphoState → Id → Address → Uint256 → Uint256 → Uint256 → Uint256 →
     Option (Uint256 × Uint256 × MorphoState)
@@ -53,6 +56,11 @@ def borrowSemEq (solidityBorrow : BorrowSem) : Prop :=
 def repaySemEq (solidityRepay : RepaySem) : Prop :=
   ∀ s id assets shares onBehalf,
     solidityRepay s id assets shares onBehalf = Morpho.repay s id assets shares onBehalf
+
+def withdrawCollateralSemEq (solidityWithdrawCollateral : WithdrawCollateralSem) : Prop :=
+  ∀ s id assets onBehalf receiver collateralPrice lltv,
+    solidityWithdrawCollateral s id assets onBehalf receiver collateralPrice lltv =
+      Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv
 
 def liquidateSemEq (solidityLiquidate : LiquidateSem) : Prop :=
   ∀ s id borrower seizedAssets repaidShares collateralPrice lltv,
@@ -157,5 +165,60 @@ theorem solidity_accrueInterest_preserves_alwaysCollateralized
     h_eq s id borrowRate hasIrm
   rw [h_eq_morpho]
   exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
+
+theorem solidity_repay_preserves_alwaysCollateralized
+    (solidityRepay : RepaySem)
+    (h_eq : repaySemEq solidityRepay)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf user : Address)
+    (a sh : Uint256) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : solidityRepay s id assets shares onBehalf = some (a, sh, s')) :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.repay s id assets shares onBehalf = some (a, sh, s') := by
+    simpa [repaySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
+  exact repay_preserves_alwaysCollateralized s id assets shares onBehalf user h_collat h_ok_morpho
+
+theorem solidity_borrow_preserves_alwaysCollateralized
+    (solidityBorrow : BorrowSem)
+    (h_eq : borrowSemEq solidityBorrow)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver user : Address)
+    (collateralPrice lltv : Uint256)
+    (a sh : Uint256) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : solidityBorrow s id assets shares onBehalf receiver collateralPrice lltv =
+      some (a, sh, s'))
+    (h_borrowed_pos : user = onBehalf →
+      (Morpho.Libraries.SharesMathLib.toAssetsUp
+        (s'.position id user).borrowShares
+        (s'.market id).totalBorrowAssets
+        (s'.market id).totalBorrowShares).val > 0) :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltv =
+      some (a, sh, s') := by
+    simpa [borrowSemEq] using
+      (h_eq s id assets shares onBehalf receiver collateralPrice lltv).symm.trans h_ok
+  exact borrow_preserves_alwaysCollateralized
+    s id assets shares onBehalf receiver user collateralPrice lltv h_collat h_ok_morpho h_borrowed_pos
+
+theorem solidity_withdrawCollateral_preserves_alwaysCollateralized
+    (solidityWithdrawCollateral : WithdrawCollateralSem)
+    (h_eq : withdrawCollateralSemEq solidityWithdrawCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf receiver user : Address)
+    (collateralPrice lltv : Uint256) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok :
+      solidityWithdrawCollateral s id assets onBehalf receiver collateralPrice lltv = some s')
+    (h_borrowed_pos : user = onBehalf →
+      (Morpho.Libraries.SharesMathLib.toAssetsUp
+        (s'.position id user).borrowShares
+        (s'.market id).totalBorrowAssets
+        (s'.market id).totalBorrowShares).val > 0) :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltv =
+      some s' := by
+    simpa [withdrawCollateralSemEq] using
+      (h_eq s id assets onBehalf receiver collateralPrice lltv).symm.trans h_ok
+  exact withdrawCollateral_preserves_alwaysCollateralized
+    s id assets onBehalf receiver user collateralPrice lltv h_collat h_ok_morpho h_borrowed_pos
 
 end Morpho.Proofs.SolidityBridge

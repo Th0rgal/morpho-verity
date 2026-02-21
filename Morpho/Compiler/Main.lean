@@ -1238,7 +1238,7 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t2 ← replaceOrThrow t1 setFeeOld setFeeNew "setFee packed slot compatibility"
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
-  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                sstore(mappingSlot(8,id), loanToken)\n                sstore(add(mappingSlot(8,id), 1), collateralToken)\n                sstore(add(mappingSlot(8,id), 2), oracle)\n                sstore(add(mappingSlot(8,id), 3), irm)\n                sstore(add(mappingSlot(8,id), 4), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
+  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                sstore(mappingSlot(8, id), loanToken)\n                sstore(add(mappingSlot(8, id), 1), collateralToken)\n                sstore(add(mappingSlot(8, id), 2), oracle)\n                sstore(add(mappingSlot(8, id), 3), irm)\n                sstore(add(mappingSlot(8, id), 4), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
   let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
   -- IMorpho defines CreateMarket as `CreateMarket(bytes32,(address,address,address,address,uint256))`.
