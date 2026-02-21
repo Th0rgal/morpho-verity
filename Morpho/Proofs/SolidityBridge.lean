@@ -42,6 +42,9 @@ abbrev LiquidateSem :=
 abbrev AccrueInterestSem :=
   MorphoState → Id → Uint256 → Bool → MorphoState
 
+abbrev SetAuthorizationWithSigSem :=
+  MorphoState → Authorization → Bool → Option MorphoState
+
 def supplySemEq (soliditySupply : SupplySem) : Prop :=
   ∀ s id assets shares onBehalf,
     soliditySupply s id assets shares onBehalf = Morpho.supply s id assets shares onBehalf
@@ -77,6 +80,10 @@ def liquidateSemEq (solidityLiquidate : LiquidateSem) : Prop :=
 def accrueInterestSemEq (solidityAccrue : AccrueInterestSem) : Prop :=
   ∀ s id borrowRate hasIrm,
     solidityAccrue s id borrowRate hasIrm = Morpho.accrueInterest s id borrowRate hasIrm
+
+def setAuthorizationWithSigSemEq (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem) : Prop :=
+  ∀ s auth signatureValid,
+    soliditySetAuthorizationWithSig s auth signatureValid = Morpho.setAuthorizationWithSig s auth signatureValid
 
 theorem solidity_supply_preserves_borrowLeSupply
     (soliditySupply : SupplySem)
@@ -508,5 +515,53 @@ theorem solidity_liquidate_preserves_lltvMonotone
       (h_eq s id borrower seizedAssets repaidShares collateralPrice lltvParam).symm.trans h_ok
   exact liquidate_preserves_lltvMonotone
     s id borrower seizedAssets repaidShares collateralPrice lltvParam lltv h_enabled h_ok_morpho
+
+theorem solidity_setAuthorizationWithSig_preserves_borrowLeSupply
+    (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem)
+    (h_eq : setAuthorizationWithSigSemEq soliditySetAuthorizationWithSig)
+    (s : MorphoState) (auth : Authorization) (signatureValid : Bool) (id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : soliditySetAuthorizationWithSig s auth signatureValid = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.setAuthorizationWithSig s auth signatureValid = some s' := by
+    simpa [setAuthorizationWithSigSemEq] using (h_eq s auth signatureValid).symm.trans h_ok
+  exact setAuthorizationWithSig_preserves_borrowLeSupply s auth signatureValid id h_solvent h_ok_morpho
+
+theorem solidity_setAuthorizationWithSig_preserves_alwaysCollateralized
+    (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem)
+    (h_eq : setAuthorizationWithSigSemEq soliditySetAuthorizationWithSig)
+    (s : MorphoState) (auth : Authorization) (signatureValid : Bool)
+    (id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : soliditySetAuthorizationWithSig s auth signatureValid = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.setAuthorizationWithSig s auth signatureValid = some s' := by
+    simpa [setAuthorizationWithSigSemEq] using (h_eq s auth signatureValid).symm.trans h_ok
+  exact setAuthorizationWithSig_preserves_alwaysCollateralized
+    s auth signatureValid id user h_collat h_ok_morpho
+
+theorem solidity_setAuthorizationWithSig_preserves_irmMonotone
+    (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem)
+    (h_eq : setAuthorizationWithSigSemEq soliditySetAuthorizationWithSig)
+    (s : MorphoState) (auth : Authorization) (signatureValid : Bool)
+    (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySetAuthorizationWithSig s auth signatureValid = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.setAuthorizationWithSig s auth signatureValid = some s' := by
+    simpa [setAuthorizationWithSigSemEq] using (h_eq s auth signatureValid).symm.trans h_ok
+  exact setAuthorizationWithSig_preserves_irmMonotone s auth signatureValid irm h_enabled h_ok_morpho
+
+theorem solidity_setAuthorizationWithSig_preserves_lltvMonotone
+    (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem)
+    (h_eq : setAuthorizationWithSigSemEq soliditySetAuthorizationWithSig)
+    (s : MorphoState) (auth : Authorization) (signatureValid : Bool)
+    (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySetAuthorizationWithSig s auth signatureValid = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.setAuthorizationWithSig s auth signatureValid = some s' := by
+    simpa [setAuthorizationWithSigSemEq] using (h_eq s auth signatureValid).symm.trans h_ok
+  exact setAuthorizationWithSig_preserves_lltvMonotone s auth signatureValid lltv h_enabled h_ok_morpho
 
 end Morpho.Proofs.SolidityBridge

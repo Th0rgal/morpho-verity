@@ -1215,7 +1215,7 @@ private def setAuthorizationWithSigCase : String := "\
                     mstore(68, 0x696e76616c6964207369676e6174757265000000000000000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                mstore(0, add(currentNonce, 1))\n\
+                mstore(0, currentNonce)\n\
                 log3(0, 32, 0xa58af1a0c70dba0c7aa60d1a1a147ebd61000d1690a968828ac718bca927f2c7, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), authorizer)\n\
                 sstore(mappingSlot(mappingSlot(4, authorizer), authorized), newIsAuthorized)\n\
                 sstore(mappingSlot(mappingSlot(6, authorizer), authorized), newIsAuthorized)\n\
