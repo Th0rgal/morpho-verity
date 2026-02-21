@@ -1291,9 +1291,9 @@ private def injectStorageCompat (text : String) : Except String String := do
   let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\n                let __marketSlot0 := mappingSlot(3, id)\n                sstore(__marketSlot0, {supplySlot0Packed})\n"
   let t4 ← replaceOrThrow t3d supplyOld supplyNew "supply packed slot compatibility"
 
-  let withdrawOld := "sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nmstore(0, caller())\n"
+  let withdrawOld := "sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nmstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n"
   let withdrawSlot0Packed := packMarketSupplySlot0Expr "__newTotalSupplyAssets" "__newTotalSupplyShares"
-  let withdrawNew := s!"sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {withdrawSlot0Packed})\nmstore(0, caller())\n"
+  let withdrawNew := s!"sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {withdrawSlot0Packed})\nmstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n"
   let t5 ← replaceOrThrow t4 withdrawOld withdrawNew "withdraw packed slot compatibility"
 
   let accrueOld := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"

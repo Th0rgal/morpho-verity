@@ -344,4 +344,169 @@ theorem solidity_withdrawCollateral_preserves_lltvMonotone
   exact withdrawCollateral_preserves_lltvMonotone
     s id assets onBehalf receiver collateralPrice lltvParam lltv h_enabled h_ok_morpho
 
+theorem solidity_supply_preserves_irmMonotone
+    (soliditySupply : SupplySem)
+    (h_eq : supplySemEq soliditySupply)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Address)
+    (irm : Address) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySupply s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.supply s id assets shares onBehalf = some (a, sh, s') := by
+    simpa [supplySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
+  exact supply_preserves_irmMonotone s id assets shares onBehalf irm h_enabled h_ok_morpho
+
+theorem solidity_withdraw_preserves_irmMonotone
+    (solidityWithdraw : WithdrawSem)
+    (h_eq : withdrawSemEq solidityWithdraw)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver : Address)
+    (irm : Address) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityWithdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s') := by
+    simpa [withdrawSemEq] using (h_eq s id assets shares onBehalf receiver).symm.trans h_ok
+  exact withdraw_preserves_irmMonotone
+    s id assets shares onBehalf receiver irm h_enabled h_ok_morpho
+
+theorem solidity_borrow_preserves_irmMonotone
+    (solidityBorrow : BorrowSem)
+    (h_eq : borrowSemEq solidityBorrow)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltvParam : Uint256) (irm : Address)
+    (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityBorrow s id assets shares onBehalf receiver collateralPrice lltvParam =
+      some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltvParam =
+      some (a, sh, s') := by
+    simpa [borrowSemEq] using
+      (h_eq s id assets shares onBehalf receiver collateralPrice lltvParam).symm.trans h_ok
+  exact borrow_preserves_irmMonotone
+    s id assets shares onBehalf receiver collateralPrice lltvParam irm h_enabled h_ok_morpho
+
+theorem solidity_repay_preserves_irmMonotone
+    (solidityRepay : RepaySem)
+    (h_eq : repaySemEq solidityRepay)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Address)
+    (irm : Address) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityRepay s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.repay s id assets shares onBehalf = some (a, sh, s') := by
+    simpa [repaySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
+  exact repay_preserves_irmMonotone s id assets shares onBehalf irm h_enabled h_ok_morpho
+
+theorem solidity_supplyCollateral_preserves_irmMonotone
+    (soliditySupplyCollateral : SupplyCollateralSem)
+    (h_eq : supplyCollateralSemEq soliditySupplyCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf : Address)
+    (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySupplyCollateral s id assets onBehalf = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.supplyCollateral s id assets onBehalf = some s' := by
+    simpa [supplyCollateralSemEq] using (h_eq s id assets onBehalf).symm.trans h_ok
+  exact supplyCollateral_preserves_irmMonotone s id assets onBehalf irm h_enabled h_ok_morpho
+
+theorem solidity_liquidate_preserves_irmMonotone
+    (solidityLiquidate : LiquidateSem)
+    (h_eq : liquidateSemEq solidityLiquidate)
+    (s : MorphoState) (id : Id) (borrower : Address)
+    (seizedAssets repaidShares collateralPrice lltvParam : Uint256)
+    (irm : Address) (seized repaid : Uint256) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityLiquidate s id borrower seizedAssets repaidShares collateralPrice lltvParam =
+      some (seized, repaid, s')) :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltvParam =
+      some (seized, repaid, s') := by
+    simpa [liquidateSemEq] using
+      (h_eq s id borrower seizedAssets repaidShares collateralPrice lltvParam).symm.trans h_ok
+  exact liquidate_preserves_irmMonotone
+    s id borrower seizedAssets repaidShares collateralPrice lltvParam irm h_enabled h_ok_morpho
+
+theorem solidity_supply_preserves_lltvMonotone
+    (soliditySupply : SupplySem)
+    (h_eq : supplySemEq soliditySupply)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Address)
+    (lltv : Uint256) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySupply s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.supply s id assets shares onBehalf = some (a, sh, s') := by
+    simpa [supplySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
+  exact supply_preserves_lltvMonotone s id assets shares onBehalf lltv h_enabled h_ok_morpho
+
+theorem solidity_withdraw_preserves_lltvMonotone
+    (solidityWithdraw : WithdrawSem)
+    (h_eq : withdrawSemEq solidityWithdraw)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver : Address)
+    (lltv : Uint256) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityWithdraw s id assets shares onBehalf receiver = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.withdraw s id assets shares onBehalf receiver = some (a, sh, s') := by
+    simpa [withdrawSemEq] using (h_eq s id assets shares onBehalf receiver).symm.trans h_ok
+  exact withdraw_preserves_lltvMonotone
+    s id assets shares onBehalf receiver lltv h_enabled h_ok_morpho
+
+theorem solidity_borrow_preserves_lltvMonotone
+    (solidityBorrow : BorrowSem)
+    (h_eq : borrowSemEq solidityBorrow)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltvParam lltv : Uint256) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityBorrow s id assets shares onBehalf receiver collateralPrice lltvParam =
+      some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.borrow s id assets shares onBehalf receiver collateralPrice lltvParam =
+      some (a, sh, s') := by
+    simpa [borrowSemEq] using
+      (h_eq s id assets shares onBehalf receiver collateralPrice lltvParam).symm.trans h_ok
+  exact borrow_preserves_lltvMonotone
+    s id assets shares onBehalf receiver collateralPrice lltvParam lltv h_enabled h_ok_morpho
+
+theorem solidity_repay_preserves_lltvMonotone
+    (solidityRepay : RepaySem)
+    (h_eq : repaySemEq solidityRepay)
+    (s : MorphoState) (id : Id) (assets shares : Uint256) (onBehalf : Address)
+    (lltv : Uint256) (a sh : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityRepay s id assets shares onBehalf = some (a, sh, s')) :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.repay s id assets shares onBehalf = some (a, sh, s') := by
+    simpa [repaySemEq] using (h_eq s id assets shares onBehalf).symm.trans h_ok
+  exact repay_preserves_lltvMonotone s id assets shares onBehalf lltv h_enabled h_ok_morpho
+
+theorem solidity_supplyCollateral_preserves_lltvMonotone
+    (soliditySupplyCollateral : SupplyCollateralSem)
+    (h_eq : supplyCollateralSemEq soliditySupplyCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf : Address)
+    (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySupplyCollateral s id assets onBehalf = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.supplyCollateral s id assets onBehalf = some s' := by
+    simpa [supplyCollateralSemEq] using (h_eq s id assets onBehalf).symm.trans h_ok
+  exact supplyCollateral_preserves_lltvMonotone s id assets onBehalf lltv h_enabled h_ok_morpho
+
+theorem solidity_liquidate_preserves_lltvMonotone
+    (solidityLiquidate : LiquidateSem)
+    (h_eq : liquidateSemEq solidityLiquidate)
+    (s : MorphoState) (id : Id) (borrower : Address)
+    (seizedAssets repaidShares collateralPrice lltvParam lltv : Uint256)
+    (seized repaid : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityLiquidate s id borrower seizedAssets repaidShares collateralPrice lltvParam =
+      some (seized, repaid, s')) :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltvParam =
+      some (seized, repaid, s') := by
+    simpa [liquidateSemEq] using
+      (h_eq s id borrower seizedAssets repaidShares collateralPrice lltvParam).symm.trans h_ok
+  exact liquidate_preserves_lltvMonotone
+    s id borrower seizedAssets repaidShares collateralPrice lltvParam lltv h_enabled h_ok_morpho
+
 end Morpho.Proofs.SolidityBridge
