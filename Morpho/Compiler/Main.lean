@@ -1248,17 +1248,13 @@ private def injectStorageCompat (text : String) : Except String String := do
   let setFeeNew := "sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, " ++ setFeePacked ++ ")\n"
   let t2 ← replaceOrThrow t1 setFeeOld setFeeNew "setFee packed slot compatibility"
 
-  let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
-  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __paramsBase := mappingSlot(8,id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
-  let t3 ← replaceOrThrow t2 createMarketOld createMarketNew "createMarket packed slot compatibility"
-
   -- IMorpho defines CreateMarket as `CreateMarket(bytes32,(address,address,address,address,uint256))`.
   -- The current IR event renderer flattens tuple components, so patch topic0 to the canonical tuple hash.
   let createMarketTopicOld :=
     "mstore(add(__evt_ptr, 0), 0x4372656174654d61726b657428627974657333322c616464726573732c616464)\n                    mstore(add(__evt_ptr, 32), 0x726573732c616464726573732c616464726573732c75696e7432353629000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 61)\n"
   let createMarketTopicNew :=
     "let __evt_topic0 := 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac\n"
-  let t3a ← replaceOrThrow t3 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
+  let t3a ← replaceOrThrow t2 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
 
   let enableIrmOld := "sstore(mappingSlot(2, irm), 1)\n"
   let enableIrmNew := "sstore(mappingSlot(2, irm), 1)\n                sstore(mappingSlot(4, irm), 1)\n"
@@ -1296,7 +1292,17 @@ private def injectStorageCompat (text : String) : Except String String := do
   let t8 ← replaceOrThrow t7 "mappingSlot(8, id)" "mappingSlot(20, id)" "totalSupplyAssets storage remap"
   let t9 ← replaceOrThrow t8 "mappingSlot(9, id)" "mappingSlot(21, id)" "totalSupplyShares storage remap"
   let t10 ← replaceOrThrow t9 "mappingSlot(10, id)" "mappingSlot(22, id)" "totalBorrowAssets storage remap"
-  replaceOrThrow t10 "mappingSlot(11, id)" "mappingSlot(23, id)" "totalBorrowShares storage remap"
+  let t11 ← replaceOrThrow t10 "mappingSlot(11, id)" "mappingSlot(23, id)" "totalBorrowShares storage remap"
+
+  let domainSeparatorOld :=
+    "case 0x3644e515 {\n                /* DOMAIN_SEPARATOR() */\n                if callvalue() {\n                    revert(0, 0)\n                }\n                if lt(calldatasize(), 4) {\n                    revert(0, 0)\n                }\n                mstore(0, 0)\n                return(0, 32)\n            }\n"
+  let domainSeparatorNew :=
+    "case 0x3644e515 {\n                /* DOMAIN_SEPARATOR() */\n                if callvalue() {\n                    revert(0, 0)\n                }\n                if lt(calldatasize(), 4) {\n                    revert(0, 0)\n                }\n                mstore(0, 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218)\n                mstore(32, chainid())\n                mstore(64, and(address(), 0xffffffffffffffffffffffffffffffffffffffff))\n                mstore(0, keccak256(0, 96))\n                return(0, 32)\n            }\n"
+  let t12 ← replaceOrThrow t11 domainSeparatorOld domainSeparatorNew "DOMAIN_SEPARATOR EIP712 compatibility"
+
+  let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
+  let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __paramsBase := mappingSlot(8, id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
+  replaceOrThrow t12 createMarketOld createMarketNew "createMarket packed slot compatibility"
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
   let yulObj := _root_.Compiler.emitYul contract
