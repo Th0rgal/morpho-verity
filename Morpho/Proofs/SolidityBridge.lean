@@ -312,4 +312,36 @@ theorem solidity_withdrawCollateral_preserves_alwaysCollateralized
   exact withdrawCollateral_preserves_alwaysCollateralized
     s id assets onBehalf receiver user collateralPrice lltv h_collat h_ok_morpho h_borrowed_pos
 
+theorem solidity_withdrawCollateral_preserves_irmMonotone
+    (solidityWithdrawCollateral : WithdrawCollateralSem)
+    (h_eq : withdrawCollateralSemEq solidityWithdrawCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltvParam : Uint256) (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok :
+      solidityWithdrawCollateral s id assets onBehalf receiver collateralPrice lltvParam = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltvParam =
+      some s' := by
+    simpa [withdrawCollateralSemEq] using
+      (h_eq s id assets onBehalf receiver collateralPrice lltvParam).symm.trans h_ok
+  exact withdrawCollateral_preserves_irmMonotone
+    s id assets onBehalf receiver collateralPrice lltvParam irm h_enabled h_ok_morpho
+
+theorem solidity_withdrawCollateral_preserves_lltvMonotone
+    (solidityWithdrawCollateral : WithdrawCollateralSem)
+    (h_eq : withdrawCollateralSemEq solidityWithdrawCollateral)
+    (s : MorphoState) (id : Id) (assets : Uint256) (onBehalf receiver : Address)
+    (collateralPrice lltvParam lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok :
+      solidityWithdrawCollateral s id assets onBehalf receiver collateralPrice lltvParam = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.withdrawCollateral s id assets onBehalf receiver collateralPrice lltvParam =
+      some s' := by
+    simpa [withdrawCollateralSemEq] using
+      (h_eq s id assets onBehalf receiver collateralPrice lltvParam).symm.trans h_ok
+  exact withdrawCollateral_preserves_lltvMonotone
+    s id assets onBehalf receiver collateralPrice lltvParam lltv h_enabled h_ok_morpho
+
 end Morpho.Proofs.SolidityBridge

@@ -326,7 +326,7 @@ private def withdrawCase : String := "\
                 sstore(__posBaseCompat, sub(__currentSharesCompat, sharesWithdrawn))\n\
                 sstore(mappingSlot(8, id), __newTotalSupplyAssets)\n\
                 sstore(mappingSlot(9, id), __newTotalSupplyShares)\n\
-                mstore(0, caller())\n\
+                mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
                 mstore(32, assetsWithdrawn)\n\
                 mstore(64, sharesWithdrawn)\n\
                 log4(0, 96, 0xa56fc0ad5702ec05ce63666221f796fb62437c32db1aa1aa075fc6484cf58fbf, id, onBehalf, receiver)\n\
@@ -520,11 +520,10 @@ private def withdrawCollateralCase : String := "\
                 }\n\
                 let newCollateral := sub(currentCollateral, assets)\n\
                 sstore(positionBase, newCollateral)\n\
+                let __borrowShares := sload(mappingSlot(mappingSlot(18, id), onBehalf))\n\
                 let __posBaseCompat := mappingSlot(mappingSlot(2, id), onBehalf)\n\
-                let __packedBorrowCollateral := sload(add(__posBaseCompat, 1))\n\
-                let __borrowSharesCompat := and(__packedBorrowCollateral, 0xffffffffffffffffffffffffffffffff)\n\
-                sstore(add(__posBaseCompat, 1), or(__borrowSharesCompat, shl(128, and(newCollateral, 0xffffffffffffffffffffffffffffffff))))\n\
-                if gt(__borrowSharesCompat, 0) {\n\
+                sstore(add(__posBaseCompat, 1), or(and(__borrowShares, 0xffffffffffffffffffffffffffffffff), shl(128, and(newCollateral, 0xffffffffffffffffffffffffffffffff))))\n\
+                if gt(__borrowShares, 0) {\n\
                     if iszero(extcodesize(oracle)) {\n\
                         revert(0, 0)\n\
                     }\n\
@@ -536,7 +535,7 @@ private def withdrawCollateralCase : String := "\
                     let totalBorrowAssets := sload(mappingSlot(10, id))\n\
                     let totalBorrowShares := sload(mappingSlot(11, id))\n\
                     let __denomBorrowShares := add(totalBorrowShares, 1000000)\n\
-                    let borrowedAssets := div(add(mul(__borrowSharesCompat, add(totalBorrowAssets, 1)), sub(__denomBorrowShares, 1)), __denomBorrowShares)\n\
+                    let borrowedAssets := div(add(mul(__borrowShares, add(totalBorrowAssets, 1)), sub(__denomBorrowShares, 1)), __denomBorrowShares)\n\
                     let maxBorrow := div(mul(div(mul(newCollateral, collateralPrice), 1000000000000000000000000000000000000), lltv), 1000000000000000000)\n\
                     if gt(borrowedAssets, maxBorrow) {\n\
                         mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
@@ -546,7 +545,7 @@ private def withdrawCollateralCase : String := "\
                         revert(0, 100)\n\
                     }\n\
                 }\n\
-                mstore(0, caller())\n\
+                mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
                 mstore(32, assets)\n\
                 log4(0, 64, 0xe80ebd7cc9223d7382aab2e0d1d6155c65651f83d53c8b9b06901d167e321142, id, onBehalf, receiver)\n\
                 if iszero(extcodesize(collateralToken)) {\n\
@@ -678,7 +677,7 @@ private def borrowCase : String := "\
                     mstore(68, 0x696e73756666696369656e74206c697175696469747900000000000000000000)\n\
                     revert(0, 100)\n\
                 }\n\
-                mstore(0, caller())\n\
+                mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
                 mstore(32, assetsBorrowed)\n\
                 mstore(64, sharesBorrowed)\n\
                 log4(0, 96, 0x570954540bed6b1304a87dfe815a5eda4a648f7097a16240dcd85c9b5fd42a43, id, onBehalf, receiver)\n\
