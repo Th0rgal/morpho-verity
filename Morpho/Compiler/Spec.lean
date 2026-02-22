@@ -10,8 +10,20 @@ private def maxFee : Nat := 250000000000000000
 private def requireOwner : Stmt :=
   Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "not owner"
 
+private def marketParamsTy : ParamType :=
+  .tuple [.address, .address, .address, .address, .uint256]
+
 private def marketIdExpr (params : Array Expr) : Expr :=
   Expr.externalCall "keccakMarketParams" params.toList
+
+private def marketIdFromTupleParam (paramName : String) : Expr :=
+  marketIdExpr #[
+    Expr.param s!"{paramName}_0",
+    Expr.param s!"{paramName}_1",
+    Expr.param s!"{paramName}_2",
+    Expr.param s!"{paramName}_3",
+    Expr.param s!"{paramName}_4"
+  ]
 
 /--
 A best-effort Morpho ContractSpec target that compiles to Yul and preserves the
@@ -19,8 +31,6 @@ core owner/market-creation configuration behavior used in proof scaffolding.
 
 Notes:
 - ABI selectors are set manually to match IMorpho tuple signatures.
-- Some IMorpho functions are intentionally omitted because current Verity
-  ContractSpec does not yet support multi-value returns needed for full parity.
 -/
 def morphoSpec : ContractSpec := {
   name := "Morpho"
@@ -42,7 +52,9 @@ def morphoSpec : ContractSpec := {
     { name := "idToOracle", ty := .mappingTyped (.simple .uint256) },
     { name := "idToIrm", ty := .mappingTyped (.simple .uint256) },
     { name := "idToLltv", ty := .mappingTyped (.simple .uint256) },
-    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) }
+    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) },
+    { name := "positionBorrowShares", ty := .mappingTyped (.nested .uint256 .address) },
+    { name := "positionCollateral", ty := .mappingTyped (.nested .uint256 .address) }
   ]
   constructor := some {
     params := [{ name := "initialOwner", ty := .address }]
@@ -174,8 +186,8 @@ def morphoSpec : ContractSpec := {
       body := [
         Stmt.returnValues [
           Expr.mapping2 "positionSupplyShares" (Expr.param "id") (Expr.param "user"),
-          Expr.literal 0,
-          Expr.literal 0
+          Expr.mapping2 "positionBorrowShares" (Expr.param "id") (Expr.param "user"),
+          Expr.mapping2 "positionCollateral" (Expr.param "id") (Expr.param "user")
         ]
       ]
     },
@@ -295,17 +307,18 @@ def morphoSpec : ContractSpec := {
     {
       name := "createMarket"
       params := [
-        { name := "loanToken", ty := .address },
-        { name := "collateralToken", ty := .address },
-        { name := "oracle", ty := .address },
-        { name := "irm", ty := .address },
-        { name := "lltv", ty := .uint256 }
+        { name := "marketParams", ty := marketParamsTy }
       ]
       returnType := none
       body := [
-        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
-        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM not enabled",
-        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV not enabled",
+        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
+        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
+        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
+        Stmt.letVar "irm" (Expr.param "marketParams_3"),
+        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
+        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
+        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.localVar "irm")) (Expr.literal 1)) "IRM not enabled",
+        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.localVar "lltv")) (Expr.literal 1)) "LLTV not enabled",
         Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "market already created",
         Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.literal 0),
@@ -313,18 +326,18 @@ def morphoSpec : ContractSpec := {
         Stmt.setMappingUint "marketTotalSupplyShares" (Expr.localVar "id") (Expr.literal 0),
         Stmt.setMappingUint "marketTotalBorrowAssets" (Expr.localVar "id") (Expr.literal 0),
         Stmt.setMappingUint "marketTotalBorrowShares" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "idToLoanToken" (Expr.localVar "id") (Expr.param "loanToken"),
-        Stmt.setMappingUint "idToCollateralToken" (Expr.localVar "id") (Expr.param "collateralToken"),
-        Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.param "oracle"),
-        Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.param "irm"),
-        Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.param "lltv"),
+        Stmt.setMappingUint "idToLoanToken" (Expr.localVar "id") (Expr.localVar "loanToken"),
+        Stmt.setMappingUint "idToCollateralToken" (Expr.localVar "id") (Expr.localVar "collateralToken"),
+        Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.localVar "oracle"),
+        Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.localVar "irm"),
+        Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.localVar "lltv"),
         Stmt.emit "CreateMarket" [
           Expr.localVar "id",
-          Expr.param "loanToken",
-          Expr.param "collateralToken",
-          Expr.param "oracle",
-          Expr.param "irm",
-          Expr.param "lltv"
+          Expr.localVar "loanToken",
+          Expr.localVar "collateralToken",
+          Expr.localVar "oracle",
+          Expr.localVar "irm",
+          Expr.localVar "lltv"
         ],
         Stmt.stop
       ]
@@ -332,17 +345,18 @@ def morphoSpec : ContractSpec := {
     {
       name := "setFee"
       params := [
-        { name := "loanToken", ty := .address },
-        { name := "collateralToken", ty := .address },
-        { name := "oracle", ty := .address },
-        { name := "irm", ty := .address },
-        { name := "lltv", ty := .uint256 },
+        { name := "marketParams", ty := marketParamsTy },
         { name := "newFee", ty := .uint256 }
       ]
       returnType := none
       body := [
         requireOwner,
-        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
+        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
+        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
+        Stmt.letVar "irm" (Expr.param "marketParams_3"),
+        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
+        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require
           (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
           "market not created",
@@ -355,15 +369,16 @@ def morphoSpec : ContractSpec := {
     {
       name := "accrueInterest"
       params := [
-        { name := "loanToken", ty := .address },
-        { name := "collateralToken", ty := .address },
-        { name := "oracle", ty := .address },
-        { name := "irm", ty := .address },
-        { name := "lltv", ty := .uint256 }
+        { name := "marketParams", ty := marketParamsTy }
       ]
       returnType := none
       body := [
-        Stmt.letVar "id" (marketIdExpr #[(Expr.param "loanToken"), (Expr.param "collateralToken"), (Expr.param "oracle"), (Expr.param "irm"), (Expr.param "lltv")]),
+        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
+        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
+        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
+        Stmt.letVar "irm" (Expr.param "marketParams_3"),
+        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
+        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require
           (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
           "market not created",
@@ -372,7 +387,7 @@ def morphoSpec : ContractSpec := {
           [
             Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
             Stmt.ite
-              (Expr.logicalNot (Expr.eq (Expr.param "irm") (Expr.literal 0)))
+              (Expr.logicalNot (Expr.eq (Expr.localVar "irm") (Expr.literal 0)))
               [Stmt.emit "AccrueInterest" [Expr.localVar "id", Expr.literal 0, Expr.literal 0, Expr.literal 0]]
               [],
             Stmt.stop
@@ -410,7 +425,7 @@ def morphoSpec : ContractSpec := {
     {
       name := "EnableLltv"
       params := [
-        { name := "lltv", ty := .uint256, kind := .indexed }
+        { name := "lltv", ty := .uint256, kind := .unindexed }
       ]
     },
     {
@@ -445,11 +460,7 @@ def morphoSpec : ContractSpec := {
   ]
 }
 
-/--
-Function selectors aligned with IMorpho signatures. For tuple params in IMorpho,
-selectors are intentionally taken from tuple signatures even though the current
-ContractSpec expresses flattened static parameters.
--/
+/-- Function selectors aligned with IMorpho signatures. -/
 def morphoSelectors : List Nat := [
   0x3644e515, -- DOMAIN_SEPARATOR()
   0x8da5cb5b, -- owner()

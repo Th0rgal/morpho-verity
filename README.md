@@ -24,6 +24,13 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers, EIP-712 signature verification) is modeled as parameters, not verified end-to-end.
 
+### Solidity Equivalence Bridge
+
+`Morpho/Proofs/SolidityBridge.lean` adds proof-transfer theorems for core invariants.
+If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation
+(`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`),
+the existing Verity proofs for `borrowLeSupply` and `alwaysCollateralized` transfer directly to Solidity.
+
 ## Structure
 
 ```
@@ -44,6 +51,7 @@ Morpho/
     Invariants.lean       # Invariant proofs (98/98 proven)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (11/11 proven)
+    SolidityBridge.lean   # Formal transfer lemmas from Yul semantic equivalence to Solidity guarantees
     ShareConsistency.lean # Share accounting proofs (34/34 proven)
     NatListSum.lean       # List sum lemmas for share accounting (4/4 proven)
 ```
@@ -65,6 +73,12 @@ cd morpho-blue
 forge test -vvv
 ```
 
+Run the exact same Morpho Blue suite against both implementations (Solidity and Verity-compiled):
+
+```bash
+./scripts/run_morpho_blue_parity.sh
+```
+
 Build the Morpho Verity artifact:
 
 ```bash
@@ -79,9 +93,9 @@ forge test -vvv
 ```
 
 Current status:
-- Solidity test parity is still run from `morpho-blue` (`forge test`).
-- Verity mode currently validates a best-effort Morpho `ContractSpec` subset that compiles to `compiler/yul/Morpho.yul`.
-- Full IMorpho test parity is not yet possible with current `ContractSpec` constraints (notably multi-value returns and full ABI surface).
+- The full Morpho Blue Foundry suite is wired to run against both implementations via `MORPHO_IMPL=solidity|verity` in `morpho-blue/test/BaseTest.sol`.
+- `./scripts/run_morpho_blue_parity.sh` runs that exact suite for both targets and stores logs in `out/parity/`.
+- Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
 
 ## Proof progress
 

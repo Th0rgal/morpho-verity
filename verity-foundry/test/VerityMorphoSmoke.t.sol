@@ -16,6 +16,8 @@ interface Vm {
     function getRecordedLogs() external returns (Log[] memory);
     function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter)
         external;
+    function addr(uint256 privateKey) external returns (address);
+    function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
 }
 
 interface IMorphoSubset {
@@ -26,15 +28,29 @@ interface IMorphoSubset {
         address irm;
         uint256 lltv;
     }
+    struct Authorization {
+        address authorizer;
+        address authorized;
+        bool isAuthorized;
+        uint256 nonce;
+        uint256 deadline;
+    }
+    struct Signature {
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
 
     function owner() external view returns (address);
     function feeRecipient() external view returns (address);
     function isIrmEnabled(address irm) external view returns (bool);
     function isLltvEnabled(uint256 lltv) external view returns (bool);
+    function isAuthorized(address authorizer, address authorized) external view returns (bool);
     function enableIrm(address irm) external;
     function enableLltv(uint256 lltv) external;
     function setFeeRecipient(address newFeeRecipient) external;
     function setAuthorization(address authorized, bool newIsAuthorized) external;
+    function setAuthorizationWithSig(Authorization calldata authorization, Signature calldata signature) external;
     function createMarket(MarketParams calldata marketParams) external;
     function setFee(MarketParams calldata marketParams, uint256 newFee) external;
     function accrueInterest(MarketParams calldata marketParams) external;
@@ -75,6 +91,7 @@ interface IMorphoSubset {
         address onBehalf,
         address receiver
     ) external returns (uint256 assetsWithdrawn, uint256 sharesWithdrawn);
+    function nonce(address authorizer) external view returns (uint256);
 }
 
 contract MockERC20 {
@@ -118,6 +135,22 @@ contract MockERC20 {
     }
 }
 
+contract MockIRM {
+    function borrowRate(
+        IMorphoSubset.MarketParams calldata,
+        uint256, uint256, uint256, uint256, uint256, uint256
+    ) external pure returns (uint256) {
+        return 0;
+    }
+
+    fallback() external {
+        assembly {
+            mstore(0, 0)
+            return(0, 32)
+        }
+    }
+}
+
 contract MockERC20FalseTransferFrom is MockERC20 {
     function transferFrom(address, address, uint256) external pure override returns (bool) {
         return false;
@@ -132,6 +165,10 @@ contract MockERC20FalseTransfer is MockERC20 {
 
 contract VerityMorphoSmokeTest {
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    bytes32 internal constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(uint256 chainId,address verifyingContract)");
+    bytes32 internal constant AUTHORIZATION_TYPEHASH =
+        keccak256("Authorization(address authorizer,address authorized,bool isAuthorized,uint256 nonce,uint256 deadline)");
 
     address internal constant OWNER = address(0xBEEF);
     IMorphoSubset internal morpho;
@@ -208,6 +245,27 @@ contract VerityMorphoSmokeTest {
         require(collateral == 0, "position.collateral mismatch");
     }
 
+    function testCreateMarketWithHighBitAddresses() public {
+        address irm = address(0xc7183455a4C133Ae270771860664b6B7ec320bB1);
+        uint256 lltv = 0.8 ether;
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        address loanToken = address(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+        address collateralToken = address(0xF62849F9A0B5Bf2913b396098F7c7019b51A820a);
+        address oracle = address(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9);
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(loanToken, collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(loanToken, collateralToken, oracle, irm, lltv));
+
+        vm.warp(1700000000);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+        require(morpho.lastUpdate(id) == 1700000000, "lastUpdate mismatch");
+    }
+
     function testNonOwnerCannotEnableIrm() public {
         (bool ok,) = address(morpho).call(abi.encodeWithSignature("enableIrm(address)", address(0x1234)));
         require(!ok, "non-owner call should fail");
@@ -229,9 +287,9 @@ contract VerityMorphoSmokeTest {
                 continue;
             }
             found = true;
-            require(entries[i].topics.length == 2, "EnableLltv should have one indexed arg");
-            require(entries[i].topics[1] == bytes32(lltv), "EnableLltv topic lltv mismatch");
-            require(entries[i].data.length == 0, "EnableLltv should not encode lltv in data");
+            require(entries[i].topics.length == 1, "EnableLltv should have no indexed args");
+            require(entries[i].data.length == 32, "EnableLltv should encode lltv in data");
+            require(abi.decode(entries[i].data, (uint256)) == lltv, "EnableLltv data lltv mismatch");
             break;
         }
         require(found, "EnableLltv event missing");
@@ -246,6 +304,41 @@ contract VerityMorphoSmokeTest {
 
         vm.prank(authorizer);
         morpho.setAuthorization(authorized, true);
+    }
+
+    function testSetAuthorizationWithSig() public {
+        uint256 authorizerPk = 0xA11CE;
+        address authorizer = vm.addr(authorizerPk);
+        address authorized = address(0xB0B);
+        uint256 deadline = block.timestamp + 1 days;
+
+        IMorphoSubset.Authorization memory authorization = IMorphoSubset.Authorization({
+            authorizer: authorizer,
+            authorized: authorized,
+            isAuthorized: true,
+            nonce: morpho.nonce(authorizer),
+            deadline: deadline
+        });
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                AUTHORIZATION_TYPEHASH,
+                authorization.authorizer,
+                authorization.authorized,
+                authorization.isAuthorized,
+                authorization.nonce,
+                authorization.deadline
+            )
+        );
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, block.chainid, address(morpho)));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(authorizerPk, digest);
+
+        IMorphoSubset.Signature memory signature = IMorphoSubset.Signature({v: v, r: r, s: s});
+        morpho.setAuthorizationWithSig(authorization, signature);
+
+        require(morpho.nonce(authorizer) == 1, "nonce should increment");
+        require(morpho.isAuthorized(authorizer, authorized), "authorization should be set");
     }
 
     function testSupplyUpdatesMarketAndPosition() public {
@@ -352,23 +445,22 @@ contract VerityMorphoSmokeTest {
         vm.prank(supplier);
         (uint256 assetsSupplied, uint256 sharesSupplied) = morpho.supply(params, 100 ether, 0, supplier, "");
 
-        bytes32[] memory slots = new bytes32[](3);
-        slots[0] = _mappingSlot(8, id); // marketTotalSupplyAssets[id]
-        slots[1] = _mappingSlot(9, id); // marketTotalSupplyShares[id]
-        slots[2] = _nestedMappingSlot(17, id, supplier); // positionSupplyShares[id][supplier]
+        bytes32[] memory slots = new bytes32[](2);
+        slots[0] = _mappingSlot(3, id); // packed Market[id].{totalSupplyAssets,totalSupplyShares}
+        slots[1] = _nestedMappingSlot(17, id, supplier); // positionSupplyShares[id][supplier]
 
         bytes32[] memory values = morpho.extSloads(slots);
-        require(values.length == 3, "extSloads length mismatch");
-        require(uint256(values[0]) == assetsSupplied, "extSloads assets mismatch");
-        require(uint256(values[1]) == sharesSupplied, "extSloads shares mismatch");
-        require(uint256(values[2]) == sharesSupplied, "extSloads position mismatch");
+        require(values.length == 2, "extSloads length mismatch");
+        require(uint128(uint256(values[0])) == assetsSupplied, "extSloads assets mismatch");
+        require(uint256(values[0]) >> 128 == sharesSupplied, "extSloads shares mismatch");
+        require(uint256(values[1]) == sharesSupplied, "extSloads position mismatch");
     }
 
     function testAccrueInterestUpdatesLastUpdate() public {
         MockERC20 loanToken = new MockERC20();
         address collateralToken = address(0x3333);
         address oracle = address(0x4444);
-        address irm = address(0x1111);
+        address irm = address(new MockIRM());
         uint256 lltv = 0.8 ether;
 
         vm.prank(OWNER);
@@ -397,7 +489,7 @@ contract VerityMorphoSmokeTest {
         MockERC20 loanToken = new MockERC20();
         address collateralToken = address(0x3333);
         address oracle = address(0x4444);
-        address irm = address(0x1111);
+        address irm = address(new MockIRM());
         uint256 lltv = 0.8 ether;
 
         vm.prank(OWNER);
@@ -430,6 +522,34 @@ contract VerityMorphoSmokeTest {
         bytes32[] memory packedAfterSetFee = morpho.extSloads(slots);
         require(uint128(uint256(packedAfterSetFee[0])) == 1234567900, "packed lastUpdate after setFee mismatch");
         require(uint256(packedAfterSetFee[0]) >> 128 == 0.1 ether, "packed fee after setFee mismatch");
+    }
+
+    function testSetFeeAccruesInterestBeforeUpdating() public {
+        MockERC20 loanToken = new MockERC20();
+        address collateralToken = address(0x3333);
+        address oracle = address(0x4444);
+        address irm = address(new MockIRM());
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(address(loanToken), collateralToken, oracle, irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+        require(morpho.lastUpdate(id) == 1234567890, "lastUpdate after create mismatch");
+
+        // Advance time — setFee should accrue interest first and update lastUpdate
+        vm.warp(1234567900);
+        vm.prank(OWNER);
+        morpho.setFee(params, 0.1 ether);
+        require(morpho.lastUpdate(id) == 1234567900, "lastUpdate should be updated by setFee accrual");
     }
 
     function testPackedMarketSlotTracksSupplyAndWithdraw() public {
