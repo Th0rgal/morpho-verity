@@ -1273,14 +1273,13 @@ private def injectStorageCompat (text : String) : Except String String := do
     "let __evt_topic0 := 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac\n"
   let t3a ← replaceOrThrow t2 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
 
-  let enableLltvOld := "sstore(mappingSlot(3, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    log2(__evt_ptr, 0, __evt_topic0, lltv)\n                }\n"
-  let enableLltvNew := "sstore(mappingSlot(3, lltv), 1)\n                {\n                    let __evt_ptr := mload(64)\n                    mstore(add(__evt_ptr, 0), 0x456e61626c654c6c74762875696e743235362900000000000000000000000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 19)\n                    mstore(add(__evt_ptr, 0), lltv)\n                    log1(__evt_ptr, 32, __evt_topic0)\n                }\n"
-  let t3b ← replaceOrThrow t3a enableLltvOld enableLltvNew "enableLltv event and canonical storage slot compatibility"
+  -- NOTE: enableLltv event patch removed — the Verity compiler spec now generates
+  -- the correct log1 format directly (lltv in data, not as indexed topic).
 
   let supplyOld := "sstore(mappingSlot(9, id), newTotalSupplyShares)\n"
   let supplySlot0Packed := packMarketSupplySlot0Expr "newTotalSupplyAssets" "newTotalSupplyShares"
   let supplyNew := s!"sstore(mappingSlot(9, id), newTotalSupplyShares)\n                let __marketSlot0 := mappingSlot(3, id)\n                sstore(__marketSlot0, {supplySlot0Packed})\n"
-  let t4 ← replaceOrThrow t3b supplyOld supplyNew "supply packed slot compatibility"
+  let t4 ← replaceOrThrow t3a supplyOld supplyNew "supply packed slot compatibility"
 
   let withdrawOld := "sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nmstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n"
   let withdrawSlot0Packed := packMarketSupplySlot0Expr "__newTotalSupplyAssets" "__newTotalSupplyShares"
