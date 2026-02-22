@@ -26,10 +26,10 @@ The Lean implementation targets logical equivalence with Morpho's Solidity, not 
 
 ### Solidity Equivalence Bridge
 
-`Morpho/Proofs/SolidityBridge.lean` adds proof-transfer theorems for core invariants.
+`Morpho/Proofs/SolidityBridge.lean` adds 46 proof-transfer theorems for core invariants.
 If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation
-(`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`),
-the existing Verity proofs for `borrowLeSupply` and `alwaysCollateralized` transfer directly to Solidity.
+(`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`, `enableIrm`, `enableLltv`, `setAuthorization`, `setAuthorizationWithSig`),
+the existing Verity proofs for `borrowLeSupply`, `alwaysCollateralized`, `irmMonotone`, and `lltvMonotone` transfer directly to Solidity.
 
 ## Structure
 
@@ -48,23 +48,39 @@ Morpho/
     Rounding.lean         # Rounding direction specs
     Authorization.lean    # Access control specs
   Proofs/
-    Invariants.lean       # Invariant proofs (98/98 proven)
+    Invariants.lean       # Invariant proofs (105 proven, 98 public + 7 helper lemmas)
     Rounding.lean         # Rounding proofs (4/4 proven)
-    Authorization.lean    # Authorization proofs (11/11 proven)
-    SolidityBridge.lean   # Formal transfer lemmas from Yul semantic equivalence to Solidity guarantees
-    ShareConsistency.lean # Share accounting proofs (34/34 proven)
-    NatListSum.lean       # List sum lemmas for share accounting (4/4 proven)
+    Authorization.lean    # Authorization proofs (13 proven, 11 public + 2 helper lemmas)
+    SolidityBridge.lean   # Solidity equivalence bridge proofs (46/46 proven)
+    ShareConsistency.lean # Share accounting proofs (36 proven, 34 public + 2 helper lemmas)
+    NatListSum.lean       # List sum lemmas for share accounting (5/5 proven)
+  Compiler/
+    Spec.lean             # Morpho Blue contract specification (ContractSpec DSL)
+    Main.lean             # Yul codegen patches for Solidity storage/event compatibility
+compiler/
+  external-libs/          # External Yul libraries (MarketParamsHash, etc.)
+  yul/                    # Generated Yul output
+verity-foundry/           # Foundry project for Verity-compiled artifact testing
+scripts/
+  prepare_verity_morpho_artifact.sh  # Build + compile Verity Morpho artifact
+  run_morpho_blue_parity.sh          # Run full Morpho Blue suite (Solidity vs Verity)
 ```
 
 ## Build
 
-Requires [Lean 4](https://leanprover.github.io/lean4/doc/setup.html) (v4.15.0).
+Requires [Lean 4](https://leanprover.github.io/lean4/doc/setup.html) (v4.22.0).
 
 ```
 lake build
 ```
 
 ## Test
+
+Initialize the Morpho Blue submodule (required for Solidity tests and parity suite):
+
+```bash
+git submodule update --init --recursive
+```
 
 Run Solidity Morpho Blue tests (default deployment path):
 
@@ -99,45 +115,54 @@ Current status:
 
 ## Proof progress
 
-**151 theorems proven, 0 sorry remaining.**
+**209 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
-| Authorization | 11 | 11 | Done |
-| Invariants | 98 | 98 | Done |
+| Invariants | 105 | 105 | Done |
+| Solidity equivalence bridge | 46 | 46 | Done |
+| Share consistency | 36 | 36 | Done |
+| Authorization | 13 | 13 | Done |
+| List sum lemmas | 5 | 5 | Done |
 | Rounding | 4 | 4 | Done |
-| Share consistency | 34 | 34 | Done |
-| List sum lemmas | 4 | 4 | Done |
 
 Also proven in supporting libraries:
 - `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
 - `zeroFloorSub_le` — saturating subtraction never exceeds original (UtilsLib)
 - `u256_val` — simp lemma for Uint256 wrapping arithmetic
 
-Invariant theorems include:
-- IRM monotonicity preserved by all 16 operations (enableIrm + 15 trivial) (16)
-- LLTV monotonicity preserved by all 16 operations (enableLltv + 15 trivial) (16)
-- LLTV < WAD (1), market creation validity (1)
-- Fee bounds (1), solvency for all 16 operations: supply/withdraw/borrow/repay/accrueInterest/liquidate/supplyCollateral/withdrawCollateral/createMarket/setFee/enableIrm/enableLltv/setOwner/setFeeRecipient/setAuthorization/setAuthorizationWithSig (16)
+Invariant theorems (105) include:
+- Solvency (borrowLeSupply) preserved by all 16 operations + accrueInterestPublic (17 public + 3 helper lemmas)
+- Collateralization preserved by all 16 operations (16 public + 3 helper lemmas)
+- IRM monotonicity preserved by 14 operations including accrueInterestPublic (14)
+- LLTV monotonicity preserved by 14 operations including accrueInterestPublic (14)
+- Market isolation for 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
+- Same-market position isolation for 8 operations (8)
+- Cross-market position isolation for 8 operations (8)
 - Timestamp monotonicity for accrueInterest/setFee/accrueInterestPublic (3)
-- Collateralization preserved by all 16 operations: supply/withdraw/borrow/repay/accrueInterest/liquidate/supplyCollateral/withdrawCollateral/enableIrm/enableLltv/setOwner/setFee/setFeeRecipient/createMarket/setAuthorization/setAuthorizationWithSig (16)
-- Market isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
-- Same-market position isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (8)
-- Cross-market position isolation for all 8 operations: accrueInterest/supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate (8)
-- Exchange rate monotonicity for accrueInterest/accrueInterestPublic (2)
+- Exchange rate monotonicity for accrueInterest/accrueInterestPublic (2 public + 1 helper lemma)
+- LLTV < WAD (1), market creation validity (1), fee bounds (1)
 - Flash loan rejects zero assets (1), accrueInterestPublic rejects uninitialized markets (1)
 - accrueInterestPublic preserves solvency and collateralization (2)
 
-Authorization theorems include:
+Solidity equivalence bridge theorems (46) include:
+- borrowLeSupply preservation for 10 operations: supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate/accrueInterest/enableIrm/enableLltv + setAuthorization/setAuthorizationWithSig (12)
+- alwaysCollateralized preservation for the same 12 operations (12)
+- irmMonotone preservation for 12 operations (12)
+- lltvMonotone preservation for 10 operations (10)
+
+Authorization theorems (13) include:
 - Precondition style: unauthorized sender → withdraw/borrow/withdrawCollateral return none (3)
 - Postcondition style: successful withdraw/borrow/withdrawCollateral → sender was authorized (3)
 - Supply requires no authorization (1)
 - Liquidation requires unhealthy position (1)
 - Signature-based: expired deadline rejected, wrong nonce rejected, nonce incremented (3)
+- Helper lemmas: isSenderAuthorized characterization (2)
 
-Share consistency theorems include:
-- supplySharesConsistent preserved by all 17 operations: enableIrm/enableLltv/setOwner/setFeeRecipient/createMarket/setAuthorization/setAuthorizationWithSig/supplyCollateral/withdrawCollateral/supply/withdraw/borrow/repay/liquidate/accrueInterest/setFee/accrueInterestPublic (17)
-- borrowSharesConsistent preserved by all 17 operations: enableIrm/enableLltv/setOwner/setFeeRecipient/createMarket/setAuthorization/setAuthorizationWithSig/supplyCollateral/withdrawCollateral/supply/withdraw/borrow/repay/liquidate/accrueInterest/setFee/accrueInterestPublic (17)
+Share consistency theorems (36) include:
+- supplySharesConsistent preserved by all 17 operations (17)
+- borrowSharesConsistent preserved by all 17 operations (17)
+- Helper lemmas: supply/borrow consistency propagation (2)
 
 ## Status
 
@@ -145,10 +170,11 @@ Share consistency theorems include:
 - [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, setAuthorization, setAuthorizationWithSig, owner functions, interest accrual, flash loans)
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
-- [x] Authorization proofs (11/11: withdraw/borrow/withdrawCollateral require auth, supply doesn't, withdraw/borrow/withdrawCollateral satisfy postcondition specs, liquidation requires unhealthy position, sig rejects expired deadline, sig rejects wrong nonce, sig increments nonce)
-- [x] Invariant proofs (98/98: IRM/LLTV monotonicity × 16 operations, LLTV < WAD, fee bounds, market creation, solvency × 16 operations, timestamp monotonicity × 3, exchange rate monotonicity × 2, collateralization × 16 operations, market/position isolation × 24, flashLoan rejects zero, accrueInterestPublic rejects uninitialized/preserves solvency/preserves collateralization)
+- [x] Authorization proofs (13: withdraw/borrow/withdrawCollateral require auth, supply doesn't, postcondition specs, liquidation requires unhealthy, signature validation, helper lemmas)
+- [x] Invariant proofs (105: solvency × 17, collateralization × 16, IRM/LLTV monotonicity × 14 each, market/position isolation × 24, timestamp × 3, exchange rate × 2, standalone checks, helper lemmas)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
-- [x] Share consistency proofs (34/34: supplySharesConsistent and borrowSharesConsistent preserved by all 17 operations including liquidate bad-debt socialization)
+- [x] Share consistency proofs (36: supplySharesConsistent and borrowSharesConsistent preserved by all 17 operations including liquidate bad-debt socialization, helper lemmas)
+- [x] Solidity equivalence bridge proofs (46: borrowLeSupply/alwaysCollateralized/irmMonotone/lltvMonotone preserved across 10-12 operations via semantic equivalence transfer)
 
 ## License
 
