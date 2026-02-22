@@ -18,7 +18,7 @@ private theorem map_eq_map_of_not_mem [DecidableEq α]
 
 theorem le_sum_of_mem {l : List Nat} (h : n ∈ l) : n ≤ l.sum := by
   induction l with
-  | nil => exact absurd h (List.not_mem_nil _)
+  | nil => simp at h
   | cons x xs ih =>
     simp only [List.sum_cons]
     rcases List.mem_cons.mp h with rfl | h_xs
@@ -31,7 +31,7 @@ theorem list_sum_map_add [DecidableEq α]
     (l.map (fun a => if a = target then f target + delta else f a)).sum
     = (l.map f).sum + delta := by
   induction l with
-  | nil => exact absurd h_mem (List.not_mem_nil _)
+  | nil => simp at h_mem
   | cons x xs ih =>
     simp only [List.map, List.sum_cons]
     have ⟨h_not_mem, h_nodup_xs⟩ := List.nodup_cons.mp h_nodup
@@ -52,7 +52,7 @@ theorem list_sum_map_zero [DecidableEq α]
     (l.map (fun a => if a = target then 0 else f a)).sum
     = (l.map f).sum - f target := by
   induction l with
-  | nil => exact absurd h_mem (List.not_mem_nil _)
+  | nil => simp at h_mem
   | cons x xs ih =>
     simp only [List.map, List.sum_cons]
     have ⟨h_not_mem, h_nodup_xs⟩ := List.nodup_cons.mp h_nodup
@@ -66,7 +66,7 @@ theorem list_sum_map_zero [DecidableEq α]
       have h_ne : x ≠ target := fun h => h_not_mem (h ▸ h_mem_xs)
       simp only [h_ne, ite_false]
       have h_ft_le_sum : f target ≤ (xs.map f).sum :=
-        le_sum_of_mem (List.mem_map_of_mem f h_mem_xs)
+        le_sum_of_mem (List.mem_map.mpr ⟨target, h_mem_xs, rfl⟩)
       rw [ih h_mem_xs h_nodup_xs]; omega
 
 theorem list_sum_map_sub [DecidableEq α]
@@ -75,7 +75,7 @@ theorem list_sum_map_sub [DecidableEq α]
     (l.map (fun a => if a = target then f target - delta else f a)).sum
     = (l.map f).sum - delta := by
   induction l with
-  | nil => exact absurd h_mem (List.not_mem_nil _)
+  | nil => simp at h_mem
   | cons x xs ih =>
     simp only [List.map, List.sum_cons]
     have ⟨h_not_mem, h_nodup_xs⟩ := List.nodup_cons.mp h_nodup
@@ -89,5 +89,5 @@ theorem list_sum_map_sub [DecidableEq α]
       have h_ne : x ≠ target := fun h => h_not_mem (h ▸ h_mem_xs)
       simp only [h_ne, ite_false]
       have h_delta_le_sum : delta ≤ (xs.map f).sum :=
-        Nat.le_trans h_ge (le_sum_of_mem (List.mem_map_of_mem f h_mem_xs))
+        Nat.le_trans h_ge (le_sum_of_mem (List.mem_map.mpr ⟨target, h_mem_xs, rfl⟩))
       rw [ih h_mem_xs h_nodup_xs]; omega
