@@ -914,19 +914,21 @@ private def liquidateCase : String := "\
                 }\n\
                 let repaidSharesOut := repaidShares\n\
                 let seizedAssetsOut := seizedAssets\n\
+                let repaidAssetsOut := 0\n\
                 if gt(seizedAssetsOut, 0) {\n\
                     let seizedAssetsQuoted := div(add(mul(seizedAssetsOut, collateralPrice), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000)\n\
                     let repaidAssetsQuoted := div(add(mul(seizedAssetsQuoted, 1000000000000000000), sub(liquidationIncentiveFactor, 1)), liquidationIncentiveFactor)\n\
                     repaidSharesOut := div(add(mul(repaidAssetsQuoted, add(totalBorrowSharesBefore, 1000000)), sub(add(totalBorrowAssetsBefore, 1), 1)), add(totalBorrowAssetsBefore, 1))\n\
+                    repaidAssetsOut := div(add(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), sub(add(totalBorrowSharesBefore, 1000000), 1)), add(totalBorrowSharesBefore, 1000000))\n\
                 }\n\
                 if iszero(gt(seizedAssetsOut, 0)) {\n\
                     let repaidAssetsDown := div(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), add(totalBorrowSharesBefore, 1000000))\n\
+                    repaidAssetsOut := repaidAssetsDown\n\
                     if iszero(collateralPrice) {\n\
                         revert(0, 0)\n\
                     }\n\
                     seizedAssetsOut := div(mul(div(mul(repaidAssetsDown, liquidationIncentiveFactor), 1000000000000000000), 1000000000000000000000000000000000000), collateralPrice)\n\
                 }\n\
-                let repaidAssetsOut := div(add(mul(repaidSharesOut, add(totalBorrowAssetsBefore, 1)), sub(add(totalBorrowSharesBefore, 1000000), 1)), add(totalBorrowSharesBefore, 1000000))\n\
                 if lt(borrowerBorrowSharesBefore, repaidSharesOut) {\n\
                     revert(0, 0)\n\
                 }\n\
