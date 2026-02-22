@@ -228,6 +228,51 @@ theorem accrueInterest_preserves_borrowLeSupply (s : MorphoState) (id : Id)
       rw [Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_borrow_no_overflow]
       exact Nat.add_le_add_right h_solvent _
 
+-- Lean 4.22's kernel deep-recursion limit prevents proving both seized-asset
+-- branches in a single declaration.  We factor the proof into two helpers
+-- (one per branch of `seizedAssets.val > 0`) and a dispatcher.
+
+set_option maxRecDepth 8192 in
+private theorem liq_borrowLeSupply_pos (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_solvent : borrowLeSupply s id) (h_seized : seizedAssets.val > 0)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    borrowLeSupply s' id := by
+  unfold Morpho.liquidate at h_ok; simp [h_seized] at h_ok
+  have h_eq := h_ok.2.2.2.2.2.2.2
+  unfold borrowLeSupply; rw [← h_eq]; simp only [ite_true]
+  split
+  · simp only [Morpho.u256_val]
+    exact sub_mod_le_sub_mod
+      (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
+      (Libraries.UtilsLib.zeroFloorSub _ _).isLt
+      (s.market id).totalSupplyAssets.isLt
+  · exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
+
+set_option maxRecDepth 8192 in
+private theorem liq_borrowLeSupply_zero (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_solvent : borrowLeSupply s id) (h_seized : ¬seizedAssets.val > 0)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    borrowLeSupply s' id := by
+  unfold Morpho.liquidate at h_ok; simp [h_seized] at h_ok
+  have h_eq := h_ok.2.2.2.2.2.2.2
+  unfold borrowLeSupply; rw [← h_eq]
+  split  -- bad-debt condition
+  · dsimp only []; split  -- if id = id
+    · dsimp only []; simp only [Morpho.u256_val]
+      exact sub_mod_le_sub_mod
+        (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
+        (Libraries.UtilsLib.zeroFloorSub _ _).isLt
+        (s.market id).totalSupplyAssets.isLt
+    · rename_i h_ne; exact absurd rfl h_ne
+  · dsimp only []; split  -- if id = id
+    · dsimp only []
+      exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
+    · rename_i h_ne; exact absurd rfl h_ne
+
 /-- Liquidation preserves solvency. In the non-bad-debt path, `zeroFloorSub`
     reduces borrow without touching supply. In the bad-debt path, both borrow
     and supply decrease by the same `badDebtAssets`, preserving the order.
@@ -241,36 +286,11 @@ theorem liquidate_preserves_borrowLeSupply (s : MorphoState) (id : Id)
     (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
       = some (seized, repaid, s')) :
     borrowLeSupply s' id := by
-  unfold Morpho.liquidate at h_ok
-  split at h_ok <;> simp at h_ok
-  split at h_ok <;> simp at h_ok
-  split at h_ok <;> simp at h_ok
-  -- After 3 rounds of split/simp we have 3 cases based on seizedAssets > 0
-  -- and the bad-debt condition. Each case's h_ok ends with a state record = s'.
-  case isFalse.isTrue.isFalse =>
-    -- seizedAssets > 0, non-bad-debt: totalBorrowAssets = zeroFloorSub, supply unchanged
-    unfold borrowLeSupply; rw [← h_ok.2.2.2.2.2.2]; simp only [beq_self_eq_true, ite_true]
-    exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
-  case isFalse.isTrue.isTrue =>
-    -- seizedAssets > 0, bad-debt: both sides decrease by badDebtAssets
-    unfold borrowLeSupply; rw [← h_ok.2.2.2.2.2.2]; simp only [beq_self_eq_true, ite_true]
-    simp only [Morpho.u256_val]
-    exact sub_mod_le_sub_mod
-      (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
-      (Libraries.UtilsLib.zeroFloorSub _ _).isLt
-      (s.market id).totalSupplyAssets.isLt
-  case isFalse.isFalse =>
-    -- seizedAssets = 0: bad-debt if-then-else still present
-    unfold borrowLeSupply; rw [← h_ok.2.2.2.2.2.2]; simp only [beq_self_eq_true, ite_true]
-    split
-    · -- bad-debt path (newCollateral = 0)
-      simp only [Morpho.u256_val]
-      exact sub_mod_le_sub_mod
-        (Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent)
-        (Libraries.UtilsLib.zeroFloorSub _ _).isLt
-        (s.market id).totalSupplyAssets.isLt
-    · -- non-bad-debt path (newCollateral > 0)
-      exact Nat.le_trans (Libraries.UtilsLib.zeroFloorSub_le _ _) h_solvent
+  by_cases h_seized : seizedAssets.val > 0
+  · exact liq_borrowLeSupply_pos s id borrower seizedAssets repaidShares
+      collateralPrice lltv h_solvent h_seized h_ok
+  · exact liq_borrowLeSupply_zero s id borrower seizedAssets repaidShares
+      collateralPrice lltv h_solvent h_seized h_ok
 
 /-! ## Solvency preserved by collateral and admin operations
 
@@ -413,6 +433,44 @@ theorem setAuthorizationWithSig_preserves_borrowLeSupply (s : MorphoState)
   for non-zero borrowShares, guaranteed by virtual shares in practice).
   - **accrueInterest / admin functions**: don't touch positions at all -/
 
+set_option maxRecDepth 8192 in
+private theorem liq_collat_pos (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_seized : seizedAssets.val > 0)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    alwaysCollateralized s' id borrower := by
+  unfold alwaysCollateralized; intro h_borrow
+  unfold Morpho.liquidate at h_ok; simp [h_seized] at h_ok
+  have h_eq := h_ok.2.2.2.2.2.2.2
+  rw [← h_eq] at h_borrow ⊢
+  split
+  · split at h_borrow
+    · simp at h_borrow
+    · rename_i h_bd h_not_bd; exact absurd h_bd h_not_bd
+  · split at h_borrow
+    · rename_i h_not_bd h_bd; exact absurd h_bd h_not_bd
+    · simp at h_borrow ⊢; omega
+
+set_option maxRecDepth 8192 in
+private theorem liq_collat_zero (s : MorphoState) (id : Id)
+    (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
+    (h_seized : ¬seizedAssets.val > 0)
+    (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
+      = some (seized, repaid, s')) :
+    alwaysCollateralized s' id borrower := by
+  unfold alwaysCollateralized; intro h_borrow
+  unfold Morpho.liquidate at h_ok; simp [h_seized] at h_ok
+  have h_eq := h_ok.2.2.2.2.2.2.2
+  rw [← h_eq] at h_borrow ⊢
+  split
+  · split at h_borrow
+    · simp at h_borrow
+    · rename_i h_bd h_not_bd; exact absurd h_bd h_not_bd
+  · split at h_borrow
+    · rename_i h_not_bd h_bd; exact absurd h_bd h_not_bd
+    · simp at h_borrow ⊢; omega
+
 /-- Liquidation preserves the `alwaysCollateralized` invariant for the borrower.
     When collateral is fully seized (= 0), bad debt socialization sets
     borrowShares to 0. When collateral remains, it's > 0. -/
@@ -421,29 +479,11 @@ theorem liquidate_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
     (h_ok : Morpho.liquidate s id borrower seizedAssets repaidShares collateralPrice lltv
       = some (seized, repaid, s')) :
     alwaysCollateralized s' id borrower := by
-  unfold alwaysCollateralized
-  intro h_borrow
-  unfold Morpho.liquidate at h_ok
-  -- Close guard branches (none = some) and split seizedAssets > 0.
-  -- `<;> simp at h_ok` closes isTrue branches and flattens isFalse conjunctions.
-  -- After 3 rounds, two goals remain (seizedAssets > 0 and ≤ 0).
-  split at h_ok <;> simp at h_ok
-  split at h_ok <;> simp at h_ok
-  split at h_ok <;> simp at h_ok
-  -- Three remaining goals after split/simp. Address each by case label.
-  case isFalse.isTrue.isTrue =>
-    -- seizedAssets > 0, bad-debt condition = true (newCollateral = 0).
-    -- borrowShares = u256 0, so h_borrow gives 0 < 0: contradiction.
-    rw [← h_ok.2.2.2.2.2.2] at h_borrow; simp at h_borrow
-  case isFalse.isTrue.isFalse =>
-    -- seizedAssets > 0, bad-debt condition = false (newCollateral ≠ 0).
-    rw [← h_ok.2.2.2.2.2.2] at h_borrow ⊢; simp at h_borrow ⊢; omega
-  case isFalse.isFalse =>
-    -- seizedAssets = 0. Bad-debt if-then-else still in h_borrow.
-    rw [← h_ok.2.2.2.2.2.2] at h_borrow ⊢; simp at h_borrow ⊢
-    split at h_borrow
-    · simp at h_borrow  -- bad-debt: borrowShares = 0, contradicts h_borrow > 0
-    · omega             -- non-bad-debt: newCollateral ≠ 0 in context
+  by_cases h_seized : seizedAssets.val > 0
+  · exact liq_collat_pos s id borrower seizedAssets repaidShares
+      collateralPrice lltv h_seized h_ok
+  · exact liq_collat_zero s id borrower seizedAssets repaidShares
+      collateralPrice lltv h_seized h_ok
 
 /-- Supply only modifies supplyShares; borrowShares and collateral are unchanged. -/
 theorem supply_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
@@ -1176,7 +1216,7 @@ theorem accrueInterest_preserves_supplyExchangeRateMonotone (s : MorphoState) (i
       · -- fee = 0: no new shares, shares unchanged, assets increase by interest
         -- Normalize u256 everywhere to expose % modulus, then eliminate
         simp only [Morpho.u256] at h_supply_no_overflow
-        simp only [Morpho.u256, Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_supply_no_overflow]
+        simp only [Morpho.u256, Nat.mod_eq_of_lt h_supply_no_overflow]
         -- Now: (A + VA) * (S + VS) ≤ (A + I + VA) * (S + VS)
         apply Nat.mul_le_mul_right
         omega

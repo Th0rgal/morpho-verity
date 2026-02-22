@@ -32,6 +32,6 @@ theorem zeroFloorSub_le (x y : Uint256) : (zeroFloorSub x y).val ≤ x.val := by
     rw [Nat.mod_eq_of_lt h_lt]
     exact Nat.sub_le x.val y.val
   · -- x ≤ y case: result = 0 % modulus = 0
-    simp [Uint256.val_ofNat]
+    simp
 
 end Morpho.Libraries.UtilsLib
