@@ -116,7 +116,7 @@ theorem createMarket_preserves_supplySharesConsistent (s : MorphoState)
   obtain ⟨_, _, _, h_eq⟩ := h_ok
   rw [← h_eq]
   apply supplyConsistent_of_eq_market_position _ _ h_consistent
-  · simp [beq_iff_eq]; split <;> simp_all
+  · simp; split <;> simp_all
   · intro u; rfl
 
 theorem createMarket_preserves_borrowSharesConsistent (s : MorphoState)
@@ -128,7 +128,7 @@ theorem createMarket_preserves_borrowSharesConsistent (s : MorphoState)
   obtain ⟨_, _, _, h_eq⟩ := h_ok
   rw [← h_eq]
   apply borrowConsistent_of_eq_market_position _ _ h_consistent
-  · simp [beq_iff_eq]; split <;> simp_all
+  · simp; split <;> simp_all
   · intro u; rfl
 
 theorem setAuthorization_preserves_supplySharesConsistent (s : MorphoState)
@@ -180,7 +180,7 @@ theorem supplyCollateral_preserves_supplySharesConsistent (s : MorphoState)
   rw [← h_eq]
   apply supplyConsistent_of_eq_market_position _ _ h_consistent
   · rfl
-  · intro u; simp [beq_iff_eq]; split
+  · intro u; simp; split
     · obtain ⟨rfl, rfl⟩ := ‹_›; rfl
     · rfl
 
@@ -195,7 +195,7 @@ theorem supplyCollateral_preserves_borrowSharesConsistent (s : MorphoState)
   rw [← h_eq]
   apply borrowConsistent_of_eq_market_position _ _ h_consistent
   · rfl
-  · intro u; simp [beq_iff_eq]; split
+  · intro u; simp; split
     · obtain ⟨rfl, rfl⟩ := ‹_›; rfl
     · rfl
 
@@ -211,7 +211,7 @@ theorem withdrawCollateral_preserves_supplySharesConsistent (s : MorphoState)
   rw [← h_eq]
   apply supplyConsistent_of_eq_market_position _ _ h_consistent
   · rfl
-  · intro u; simp [beq_iff_eq]; split
+  · intro u; simp; split
     · obtain ⟨rfl, rfl⟩ := ‹_›; rfl
     · rfl
 
@@ -227,7 +227,7 @@ theorem withdrawCollateral_preserves_borrowSharesConsistent (s : MorphoState)
   rw [← h_eq]
   apply borrowConsistent_of_eq_market_position _ _ h_consistent
   · rfl
-  · intro u; simp [beq_iff_eq]; split
+  · intro u; simp; split
     · obtain ⟨rfl, rfl⟩ := ‹_›; rfl
     · rfl
 
@@ -247,7 +247,7 @@ theorem supply_preserves_supplySharesConsistent (s : MorphoState) (sid : Id)
   subst h_sh; rw [← h_eq]; unfold supplySharesConsistent
   by_cases h_assets : 0 < assets.val <;>
     simp only [h_assets, ite_true, ite_false] at h_no_overflow h_pos_no_overflow ⊢ <;> (
-    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
+    simp only [true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_add allUsers (fun u => (s.position sid u).supplyShares.val) onBehalf _ h_mem h_nodup]
     unfold supplySharesConsistent at h_consistent; omega)
@@ -262,8 +262,8 @@ theorem supply_preserves_borrowSharesConsistent (s : MorphoState) (sid : Id)
   obtain ⟨_, _, _, _, _, h_eq⟩ := h_ok
   rw [← h_eq]
   apply borrowConsistent_of_eq_market_position _ _ h_consistent
-  · simp [beq_iff_eq]
-  · intro u; simp [beq_iff_eq, true_and]; split
+  · simp
+  · intro u; simp [true_and]; split
     · subst ‹u = onBehalf›; rfl
     · rfl
 
@@ -284,7 +284,7 @@ theorem withdraw_preserves_supplySharesConsistent (s : MorphoState) (wid : Id)
     Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market wid).totalSupplyShares.isLt
   subst h_sh; rw [← h_eq]; unfold supplySharesConsistent
   by_cases h_assets : 0 < assets.val <;> simp only [h_assets, ite_true, ite_false] at * <;> (
-    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
+    simp only [true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_total_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_sub allUsers (fun u => (s.position wid u).supplyShares.val) onBehalf _ h_mem h_nodup (by dsimp; omega)]
     unfold supplySharesConsistent at h_consistent; omega)
@@ -299,8 +299,8 @@ theorem withdraw_preserves_borrowSharesConsistent (s : MorphoState) (wid : Id)
   obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
   rw [← h_eq]
   apply borrowConsistent_of_eq_market_position _ _ h_consistent
-  · simp [beq_iff_eq]
-  · intro u; simp [beq_iff_eq, true_and]; split
+  · simp
+  · intro u; simp [true_and]; split
     · subst ‹u = onBehalf›; rfl
     · rfl
 
@@ -322,7 +322,7 @@ theorem borrow_preserves_borrowSharesConsistent (s : MorphoState) (bid : Id)
   subst h_sh; rw [← h_eq]; unfold borrowSharesConsistent
   by_cases h_assets : 0 < assets.val <;>
     simp only [h_assets, ite_true, ite_false] at h_no_overflow h_pos_no_overflow ⊢ <;> (
-    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
+    simp only [true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_add allUsers (fun u => (s.position bid u).borrowShares.val) onBehalf _ h_mem h_nodup]
     unfold borrowSharesConsistent at h_consistent; omega)
@@ -339,8 +339,8 @@ theorem borrow_preserves_supplySharesConsistent (s : MorphoState) (bid : Id)
   obtain ⟨_, _, _, _, _, _, _, _, h_eq⟩ := h_ok
   rw [← h_eq]
   apply supplyConsistent_of_eq_market_position _ _ h_consistent
-  · simp [beq_iff_eq]
-  · intro u; simp [beq_iff_eq, true_and]; split
+  · simp
+  · intro u; simp [true_and]; split
     · subst ‹u = onBehalf›; rfl
     · rfl
 
@@ -361,7 +361,7 @@ theorem repay_preserves_borrowSharesConsistent (s : MorphoState) (rid : Id)
     Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market rid).totalBorrowShares.isLt
   subst h_sh; rw [← h_eq]; unfold borrowSharesConsistent
   by_cases h_assets : 0 < assets.val <;> simp only [h_assets, ite_true, ite_false] at * <;> (
-    simp only [beq_iff_eq, true_and, apply_ite, Morpho.u256_val,
+    simp only [true_and, apply_ite, Morpho.u256_val,
       Nat.mod_eq_of_lt h_total_no_overflow, Nat.mod_eq_of_lt h_pos_no_overflow]
     rw [list_sum_map_sub allUsers (fun u => (s.position rid u).borrowShares.val) onBehalf _ h_mem h_nodup (by dsimp; omega)]
     unfold borrowSharesConsistent at h_consistent; omega)
@@ -376,8 +376,8 @@ theorem repay_preserves_supplySharesConsistent (s : MorphoState) (rid : Id)
   obtain ⟨_, _, _, _, _, _, h_eq⟩ := h_ok
   rw [← h_eq]
   apply supplyConsistent_of_eq_market_position _ _ h_consistent
-  · simp [beq_iff_eq]
-  · intro u; simp [beq_iff_eq, true_and]; split
+  · simp
+  · intro u; simp [true_and]; split
     · subst ‹u = onBehalf›; rfl
     · rfl
 
@@ -400,8 +400,8 @@ theorem liquidate_preserves_supplySharesConsistent (s : MorphoState) (lid : Id)
         obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
         rw [← h_eq]
         apply supplyConsistent_of_eq_market_position _ _ h_consistent
-        · simp [beq_iff_eq]
-        · intro u; simp [beq_iff_eq, true_and]; split
+        · simp
+        · intro u; simp [true_and]; split
           · subst ‹u = borrower›; rfl
           · rfl)))
 
@@ -423,12 +423,7 @@ theorem liquidate_preserves_borrowSharesConsistent (s : MorphoState) (lid : Id)
         obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
         rw [← h_eq]
         unfold borrowSharesConsistent
-        simp only [beq_iff_eq, ite_true, true_and, apply_ite, Morpho.u256_val, Nat.zero_mod]
-        -- All goals now have `X % Core.Uint256.modulus` terms from u256 wrapping.
-        -- Every such X is a Nat subtraction where X ≤ some Uint256.val < modulus.
-        -- We eliminate modulus by repeated rewriting, then use list sum lemmas + omega.
-        --
-        -- Helper: for Uint256 values, any subtraction of their .val fields is < modulus.
+        simp only [ite_true, true_and, apply_ite, Morpho.u256_val, Nat.zero_mod]
         have elim_mod_pos (n : Nat) :
             (s.position lid borrower).borrowShares.val - n < Core.Uint256.modulus :=
           Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.position lid borrower).borrowShares.isLt
@@ -436,16 +431,12 @@ theorem liquidate_preserves_borrowSharesConsistent (s : MorphoState) (lid : Id)
             (s.market lid).totalBorrowShares.val - n < Core.Uint256.modulus :=
           Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market lid).totalBorrowShares.isLt
         simp only [Nat.mod_eq_of_lt (elim_mod_pos _), Nat.mod_eq_of_lt (elim_mod_total _)]
-        -- After first round, bad-debt goals may still have (total - rs - (pos - rs)) % mod.
-        -- This is ≤ total - rs ≤ total < modulus.
         try simp only [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) (elim_mod_total _))]
         first
-        | -- No-bad-debt: total - rs = sum where each user's shares subtract rs for borrower
-          (rw [list_sum_map_sub allUsers (fun u => (s.position lid u).borrowShares.val) borrower _
+        | (rw [list_sum_map_sub allUsers (fun u => (s.position lid u).borrowShares.val) borrower _
              h_mem h_nodup (by dsimp; omega)]
            unfold borrowSharesConsistent at h_consistent; omega)
-        | -- Bad-debt: borrower → 0, total drops by original borrower shares
-          (rw [list_sum_map_zero allUsers (fun u => (s.position lid u).borrowShares.val) borrower
+        | (rw [list_sum_map_zero allUsers (fun u => (s.position lid u).borrowShares.val) borrower
              h_mem h_nodup]
            unfold borrowSharesConsistent at h_consistent; omega))))
 
@@ -473,7 +464,7 @@ theorem accrueInterest_preserves_borrowSharesConsistent (s : MorphoState) (aid :
         · simp [beq_iff_eq]; split
           · next h => rw [h]
           · rfl
-        · intro u; simp [beq_iff_eq, true_and]; split
+        · intro u; simp [beq_iff_eq]; split
           · obtain ⟨rfl, rfl⟩ := ‹_›; rfl
           · rfl
       · -- fee = 0
@@ -481,7 +472,7 @@ theorem accrueInterest_preserves_borrowSharesConsistent (s : MorphoState) (aid :
         · simp [beq_iff_eq]; split
           · next h => rw [h]
           · rfl
-        · intro u; simp [beq_iff_eq, true_and]; split
+        · intro u; simp [beq_iff_eq]; split
           · obtain ⟨rfl, rfl⟩ := ‹_›; rfl
           · rfl
 
@@ -530,8 +521,7 @@ theorem accrueInterest_preserves_supplySharesConsistent (s : MorphoState) (id : 
         unfold supplySharesConsistent at h_consistent; omega
       · -- fee = 0: feeShares.val = 0 so positions and total effectively unchanged
         simp only [beq_self_eq_true, Bool.true_and, beq_iff_eq, ite_true,
-          apply_ite, Morpho.u256_val, Nat.zero_mod, Nat.add_zero,
-          Nat.mod_eq_of_lt h_total_no_overflow]
+          apply_ite, Morpho.u256_val, Nat.zero_mod, Nat.add_zero]
         -- The map still has (pos.val % modulus) for feeRecipient; show it equals (pos.val)
         have h_map_eq : allUsers.map (fun u =>
             if u = s.feeRecipient then (s.position id s.feeRecipient).supplyShares.val % Core.Uint256.modulus
@@ -557,7 +547,7 @@ theorem setFee_preserves_borrowSharesConsistent (s : MorphoState) (fid : Id)
   have h_ai := accrueInterest_preserves_borrowSharesConsistent s fid borrowRate hasIrm id allUsers
     h_consistent
   apply borrowConsistent_of_eq_market_position _ _ h_ai
-  · simp [beq_iff_eq]; split
+  · simp; split
     · next h => rw [h]
     · rfl
   · intro u; rfl
