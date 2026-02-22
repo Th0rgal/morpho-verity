@@ -317,8 +317,8 @@ def morphoSpec : ContractSpec := {
         Stmt.letVar "irm" (Expr.param "marketParams_3"),
         Stmt.letVar "lltv" (Expr.param "marketParams_4"),
         Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
-        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.param "irm")) (Expr.literal 1)) "IRM not enabled",
-        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv")) (Expr.literal 1)) "LLTV not enabled",
+        Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.localVar "irm")) (Expr.literal 1)) "IRM not enabled",
+        Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.localVar "lltv")) (Expr.literal 1)) "LLTV not enabled",
         Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "market already created",
         Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
         Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.literal 0),
@@ -326,18 +326,18 @@ def morphoSpec : ContractSpec := {
         Stmt.setMappingUint "marketTotalSupplyShares" (Expr.localVar "id") (Expr.literal 0),
         Stmt.setMappingUint "marketTotalBorrowAssets" (Expr.localVar "id") (Expr.literal 0),
         Stmt.setMappingUint "marketTotalBorrowShares" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "idToLoanToken" (Expr.localVar "id") (Expr.param "loanToken"),
-        Stmt.setMappingUint "idToCollateralToken" (Expr.localVar "id") (Expr.param "collateralToken"),
-        Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.param "oracle"),
-        Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.param "irm"),
-        Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.param "lltv"),
+        Stmt.setMappingUint "idToLoanToken" (Expr.localVar "id") (Expr.localVar "loanToken"),
+        Stmt.setMappingUint "idToCollateralToken" (Expr.localVar "id") (Expr.localVar "collateralToken"),
+        Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.localVar "oracle"),
+        Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.localVar "irm"),
+        Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.localVar "lltv"),
         Stmt.emit "CreateMarket" [
           Expr.localVar "id",
-          Expr.param "loanToken",
-          Expr.param "collateralToken",
-          Expr.param "oracle",
-          Expr.param "irm",
-          Expr.param "lltv"
+          Expr.localVar "loanToken",
+          Expr.localVar "collateralToken",
+          Expr.localVar "oracle",
+          Expr.localVar "irm",
+          Expr.localVar "lltv"
         ],
         Stmt.stop
       ]
@@ -387,7 +387,7 @@ def morphoSpec : ContractSpec := {
           [
             Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
             Stmt.ite
-              (Expr.logicalNot (Expr.eq (Expr.param "irm") (Expr.literal 0)))
+              (Expr.logicalNot (Expr.eq (Expr.localVar "irm") (Expr.literal 0)))
               [Stmt.emit "AccrueInterest" [Expr.localVar "id", Expr.literal 0, Expr.literal 0, Expr.literal 0]]
               [],
             Stmt.stop
