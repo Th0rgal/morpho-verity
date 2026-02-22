@@ -92,6 +92,42 @@ interface IMorphoSubset {
         address receiver
     ) external returns (uint256 assetsWithdrawn, uint256 sharesWithdrawn);
     function nonce(address authorizer) external view returns (uint256);
+    function borrow(
+        MarketParams calldata marketParams,
+        uint256 assets,
+        uint256 shares,
+        address onBehalf,
+        address receiver
+    ) external returns (uint256 assetsBorrowed, uint256 sharesBorrowed);
+    function repay(
+        MarketParams calldata marketParams,
+        uint256 assets,
+        uint256 shares,
+        address onBehalf,
+        bytes calldata data
+    ) external returns (uint256 assetsRepaid, uint256 sharesRepaid);
+    function supplyCollateral(
+        MarketParams calldata marketParams,
+        uint256 assets,
+        address onBehalf,
+        bytes calldata data
+    ) external;
+    function withdrawCollateral(
+        MarketParams calldata marketParams,
+        uint256 assets,
+        address onBehalf,
+        address receiver
+    ) external;
+    function liquidate(
+        MarketParams calldata marketParams,
+        address borrower,
+        uint256 seizedAssets,
+        uint256 repaidShares,
+        bytes calldata data
+    ) external returns (uint256 seizedAssetsOut, uint256 repaidAssetsOut);
+    function flashLoan(address token, uint256 assets, bytes calldata data) external;
+    function totalBorrowAssets(bytes32 id) external view returns (uint256);
+    function totalBorrowShares(bytes32 id) external view returns (uint256);
 }
 
 contract MockERC20 {
@@ -160,6 +196,44 @@ contract MockERC20FalseTransferFrom is MockERC20 {
 contract MockERC20FalseTransfer is MockERC20 {
     function transfer(address, uint256) external pure override returns (bool) {
         return false;
+    }
+}
+
+contract MockOracle {
+    uint256 public oraclePrice;
+
+    constructor(uint256 _price) {
+        oraclePrice = _price;
+    }
+
+    function setPrice(uint256 _price) external {
+        oraclePrice = _price;
+    }
+
+    function price() external view returns (uint256) {
+        return oraclePrice;
+    }
+
+    fallback() external {
+        assembly {
+            let p := sload(0)
+            mstore(0, p)
+            return(0, 32)
+        }
+    }
+}
+
+contract FlashBorrower {
+    MockERC20 token;
+
+    constructor(MockERC20 _token) {
+        token = _token;
+    }
+
+    /// @dev Called by Morpho as onMorphoFlashLoan(uint256, bytes)
+    fallback() external {
+        // approve Morpho to pull the tokens back
+        token.approve(msg.sender, type(uint256).max);
     }
 }
 
@@ -786,6 +860,233 @@ contract VerityMorphoSmokeTest {
             abi.encodeWithSelector(IMorphoSubset.withdraw.selector, params, 1 ether, 0, supplier, address(0))
         );
         require(!ok, "withdraw to zero receiver should fail");
+    }
+
+    // ── helpers to set up a market with collateral+borrow support ──
+
+    function _createMarketWithOracle()
+        internal
+        returns (
+            MockERC20 loanToken,
+            MockERC20 collateralToken,
+            MockOracle oracle,
+            IMorphoSubset.MarketParams memory params,
+            bytes32 id
+        )
+    {
+        loanToken = new MockERC20();
+        collateralToken = new MockERC20();
+        // Oracle price = 1e36 means 1 collateral = 1 loanToken
+        oracle = new MockOracle(1e36);
+        address irm = address(new MockIRM());
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        params = IMorphoSubset.MarketParams(address(loanToken), address(collateralToken), address(oracle), irm, lltv);
+        id = keccak256(abi.encode(address(loanToken), address(collateralToken), address(oracle), irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+    }
+
+    // ── supplyCollateral ──
+
+    function testSupplyCollateralUpdatesPosition() public {
+        (MockERC20 loanToken, MockERC20 collateralToken,, IMorphoSubset.MarketParams memory params, bytes32 id)
+            = _createMarketWithOracle();
+
+        address user = address(0xA11CE);
+        collateralToken.mint(user, 1_000 ether);
+        vm.prank(user);
+        collateralToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(user);
+        morpho.supplyCollateral(params, 500 ether, user, "");
+
+        (, , uint256 collateral) = morpho.position(id, user);
+        require(collateral == 500 ether, "collateral mismatch");
+        require(collateralToken.balanceOf(address(morpho)) == 500 ether, "morpho collateral balance mismatch");
+    }
+
+    // ── borrow + repay ──
+
+    function testBorrowAndRepay() public {
+        (MockERC20 loanToken, MockERC20 collateralToken,, IMorphoSubset.MarketParams memory params, bytes32 id)
+            = _createMarketWithOracle();
+
+        // 1. Supplier provides liquidity
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 10_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(supplier);
+        morpho.supply(params, 5_000 ether, 0, supplier, "");
+
+        // 2. Borrower posts collateral
+        address borrower = address(0xB0B);
+        collateralToken.mint(borrower, 10_000 ether);
+        vm.prank(borrower);
+        collateralToken.approve(address(morpho), type(uint256).max);
+        vm.prank(borrower);
+        morpho.supplyCollateral(params, 2_000 ether, borrower, "");
+
+        // 3. Borrow
+        vm.prank(borrower);
+        (uint256 assetsBorrowed, uint256 sharesBorrowed) = morpho.borrow(params, 100 ether, 0, borrower, borrower);
+        require(assetsBorrowed == 100 ether, "assetsBorrowed mismatch");
+        require(sharesBorrowed > 0, "sharesBorrowed should be positive");
+        require(loanToken.balanceOf(borrower) == 100 ether, "borrower should receive loan tokens");
+
+        uint256 totalBorrow = morpho.totalBorrowAssets(id);
+        require(totalBorrow == 100 ether, "totalBorrowAssets mismatch");
+
+        (, uint256 posBorrowShares,) = morpho.position(id, borrower);
+        require(posBorrowShares == sharesBorrowed, "position.borrowShares mismatch");
+
+        // 4. Repay
+        vm.prank(borrower);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(borrower);
+        (uint256 assetsRepaid, uint256 sharesRepaid) = morpho.repay(params, 100 ether, 0, borrower, "");
+        require(assetsRepaid == 100 ether, "assetsRepaid mismatch");
+        require(sharesRepaid == sharesBorrowed, "sharesRepaid mismatch");
+
+        uint256 totalBorrowAfter = morpho.totalBorrowAssets(id);
+        require(totalBorrowAfter == 0, "totalBorrowAssets after repay should be 0");
+
+        (, uint256 posBorrowSharesAfter,) = morpho.position(id, borrower);
+        require(posBorrowSharesAfter == 0, "position.borrowShares after repay should be 0");
+    }
+
+    // ── withdrawCollateral ──
+
+    function testWithdrawCollateral() public {
+        (MockERC20 loanToken, MockERC20 collateralToken,, IMorphoSubset.MarketParams memory params, bytes32 id)
+            = _createMarketWithOracle();
+
+        address user = address(0xA11CE);
+        collateralToken.mint(user, 1_000 ether);
+        vm.prank(user);
+        collateralToken.approve(address(morpho), type(uint256).max);
+        vm.prank(user);
+        morpho.supplyCollateral(params, 500 ether, user, "");
+
+        address receiver = address(0xC0FFEE);
+        vm.prank(user);
+        morpho.withdrawCollateral(params, 200 ether, user, receiver);
+
+        (, , uint256 collateral) = morpho.position(id, user);
+        require(collateral == 300 ether, "collateral after withdraw mismatch");
+        require(collateralToken.balanceOf(receiver) == 200 ether, "receiver collateral balance mismatch");
+    }
+
+    // ── liquidate ──
+
+    function testLiquidateUnhealthyPosition() public {
+        (MockERC20 loanToken, MockERC20 collateralToken, MockOracle oracle, IMorphoSubset.MarketParams memory params, bytes32 id)
+            = _createMarketWithOracle();
+
+        // 1. Supplier provides liquidity
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 100_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(supplier);
+        morpho.supply(params, 50_000 ether, 0, supplier, "");
+
+        // 2. Borrower posts collateral and borrows
+        address borrower = address(0xB0B);
+        collateralToken.mint(borrower, 1_000 ether);
+        vm.prank(borrower);
+        collateralToken.approve(address(morpho), type(uint256).max);
+        vm.prank(borrower);
+        morpho.supplyCollateral(params, 1_000 ether, borrower, "");
+
+        // Borrow 500 (safe with 1000 collateral at 0.8 LLTV = max 800)
+        vm.prank(borrower);
+        morpho.borrow(params, 500 ether, 0, borrower, borrower);
+
+        // 3. Drop oracle price to make position unhealthy
+        // At price=0.5e36, collateral worth = 1000 * 0.5 = 500, max borrow = 500 * 0.8 = 400
+        // But borrower has 500 borrowed → unhealthy
+        oracle.setPrice(0.5e36);
+
+        // 4. Liquidator seizes collateral
+        address liquidator = address(0xDEAD);
+        loanToken.mint(liquidator, 100_000 ether);
+        vm.prank(liquidator);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(liquidator);
+        (uint256 seizedAssets, uint256 repaidAssets) = morpho.liquidate(params, borrower, 10 ether, 0, "");
+        require(seizedAssets == 10 ether, "seizedAssets mismatch");
+        require(repaidAssets > 0, "repaidAssets should be positive");
+
+        // Verify collateral was seized
+        (, , uint256 collateralAfter) = morpho.position(id, borrower);
+        require(collateralAfter == 990 ether, "collateral after liquidation mismatch");
+        require(collateralToken.balanceOf(liquidator) == 10 ether, "liquidator should receive collateral");
+    }
+
+    // ── flashLoan ──
+
+    function testFlashLoan() public {
+        MockERC20 token = new MockERC20();
+        // Seed Morpho with tokens (flashLoan transfers from Morpho's balance)
+        token.mint(address(morpho), 1_000 ether);
+
+        FlashBorrower borrower = new FlashBorrower(token);
+        // Give the borrower tokens to repay (flashLoan transfers back same amount)
+        token.mint(address(borrower), 1_000 ether);
+
+        vm.prank(address(borrower));
+        morpho.flashLoan(address(token), 100 ether, "");
+
+        // After flashLoan: Morpho balance should be restored
+        require(token.balanceOf(address(morpho)) == 1_000 ether, "morpho balance should be unchanged after flashLoan");
+    }
+
+    function testFlashLoanRejectsZeroAssets() public {
+        MockERC20 token = new MockERC20();
+        vm.prank(address(0xA11CE));
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(IMorphoSubset.flashLoan.selector, address(token), 0, bytes(""))
+        );
+        require(!ok, "flashLoan with zero assets should revert");
+    }
+
+    // ── borrow revert cases ──
+
+    function testBorrowRejectsInsufficientCollateral() public {
+        (MockERC20 loanToken, MockERC20 collateralToken,, IMorphoSubset.MarketParams memory params, bytes32 id)
+            = _createMarketWithOracle();
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 10_000 ether);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(supplier);
+        morpho.supply(params, 5_000 ether, 0, supplier, "");
+
+        // Borrower posts small collateral, tries to borrow too much
+        address borrower = address(0xB0B);
+        collateralToken.mint(borrower, 100 ether);
+        vm.prank(borrower);
+        collateralToken.approve(address(morpho), type(uint256).max);
+        vm.prank(borrower);
+        morpho.supplyCollateral(params, 100 ether, borrower, "");
+
+        // With 100 collateral, lltv=0.8, max borrow = 80 tokens. Try 90.
+        vm.prank(borrower);
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(IMorphoSubset.borrow.selector, params, 90 ether, 0, borrower, borrower)
+        );
+        require(!ok, "borrow exceeding health factor should revert");
     }
 
     function _loadBytecode(string memory path) internal view returns (bytes memory) {
