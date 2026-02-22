@@ -79,6 +79,9 @@ jobs:
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
         run: forge test -vvv
+        env:
+          FOUNDRY_FUZZ_RUNS: 1000
+          FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
 
   morpho-blue-parity:
     name: Morpho Blue differential suite (Solidity vs Verity)

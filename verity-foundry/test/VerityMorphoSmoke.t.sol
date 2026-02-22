@@ -18,6 +18,8 @@ interface Vm {
         external;
     function addr(uint256 privateKey) external returns (address);
     function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
+    function assume(bool condition) external;
+    function label(address a, string calldata name) external;
 }
 
 interface IMorphoSubset {
@@ -42,6 +44,7 @@ interface IMorphoSubset {
     }
 
     function owner() external view returns (address);
+    function setOwner(address newOwner) external;
     function feeRecipient() external view returns (address);
     function isIrmEnabled(address irm) external view returns (bool);
     function isLltvEnabled(uint256 lltv) external view returns (bool);
@@ -1087,6 +1090,295 @@ contract VerityMorphoSmokeTest {
             abi.encodeWithSelector(IMorphoSubset.borrow.selector, params, 90 ether, 0, borrower, borrower)
         );
         require(!ok, "borrow exceeding health factor should revert");
+    }
+
+    // ── admin operations ──
+
+    function testSetOwnerUpdatesOwner() public {
+        address newOwner = address(0xCAFE);
+        vm.prank(OWNER);
+        morpho.setOwner(newOwner);
+        require(morpho.owner() == newOwner, "owner should be updated");
+    }
+
+    function testSetOwnerRejectsNonOwner() public {
+        (bool ok,) = address(morpho).call(abi.encodeWithSelector(IMorphoSubset.setOwner.selector, address(0xCAFE)));
+        require(!ok, "non-owner setOwner should revert");
+    }
+
+    function testSetFeeRecipientUpdates() public {
+        address recipient = address(0xFEE);
+        vm.prank(OWNER);
+        morpho.setFeeRecipient(recipient);
+        require(morpho.feeRecipient() == recipient, "feeRecipient should be updated");
+    }
+
+    function testSetFeeRecipientRejectsNonOwner() public {
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(IMorphoSubset.setFeeRecipient.selector, address(0xFEE))
+        );
+        require(!ok, "non-owner setFeeRecipient should revert");
+    }
+
+    // ── multi-market isolation ──
+
+    function testMultiMarketIsolation() public {
+        MockERC20 loanA = new MockERC20();
+        MockERC20 loanB = new MockERC20();
+        MockERC20 collateralToken = new MockERC20();
+        MockOracle oracle = new MockOracle(1e36);
+        address irm = address(new MockIRM());
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory paramsA =
+            IMorphoSubset.MarketParams(address(loanA), address(collateralToken), address(oracle), irm, lltv);
+        IMorphoSubset.MarketParams memory paramsB =
+            IMorphoSubset.MarketParams(address(loanB), address(collateralToken), address(oracle), irm, lltv);
+        bytes32 idA = keccak256(abi.encode(address(loanA), address(collateralToken), address(oracle), irm, lltv));
+        bytes32 idB = keccak256(abi.encode(address(loanB), address(collateralToken), address(oracle), irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(paramsA);
+        vm.prank(OWNER);
+        morpho.createMarket(paramsB);
+
+        // Supply 100 to market A only
+        address supplier = address(0xA11CE);
+        loanA.mint(supplier, 1_000 ether);
+        vm.prank(supplier);
+        loanA.approve(address(morpho), type(uint256).max);
+        vm.prank(supplier);
+        morpho.supply(paramsA, 100 ether, 0, supplier, "");
+
+        // Market A should have supply, market B should be empty
+        require(morpho.totalSupplyAssets(idA) == 100 ether, "market A totalSupplyAssets mismatch");
+        require(morpho.totalSupplyAssets(idB) == 0, "market B should have no supply");
+        require(morpho.totalSupplyShares(idB) == 0, "market B should have no shares");
+
+        (uint256 sharesA,,) = morpho.position(idA, supplier);
+        (uint256 sharesB,,) = morpho.position(idB, supplier);
+        require(sharesA > 0, "supplier should have shares in market A");
+        require(sharesB == 0, "supplier should have no shares in market B");
+    }
+
+    // ── setAuthorizationWithSig edge cases ──
+
+    function testSetAuthorizationWithSigRejectsReplay() public {
+        uint256 authorizerPk = 0xA11CE;
+        address authorizer = vm.addr(authorizerPk);
+        address authorized = address(0xB0B);
+        uint256 deadline = block.timestamp + 1 days;
+
+        IMorphoSubset.Authorization memory authorization = IMorphoSubset.Authorization({
+            authorizer: authorizer,
+            authorized: authorized,
+            isAuthorized: true,
+            nonce: morpho.nonce(authorizer),
+            deadline: deadline
+        });
+
+        bytes32 structHash = keccak256(
+            abi.encode(AUTHORIZATION_TYPEHASH, authorizer, authorized, true, authorization.nonce, deadline)
+        );
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, block.chainid, address(morpho)));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(authorizerPk, digest);
+
+        IMorphoSubset.Signature memory signature = IMorphoSubset.Signature({v: v, r: r, s: s});
+        morpho.setAuthorizationWithSig(authorization, signature);
+        require(morpho.nonce(authorizer) == 1, "nonce should increment");
+
+        // Replay the same signature — nonce is now 1 but authorization.nonce is still 0
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(
+                IMorphoSubset.setAuthorizationWithSig.selector, authorization, signature
+            )
+        );
+        require(!ok, "replay should revert (nonce already used)");
+    }
+
+    function testSetAuthorizationWithSigRejectsExpiredDeadline() public {
+        uint256 authorizerPk = 0xA11CE;
+        address authorizer = vm.addr(authorizerPk);
+        address authorized = address(0xB0B);
+
+        vm.warp(1000);
+        uint256 deadline = 500; // already in the past
+
+        IMorphoSubset.Authorization memory authorization = IMorphoSubset.Authorization({
+            authorizer: authorizer,
+            authorized: authorized,
+            isAuthorized: true,
+            nonce: morpho.nonce(authorizer),
+            deadline: deadline
+        });
+
+        bytes32 structHash = keccak256(
+            abi.encode(AUTHORIZATION_TYPEHASH, authorizer, authorized, true, authorization.nonce, deadline)
+        );
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, block.chainid, address(morpho)));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(authorizerPk, digest);
+
+        IMorphoSubset.Signature memory signature = IMorphoSubset.Signature({v: v, r: r, s: s});
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(
+                IMorphoSubset.setAuthorizationWithSig.selector, authorization, signature
+            )
+        );
+        require(!ok, "expired deadline should revert");
+    }
+
+    function testSetAuthorizationWithSigRejectsWrongSigner() public {
+        uint256 wrongPk = 0xDEAD;
+        uint256 authorizerPk = 0xA11CE;
+        address authorizer = vm.addr(authorizerPk);
+        address authorized = address(0xB0B);
+        uint256 deadline = block.timestamp + 1 days;
+
+        IMorphoSubset.Authorization memory authorization = IMorphoSubset.Authorization({
+            authorizer: authorizer,
+            authorized: authorized,
+            isAuthorized: true,
+            nonce: morpho.nonce(authorizer),
+            deadline: deadline
+        });
+
+        bytes32 structHash = keccak256(
+            abi.encode(AUTHORIZATION_TYPEHASH, authorizer, authorized, true, authorization.nonce, deadline)
+        );
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, block.chainid, address(morpho)));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        // Sign with wrong key
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPk, digest);
+
+        IMorphoSubset.Signature memory signature = IMorphoSubset.Signature({v: v, r: r, s: s});
+        (bool ok,) = address(morpho).call(
+            abi.encodeWithSelector(
+                IMorphoSubset.setAuthorizationWithSig.selector, authorization, signature
+            )
+        );
+        require(!ok, "wrong signer should revert");
+    }
+
+    // ── fuzz tests ──
+
+    function testFuzzSupplyWithdrawRoundTrip(uint256 supplyAmount) public {
+        vm.assume(supplyAmount > 0 && supplyAmount <= 1e30);
+
+        MockERC20 loanToken = new MockERC20();
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether);
+        bytes32 id = keccak256(abi.encode(address(loanToken), address(0x3333), address(0x4444), address(0x1111), 0.8 ether));
+
+        vm.prank(OWNER);
+        morpho.enableIrm(address(0x1111));
+        vm.prank(OWNER);
+        morpho.enableLltv(0.8 ether);
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, supplyAmount);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(supplier);
+        (uint256 assetsSupplied, uint256 sharesSupplied) = morpho.supply(params, supplyAmount, 0, supplier, "");
+        require(assetsSupplied == supplyAmount, "supply amount mismatch");
+        require(sharesSupplied > 0, "shares should be positive");
+
+        // Withdraw everything
+        vm.prank(supplier);
+        (uint256 assetsWithdrawn,) = morpho.withdraw(params, 0, sharesSupplied, supplier, supplier);
+        require(assetsWithdrawn == supplyAmount, "full withdraw should return all assets");
+        require(morpho.totalSupplyAssets(id) == 0, "totalSupplyAssets should be 0 after full withdraw");
+    }
+
+    function testFuzzBorrowRepayRoundTrip(uint256 borrowAmount) public {
+        vm.assume(borrowAmount > 0 && borrowAmount <= 1e27);
+
+        (MockERC20 loanToken, MockERC20 collateralToken,, IMorphoSubset.MarketParams memory params, bytes32 id) =
+            _createMarketWithOracle();
+
+        // Supplier provides liquidity
+        address supplier = address(0xA11CE);
+        loanToken.mint(supplier, 1e30);
+        vm.prank(supplier);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(supplier);
+        morpho.supply(params, 1e30, 0, supplier, "");
+
+        // Borrower posts ample collateral (10x borrowAmount to always be safe)
+        address borrower = address(0xB0B);
+        uint256 collateralAmount = borrowAmount * 10;
+        collateralToken.mint(borrower, collateralAmount);
+        vm.prank(borrower);
+        collateralToken.approve(address(morpho), type(uint256).max);
+        vm.prank(borrower);
+        morpho.supplyCollateral(params, collateralAmount, borrower, "");
+
+        // Borrow
+        vm.prank(borrower);
+        (uint256 assetsBorrowed, uint256 sharesBorrowed) = morpho.borrow(params, borrowAmount, 0, borrower, borrower);
+        require(assetsBorrowed == borrowAmount, "borrow amount mismatch");
+        require(sharesBorrowed > 0, "borrow shares should be positive");
+
+        // Repay everything
+        vm.prank(borrower);
+        loanToken.approve(address(morpho), type(uint256).max);
+        vm.prank(borrower);
+        (uint256 assetsRepaid,) = morpho.repay(params, 0, sharesBorrowed, borrower, "");
+        require(assetsRepaid == borrowAmount, "full repay should match borrow");
+        require(morpho.totalBorrowAssets(id) == 0, "totalBorrowAssets should be 0 after full repay");
+    }
+
+    function testFuzzCollateralSupplyWithdraw(uint256 collateralAmount) public {
+        vm.assume(collateralAmount > 0 && collateralAmount <= 1e30);
+
+        (, MockERC20 collateralToken,, IMorphoSubset.MarketParams memory params, bytes32 id) =
+            _createMarketWithOracle();
+
+        address user = address(0xA11CE);
+        collateralToken.mint(user, collateralAmount);
+        vm.prank(user);
+        collateralToken.approve(address(morpho), type(uint256).max);
+
+        vm.prank(user);
+        morpho.supplyCollateral(params, collateralAmount, user, "");
+
+        (,, uint256 storedCollateral) = morpho.position(id, user);
+        require(storedCollateral == collateralAmount, "collateral should match deposited amount");
+
+        // Withdraw all
+        vm.prank(user);
+        morpho.withdrawCollateral(params, collateralAmount, user, user);
+
+        (,, uint256 collateralAfter) = morpho.position(id, user);
+        require(collateralAfter == 0, "collateral should be 0 after full withdraw");
+        require(collateralToken.balanceOf(user) == collateralAmount, "user should get all collateral back");
+    }
+
+    function testFuzzFlashLoan(uint256 amount) public {
+        vm.assume(amount > 0 && amount <= 1e30);
+
+        MockERC20 token = new MockERC20();
+        token.mint(address(morpho), amount);
+
+        FlashBorrower borrower = new FlashBorrower(token);
+        token.mint(address(borrower), amount);
+
+        vm.prank(address(borrower));
+        morpho.flashLoan(address(token), amount, "");
+
+        require(token.balanceOf(address(morpho)) == amount, "morpho balance should be unchanged after flashLoan");
     }
 
     function _loadBytecode(string memory path) internal view returns (bytes memory) {
