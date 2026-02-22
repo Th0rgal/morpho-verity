@@ -135,6 +135,22 @@ contract MockERC20 {
     }
 }
 
+contract MockIRM {
+    function borrowRate(
+        IMorphoSubset.MarketParams calldata,
+        uint256, uint256, uint256, uint256, uint256, uint256
+    ) external pure returns (uint256) {
+        return 0;
+    }
+
+    fallback() external {
+        assembly {
+            mstore(0, 0)
+            return(0, 32)
+        }
+    }
+}
+
 contract MockERC20FalseTransferFrom is MockERC20 {
     function transferFrom(address, address, uint256) external pure override returns (bool) {
         return false;
@@ -444,7 +460,7 @@ contract VerityMorphoSmokeTest {
         MockERC20 loanToken = new MockERC20();
         address collateralToken = address(0x3333);
         address oracle = address(0x4444);
-        address irm = address(0x1111);
+        address irm = address(new MockIRM());
         uint256 lltv = 0.8 ether;
 
         vm.prank(OWNER);
@@ -473,7 +489,7 @@ contract VerityMorphoSmokeTest {
         MockERC20 loanToken = new MockERC20();
         address collateralToken = address(0x3333);
         address oracle = address(0x4444);
-        address irm = address(0x1111);
+        address irm = address(new MockIRM());
         uint256 lltv = 0.8 ether;
 
         vm.prank(OWNER);
