@@ -524,6 +524,34 @@ contract VerityMorphoSmokeTest {
         require(uint256(packedAfterSetFee[0]) >> 128 == 0.1 ether, "packed fee after setFee mismatch");
     }
 
+    function testSetFeeAccruesInterestBeforeUpdating() public {
+        MockERC20 loanToken = new MockERC20();
+        address collateralToken = address(0x3333);
+        address oracle = address(0x4444);
+        address irm = address(new MockIRM());
+        uint256 lltv = 0.8 ether;
+
+        vm.prank(OWNER);
+        morpho.enableIrm(irm);
+        vm.prank(OWNER);
+        morpho.enableLltv(lltv);
+
+        IMorphoSubset.MarketParams memory params =
+            IMorphoSubset.MarketParams(address(loanToken), collateralToken, oracle, irm, lltv);
+        bytes32 id = keccak256(abi.encode(address(loanToken), collateralToken, oracle, irm, lltv));
+
+        vm.warp(1234567890);
+        vm.prank(OWNER);
+        morpho.createMarket(params);
+        require(morpho.lastUpdate(id) == 1234567890, "lastUpdate after create mismatch");
+
+        // Advance time — setFee should accrue interest first and update lastUpdate
+        vm.warp(1234567900);
+        vm.prank(OWNER);
+        morpho.setFee(params, 0.1 ether);
+        require(morpho.lastUpdate(id) == 1234567900, "lastUpdate should be updated by setFee accrual");
+    }
+
     function testPackedMarketSlotTracksSupplyAndWithdraw() public {
         MockERC20 loanToken = new MockERC20();
         IMorphoSubset.MarketParams memory params =

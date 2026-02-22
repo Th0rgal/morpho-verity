@@ -1257,13 +1257,19 @@ private def injectStorageCompat (text : String) : Except String String := do
   let constructorNew := "        sstore(0, arg0)\n        sstore(1, 0)\n        log2(0, 0, 0x167d3e9c1016ab80e58802ca9da10ce5c6a0f4debc46a2e7a2cd9e56899a4fb5, arg0)\n"
   let t1 ← replaceOrThrow t0 constructorOld constructorNew "constructor SetOwner event"
 
+  -- Morpho Blue calls _accrueInterest(marketParams, id) in setFee before updating
+  -- the fee. Inject the accrueInterest compat block before the max-fee check.
+  let setFeeAccrueOld := "                if gt(newFee, 250000000000000000) {\n"
+  let setFeeAccrueNew := accrueInterestCompatBlock ++ "                if gt(newFee, 250000000000000000) {\n"
+  let t1b ← replaceOrThrow t1 setFeeAccrueOld setFeeAccrueNew "setFee accrueInterest injection"
+
   -- Morpho packs `marketFee` (high 128 bits) and `marketLastUpdate` (low 128 bits)
   -- in `markets[id].slot2`, so the Yul patch must keep this packed mirror in sync
   -- with the spec-level mapping writes used by the compiler.
   let setFeeOld := "sstore(mappingSlot(7, id), newFee)\n"
   let setFeePacked := packMarketFeeSlot2Expr "__packed" "newFee"
   let setFeeNew := "sstore(mappingSlot(7, id), newFee)\n                let __marketSlot := add(mappingSlot(3, id), 2)\n                let __packed := sload(__marketSlot)\n                sstore(__marketSlot, " ++ setFeePacked ++ ")\n"
-  let t2 ← replaceOrThrow t1 setFeeOld setFeeNew "setFee packed slot compatibility"
+  let t2 ← replaceOrThrow t1b setFeeOld setFeeNew "setFee packed slot compatibility"
 
   -- IMorpho defines CreateMarket as `CreateMarket(bytes32,(address,address,address,address,uint256))`.
   -- The current IR event renderer flattens tuple components, so patch topic0 to the canonical tuple hash.
