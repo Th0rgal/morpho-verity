@@ -1226,17 +1226,27 @@ private def setAuthorizationWithSigCase : String := "\
             }\n"
 
 private def injectSupplyShim (text : String) : Except String String := do
-  let needle := "            default {\n                revert(0, 0)\n            }\n"
-  let patched := text.replace needle (supplyCase ++ withdrawCase ++ supplyCollateralCase ++ withdrawCollateralCase ++ borrowCase ++ repayCase ++ liquidateCase ++ flashLoanCase ++ setAuthorizationWithSigCase ++ needle)
-  if patched != text then
-    pure patched
+  let shimCases := supplyCase ++ withdrawCase ++ supplyCollateralCase ++ withdrawCollateralCase ++ borrowCase ++ repayCase ++ liquidateCase ++ flashLoanCase ++ setAuthorizationWithSigCase
+  let needleLegacy := "            default {\n                revert(0, 0)\n            }\n"
+  let needleParity := "                    default {\n                        revert(0, 0)\n                    }\n"
+  let patchedLegacy := text.replace needleLegacy (shimCases ++ needleLegacy)
+  if patchedLegacy != text then
+    pure patchedLegacy
   else
-    throw "Could not inject supply shim: default dispatch branch not found"
+    let patchedParity := text.replace needleParity (shimCases ++ needleParity)
+    if patchedParity != text then
+      pure patchedParity
+    else
+      throw "Could not inject supply shim: default dispatch branch not found"
 
 private def replaceOrThrow (text oldFragment newFragment : String) (label : String) : Except String String := do
   let patched := text.replace oldFragment newFragment
   if patched != text then pure patched
   else throw s!"Could not patch Yul output for {label}"
+
+private def replaceIfPresent (text oldFragment newFragment : String) : String :=
+  let patched := text.replace oldFragment newFragment
+  if patched != text then patched else text
 
 private def lower128Mask : String := "0xffffffffffffffffffffffffffffffff"
 private def upper128Mask : String := "0xffffffffffffffffffffffffffffffff00000000000000000000000000000000"
@@ -1250,14 +1260,15 @@ private def packMarketFeeSlot2Expr (packed fee : String) : String :=
 private def packMarketLastUpdateSlot2Expr (packed lastUpdate : String) : String :=
   s!"or(and({packed}, {upper128Mask}), and({lastUpdate}, {lower128Mask}))"
 
-private def injectStorageCompat (text : String) : Except String String := do
-  let mappingSlotOld := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0, key)\n                mstore(32, baseSlot)\n                slot := keccak256(0, 64)\n            }\n"
-  let mappingSlotNew := "            function mappingSlot(baseSlot, key) -> slot {\n                mstore(0x200, key)\n                mstore(0x220, baseSlot)\n                slot := keccak256(0x200, 64)\n            }\n"
-  let t0 ← replaceOrThrow text mappingSlotOld mappingSlotNew "mappingSlot scratch memory safety"
+private def morphoEmitOptions : _root_.Compiler.YulEmitOptions :=
+  { backendProfile := .semantic
+    patchConfig := { enabled := false, maxIterations := 2 }
+    mappingSlotScratchBase := 0x200 }
 
+private def injectStorageCompat (text : String) : Except String String := do
   let constructorOld := "        sstore(0, arg0)\n        sstore(1, 0)\n"
   let constructorNew := "        sstore(0, arg0)\n        sstore(1, 0)\n        log2(0, 0, 0x167d3e9c1016ab80e58802ca9da10ce5c6a0f4debc46a2e7a2cd9e56899a4fb5, arg0)\n"
-  let t1 ← replaceOrThrow t0 constructorOld constructorNew "constructor SetOwner event"
+  let t1 ← replaceOrThrow text constructorOld constructorNew "constructor SetOwner event"
 
   -- Morpho Blue calls _accrueInterest(marketParams, id) in setFee before updating
   -- the fee. Inject the accrueInterest compat block before the max-fee check.
@@ -1279,7 +1290,7 @@ private def injectStorageCompat (text : String) : Except String String := do
     "mstore(add(__evt_ptr, 0), 0x4372656174654d61726b657428627974657333322c616464726573732c616464)\n                    mstore(add(__evt_ptr, 32), 0x726573732c616464726573732c616464726573732c75696e7432353629000000)\n                    let __evt_topic0 := keccak256(__evt_ptr, 61)\n"
   let createMarketTopicNew :=
     "let __evt_topic0 := 0xac4b2400f169220b0c0afdde7a0b32e775ba727ea1cb30b35f935cdaab8683ac\n"
-  let t3a ← replaceOrThrow t2 createMarketTopicOld createMarketTopicNew "CreateMarket tuple event topic compatibility"
+  let t3a := replaceIfPresent t2 createMarketTopicOld createMarketTopicNew
 
   -- NOTE: enableLltv event patch removed — the Verity compiler spec now generates
   -- the correct log1 format directly (lltv in data, not as indexed topic).
@@ -1294,16 +1305,26 @@ private def injectStorageCompat (text : String) : Except String String := do
   let withdrawNew := s!"sstore(mappingSlot(8, id), __newTotalSupplyAssets)\nsstore(mappingSlot(9, id), __newTotalSupplyShares)\nlet __marketSlot0 := mappingSlot(3, id)\nsstore(__marketSlot0, {withdrawSlot0Packed})\nmstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n"
   let t5 ← replaceOrThrow t4 withdrawOld withdrawNew "withdraw packed slot compatibility"
 
-  let accrueOld := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"
+  let accrueOldLegacy := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n"
+  let accrueOldRuntime := "let __ite_cond := gt(timestamp(), sload(mappingSlot(6, id)))\n                            if __ite_cond {\n                                sstore(mappingSlot(6, id), timestamp())\n"
   let accruePacked := packMarketLastUpdateSlot2Expr "__packed" "timestamp()"
   let accrueNew := "let __prevLastUpdate := sload(mappingSlot(6, id))\n                    let __ite_cond := gt(timestamp(), __prevLastUpdate)\n                    if __ite_cond {\n                        sstore(mappingSlot(6, id), timestamp())\n                        let __marketSlot := add(mappingSlot(3, id), 2)\n                        let __packed := sload(__marketSlot)\n                        sstore(__marketSlot, " ++ accruePacked ++ ")\n"
-  let t6 ← replaceOrThrow t5 accrueOld accrueNew "accrueInterest packed slot compatibility"
+  let t6Candidate := t5.replace accrueOldLegacy accrueNew
+  let t6 ←
+    if t6Candidate != t5 then
+      pure t6Candidate
+    else
+      let t6Runtime := t5.replace accrueOldRuntime accrueNew
+      if t6Runtime != t5 then
+        pure t6Runtime
+      else
+        throw "Could not patch Yul output for accrueInterest packed slot compatibility"
 
   let accrueEventOld :=
     "if iszero(eq(irm, 0)) {\n                            {\n                                let __evt_ptr := mload(64)\n                                mstore(add(__evt_ptr, 0), 0x416363727565496e74657265737428627974657333322c75696e743235362c75)\n                                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e74323536290000000000000000000000000000000000)\n                                let __evt_topic0 := keccak256(__evt_ptr, 47)\n                                mstore(add(__evt_ptr, 0), 0)\n                                mstore(add(__evt_ptr, 32), 0)\n                                mstore(add(__evt_ptr, 64), 0)\n                                log2(__evt_ptr, 96, __evt_topic0, id)\n                            }\n                        }\n"
   let accrueEventNew :=
     "if iszero(eq(irm, 0)) {\n                            let totalBorrowAssets := sload(mappingSlot(10, id))\n                            let totalBorrowShares := sload(mappingSlot(11, id))\n                            let totalSupplyAssets := sload(mappingSlot(8, id))\n                            let totalSupplyShares := sload(mappingSlot(9, id))\n                            let fee := and(sload(mappingSlot(7, id)), 0xffffffffffffffffffffffffffffffff)\n                            mstore(0, 0x9451fed400000000000000000000000000000000000000000000000000000000)\n                            mstore(4, loanToken)\n                            mstore(36, collateralToken)\n                            mstore(68, oracle)\n                            mstore(100, irm)\n                            mstore(132, lltv)\n                            mstore(164, and(totalSupplyAssets, 0xffffffffffffffffffffffffffffffff))\n                            mstore(196, and(totalSupplyShares, 0xffffffffffffffffffffffffffffffff))\n                            mstore(228, and(totalBorrowAssets, 0xffffffffffffffffffffffffffffffff))\n                            mstore(260, and(totalBorrowShares, 0xffffffffffffffffffffffffffffffff))\n                            mstore(292, and(__prevLastUpdate, 0xffffffffffffffffffffffffffffffff))\n                            mstore(324, fee)\n                            if iszero(call(gas(), irm, 0, 0, 356, 0, 32)) {\n                                returndatacopy(0, 0, returndatasize())\n                                revert(0, returndatasize())\n                            }\n                            if lt(returndatasize(), 32) {\n                                revert(0, 0)\n                            }\n                            returndatacopy(0, 0, 32)\n                            let borrowRate := mload(0)\n                            let elapsed := sub(timestamp(), __prevLastUpdate)\n                            let firstTerm := mul(borrowRate, elapsed)\n                            let secondTerm := div(mul(firstTerm, firstTerm), 2000000000000000000)\n                            let thirdTerm := div(mul(secondTerm, firstTerm), 3000000000000000000)\n                            let growth := add(firstTerm, add(secondTerm, thirdTerm))\n                            let interest := div(mul(totalBorrowAssets, growth), 1000000000000000000)\n                            let newTotalBorrowAssets := add(totalBorrowAssets, interest)\n                            let newTotalSupplyAssets := add(totalSupplyAssets, interest)\n                            sstore(mappingSlot(10, id), newTotalBorrowAssets)\n                            sstore(mappingSlot(8, id), newTotalSupplyAssets)\n                            let feeShares := 0\n                            let newTotalSupplyShares := totalSupplyShares\n                            if gt(fee, 0) {\n                                let feeAmount := div(mul(interest, fee), 1000000000000000000)\n                                let feeDenominator := sub(newTotalSupplyAssets, feeAmount)\n                                feeShares := div(mul(feeAmount, add(totalSupplyShares, 1000000)), add(feeDenominator, 1))\n                                let feeRecipient := and(sload(1), 0xffffffffffffffffffffffffffffffffffffffff)\n                                let feePosSlot := mappingSlot(mappingSlot(17, id), feeRecipient)\n                                sstore(feePosSlot, add(sload(feePosSlot), feeShares))\n                                let feePosCompat := mappingSlot(mappingSlot(2, id), feeRecipient)\n                                sstore(feePosCompat, add(sload(feePosCompat), feeShares))\n                                newTotalSupplyShares := add(totalSupplyShares, feeShares)\n                                sstore(mappingSlot(9, id), newTotalSupplyShares)\n                            }\n                            let __marketSlot0 := mappingSlot(3, id)\n                            sstore(__marketSlot0, or(and(newTotalSupplyAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(newTotalSupplyShares, 0xffffffffffffffffffffffffffffffff))))\n                            sstore(add(__marketSlot0, 1), or(and(newTotalBorrowAssets, 0xffffffffffffffffffffffffffffffff), shl(128, and(totalBorrowShares, 0xffffffffffffffffffffffffffffffff))))\n                            mstore(0, borrowRate)\n                            mstore(32, interest)\n                            mstore(64, feeShares)\n                            log2(0, 96, 0x9d9bd501d0657d7dfe415f779a620a62b78bc508ddc0891fbbd8b7ac0f8fce87, id)\n                        }\n"
-  let t7 ← replaceOrThrow t6 accrueEventOld accrueEventNew "accrueInterest event/math compatibility"
+  let t7 := replaceIfPresent t6 accrueEventOld accrueEventNew
 
   let t8 ← replaceOrThrow t7 "mappingSlot(8, id)" "mappingSlot(20, id)" "totalSupplyAssets storage remap"
   let t9 ← replaceOrThrow t8 "mappingSlot(9, id)" "mappingSlot(21, id)" "totalSupplyShares storage remap"
@@ -1314,14 +1335,14 @@ private def injectStorageCompat (text : String) : Except String String := do
     "case 0x3644e515 {\n                /* DOMAIN_SEPARATOR() */\n                if callvalue() {\n                    revert(0, 0)\n                }\n                if lt(calldatasize(), 4) {\n                    revert(0, 0)\n                }\n                mstore(0, 0)\n                return(0, 32)\n            }\n"
   let domainSeparatorNew :=
     "case 0x3644e515 {\n                /* DOMAIN_SEPARATOR() */\n                if callvalue() {\n                    revert(0, 0)\n                }\n                if lt(calldatasize(), 4) {\n                    revert(0, 0)\n                }\n                mstore(0, 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218)\n                mstore(32, chainid())\n                mstore(64, and(address(), 0xffffffffffffffffffffffffffffffffffffffff))\n                mstore(0, keccak256(0, 96))\n                return(0, 32)\n            }\n"
-  let t12 ← replaceOrThrow t11 domainSeparatorOld domainSeparatorNew "DOMAIN_SEPARATOR EIP712 compatibility"
+  let t12 := replaceIfPresent t11 domainSeparatorOld domainSeparatorNew
 
   let createMarketOld := "sstore(mappingSlot(16, id), lltv)\n"
   let createMarketNew := "sstore(mappingSlot(16, id), lltv)\n                let __paramsBase := mappingSlot(8, id)\n                sstore(__paramsBase, loanToken)\n                sstore(add(__paramsBase, 1), collateralToken)\n                sstore(add(__paramsBase, 2), oracle)\n                sstore(add(__paramsBase, 3), irm)\n                sstore(add(__paramsBase, 4), lltv)\n                let __marketBase := mappingSlot(3, id)\n                sstore(__marketBase, 0)\n                sstore(add(__marketBase, 1), 0)\n                sstore(add(__marketBase, 2), timestamp())\n"
-  replaceOrThrow t12 createMarketOld createMarketNew "createMarket packed slot compatibility"
+  pure (replaceIfPresent t12 createMarketOld createMarketNew)
 
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
-  let yulObj := _root_.Compiler.emitYul contract
+  let yulObj := _root_.Compiler.emitYulWithOptions contract morphoEmitOptions
   let libraries ← libraryPaths.mapM loadLibrary
   let allLibFunctions := libraries.flatten
 
