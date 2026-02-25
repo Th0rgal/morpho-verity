@@ -22,6 +22,49 @@ private def maxLIF : Nat := 1150000000000000000  -- 1.15e18
 private def betaLIF : Nat := 300000000000000000  -- 0.3e18
 
 -- ============================================================================
+-- Struct member definitions (matching Solidity packed layout)
+-- ============================================================================
+
+/-- Position struct: mapping(Id => mapping(address => Position)).
+    Solidity layout at base slot 2:
+    - Word 0: supplyShares (uint256)
+    - Word 1: borrowShares (uint128, bits 0..127) | collateral (uint128, bits 128..255) -/
+private def positionMembers : List StructMember := [
+  { name := "supplyShares", wordOffset := 0 },
+  { name := "borrowShares", wordOffset := 1, packed := some { offset := 0, width := 128 } },
+  { name := "collateral",   wordOffset := 1, packed := some { offset := 128, width := 128 } }
+]
+
+/-- Market struct: mapping(Id => Market).
+    Solidity layout at base slot 3:
+    - Word 0: totalSupplyAssets (uint128, bits 0..127) | totalSupplyShares (uint128, bits 128..255)
+    - Word 1: totalBorrowAssets (uint128, bits 0..127) | totalBorrowShares (uint128, bits 128..255)
+    - Word 2: lastUpdate (uint128, bits 0..127) | fee (uint128, bits 128..255) -/
+private def marketMembers : List StructMember := [
+  { name := "totalSupplyAssets", wordOffset := 0, packed := some { offset := 0, width := 128 } },
+  { name := "totalSupplyShares", wordOffset := 0, packed := some { offset := 128, width := 128 } },
+  { name := "totalBorrowAssets", wordOffset := 1, packed := some { offset := 0, width := 128 } },
+  { name := "totalBorrowShares", wordOffset := 1, packed := some { offset := 128, width := 128 } },
+  { name := "lastUpdate",        wordOffset := 2, packed := some { offset := 0, width := 128 } },
+  { name := "fee",               wordOffset := 2, packed := some { offset := 128, width := 128 } }
+]
+
+/-- MarketParams struct: mapping(Id => MarketParams).
+    Solidity layout at base slot 8:
+    - Word 0: loanToken (address)
+    - Word 1: collateralToken (address)
+    - Word 2: oracle (address)
+    - Word 3: irm (address)
+    - Word 4: lltv (uint256) -/
+private def marketParamsMembers : List StructMember := [
+  { name := "loanToken",        wordOffset := 0 },
+  { name := "collateralToken",  wordOffset := 1 },
+  { name := "oracle",           wordOffset := 2 },
+  { name := "irm",              wordOffset := 3 },
+  { name := "lltv",             wordOffset := 4 }
+]
+
+-- ============================================================================
 -- Common helpers
 -- ============================================================================
 
@@ -56,7 +99,7 @@ private def unpackMarketParams (paramName : String := "marketParams") : List Stm
 /-- Require that a market has been created (lastUpdate > 0). -/
 private def requireMarketCreated : Stmt :=
   Stmt.require
-    (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
+    (Expr.gt (Expr.structMember "market" (Expr.localVar "id") "lastUpdate") (Expr.literal 0))
     "market not created"
 
 /-- Require exactly one of assets/shares is nonzero. -/
@@ -126,6 +169,102 @@ private def borrowRateSelector : Nat := 0x9451fed4
 private def oraclePriceSelector : Nat := 0xa035b1fe
 
 -- ============================================================================
+-- AccrueInterest internal function
+--
+-- Implements the full interest-rate-model call, Taylor series approximation,
+-- and fee distribution.  Called by the 6 operations that need it (supply,
+-- withdraw, borrow, repay, liquidate, withdrawCollateral) and the standalone
+-- accrueInterest and setFee entry points.
+--
+-- Parameters: id, loanToken, collateralToken, oracle, irm, lltv
+-- Returns:    (none — modifies storage directly)
+-- ============================================================================
+
+/-- _accrueInterest internal function body.
+    Reads market state from the packed struct, calls IRM, computes
+    Taylor-series growth, distributes fees, and writes back to market
+    and position structs. -/
+private def accrueInterestInternalBody : List Stmt := [
+  -- Load previous lastUpdate
+  Stmt.letVar "prevLastUpdate" (Expr.structMember "market" (Expr.param "id") "lastUpdate"),
+  Stmt.ite (Expr.gt Expr.blockTimestamp (Expr.localVar "prevLastUpdate"))
+    [
+      -- Update lastUpdate
+      Stmt.setStructMember "market" (Expr.param "id") "lastUpdate" Expr.blockTimestamp,
+      Stmt.ite
+        (Expr.logicalNot (Expr.eq (Expr.param "irm") (Expr.literal 0)))
+        [
+          -- Load market state from packed struct
+          Stmt.letVar "totalBorrowAssets" (Expr.structMember "market" (Expr.param "id") "totalBorrowAssets"),
+          Stmt.letVar "totalBorrowShares" (Expr.structMember "market" (Expr.param "id") "totalBorrowShares"),
+          Stmt.letVar "totalSupplyAssets" (Expr.structMember "market" (Expr.param "id") "totalSupplyAssets"),
+          Stmt.letVar "totalSupplyShares" (Expr.structMember "market" (Expr.param "id") "totalSupplyShares"),
+          Stmt.letVar "fee" (Expr.structMember "market" (Expr.param "id") "fee"),
+          -- Call IRM.borrowRate(MarketParams, Market)
+          -- ABI: borrowRate(marketParams, market) — 11 args total
+          Calls.withReturn "borrowRate" (Expr.param "irm") borrowRateSelector
+            [ Expr.param "loanToken",
+              Expr.param "collateralToken",
+              Expr.param "oracle",
+              Expr.param "irm",
+              Expr.param "lltv",
+              Expr.localVar "totalSupplyAssets",
+              Expr.localVar "totalSupplyShares",
+              Expr.localVar "totalBorrowAssets",
+              Expr.localVar "totalBorrowShares",
+              Expr.localVar "prevLastUpdate",
+              Expr.localVar "fee"
+            ] (isStatic := false),
+          -- Taylor series approximation: e^x ≈ 1 + x + x²/2 + x³/6
+          Stmt.letVar "elapsed" (Expr.sub Expr.blockTimestamp (Expr.localVar "prevLastUpdate")),
+          Stmt.letVar "firstTerm" (Expr.mul (Expr.localVar "borrowRate") (Expr.localVar "elapsed")),
+          Stmt.letVar "secondTerm" (Expr.div (Expr.mul (Expr.localVar "firstTerm") (Expr.localVar "firstTerm")) (Expr.literal (2 * wad))),
+          Stmt.letVar "thirdTerm" (Expr.div (Expr.mul (Expr.localVar "secondTerm") (Expr.localVar "firstTerm")) (Expr.literal (3 * wad))),
+          Stmt.letVar "growth" (Expr.add (Expr.localVar "firstTerm") (Expr.add (Expr.localVar "secondTerm") (Expr.localVar "thirdTerm"))),
+          Stmt.letVar "interest" (Expr.div (Expr.mul (Expr.localVar "totalBorrowAssets") (Expr.localVar "growth")) (Expr.literal wad)),
+          -- Update totals
+          Stmt.letVar "newTotalBorrowAssets" (Expr.add (Expr.localVar "totalBorrowAssets") (Expr.localVar "interest")),
+          Stmt.letVar "newTotalSupplyAssets" (Expr.add (Expr.localVar "totalSupplyAssets") (Expr.localVar "interest")),
+          Stmt.setStructMember "market" (Expr.param "id") "totalBorrowAssets" (Expr.localVar "newTotalBorrowAssets"),
+          Stmt.setStructMember "market" (Expr.param "id") "totalSupplyAssets" (Expr.localVar "newTotalSupplyAssets"),
+          -- Fee distribution
+          Stmt.letVar "feeShares" (Expr.literal 0),
+          Stmt.letVar "newTotalSupplyShares" (Expr.localVar "totalSupplyShares"),
+          Stmt.ite (Expr.gt (Expr.localVar "fee") (Expr.literal 0))
+            [
+              Stmt.letVar "feeAmount" (Expr.div (Expr.mul (Expr.localVar "interest") (Expr.localVar "fee")) (Expr.literal wad)),
+              Stmt.letVar "feeDenominator" (Expr.sub (Expr.localVar "newTotalSupplyAssets") (Expr.localVar "feeAmount")),
+              Stmt.assignVar "feeShares" (Expr.div
+                (Expr.mul (Expr.localVar "feeAmount") (Expr.add (Expr.localVar "totalSupplyShares") (Expr.literal virtualShares)))
+                (Expr.add (Expr.localVar "feeDenominator") (Expr.literal virtualAssets))),
+              -- Credit fee shares to fee recipient's position
+              Stmt.letVar "feeRecipient" (Expr.storage "feeRecipient"),
+              Stmt.letVar "feePosShares" (Expr.structMember2 "position" (Expr.param "id") (Expr.localVar "feeRecipient") "supplyShares"),
+              Stmt.setStructMember2 "position" (Expr.param "id") (Expr.localVar "feeRecipient") "supplyShares"
+                (Expr.add (Expr.localVar "feePosShares") (Expr.localVar "feeShares")),
+              Stmt.assignVar "newTotalSupplyShares" (Expr.add (Expr.localVar "totalSupplyShares") (Expr.localVar "feeShares")),
+              Stmt.setStructMember "market" (Expr.param "id") "totalSupplyShares" (Expr.localVar "newTotalSupplyShares")
+            ]
+            [],
+          -- Emit AccrueInterest event
+          Stmt.mstore (Expr.literal 0) (Expr.localVar "borrowRate"),
+          Stmt.mstore (Expr.literal 32) (Expr.localVar "interest"),
+          Stmt.mstore (Expr.literal 64) (Expr.localVar "feeShares"),
+          Stmt.rawLog [Expr.literal accrueInterestEventTopic, Expr.param "id"] (Expr.literal 0) (Expr.literal 96)
+        ]
+        []
+    ]
+    []
+]
+
+/-- Call the _accrueInterest internal function.
+    Assumes loanToken, collateralToken, oracle, irm, lltv, id are in scope. -/
+private def callAccrueInterest : Stmt :=
+  Stmt.internalCall "_accrueInterest"
+    [Expr.localVar "id", Expr.localVar "loanToken", Expr.localVar "collateralToken",
+     Expr.localVar "oracle", Expr.localVar "irm", Expr.localVar "lltv"]
+
+-- ============================================================================
 -- Operation function bodies
 -- ============================================================================
 
@@ -134,12 +273,12 @@ private def oraclePriceSelector : Nat := 0xa035b1fe
 private def supplyBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
-    -- accrueInterest is handled by injectStorageCompat patch
+    callAccrueInterest,
     requireConsistentInput (Expr.param "assets") (Expr.param "shares"),
     requireNonZeroAddr (Expr.param "onBehalf"),
     -- Load totals
-    Stmt.letVar "totalSupplyAssets" (Expr.mappingUint "marketTotalSupplyAssets" (Expr.localVar "id")),
-    Stmt.letVar "totalSupplyShares" (Expr.mappingUint "marketTotalSupplyShares" (Expr.localVar "id")),
+    Stmt.letVar "totalSupplyAssets" (Expr.structMember "market" (Expr.localVar "id") "totalSupplyAssets"),
+    Stmt.letVar "totalSupplyShares" (Expr.structMember "market" (Expr.localVar "id") "totalSupplyShares"),
     -- Compute shares/assets
     Stmt.letVar "denomShares" (Expr.add (Expr.localVar "totalSupplyShares") (Expr.literal virtualShares)),
     Stmt.letVar "denomAssets" (Expr.add (Expr.localVar "totalSupplyAssets") (Expr.literal virtualAssets)),
@@ -154,14 +293,14 @@ private def supplyBody : List Stmt :=
         []]
       [],
     -- Update position
-    Stmt.letVar "posShares" (Expr.mapping2 "positionSupplyShares" (Expr.localVar "id") (Expr.param "onBehalf")),
-    Stmt.setMapping2 "positionSupplyShares" (Expr.localVar "id") (Expr.param "onBehalf")
+    Stmt.letVar "posShares" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "supplyShares"),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "supplyShares"
       (Expr.add (Expr.localVar "posShares") (Expr.localVar "sharesSupplied")),
     -- Update totals
     Stmt.letVar "newTotalSupplyAssets" (Expr.add (Expr.localVar "totalSupplyAssets") (Expr.localVar "assetsSupplied")),
     Stmt.letVar "newTotalSupplyShares" (Expr.add (Expr.localVar "totalSupplyShares") (Expr.localVar "sharesSupplied")),
-    Stmt.setMappingUint "marketTotalSupplyAssets" (Expr.localVar "id") (Expr.localVar "newTotalSupplyAssets"),
-    Stmt.setMappingUint "marketTotalSupplyShares" (Expr.localVar "id") (Expr.localVar "newTotalSupplyShares"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyAssets" (Expr.localVar "newTotalSupplyAssets"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyShares" (Expr.localVar "newTotalSupplyShares"),
     -- Emit Supply event via rawLog: log3(0, 96, topic, id, onBehalf)
     Stmt.mstore (Expr.literal 0) Expr.caller,
     Stmt.mstore (Expr.literal 32) (Expr.localVar "assetsSupplied"),
@@ -180,12 +319,13 @@ private def supplyBody : List Stmt :=
 private def withdrawBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
+    callAccrueInterest,
     requireConsistentInput (Expr.param "assets") (Expr.param "shares"),
     requireNonZeroAddr (Expr.param "receiver"),
     requireAuthorized (Expr.param "onBehalf"),
     -- Load totals
-    Stmt.letVar "totalSupplyAssets" (Expr.mappingUint "marketTotalSupplyAssets" (Expr.localVar "id")),
-    Stmt.letVar "totalSupplyShares" (Expr.mappingUint "marketTotalSupplyShares" (Expr.localVar "id")),
+    Stmt.letVar "totalSupplyAssets" (Expr.structMember "market" (Expr.localVar "id") "totalSupplyAssets"),
+    Stmt.letVar "totalSupplyShares" (Expr.structMember "market" (Expr.localVar "id") "totalSupplyShares"),
     -- Compute shares/assets
     Stmt.letVar "denomShares" (Expr.add (Expr.localVar "totalSupplyShares") (Expr.literal virtualShares)),
     Stmt.letVar "denomAssets" (Expr.add (Expr.localVar "totalSupplyAssets") (Expr.literal virtualAssets)),
@@ -200,7 +340,7 @@ private def withdrawBody : List Stmt :=
         []]
       [],
     -- Check position
-    Stmt.letVar "posShares" (Expr.mapping2 "positionSupplyShares" (Expr.localVar "id") (Expr.param "onBehalf")),
+    Stmt.letVar "posShares" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "supplyShares"),
     Stmt.require (Expr.ge (Expr.localVar "posShares") (Expr.localVar "sharesWithdrawn")) "insufficient position",
     -- Check totals don't underflow
     Stmt.require
@@ -212,14 +352,14 @@ private def withdrawBody : List Stmt :=
     Stmt.letVar "newTotalSupplyAssets" (Expr.sub (Expr.localVar "totalSupplyAssets") (Expr.localVar "assetsWithdrawn")),
     Stmt.letVar "newTotalSupplyShares" (Expr.sub (Expr.localVar "totalSupplyShares") (Expr.localVar "sharesWithdrawn")),
     Stmt.require
-      (Expr.ge (Expr.localVar "newTotalSupplyAssets") (Expr.mappingUint "marketTotalBorrowAssets" (Expr.localVar "id")))
+      (Expr.ge (Expr.localVar "newTotalSupplyAssets") (Expr.structMember "market" (Expr.localVar "id") "totalBorrowAssets"))
       "insufficient liquidity",
     -- Update position
-    Stmt.setMapping2 "positionSupplyShares" (Expr.localVar "id") (Expr.param "onBehalf")
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "supplyShares"
       (Expr.sub (Expr.localVar "posShares") (Expr.localVar "sharesWithdrawn")),
     -- Update totals
-    Stmt.setMappingUint "marketTotalSupplyAssets" (Expr.localVar "id") (Expr.localVar "newTotalSupplyAssets"),
-    Stmt.setMappingUint "marketTotalSupplyShares" (Expr.localVar "id") (Expr.localVar "newTotalSupplyShares"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyAssets" (Expr.localVar "newTotalSupplyAssets"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyShares" (Expr.localVar "newTotalSupplyShares"),
     -- Emit Withdraw event: log4(0, 96, topic, id, onBehalf, receiver)
     Stmt.mstore (Expr.literal 0) Expr.caller,
     Stmt.mstore (Expr.literal 32) (Expr.localVar "assetsWithdrawn"),
@@ -235,11 +375,12 @@ private def withdrawBody : List Stmt :=
 private def supplyCollateralBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
+    callAccrueInterest,
     Stmt.require (Expr.gt (Expr.param "assets") (Expr.literal 0)) "zero assets",
     requireNonZeroAddr (Expr.param "onBehalf"),
     -- Update position
-    Stmt.letVar "newCollateral" (Expr.add (Expr.mapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "onBehalf")) (Expr.param "assets")),
-    Stmt.setMapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "onBehalf") (Expr.localVar "newCollateral"),
+    Stmt.letVar "newCollateral" (Expr.add (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "collateral") (Expr.param "assets")),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "collateral" (Expr.localVar "newCollateral"),
     -- Emit SupplyCollateral: log3(0, 64, topic, id, onBehalf)
     Stmt.mstore (Expr.literal 0) Expr.caller,
     Stmt.mstore (Expr.literal 32) (Expr.param "assets"),
@@ -255,23 +396,23 @@ private def supplyCollateralBody : List Stmt :=
 private def withdrawCollateralBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
+    callAccrueInterest,
     Stmt.require (Expr.gt (Expr.param "assets") (Expr.literal 0)) "zero assets",
     requireNonZeroAddr (Expr.param "receiver"),
     requireAuthorized (Expr.param "onBehalf"),
-    -- accrueInterest patched in
     -- Check position
-    Stmt.letVar "currentCollateral" (Expr.mapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "onBehalf")),
+    Stmt.letVar "currentCollateral" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "collateral"),
     Stmt.require (Expr.ge (Expr.localVar "currentCollateral") (Expr.param "assets")) "insufficient collateral",
     Stmt.letVar "newCollateral" (Expr.sub (Expr.localVar "currentCollateral") (Expr.param "assets")),
-    Stmt.setMapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "onBehalf") (Expr.localVar "newCollateral"),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "collateral" (Expr.localVar "newCollateral"),
     -- Health check: if borrower has borrow shares, check collateral sufficiency
-    Stmt.letVar "borrowShares" (Expr.mapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "onBehalf")),
+    Stmt.letVar "borrowShares" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "borrowShares"),
     Stmt.ite (Expr.gt (Expr.localVar "borrowShares") (Expr.literal 0))
       [
         -- Oracle price call
         Calls.withReturn "collateralPrice" (Expr.localVar "oracle") oraclePriceSelector [] (isStatic := true),
-        Stmt.letVar "totalBorrowAssets" (Expr.mappingUint "marketTotalBorrowAssets" (Expr.localVar "id")),
-        Stmt.letVar "totalBorrowShares" (Expr.mappingUint "marketTotalBorrowShares" (Expr.localVar "id")),
+        Stmt.letVar "totalBorrowAssets" (Expr.structMember "market" (Expr.localVar "id") "totalBorrowAssets"),
+        Stmt.letVar "totalBorrowShares" (Expr.structMember "market" (Expr.localVar "id") "totalBorrowShares"),
         Stmt.letVar "borrowedAssets" (Expr.mulDivUp (Expr.localVar "borrowShares") (Expr.add (Expr.localVar "totalBorrowAssets") (Expr.literal virtualAssets)) (Expr.add (Expr.localVar "totalBorrowShares") (Expr.literal virtualShares))),
         Stmt.letVar "maxBorrow" (Expr.wMulDown (Expr.mulDivDown (Expr.localVar "newCollateral") (Expr.localVar "collateralPrice") (Expr.literal oracleScale)) (Expr.localVar "lltv")),
         Stmt.require (Expr.le (Expr.localVar "borrowedAssets") (Expr.localVar "maxBorrow")) "insufficient collateral"
@@ -291,12 +432,13 @@ private def withdrawCollateralBody : List Stmt :=
 private def borrowBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
+    callAccrueInterest,
     requireConsistentInput (Expr.param "assets") (Expr.param "shares"),
     requireNonZeroAddr (Expr.param "receiver"),
     requireAuthorized (Expr.param "onBehalf"),
     -- Load totals
-    Stmt.letVar "totalBorrowAssets" (Expr.mappingUint "marketTotalBorrowAssets" (Expr.localVar "id")),
-    Stmt.letVar "totalBorrowShares" (Expr.mappingUint "marketTotalBorrowShares" (Expr.localVar "id")),
+    Stmt.letVar "totalBorrowAssets" (Expr.structMember "market" (Expr.localVar "id") "totalBorrowAssets"),
+    Stmt.letVar "totalBorrowShares" (Expr.structMember "market" (Expr.localVar "id") "totalBorrowShares"),
     Stmt.letVar "denomShares" (Expr.add (Expr.localVar "totalBorrowShares") (Expr.literal virtualShares)),
     Stmt.letVar "denomAssets" (Expr.add (Expr.localVar "totalBorrowAssets") (Expr.literal virtualAssets)),
     -- Compute shares/assets
@@ -311,22 +453,22 @@ private def borrowBody : List Stmt :=
         []]
       [],
     -- Update position
-    Stmt.letVar "newBorrowShares" (Expr.add (Expr.mapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "onBehalf")) (Expr.localVar "sharesBorrowed")),
-    Stmt.setMapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "onBehalf") (Expr.localVar "newBorrowShares"),
+    Stmt.letVar "newBorrowShares" (Expr.add (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "borrowShares") (Expr.localVar "sharesBorrowed")),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "borrowShares" (Expr.localVar "newBorrowShares"),
     -- Update totals
     Stmt.letVar "newTotalBorrowAssets" (Expr.add (Expr.localVar "totalBorrowAssets") (Expr.localVar "assetsBorrowed")),
     Stmt.letVar "newTotalBorrowShares" (Expr.add (Expr.localVar "totalBorrowShares") (Expr.localVar "sharesBorrowed")),
-    Stmt.setMappingUint "marketTotalBorrowAssets" (Expr.localVar "id") (Expr.localVar "newTotalBorrowAssets"),
-    Stmt.setMappingUint "marketTotalBorrowShares" (Expr.localVar "id") (Expr.localVar "newTotalBorrowShares"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowAssets" (Expr.localVar "newTotalBorrowAssets"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowShares" (Expr.localVar "newTotalBorrowShares"),
     -- Health check
-    Stmt.letVar "collateralValue" (Expr.mapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "onBehalf")),
+    Stmt.letVar "collateralValue" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "collateral"),
     Calls.withReturn "collateralPrice" (Expr.localVar "oracle") oraclePriceSelector [] (isStatic := true),
     Stmt.letVar "borrowedAssets" (Expr.mulDivUp (Expr.localVar "newBorrowShares") (Expr.add (Expr.localVar "newTotalBorrowAssets") (Expr.literal virtualAssets)) (Expr.add (Expr.localVar "newTotalBorrowShares") (Expr.literal virtualShares))),
     Stmt.letVar "maxBorrow" (Expr.wMulDown (Expr.mulDivDown (Expr.localVar "collateralValue") (Expr.localVar "collateralPrice") (Expr.literal oracleScale)) (Expr.localVar "lltv")),
     Stmt.require (Expr.le (Expr.localVar "borrowedAssets") (Expr.localVar "maxBorrow")) "insufficient collateral",
     -- Check liquidity
     Stmt.require
-      (Expr.ge (Expr.mappingUint "marketTotalSupplyAssets" (Expr.localVar "id")) (Expr.localVar "newTotalBorrowAssets"))
+      (Expr.ge (Expr.structMember "market" (Expr.localVar "id") "totalSupplyAssets") (Expr.localVar "newTotalBorrowAssets"))
       "insufficient liquidity",
     -- Emit Borrow: log4(0, 96, topic, id, onBehalf, receiver)
     Stmt.mstore (Expr.literal 0) Expr.caller,
@@ -344,11 +486,12 @@ private def borrowBody : List Stmt :=
 private def repayBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
+    callAccrueInterest,
     requireConsistentInput (Expr.param "assets") (Expr.param "shares"),
     requireNonZeroAddr (Expr.param "onBehalf"),
     -- Load totals
-    Stmt.letVar "totalBorrowAssets" (Expr.mappingUint "marketTotalBorrowAssets" (Expr.localVar "id")),
-    Stmt.letVar "totalBorrowShares" (Expr.mappingUint "marketTotalBorrowShares" (Expr.localVar "id")),
+    Stmt.letVar "totalBorrowAssets" (Expr.structMember "market" (Expr.localVar "id") "totalBorrowAssets"),
+    Stmt.letVar "totalBorrowShares" (Expr.structMember "market" (Expr.localVar "id") "totalBorrowShares"),
     Stmt.letVar "denomShares" (Expr.add (Expr.localVar "totalBorrowShares") (Expr.literal virtualShares)),
     Stmt.letVar "denomAssets" (Expr.add (Expr.localVar "totalBorrowAssets") (Expr.literal virtualAssets)),
     -- Compute shares/assets
@@ -363,16 +506,16 @@ private def repayBody : List Stmt :=
         []]
       [],
     -- Check position
-    Stmt.letVar "currentBorrowShares" (Expr.mapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "onBehalf")),
+    Stmt.letVar "currentBorrowShares" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "borrowShares"),
     Stmt.require (Expr.ge (Expr.localVar "currentBorrowShares") (Expr.localVar "sharesRepaid")) "insufficient borrow",
     -- Update position
     Stmt.letVar "newBorrowShares" (Expr.sub (Expr.localVar "currentBorrowShares") (Expr.localVar "sharesRepaid")),
-    Stmt.setMapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "onBehalf") (Expr.localVar "newBorrowShares"),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "onBehalf") "borrowShares" (Expr.localVar "newBorrowShares"),
     -- Update totals (saturating sub for borrow assets)
     Stmt.letVar "newTotalBorrowAssets" (Expr.mul (Expr.gt (Expr.localVar "totalBorrowAssets") (Expr.localVar "assetsRepaid")) (Expr.sub (Expr.localVar "totalBorrowAssets") (Expr.localVar "assetsRepaid"))),
     Stmt.letVar "newTotalBorrowShares" (Expr.sub (Expr.localVar "totalBorrowShares") (Expr.localVar "sharesRepaid")),
-    Stmt.setMappingUint "marketTotalBorrowShares" (Expr.localVar "id") (Expr.localVar "newTotalBorrowShares"),
-    Stmt.setMappingUint "marketTotalBorrowAssets" (Expr.localVar "id") (Expr.localVar "newTotalBorrowAssets"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowShares" (Expr.localVar "newTotalBorrowShares"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowAssets" (Expr.localVar "newTotalBorrowAssets"),
     -- Emit Repay: log3(0, 96, topic, id, onBehalf)
     Stmt.mstore (Expr.literal 0) Expr.caller,
     Stmt.mstore (Expr.literal 32) (Expr.localVar "assetsRepaid"),
@@ -397,16 +540,16 @@ private def liqMem (offset : Nat) : Expr := Expr.mload (Expr.literal offset)
 private def liquidateBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
+    callAccrueInterest,
     requireConsistentInput (Expr.param "seizedAssets") (Expr.param "repaidShares"),
-    -- accrueInterest patched in
     -- Oracle price
     Calls.withReturn "collateralPrice" (Expr.localVar "oracle") oraclePriceSelector [] (isStatic := true),
     -- Load state and spill to memory to avoid stack-too-deep
-    Stmt.mstore (Expr.literal 0x300) (Expr.mappingUint "marketTotalBorrowAssets" (Expr.localVar "id")),
-    Stmt.mstore (Expr.literal 0x320) (Expr.mappingUint "marketTotalBorrowShares" (Expr.localVar "id")),
-    Stmt.mstore (Expr.literal 0x340) (Expr.mappingUint "marketTotalSupplyAssets" (Expr.localVar "id")),
-    Stmt.mstore (Expr.literal 0x360) (Expr.mapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "borrower")),
-    Stmt.mstore (Expr.literal 0x380) (Expr.mapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "borrower")),
+    Stmt.mstore (Expr.literal 0x300) (Expr.structMember "market" (Expr.localVar "id") "totalBorrowAssets"),
+    Stmt.mstore (Expr.literal 0x320) (Expr.structMember "market" (Expr.localVar "id") "totalBorrowShares"),
+    Stmt.mstore (Expr.literal 0x340) (Expr.structMember "market" (Expr.localVar "id") "totalSupplyAssets"),
+    Stmt.mstore (Expr.literal 0x360) (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "borrower") "borrowShares"),
+    Stmt.mstore (Expr.literal 0x380) (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "borrower") "collateral"),
     -- Check unhealthy
     Stmt.letVar "borrowedAssets" (Expr.mulDivUp (liqMem 0x360) (Expr.add (liqMem 0x300) (Expr.literal virtualAssets)) (Expr.add (liqMem 0x320) (Expr.literal virtualShares))),
     Stmt.letVar "maxBorrow" (Expr.wMulDown (Expr.mulDivDown (liqMem 0x380) (Expr.localVar "collateralPrice") (Expr.literal oracleScale)) (Expr.localVar "lltv")),
@@ -471,11 +614,11 @@ private def liquidateBody : List Stmt :=
       ]
       [],
     -- Write state
-    Stmt.setMapping2 "positionBorrowShares" (Expr.localVar "id") (Expr.param "borrower") (Expr.localVar "newBorrowerBorrowShares"),
-    Stmt.setMapping2 "positionCollateral" (Expr.localVar "id") (Expr.param "borrower") (Expr.localVar "newBorrowerCollateral"),
-    Stmt.setMappingUint "marketTotalBorrowShares" (Expr.localVar "id") (Expr.localVar "newTotalBorrowShares"),
-    Stmt.setMappingUint "marketTotalBorrowAssets" (Expr.localVar "id") (Expr.localVar "newTotalBorrowAssets"),
-    Stmt.setMappingUint "marketTotalSupplyAssets" (Expr.localVar "id") (Expr.localVar "newTotalSupplyAssets"),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "borrower") "borrowShares" (Expr.localVar "newBorrowerBorrowShares"),
+    Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "borrower") "collateral" (Expr.localVar "newBorrowerCollateral"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowShares" (Expr.localVar "newTotalBorrowShares"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowAssets" (Expr.localVar "newTotalBorrowAssets"),
+    Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyAssets" (Expr.localVar "newTotalSupplyAssets"),
     -- Emit Liquidate: log3(0, 192, topic, id, borrower)
     Stmt.mstore (Expr.literal 0) Expr.caller,
     Stmt.mstore (Expr.literal 32) (Expr.localVar "repaidAssetsOut"),
@@ -567,42 +710,42 @@ private def setAuthorizationWithSigBody : List Stmt := [
 -- ============================================================================
 
 /--
-Morpho Blue ContractSpec — full DSL specification covering all 26 external functions.
+Morpho Blue ContractSpec — full DSL specification covering all 26 external
+functions plus the _accrueInterest internal function.
 
-The 9 core operations (supply, withdraw, borrow, repay, supplyCollateral,
-withdrawCollateral, liquidate, flashLoan, setAuthorizationWithSig) are now
-expressed entirely in the ContractSpec DSL, using ECM modules for external
-calls (ERC-20 transfers, callbacks, oracle price, ecrecover).
+Storage layout matches the Solidity contract exactly:
+- Slot 0: owner (address)
+- Slot 1: feeRecipient (address)
+- Slot 2: position — mapping(Id => mapping(address => Position))
+    Word 0: supplyShares (uint256)
+    Word 1: borrowShares (uint128) | collateral (uint128)
+- Slot 3: market — mapping(Id => Market)
+    Word 0: totalSupplyAssets (uint128) | totalSupplyShares (uint128)
+    Word 1: totalBorrowAssets (uint128) | totalBorrowShares (uint128)
+    Word 2: lastUpdate (uint128) | fee (uint128)
+- Slot 4: isIrmEnabled
+- Slot 5: isLltvEnabled
+- Slot 6: isAuthorized
+- Slot 7: nonce
+- Slot 8: idToMarketParams — mapping(Id => MarketParams)
+    Words 0..4: loanToken, collateralToken, oracle, irm, lltv
 
-Notes:
-- ABI selectors are set manually to match IMorpho tuple signatures.
-- AccrueInterest logic is injected post-codegen by Main.lean since the DSL
-  cannot express the full IRM call + Taylor series + fee distribution inline
-  without internal function support for this specific pattern.
+No post-codegen patches are required — all storage access uses struct-typed
+fields with packed bit ranges, and accrueInterest is a DSL-native internal
+function.
 -/
 def morphoSpec : ContractSpec := {
   name := "Morpho"
   fields := [
     { name := "owner", ty := .address },
     { name := "feeRecipient", ty := .address },
-    { name := "isIrmEnabled", ty := .mappingTyped (.simple .address) },
-    { name := "isLltvEnabled", ty := .mappingTyped (.simple .uint256) },
-    { name := "isAuthorized", ty := .mappingTyped (.nested .address .address) },
-    { name := "nonce", ty := .mappingTyped (.simple .address) },
-    { name := "marketLastUpdate", ty := .mappingTyped (.simple .uint256) },
-    { name := "marketFee", ty := .mappingTyped (.simple .uint256) },
-    { name := "marketTotalSupplyAssets", ty := .mappingTyped (.simple .uint256) },
-    { name := "marketTotalSupplyShares", ty := .mappingTyped (.simple .uint256) },
-    { name := "marketTotalBorrowAssets", ty := .mappingTyped (.simple .uint256) },
-    { name := "marketTotalBorrowShares", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToLoanToken", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToCollateralToken", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToOracle", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToIrm", ty := .mappingTyped (.simple .uint256) },
-    { name := "idToLltv", ty := .mappingTyped (.simple .uint256) },
-    { name := "positionSupplyShares", ty := .mappingTyped (.nested .uint256 .address) },
-    { name := "positionBorrowShares", ty := .mappingTyped (.nested .uint256 .address) },
-    { name := "positionCollateral", ty := .mappingTyped (.nested .uint256 .address) }
+    { name := "position", ty := .mappingStruct2 .uint256 .address positionMembers, slot := some 2 },
+    { name := "market", ty := .mappingStruct .uint256 marketMembers, slot := some 3 },
+    { name := "isIrmEnabled", ty := .mappingTyped (.simple .address), slot := some 4 },
+    { name := "isLltvEnabled", ty := .mappingTyped (.simple .uint256), slot := some 5 },
+    { name := "isAuthorized", ty := .mappingTyped (.nested .address .address), slot := some 6 },
+    { name := "nonce", ty := .mappingTyped (.simple .address), slot := some 7 },
+    { name := "idToMarketParams", ty := .mappingStruct .uint256 marketParamsMembers, slot := some 8 }
   ]
   constructor := some {
     params := [{ name := "initialOwner", ty := .address }]
@@ -622,6 +765,24 @@ def morphoSpec : ContractSpec := {
       axiomNames := ["market_id_deterministic"] }
   ]
   functions := [
+    -- ================================================================
+    -- Internal functions
+    -- ================================================================
+    {
+      name := "_accrueInterest"
+      isInternal := true
+      params := [
+        { name := "id", ty := .uint256 },
+        { name := "loanToken", ty := .address },
+        { name := "collateralToken", ty := .address },
+        { name := "oracle", ty := .address },
+        { name := "irm", ty := .address },
+        { name := "lltv", ty := .uint256 }
+      ]
+      returnType := none
+      body := accrueInterestInternalBody
+    },
+
     -- ================================================================
     -- Views
     -- ================================================================
@@ -680,37 +841,37 @@ def morphoSpec : ContractSpec := {
       name := "lastUpdate"
       params := [{ name := "id", ty := .bytes32 }]
       returnType := some .uint256
-      body := [Stmt.return (Expr.mappingUint "marketLastUpdate" (Expr.param "id"))]
+      body := [Stmt.return (Expr.structMember "market" (Expr.param "id") "lastUpdate")]
     },
     {
       name := "totalSupplyAssets"
       params := [{ name := "id", ty := .bytes32 }]
       returnType := some .uint256
-      body := [Stmt.return (Expr.mappingUint "marketTotalSupplyAssets" (Expr.param "id"))]
+      body := [Stmt.return (Expr.structMember "market" (Expr.param "id") "totalSupplyAssets")]
     },
     {
       name := "totalSupplyShares"
       params := [{ name := "id", ty := .bytes32 }]
       returnType := some .uint256
-      body := [Stmt.return (Expr.mappingUint "marketTotalSupplyShares" (Expr.param "id"))]
+      body := [Stmt.return (Expr.structMember "market" (Expr.param "id") "totalSupplyShares")]
     },
     {
       name := "totalBorrowAssets"
       params := [{ name := "id", ty := .bytes32 }]
       returnType := some .uint256
-      body := [Stmt.return (Expr.mappingUint "marketTotalBorrowAssets" (Expr.param "id"))]
+      body := [Stmt.return (Expr.structMember "market" (Expr.param "id") "totalBorrowAssets")]
     },
     {
       name := "totalBorrowShares"
       params := [{ name := "id", ty := .bytes32 }]
       returnType := some .uint256
-      body := [Stmt.return (Expr.mappingUint "marketTotalBorrowShares" (Expr.param "id"))]
+      body := [Stmt.return (Expr.structMember "market" (Expr.param "id") "totalBorrowShares")]
     },
     {
       name := "fee"
       params := [{ name := "id", ty := .bytes32 }]
       returnType := some .uint256
-      body := [Stmt.return (Expr.mappingUint "marketFee" (Expr.param "id"))]
+      body := [Stmt.return (Expr.structMember "market" (Expr.param "id") "fee")]
     },
     {
       name := "idToMarketParams"
@@ -718,17 +879,12 @@ def morphoSpec : ContractSpec := {
       returnType := none
       returns := [.address, .address, .address, .address, .uint256]
       body := [
-        Stmt.letVar "loanToken" (Expr.mappingUint "idToLoanToken" (Expr.param "id")),
-        Stmt.letVar "collateralToken" (Expr.mappingUint "idToCollateralToken" (Expr.param "id")),
-        Stmt.letVar "oracle" (Expr.mappingUint "idToOracle" (Expr.param "id")),
-        Stmt.letVar "irm" (Expr.mappingUint "idToIrm" (Expr.param "id")),
-        Stmt.letVar "lltv" (Expr.mappingUint "idToLltv" (Expr.param "id")),
         Stmt.returnValues [
-          Expr.localVar "loanToken",
-          Expr.localVar "collateralToken",
-          Expr.localVar "oracle",
-          Expr.localVar "irm",
-          Expr.localVar "lltv"
+          Expr.structMember "idToMarketParams" (Expr.param "id") "loanToken",
+          Expr.structMember "idToMarketParams" (Expr.param "id") "collateralToken",
+          Expr.structMember "idToMarketParams" (Expr.param "id") "oracle",
+          Expr.structMember "idToMarketParams" (Expr.param "id") "irm",
+          Expr.structMember "idToMarketParams" (Expr.param "id") "lltv"
         ]
       ]
     },
@@ -742,9 +898,9 @@ def morphoSpec : ContractSpec := {
       returns := [.uint256, .uint256, .uint256]
       body := [
         Stmt.returnValues [
-          Expr.mapping2 "positionSupplyShares" (Expr.param "id") (Expr.param "user"),
-          Expr.mapping2 "positionBorrowShares" (Expr.param "id") (Expr.param "user"),
-          Expr.mapping2 "positionCollateral" (Expr.param "id") (Expr.param "user")
+          Expr.structMember2 "position" (Expr.param "id") (Expr.param "user") "supplyShares",
+          Expr.structMember2 "position" (Expr.param "id") (Expr.param "user") "borrowShares",
+          Expr.structMember2 "position" (Expr.param "id") (Expr.param "user") "collateral"
         ]
       ]
     },
@@ -754,19 +910,13 @@ def morphoSpec : ContractSpec := {
       returnType := none
       returns := [.uint256, .uint256, .uint256, .uint256, .uint256, .uint256]
       body := [
-        Stmt.letVar "totalSupplyAssets" (Expr.mappingUint "marketTotalSupplyAssets" (Expr.param "id")),
-        Stmt.letVar "totalSupplyShares" (Expr.mappingUint "marketTotalSupplyShares" (Expr.param "id")),
-        Stmt.letVar "totalBorrowAssets" (Expr.mappingUint "marketTotalBorrowAssets" (Expr.param "id")),
-        Stmt.letVar "totalBorrowShares" (Expr.mappingUint "marketTotalBorrowShares" (Expr.param "id")),
-        Stmt.letVar "lastUpdate" (Expr.mappingUint "marketLastUpdate" (Expr.param "id")),
-        Stmt.letVar "fee" (Expr.mappingUint "marketFee" (Expr.param "id")),
         Stmt.returnValues [
-          Expr.localVar "totalSupplyAssets",
-          Expr.localVar "totalSupplyShares",
-          Expr.localVar "totalBorrowAssets",
-          Expr.localVar "totalBorrowShares",
-          Expr.localVar "lastUpdate",
-          Expr.localVar "fee"
+          Expr.structMember "market" (Expr.param "id") "totalSupplyAssets",
+          Expr.structMember "market" (Expr.param "id") "totalSupplyShares",
+          Expr.structMember "market" (Expr.param "id") "totalBorrowAssets",
+          Expr.structMember "market" (Expr.param "id") "totalBorrowShares",
+          Expr.structMember "market" (Expr.param "id") "lastUpdate",
+          Expr.structMember "market" (Expr.param "id") "fee"
         ]
       ]
     },
@@ -880,18 +1030,20 @@ def morphoSpec : ContractSpec := {
         Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require (Expr.eq (Expr.mapping "isIrmEnabled" (Expr.localVar "irm")) (Expr.literal 1)) "IRM not enabled",
         Stmt.require (Expr.eq (Expr.mappingUint "isLltvEnabled" (Expr.localVar "lltv")) (Expr.literal 1)) "LLTV not enabled",
-        Stmt.require (Expr.eq (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0)) "market already created",
-        Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
-        Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "marketTotalSupplyAssets" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "marketTotalSupplyShares" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "marketTotalBorrowAssets" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "marketTotalBorrowShares" (Expr.localVar "id") (Expr.literal 0),
-        Stmt.setMappingUint "idToLoanToken" (Expr.localVar "id") (Expr.localVar "loanToken"),
-        Stmt.setMappingUint "idToCollateralToken" (Expr.localVar "id") (Expr.localVar "collateralToken"),
-        Stmt.setMappingUint "idToOracle" (Expr.localVar "id") (Expr.localVar "oracle"),
-        Stmt.setMappingUint "idToIrm" (Expr.localVar "id") (Expr.localVar "irm"),
-        Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.localVar "lltv"),
+        Stmt.require (Expr.eq (Expr.structMember "market" (Expr.localVar "id") "lastUpdate") (Expr.literal 0)) "market already created",
+        -- Initialize market struct
+        Stmt.setStructMember "market" (Expr.localVar "id") "lastUpdate" Expr.blockTimestamp,
+        Stmt.setStructMember "market" (Expr.localVar "id") "fee" (Expr.literal 0),
+        Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyAssets" (Expr.literal 0),
+        Stmt.setStructMember "market" (Expr.localVar "id") "totalSupplyShares" (Expr.literal 0),
+        Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowAssets" (Expr.literal 0),
+        Stmt.setStructMember "market" (Expr.localVar "id") "totalBorrowShares" (Expr.literal 0),
+        -- Store market params
+        Stmt.setStructMember "idToMarketParams" (Expr.localVar "id") "loanToken" (Expr.localVar "loanToken"),
+        Stmt.setStructMember "idToMarketParams" (Expr.localVar "id") "collateralToken" (Expr.localVar "collateralToken"),
+        Stmt.setStructMember "idToMarketParams" (Expr.localVar "id") "oracle" (Expr.localVar "oracle"),
+        Stmt.setStructMember "idToMarketParams" (Expr.localVar "id") "irm" (Expr.localVar "irm"),
+        Stmt.setStructMember "idToMarketParams" (Expr.localVar "id") "lltv" (Expr.localVar "lltv"),
         Stmt.emit "CreateMarket" [
           Expr.localVar "id",
           Expr.param "marketParams"
@@ -915,10 +1067,11 @@ def morphoSpec : ContractSpec := {
         Stmt.letVar "lltv" (Expr.param "marketParams_4"),
         Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
         Stmt.require
-          (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
+          (Expr.gt (Expr.structMember "market" (Expr.localVar "id") "lastUpdate") (Expr.literal 0))
           "market not created",
+        callAccrueInterest,
         Stmt.require (Expr.le (Expr.param "newFee") (Expr.literal maxFee)) "max fee exceeded",
-        Stmt.setMappingUint "marketFee" (Expr.localVar "id") (Expr.param "newFee"),
+        Stmt.setStructMember "market" (Expr.localVar "id") "fee" (Expr.param "newFee"),
         Stmt.emit "SetFee" [Expr.localVar "id", Expr.param "newFee"],
         Stmt.stop
       ]
@@ -929,32 +1082,17 @@ def morphoSpec : ContractSpec := {
         { name := "marketParams", ty := marketParamsTy }
       ]
       returnType := none
-      body := [
-        Stmt.letVar "loanToken" (Expr.param "marketParams_0"),
-        Stmt.letVar "collateralToken" (Expr.param "marketParams_1"),
-        Stmt.letVar "oracle" (Expr.param "marketParams_2"),
-        Stmt.letVar "irm" (Expr.param "marketParams_3"),
-        Stmt.letVar "lltv" (Expr.param "marketParams_4"),
-        Stmt.letVar "id" (marketIdFromTupleParam "marketParams"),
+      body := unpackMarketParams ++ [
         Stmt.require
-          (Expr.gt (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")) (Expr.literal 0))
+          (Expr.gt (Expr.structMember "market" (Expr.localVar "id") "lastUpdate") (Expr.literal 0))
           "market not created",
-        Stmt.ite
-          (Expr.gt Expr.blockTimestamp (Expr.mappingUint "marketLastUpdate" (Expr.localVar "id")))
-          [
-            Stmt.setMappingUint "marketLastUpdate" (Expr.localVar "id") Expr.blockTimestamp,
-            Stmt.ite
-              (Expr.logicalNot (Expr.eq (Expr.localVar "irm") (Expr.literal 0)))
-              [Stmt.emit "AccrueInterest" [Expr.localVar "id", Expr.literal 0, Expr.literal 0, Expr.literal 0]]
-              [],
-            Stmt.stop
-          ]
-          [Stmt.stop]
+        callAccrueInterest,
+        Stmt.stop
       ]
     },
 
     -- ================================================================
-    -- Core operations (NEW — DSL-native)
+    -- Core operations (DSL-native with struct storage)
     -- ================================================================
     {
       name := "supply"
@@ -1123,7 +1261,10 @@ def morphoSpec : ContractSpec := {
   ]
 }
 
-/-- Function selectors aligned with IMorpho signatures. -/
+/-- Function selectors aligned with IMorpho signatures.
+    Note: the internal function (_accrueInterest) is NOT in this list — it has
+    no external selector. The list must have exactly as many entries as there
+    are external (non-internal) functions. -/
 def morphoSelectors : List Nat := [
   0x3644e515, -- DOMAIN_SEPARATOR()
   0x8da5cb5b, -- owner()
