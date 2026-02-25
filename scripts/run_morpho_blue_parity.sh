@@ -14,7 +14,7 @@ run_suite() {
   local status=0
   local foundry_profile=""
 
-  if rg -q "^\[profile\.difftest\]" "${ROOT_DIR}/morpho-blue/foundry.toml"; then
+  if grep -Eq "^\[profile\.difftest\]" "${ROOT_DIR}/morpho-blue/foundry.toml"; then
     foundry_profile="difftest"
   fi
 
@@ -33,7 +33,7 @@ run_suite() {
   set -e
 
   local summary
-  summary="$(rg -n "Ran .* total tests|Ran .*\(.*total tests\)" "${log_file}" -S | tail -n 1 | cut -d: -f2- || true)"
+  summary="$(grep -En "Ran .* total tests|Ran .*\(.*total tests\)" "${log_file}" | tail -n 1 | cut -d: -f2- || true)"
   if [[ -n "${summary}" ]]; then
     echo "    ${impl} summary:${summary}"
   fi
@@ -48,7 +48,14 @@ extract_total_test_count() {
   local total=0
   local counts
 
-  counts="$(rg -o "Ran [0-9]+ tests? for " "${log_file}" | rg -o "[0-9]+" || true)"
+  # Prefer Forge's explicit "(N total tests)" summary when present.
+  total="$(grep -Eo "[0-9]+ total tests" "${log_file}" | tail -n 1 | grep -Eo "[0-9]+" || true)"
+  if [[ "${total}" -gt 0 ]]; then
+    echo "${total}"
+    return
+  fi
+
+  counts="$(grep -Eo "Ran [0-9]+ tests? for " "${log_file}" | grep -Eo "[0-9]+" || true)"
   if [[ -z "${counts}" ]]; then
     echo 0
     return
