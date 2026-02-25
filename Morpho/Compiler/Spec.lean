@@ -63,7 +63,8 @@ def morphoSpec : ContractSpec := {
         (Expr.logicalNot (Expr.eq (Expr.constructorArg 0) (Expr.literal 0)))
         "zero address",
       Stmt.setStorage "owner" (Expr.constructorArg 0),
-      Stmt.setStorage "feeRecipient" (Expr.literal 0)
+      Stmt.setStorage "feeRecipient" (Expr.literal 0),
+      Stmt.emit "SetOwner" [Expr.constructorArg 0]
     ]
   }
   externals := [
@@ -78,7 +79,14 @@ def morphoSpec : ContractSpec := {
       name := "DOMAIN_SEPARATOR"
       params := []
       returnType := some .uint256
-      body := [Stmt.return (Expr.literal 0)]
+      isView := true
+      body := [
+        -- keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
+        Stmt.mstore (Expr.literal 0) (Expr.literal 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218),
+        Stmt.mstore (Expr.literal 32) Expr.chainid,
+        Stmt.mstore (Expr.literal 64) Expr.contractAddress,
+        Stmt.return (Expr.keccak256 (Expr.literal 0) (Expr.literal 96))
+      ]
     },
     {
       name := "owner"
@@ -333,11 +341,7 @@ def morphoSpec : ContractSpec := {
         Stmt.setMappingUint "idToLltv" (Expr.localVar "id") (Expr.localVar "lltv"),
         Stmt.emit "CreateMarket" [
           Expr.localVar "id",
-          Expr.localVar "loanToken",
-          Expr.localVar "collateralToken",
-          Expr.localVar "oracle",
-          Expr.localVar "irm",
-          Expr.localVar "lltv"
+          Expr.param "marketParams"
         ],
         Stmt.stop
       ]
@@ -432,11 +436,7 @@ def morphoSpec : ContractSpec := {
       name := "CreateMarket"
       params := [
         { name := "id", ty := .bytes32, kind := .indexed },
-        { name := "loanToken", ty := .address, kind := .unindexed },
-        { name := "collateralToken", ty := .address, kind := .unindexed },
-        { name := "oracle", ty := .address, kind := .unindexed },
-        { name := "irm", ty := .address, kind := .unindexed },
-        { name := "lltv", ty := .uint256, kind := .unindexed }
+        { name := "marketParams", ty := .tuple [.address, .address, .address, .address, .uint256], kind := .unindexed }
       ]
     },
     {
