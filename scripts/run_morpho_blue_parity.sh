@@ -43,6 +43,24 @@ run_suite() {
   return "${status}"
 }
 
+extract_total_test_count() {
+  local log_file="$1"
+  local total=0
+  local counts
+
+  counts="$(rg -o "Ran [0-9]+ tests? for " "${log_file}" | rg -o "[0-9]+" || true)"
+  if [[ -z "${counts}" ]]; then
+    echo 0
+    return
+  fi
+
+  while IFS= read -r n; do
+    [[ -n "${n}" ]] || continue
+    total=$((total + n))
+  done <<< "${counts}"
+  echo "${total}"
+}
+
 solidity_status=0
 verity_status=0
 
@@ -51,6 +69,20 @@ run_suite verity || verity_status=$?
 
 if [[ "${solidity_status}" -ne 0 || "${verity_status}" -ne 0 ]]; then
   echo "==> Differential suite FAILED"
+  exit 1
+fi
+
+solidity_count="$(extract_total_test_count "${LOG_DIR}/morpho_blue_solidity.log")"
+verity_count="$(extract_total_test_count "${LOG_DIR}/morpho_blue_verity.log")"
+
+echo "==> Total executed tests: solidity=${solidity_count}, verity=${verity_count}"
+if [[ "${solidity_count}" -eq 0 || "${verity_count}" -eq 0 ]]; then
+  echo "==> Unable to parse test counts from parity logs"
+  exit 1
+fi
+
+if [[ "${solidity_count}" -ne "${verity_count}" ]]; then
+  echo "==> Differential suite FAILED: test-count mismatch"
   exit 1
 fi
 
