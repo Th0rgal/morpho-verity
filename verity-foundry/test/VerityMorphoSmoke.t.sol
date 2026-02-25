@@ -524,7 +524,7 @@ contract VerityMorphoSmokeTest {
 
         bytes32[] memory slots = new bytes32[](2);
         slots[0] = _mappingSlot(3, id); // packed Market[id].{totalSupplyAssets,totalSupplyShares}
-        slots[1] = _nestedMappingSlot(17, id, supplier); // positionSupplyShares[id][supplier]
+        slots[1] = _nestedMappingSlot(2, id, supplier); // position[id][supplier].supplyShares (word 0)
 
         bytes32[] memory values = morpho.extSloads(slots);
         require(values.length == 2, "extSloads length mismatch");
