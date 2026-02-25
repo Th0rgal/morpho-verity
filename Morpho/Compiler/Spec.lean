@@ -375,7 +375,7 @@ private def withdrawBody : List Stmt :=
 private def supplyCollateralBody : List Stmt :=
   unpackMarketParams ++ [
     requireMarketCreated,
-    callAccrueInterest,
+    -- No accrueInterest: not required and saves gas (matches original Morpho Blue)
     Stmt.require (Expr.gt (Expr.param "assets") (Expr.literal 0)) "zero assets",
     requireNonZeroAddr (Expr.param "onBehalf"),
     -- Update position
@@ -571,7 +571,7 @@ private def liquidateBody : List Stmt :=
         -- seizedAssets → repaidShares → repaidAssets
         Stmt.letVar "seizedAssetsQuoted" (Expr.mulDivUp (Expr.localVar "seizedAssetsOut") (Expr.localVar "collateralPrice") (Expr.literal oracleScale)),
         Stmt.letVar "repaidAssetsQuoted" (Expr.mulDivUp (Expr.localVar "seizedAssetsQuoted") (Expr.literal wad) (Expr.localVar "lif")),
-        Stmt.assignVar "repaidSharesOut" (Expr.mulDivDown (Expr.localVar "repaidAssetsQuoted") (Expr.add (liqMem 0x320) (Expr.literal virtualShares)) (Expr.add (liqMem 0x300) (Expr.literal virtualAssets))),
+        Stmt.assignVar "repaidSharesOut" (Expr.mulDivUp (Expr.localVar "repaidAssetsQuoted") (Expr.add (liqMem 0x320) (Expr.literal virtualShares)) (Expr.add (liqMem 0x300) (Expr.literal virtualAssets))),
         Stmt.assignVar "repaidAssetsOut" (Expr.mulDivUp (Expr.localVar "repaidSharesOut") (Expr.add (liqMem 0x300) (Expr.literal virtualAssets)) (Expr.add (liqMem 0x320) (Expr.literal virtualShares)))
       ]
       [],
