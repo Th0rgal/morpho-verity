@@ -108,3 +108,11 @@ jobs:
 
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_morpho_blue_parity.sh
+
+      - name: Upload parity logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: morpho-blue-parity-logs
+          path: out/parity/*.log
+          if-no-files-found: error

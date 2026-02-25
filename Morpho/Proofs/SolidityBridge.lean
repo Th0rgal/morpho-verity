@@ -54,6 +54,24 @@ abbrev SetAuthorizationSem :=
 abbrev SetAuthorizationWithSigSem :=
   MorphoState → Authorization → Bool → Option MorphoState
 
+abbrev SetOwnerSem :=
+  MorphoState → Address → Option MorphoState
+
+abbrev SetFeeRecipientSem :=
+  MorphoState → Address → Option MorphoState
+
+abbrev CreateMarketSem :=
+  MorphoState → MarketParams → Id → Option MorphoState
+
+abbrev SetFeeSem :=
+  MorphoState → Id → Uint256 → Uint256 → Bool → Option MorphoState
+
+abbrev AccrueInterestPublicSem :=
+  MorphoState → Id → Uint256 → Bool → Option MorphoState
+
+abbrev FlashLoanSem :=
+  MorphoState → Uint256 → Option Unit
+
 def supplySemEq (soliditySupply : SupplySem) : Prop :=
   ∀ s id assets shares onBehalf,
     soliditySupply s id assets shares onBehalf = Morpho.supply s id assets shares onBehalf
@@ -106,6 +124,30 @@ def setAuthorizationSemEq (soliditySetAuthorization : SetAuthorizationSem) : Pro
 def setAuthorizationWithSigSemEq (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem) : Prop :=
   ∀ s auth signatureValid,
     soliditySetAuthorizationWithSig s auth signatureValid = Morpho.setAuthorizationWithSig s auth signatureValid
+
+def setOwnerSemEq (soliditySetOwner : SetOwnerSem) : Prop :=
+  ∀ s newOwner,
+    soliditySetOwner s newOwner = Morpho.setOwner s newOwner
+
+def setFeeRecipientSemEq (soliditySetFeeRecipient : SetFeeRecipientSem) : Prop :=
+  ∀ s newFeeRecipient,
+    soliditySetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient
+
+def createMarketSemEq (solidityCreateMarket : CreateMarketSem) : Prop :=
+  ∀ s params marketId,
+    solidityCreateMarket s params marketId = Morpho.createMarket s params marketId
+
+def setFeeSemEq (soliditySetFee : SetFeeSem) : Prop :=
+  ∀ s id newFee borrowRate hasIrm,
+    soliditySetFee s id newFee borrowRate hasIrm = Morpho.setFee s id newFee borrowRate hasIrm
+
+def accrueInterestPublicSemEq (solidityAccrueInterestPublic : AccrueInterestPublicSem) : Prop :=
+  ∀ s id borrowRate hasIrm,
+    solidityAccrueInterestPublic s id borrowRate hasIrm = Morpho.accrueInterestPublic s id borrowRate hasIrm
+
+def flashLoanSemEq (solidityFlashLoan : FlashLoanSem) : Prop :=
+  ∀ s assets,
+    solidityFlashLoan s assets = Morpho.flashLoan s assets
 
 theorem solidity_supply_preserves_borrowLeSupply
     (soliditySupply : SupplySem)
@@ -728,5 +770,248 @@ theorem solidity_setAuthorization_preserves_lltvMonotone
   have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
   exact setAuthorization_preserves_lltvMonotone s authorized newIsAuthorized lltv h_enabled h_ok_morpho
+
+theorem solidity_setOwner_preserves_borrowLeSupply
+    (soliditySetOwner : SetOwnerSem)
+    (h_eq : setOwnerSemEq soliditySetOwner)
+    (s : MorphoState) (newOwner : Address) (id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : soliditySetOwner s newOwner = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
+    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+  exact setOwner_preserves_borrowLeSupply s newOwner id h_solvent h_ok_morpho
+
+theorem solidity_setOwner_preserves_alwaysCollateralized
+    (soliditySetOwner : SetOwnerSem)
+    (h_eq : setOwnerSemEq soliditySetOwner)
+    (s : MorphoState) (newOwner : Address) (id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : soliditySetOwner s newOwner = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
+    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+  exact setOwner_preserves_alwaysCollateralized s newOwner id user h_collat h_ok_morpho
+
+theorem solidity_setOwner_preserves_irmMonotone
+    (soliditySetOwner : SetOwnerSem)
+    (h_eq : setOwnerSemEq soliditySetOwner)
+    (s : MorphoState) (newOwner irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySetOwner s newOwner = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
+    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+  exact setOwner_preserves_irmMonotone s newOwner irm h_enabled h_ok_morpho
+
+theorem solidity_setOwner_preserves_lltvMonotone
+    (soliditySetOwner : SetOwnerSem)
+    (h_eq : setOwnerSemEq soliditySetOwner)
+    (s : MorphoState) (newOwner : Address) (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySetOwner s newOwner = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
+    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+  exact setOwner_preserves_lltvMonotone s newOwner lltv h_enabled h_ok_morpho
+
+theorem solidity_setFeeRecipient_preserves_borrowLeSupply
+    (soliditySetFeeRecipient : SetFeeRecipientSem)
+    (h_eq : setFeeRecipientSemEq soliditySetFeeRecipient)
+    (s : MorphoState) (newFeeRecipient : Address) (id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
+    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+  exact setFeeRecipient_preserves_borrowLeSupply s newFeeRecipient id h_solvent h_ok_morpho
+
+theorem solidity_setFeeRecipient_preserves_alwaysCollateralized
+    (soliditySetFeeRecipient : SetFeeRecipientSem)
+    (h_eq : setFeeRecipientSemEq soliditySetFeeRecipient)
+    (s : MorphoState) (newFeeRecipient : Address) (id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
+    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+  exact setFeeRecipient_preserves_alwaysCollateralized s newFeeRecipient id user h_collat h_ok_morpho
+
+theorem solidity_setFeeRecipient_preserves_irmMonotone
+    (soliditySetFeeRecipient : SetFeeRecipientSem)
+    (h_eq : setFeeRecipientSemEq soliditySetFeeRecipient)
+    (s : MorphoState) (newFeeRecipient irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
+    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+  exact setFeeRecipient_preserves_irmMonotone s newFeeRecipient irm h_enabled h_ok_morpho
+
+theorem solidity_setFeeRecipient_preserves_lltvMonotone
+    (soliditySetFeeRecipient : SetFeeRecipientSem)
+    (h_eq : setFeeRecipientSemEq soliditySetFeeRecipient)
+    (s : MorphoState) (newFeeRecipient : Address) (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
+    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+  exact setFeeRecipient_preserves_lltvMonotone s newFeeRecipient lltv h_enabled h_ok_morpho
+
+theorem solidity_createMarket_preserves_borrowLeSupply
+    (solidityCreateMarket : CreateMarketSem)
+    (h_eq : createMarketSemEq solidityCreateMarket)
+    (s : MorphoState) (params : MarketParams) (marketId id : Id) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : solidityCreateMarket s params marketId = some s') :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
+  exact createMarket_preserves_borrowLeSupply s params marketId id h_solvent h_ok_morpho
+
+theorem solidity_createMarket_preserves_alwaysCollateralized
+    (solidityCreateMarket : CreateMarketSem)
+    (h_eq : createMarketSemEq solidityCreateMarket)
+    (s : MorphoState) (params : MarketParams) (marketId id : Id) (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : solidityCreateMarket s params marketId = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
+  exact createMarket_preserves_alwaysCollateralized s params marketId id user h_collat h_ok_morpho
+
+theorem solidity_createMarket_preserves_irmMonotone
+    (solidityCreateMarket : CreateMarketSem)
+    (h_eq : createMarketSemEq solidityCreateMarket)
+    (s : MorphoState) (params : MarketParams) (marketId : Id) (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityCreateMarket s params marketId = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
+  exact createMarket_preserves_irmMonotone s params marketId irm h_enabled h_ok_morpho
+
+theorem solidity_createMarket_preserves_lltvMonotone
+    (solidityCreateMarket : CreateMarketSem)
+    (h_eq : createMarketSemEq solidityCreateMarket)
+    (s : MorphoState) (params : MarketParams) (marketId : Id) (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityCreateMarket s params marketId = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
+  exact createMarket_preserves_lltvMonotone s params marketId lltv h_enabled h_ok_morpho
+
+theorem solidity_setFee_preserves_borrowLeSupply
+    (soliditySetFee : SetFeeSem)
+    (h_eq : setFeeSemEq soliditySetFee)
+    (s : MorphoState) (id : Id) (newFee borrowRate : Uint256) (hasIrm : Bool) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : soliditySetFee s id newFee borrowRate hasIrm = some s')
+    (h_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Morpho.Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Morpho.Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Verity.Core.Uint256.modulus) :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.setFee s id newFee borrowRate hasIrm = some s' := by
+    simpa [setFeeSemEq] using (h_eq s id newFee borrowRate hasIrm).symm.trans h_ok
+  exact setFee_preserves_borrowLeSupply s id newFee borrowRate hasIrm h_solvent h_ok_morpho h_no_overflow
+
+theorem solidity_setFee_preserves_alwaysCollateralized
+    (soliditySetFee : SetFeeSem)
+    (h_eq : setFeeSemEq soliditySetFee)
+    (s : MorphoState) (id : Id) (newFee borrowRate : Uint256) (hasIrm : Bool)
+    (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : soliditySetFee s id newFee borrowRate hasIrm = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.setFee s id newFee borrowRate hasIrm = some s' := by
+    simpa [setFeeSemEq] using (h_eq s id newFee borrowRate hasIrm).symm.trans h_ok
+  exact setFee_preserves_alwaysCollateralized s id newFee borrowRate hasIrm user h_collat h_ok_morpho
+
+theorem solidity_setFee_preserves_irmMonotone
+    (soliditySetFee : SetFeeSem)
+    (h_eq : setFeeSemEq soliditySetFee)
+    (s : MorphoState) (id : Id) (newFee borrowRate : Uint256) (hasIrm : Bool)
+    (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : soliditySetFee s id newFee borrowRate hasIrm = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.setFee s id newFee borrowRate hasIrm = some s' := by
+    simpa [setFeeSemEq] using (h_eq s id newFee borrowRate hasIrm).symm.trans h_ok
+  exact setFee_preserves_irmMonotone s id newFee borrowRate hasIrm irm h_enabled h_ok_morpho
+
+theorem solidity_setFee_preserves_lltvMonotone
+    (soliditySetFee : SetFeeSem)
+    (h_eq : setFeeSemEq soliditySetFee)
+    (s : MorphoState) (id : Id) (newFee borrowRate : Uint256) (hasIrm : Bool)
+    (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : soliditySetFee s id newFee borrowRate hasIrm = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.setFee s id newFee borrowRate hasIrm = some s' := by
+    simpa [setFeeSemEq] using (h_eq s id newFee borrowRate hasIrm).symm.trans h_ok
+  exact setFee_preserves_lltvMonotone s id newFee borrowRate hasIrm lltv h_enabled h_ok_morpho
+
+theorem solidity_accrueInterestPublic_preserves_borrowLeSupply
+    (solidityAccrueInterestPublic : AccrueInterestPublicSem)
+    (h_eq : accrueInterestPublicSemEq solidityAccrueInterestPublic)
+    (s : MorphoState) (id : Id) (borrowRate : Uint256) (hasIrm : Bool) (s' : MorphoState)
+    (h_solvent : borrowLeSupply s id)
+    (h_ok : solidityAccrueInterestPublic s id borrowRate hasIrm = some s')
+    (h_no_overflow : (s.market id).totalSupplyAssets.val +
+      (Morpho.Libraries.MathLib.wMulDown (s.market id).totalBorrowAssets
+        (Morpho.Libraries.MathLib.wTaylorCompounded borrowRate
+          (Morpho.u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
+      < Verity.Core.Uint256.modulus) :
+    borrowLeSupply s' id := by
+  have h_ok_morpho : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s' := by
+    simpa [accrueInterestPublicSemEq] using (h_eq s id borrowRate hasIrm).symm.trans h_ok
+  exact accrueInterestPublic_preserves_borrowLeSupply s id borrowRate hasIrm h_solvent h_ok_morpho h_no_overflow
+
+theorem solidity_accrueInterestPublic_preserves_alwaysCollateralized
+    (solidityAccrueInterestPublic : AccrueInterestPublicSem)
+    (h_eq : accrueInterestPublicSemEq solidityAccrueInterestPublic)
+    (s : MorphoState) (id : Id) (borrowRate : Uint256) (hasIrm : Bool)
+    (user : Address) (s' : MorphoState)
+    (h_collat : alwaysCollateralized s id user)
+    (h_ok : solidityAccrueInterestPublic s id borrowRate hasIrm = some s') :
+    alwaysCollateralized s' id user := by
+  have h_ok_morpho : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s' := by
+    simpa [accrueInterestPublicSemEq] using (h_eq s id borrowRate hasIrm).symm.trans h_ok
+  exact accrueInterestPublic_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat h_ok_morpho
+
+theorem solidity_accrueInterestPublic_preserves_irmMonotone
+    (solidityAccrueInterestPublic : AccrueInterestPublicSem)
+    (h_eq : accrueInterestPublicSemEq solidityAccrueInterestPublic)
+    (s : MorphoState) (id : Id) (borrowRate : Uint256) (hasIrm : Bool)
+    (irm : Address) (s' : MorphoState)
+    (h_enabled : s.isIrmEnabled irm)
+    (h_ok : solidityAccrueInterestPublic s id borrowRate hasIrm = some s') :
+    s'.isIrmEnabled irm := by
+  have h_ok_morpho : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s' := by
+    simpa [accrueInterestPublicSemEq] using (h_eq s id borrowRate hasIrm).symm.trans h_ok
+  exact accrueInterestPublic_preserves_irmMonotone s id borrowRate hasIrm irm h_enabled h_ok_morpho
+
+theorem solidity_accrueInterestPublic_preserves_lltvMonotone
+    (solidityAccrueInterestPublic : AccrueInterestPublicSem)
+    (h_eq : accrueInterestPublicSemEq solidityAccrueInterestPublic)
+    (s : MorphoState) (id : Id) (borrowRate : Uint256) (hasIrm : Bool)
+    (lltv : Uint256) (s' : MorphoState)
+    (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : solidityAccrueInterestPublic s id borrowRate hasIrm = some s') :
+    s'.isLltvEnabled lltv := by
+  have h_ok_morpho : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s' := by
+    simpa [accrueInterestPublicSemEq] using (h_eq s id borrowRate hasIrm).symm.trans h_ok
+  exact accrueInterestPublic_preserves_lltvMonotone s id borrowRate hasIrm lltv h_enabled h_ok_morpho
+
+theorem solidity_flashLoan_rejects_zero_assets
+    (solidityFlashLoan : FlashLoanSem)
+    (h_eq : flashLoanSemEq solidityFlashLoan)
+    (s : MorphoState) :
+    solidityFlashLoan s 0 = none := by
+  simpa [flashLoanSemEq] using (h_eq s 0)
 
 end Morpho.Proofs.SolidityBridge
