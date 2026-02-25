@@ -39,6 +39,122 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
       throw (IO.userError s!"Unknown argument: {x}")
   go args "compiler/yul" [] false
 
+-- ============================================================================
+-- Yul code-generation helpers
+--
+-- These produce the exact same Yul text that the raw shims used to contain
+-- inline, but factor out the recurring patterns:
+--   1. safeTransfer       (ERC-20 transfer with extcodesize + returndata check)
+--   2. safeTransferFrom   (ERC-20 transferFrom  …)
+--   3. callback           (ABI-forward call to caller with bytes param)
+--   4. oraclePrice        (staticcall oracle.price())
+-- ============================================================================
+
+private def noCodeRevert (indent : String) : String :=
+  s!"{indent}    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+{indent}    mstore(4, 32)\n\
+{indent}    mstore(36, 7)\n\
+{indent}    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
+{indent}    revert(0, 100)\n"
+
+private def transferRevertedRevert (indent : String) : String :=
+  s!"{indent}    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+{indent}    mstore(4, 32)\n\
+{indent}    mstore(36, 17)\n\
+{indent}    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
+{indent}    revert(0, 100)\n"
+
+private def transferFalseRevert (indent : String) : String :=
+  s!"{indent}        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+{indent}        mstore(4, 32)\n\
+{indent}        /* transfer returned false length */\n\
+{indent}        mstore(36, 23)\n\
+{indent}        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
+{indent}        revert(0, 100)\n"
+
+private def transferFromRevertedRevert (indent : String) : String :=
+  s!"{indent}    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+{indent}    mstore(4, 32)\n\
+{indent}    mstore(36, 21)\n\
+{indent}    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
+{indent}    revert(0, 100)\n"
+
+private def transferFromFalseRevert (indent : String) : String :=
+  s!"{indent}        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
+{indent}        mstore(4, 32)\n\
+{indent}        /* transferFrom returned false length */\n\
+{indent}        mstore(36, 27)\n\
+{indent}        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
+{indent}        revert(0, 100)\n"
+
+/-- ERC-20 safeTransfer: `transfer(to, amount)` with extcodesize + return-check. -/
+private def yulSafeTransfer (token to amount : String) (indent : String := "                ") : String :=
+  s!"{indent}if iszero(extcodesize({token})) \{\n" ++ noCodeRevert indent ++
+  s!"{indent}}\n\
+{indent}mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
+{indent}mstore(4, {to})\n\
+{indent}mstore(36, {amount})\n\
+{indent}if iszero(call(gas(), {token}, 0, 0, 68, 0, 32)) \{\n" ++ transferRevertedRevert indent ++
+  s!"{indent}}\n\
+{indent}if eq(returndatasize(), 32) \{\n\
+{indent}    returndatacopy(0, 0, 32)\n\
+{indent}    if iszero(mload(0)) \{\n" ++ transferFalseRevert indent ++
+  s!"{indent}    }\n\
+{indent}}\n"
+
+/-- ERC-20 safeTransferFrom: `transferFrom(from, to, amount)` with extcodesize + return-check. -/
+private def yulSafeTransferFrom (token fromAddr toAddr amount : String) (indent : String := "                ") : String :=
+  s!"{indent}if iszero(extcodesize({token})) \{\n" ++ noCodeRevert indent ++
+  s!"{indent}}\n\
+{indent}mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
+{indent}mstore(4, {fromAddr})\n\
+{indent}mstore(36, {toAddr})\n\
+{indent}mstore(68, {amount})\n\
+{indent}if iszero(call(gas(), {token}, 0, 0, 100, 0, 32)) \{\n" ++ transferFromRevertedRevert indent ++
+  s!"{indent}}\n\
+{indent}if eq(returndatasize(), 32) \{\n\
+{indent}    returndatacopy(0, 0, 32)\n\
+{indent}    if iszero(mload(0)) \{\n" ++ transferFromFalseRevert indent ++
+  s!"{indent}    }\n\
+{indent}}\n"
+
+/-- Morpho-style callback: validate and forward `bytes` calldata to `caller()`. -/
+private def yulCallback (selectorHex : String) (amountVar : String) (indent : String := "                ") : String :=
+  s!"{indent}if gt(dataOffset, sub(calldatasize(), 32)) \{\n\
+{indent}    revert(0, 0)\n\
+{indent}}\n\
+{indent}let dataHead := add(4, dataOffset)\n\
+{indent}if gt(dataHead, sub(calldatasize(), 32)) \{\n\
+{indent}    revert(0, 0)\n\
+{indent}}\n\
+{indent}let dataLen := calldataload(dataHead)\n\
+{indent}let dataStart := add(dataHead, 32)\n\
+{indent}if gt(dataLen, sub(calldatasize(), dataStart)) \{\n\
+{indent}    revert(0, 0)\n\
+{indent}}\n\
+{indent}if gt(dataLen, 0) \{\n\
+{indent}    mstore(0, {selectorHex}00000000000000000000000000000000000000000000000000000000)\n\
+{indent}    mstore(4, {amountVar})\n\
+{indent}    mstore(36, 64)\n\
+{indent}    mstore(68, dataLen)\n\
+{indent}    calldatacopy(100, dataStart, dataLen)\n\
+{indent}    if iszero(call(gas(), caller(), 0, 0, add(100, dataLen), 0, 0)) \{\n\
+{indent}        returndatacopy(0, 0, returndatasize())\n\
+{indent}        revert(0, returndatasize())\n\
+{indent}    }\n\
+{indent}}\n"
+
+/-- Oracle price() staticcall: `extcodesize` guard + `staticcall` + load result. -/
+private def yulOraclePrice (resultVar : String) (indent : String) : String :=
+  s!"{indent}if iszero(extcodesize(oracle)) \{\n\
+{indent}    revert(0, 0)\n\
+{indent}}\n\
+{indent}mstore(0, 0xa035b1fe00000000000000000000000000000000000000000000000000000000)\n\
+{indent}if iszero(staticcall(gas(), oracle, 0, 4, 0, 32)) \{\n\
+{indent}    revert(0, 0)\n\
+{indent}}\n\
+{indent}let {resultVar} := mload(0)\n"
+
 private def accrueInterestCompatBlock : String := "\
                 let __prevLastUpdateAccrue := sload(mappingSlot(6, id))\n\
                 if gt(timestamp(), __prevLastUpdateAccrue) {\n\
@@ -179,58 +295,8 @@ private def supplyCase : String := "\
                 mstore(32, assetsSupplied)\n\
                 mstore(64, sharesSupplied)\n\
                 log3(0, 96, 0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0, id, onBehalf)\n\
-                if gt(dataOffset, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataHead := add(4, dataOffset)\n\
-                if gt(dataHead, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataLen := calldataload(dataHead)\n\
-                let dataStart := add(dataHead, 32)\n\
-                if gt(dataLen, sub(calldatasize(), dataStart)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if gt(dataLen, 0) {\n\
-                    mstore(0, 0x2075be0300000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, assetsSupplied)\n\
-                    mstore(36, 64)\n\
-                    mstore(68, dataLen)\n\
-                    calldatacopy(100, dataStart, dataLen)\n\
-                    if iszero(call(gas(), caller(), 0, 0, add(100, dataLen), 0, 0)) {\n\
-                        returndatacopy(0, 0, returndatasize())\n\
-                        revert(0, returndatasize())\n\
-                    }\n\
-                }\n\
-                if iszero(extcodesize(loanToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, caller())\n\
-                mstore(36, address())\n\
-                mstore(68, assetsSupplied)\n\
-                if iszero(call(gas(), loanToken, 0, 0, 100, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 21)\n\
-                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        /* transferFrom returned false length */\n\
-                        mstore(36, 27)\n\
-                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulCallback "0x2075be03" "assetsSupplied" ++ "\
+                " ++ yulSafeTransferFrom "loanToken" "caller()" "address()" "assetsSupplied" ++ "\
                 mstore(0, assetsSupplied)\n\
                 mstore(32, sharesSupplied)\n\
                 return(0, 64)\n\
@@ -330,34 +396,7 @@ private def withdrawCase : String := "\
                 mstore(32, assetsWithdrawn)\n\
                 mstore(64, sharesWithdrawn)\n\
                 log4(0, 96, 0xa56fc0ad5702ec05ce63666221f796fb62437c32db1aa1aa075fc6484cf58fbf, id, onBehalf, receiver)\n\
-                if iszero(extcodesize(loanToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, receiver)\n\
-                mstore(36, assetsWithdrawn)\n\
-                if iszero(call(gas(), loanToken, 0, 0, 68, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 17)\n\
-                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        /* transfer returned false length */\n\
-                        mstore(36, 23)\n\
-                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulSafeTransfer "loanToken" "receiver" "assetsWithdrawn" ++ "\
                 mstore(0, assetsWithdrawn)\n\
                 mstore(32, sharesWithdrawn)\n\
                 return(0, 64)\n\
@@ -412,57 +451,8 @@ private def supplyCollateralCase : String := "\
                 mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
                 mstore(32, assets)\n\
                 log3(0, 64, 0xa3b9472a1399e17e123f3c2e6586c23e504184d504de59cdaa2b375e880c6184, id, onBehalf)\n\
-                if gt(dataOffset, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataHead := add(4, dataOffset)\n\
-                if gt(dataHead, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataLen := calldataload(dataHead)\n\
-                let dataStart := add(dataHead, 32)\n\
-                if gt(dataLen, sub(calldatasize(), dataStart)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if gt(dataLen, 0) {\n\
-                    mstore(0, 0xb1022fdf00000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, assets)\n\
-                    mstore(36, 64)\n\
-                    mstore(68, dataLen)\n\
-                    calldatacopy(100, dataStart, dataLen)\n\
-                    if iszero(call(gas(), caller(), 0, 0, add(100, dataLen), 0, 0)) {\n\
-                        returndatacopy(0, 0, returndatasize())\n\
-                        revert(0, returndatasize())\n\
-                    }\n\
-                }\n\
-                if iszero(extcodesize(collateralToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, caller())\n\
-                mstore(36, address())\n\
-                mstore(68, assets)\n\
-                if iszero(call(gas(), collateralToken, 0, 0, 100, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 21)\n\
-                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 27)\n\
-                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulCallback "0xb1022fdf" "assets" ++ "\
+                " ++ yulSafeTransferFrom "collateralToken" "caller()" "address()" "assets" ++ "\
                 stop()\n\
             }\n"
 
@@ -524,14 +514,7 @@ private def withdrawCollateralCase : String := "\
                 let __posBaseCompat := mappingSlot(mappingSlot(2, id), onBehalf)\n\
                 sstore(add(__posBaseCompat, 1), or(and(__borrowShares, 0xffffffffffffffffffffffffffffffff), shl(128, and(newCollateral, 0xffffffffffffffffffffffffffffffff))))\n\
                 if gt(__borrowShares, 0) {\n\
-                    if iszero(extcodesize(oracle)) {\n\
-                        revert(0, 0)\n\
-                    }\n\
-                    mstore(0, 0xa035b1fe00000000000000000000000000000000000000000000000000000000)\n\
-                    if iszero(staticcall(gas(), oracle, 0, 4, 0, 32)) {\n\
-                        revert(0, 0)\n\
-                    }\n\
-                    let collateralPrice := mload(0)\n\
+                    " ++ yulOraclePrice "collateralPrice" "                    " ++ "\
                     let totalBorrowAssets := sload(mappingSlot(10, id))\n\
                     let totalBorrowShares := sload(mappingSlot(11, id))\n\
                     let __denomBorrowShares := add(totalBorrowShares, 1000000)\n\
@@ -548,33 +531,7 @@ private def withdrawCollateralCase : String := "\
                 mstore(0, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
                 mstore(32, assets)\n\
                 log4(0, 64, 0xe80ebd7cc9223d7382aab2e0d1d6155c65651f83d53c8b9b06901d167e321142, id, onBehalf, receiver)\n\
-                if iszero(extcodesize(collateralToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, receiver)\n\
-                mstore(36, assets)\n\
-                if iszero(call(gas(), collateralToken, 0, 0, 68, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 17)\n\
-                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 23)\n\
-                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulSafeTransfer "collateralToken" "receiver" "assets" ++ "\
                 stop()\n\
             }\n"
 
@@ -653,14 +610,7 @@ private def borrowCase : String := "\
                 let collateralValue := sload(posCollateralSlot)\n\
                 let packedPosCompatSlot := add(mappingSlot(mappingSlot(2, id), onBehalf), 1)\n\
                 sstore(packedPosCompatSlot, or(and(newBorrowShares, 0xffffffffffffffffffffffffffffffff), shl(128, and(collateralValue, 0xffffffffffffffffffffffffffffffff))))\n\
-                if iszero(extcodesize(oracle)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                mstore(0, 0xa035b1fe00000000000000000000000000000000000000000000000000000000)\n\
-                if iszero(staticcall(gas(), oracle, 0, 4, 0, 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let collateralPrice := mload(0)\n\
+                " ++ yulOraclePrice "collateralPrice" "                " ++ "\
                 let borrowedAssets := div(add(mul(newBorrowShares, add(newTotalBorrowAssets, 1)), sub(add(newTotalBorrowShares, 1000000), 1)), add(newTotalBorrowShares, 1000000))\n\
                 let maxBorrow := div(mul(div(mul(collateralValue, collateralPrice), 1000000000000000000000000000000000000), lltv), 1000000000000000000)\n\
                 if gt(borrowedAssets, maxBorrow) {\n\
@@ -681,33 +631,7 @@ private def borrowCase : String := "\
                 mstore(32, assetsBorrowed)\n\
                 mstore(64, sharesBorrowed)\n\
                 log4(0, 96, 0x570954540bed6b1304a87dfe815a5eda4a648f7097a16240dcd85c9b5fd42a43, id, onBehalf, receiver)\n\
-                if iszero(extcodesize(loanToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, receiver)\n\
-                mstore(36, assetsBorrowed)\n\
-                if iszero(call(gas(), loanToken, 0, 0, 68, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 17)\n\
-                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 23)\n\
-                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulSafeTransfer "loanToken" "receiver" "assetsBorrowed" ++ "\
                 mstore(0, assetsBorrowed)\n\
                 mstore(32, sharesBorrowed)\n\
                 return(0, 64)\n\
@@ -789,57 +713,8 @@ private def repayCase : String := "\
                 mstore(32, assetsRepaid)\n\
                 mstore(64, sharesRepaid)\n\
                 log3(0, 96, 0x52acb05cebbd3cd39715469f22afbf5a17496295ef3bc9bb5944056c63ccaa09, id, onBehalf)\n\
-                if gt(dataOffset, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataHead := add(4, dataOffset)\n\
-                if gt(dataHead, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataLen := calldataload(dataHead)\n\
-                let dataStart := add(dataHead, 32)\n\
-                if gt(dataLen, sub(calldatasize(), dataStart)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if gt(dataLen, 0) {\n\
-                    mstore(0, 0x05b4591c00000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, assetsRepaid)\n\
-                    mstore(36, 64)\n\
-                    mstore(68, dataLen)\n\
-                    calldatacopy(100, dataStart, dataLen)\n\
-                    if iszero(call(gas(), caller(), 0, 0, add(100, dataLen), 0, 0)) {\n\
-                        returndatacopy(0, 0, returndatasize())\n\
-                        revert(0, returndatasize())\n\
-                    }\n\
-                }\n\
-                if iszero(extcodesize(loanToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, caller())\n\
-                mstore(36, address())\n\
-                mstore(68, assetsRepaid)\n\
-                if iszero(call(gas(), loanToken, 0, 0, 100, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 21)\n\
-                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 27)\n\
-                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulCallback "0x05b4591c" "assetsRepaid" ++ "\
+                " ++ yulSafeTransferFrom "loanToken" "caller()" "address()" "assetsRepaid" ++ "\
                 mstore(0, assetsRepaid)\n\
                 mstore(32, sharesRepaid)\n\
                 return(0, 64)\n\
@@ -879,14 +754,7 @@ private def liquidateCase : String := "\
                     revert(0, 100)\n\
                 }\n\
                 " ++ accrueInterestCompatBlock ++ "\
-                if iszero(extcodesize(oracle)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                mstore(0, 0xa035b1fe00000000000000000000000000000000000000000000000000000000)\n\
-                if iszero(staticcall(gas(), oracle, 0, 4, 0, 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let collateralPrice := mload(0)\n\
+                " ++ yulOraclePrice "collateralPrice" "                " ++ "\
                 let totalBorrowAssetsBefore := sload(mappingSlot(10, id))\n\
                 let totalBorrowSharesBefore := sload(mappingSlot(11, id))\n\
                 let totalSupplyAssetsBefore := sload(mappingSlot(8, id))\n\
@@ -973,84 +841,9 @@ private def liquidateCase : String := "\
                 mstore(128, badDebtAssets)\n\
                 mstore(160, badDebtShares)\n\
                 log3(0, 192, 0xa4946ede45d0c6f06a0f5ce92c9ad3b4751452d2fe0e25010783bcab57a67e41, id, borrower)\n\
-                if iszero(extcodesize(collateralToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
-                mstore(36, seizedAssetsOut)\n\
-                if iszero(call(gas(), collateralToken, 0, 0, 68, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 17)\n\
-                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 23)\n\
-                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
-                if gt(dataOffset, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataHead := add(4, dataOffset)\n\
-                if gt(dataHead, sub(calldatasize(), 32)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                let dataLen := calldataload(dataHead)\n\
-                let dataStart := add(dataHead, 32)\n\
-                if gt(dataLen, sub(calldatasize(), dataStart)) {\n\
-                    revert(0, 0)\n\
-                }\n\
-                if gt(dataLen, 0) {\n\
-                    mstore(0, 0xcf7ea19600000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, repaidAssetsOut)\n\
-                    mstore(36, 64)\n\
-                    mstore(68, dataLen)\n\
-                    calldatacopy(100, dataStart, dataLen)\n\
-                    if iszero(call(gas(), caller(), 0, 0, add(100, dataLen), 0, 0)) {\n\
-                        returndatacopy(0, 0, returndatasize())\n\
-                        revert(0, returndatasize())\n\
-                    }\n\
-                }\n\
-                if iszero(extcodesize(loanToken)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff))\n\
-                mstore(36, address())\n\
-                mstore(68, repaidAssetsOut)\n\
-                if iszero(call(gas(), loanToken, 0, 0, 100, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 21)\n\
-                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 27)\n\
-                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulSafeTransfer "collateralToken" "and(caller(), 0xffffffffffffffffffffffffffffffffffffffff)" "seizedAssetsOut" ++ "\
+                " ++ yulCallback "0xcf7ea196" "repaidAssetsOut" ++ "\
+                " ++ yulSafeTransferFrom "loanToken" "and(caller(), 0xffffffffffffffffffffffffffffffffffffffff)" "address()" "repaidAssetsOut" ++ "\
                 mstore(0, seizedAssetsOut)\n\
                 mstore(32, repaidAssetsOut)\n\
                 return(0, 64)\n\
@@ -1077,33 +870,7 @@ private def flashLoanCase : String := "\
                 }\n\
                 mstore(0, assets)\n\
                 log3(0, 32, 0xc76f1b4fe4396ac07a9fa55a415d4ca430e72651d37d3401f3bed7cb13fc4f12, and(caller(), 0xffffffffffffffffffffffffffffffffffffffff), token)\n\
-                if iszero(extcodesize(token)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 7)\n\
-                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                mstore(0, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, caller())\n\
-                mstore(36, assets)\n\
-                if iszero(call(gas(), token, 0, 0, 68, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 17)\n\
-                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 23)\n\
-                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulSafeTransfer "token" "caller()" "assets" ++ "\
                 if gt(dataOffset, sub(calldatasize(), 32)) {\n\
                     revert(0, 0)\n\
                 }\n\
@@ -1125,27 +892,7 @@ private def flashLoanCase : String := "\
                     returndatacopy(0, 0, returndatasize())\n\
                     revert(0, returndatasize())\n\
                 }\n\
-                mstore(0, 0x23b872dd00000000000000000000000000000000000000000000000000000000)\n\
-                mstore(4, caller())\n\
-                mstore(36, address())\n\
-                mstore(68, assets)\n\
-                if iszero(call(gas(), token, 0, 0, 100, 0, 32)) {\n\
-                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                    mstore(4, 32)\n\
-                    mstore(36, 21)\n\
-                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)\n\
-                    revert(0, 100)\n\
-                }\n\
-                if eq(returndatasize(), 32) {\n\
-                    returndatacopy(0, 0, 32)\n\
-                    if iszero(mload(0)) {\n\
-                        mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)\n\
-                        mstore(4, 32)\n\
-                        mstore(36, 27)\n\
-                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)\n\
-                        revert(0, 100)\n\
-                    }\n\
-                }\n\
+                " ++ yulSafeTransferFrom "token" "caller()" "address()" "assets" ++ "\
                 stop()\n\
             }\n"
 
