@@ -1,6 +1,8 @@
 {
   "parityTarget": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
-  "allowedHashMismatchKeys": [],
+  "allowedHashMismatchKeys": [
+    "fun_accrueInterest#0"
+  ],
   "allowedOnlyInSolidityKeys": [
     "abi_decode_address#0",
     "abi_decode_address_27017#0",
@@ -38,7 +40,6 @@
     "finalize_allocation_27033#0",
     "finalize_allocation_35876#0",
     "fun__isHealthy#0",
-    "fun_accrueInterest#0",
     "fun_isHealthy#0",
     "fun_isSenderAuthorized#0",
     "fun_mulDivUp#0",
@@ -55,11 +56,8 @@
     "update_storage_value_offsett_uint128_to_uint128#0"
   ],
   "allowedOnlyInVerityKeys": [
-    "internal__accrueInterest#0",
-    "internal__accrueInterest#1",
     "keccakMarketParams#0",
-    "mappingSlot#0",
-    "mappingSlot#1"
+    "mappingSlot#0"
   ],
   "notes": "Pinned unsupported function-level Yul identity deltas for the active parity target. Keep in sync with CI report artifacts."
 }
