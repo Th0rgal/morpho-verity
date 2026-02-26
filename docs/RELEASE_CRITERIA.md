@@ -11,10 +11,10 @@ Partially enforced:
 2. `differential-parity` (`morpho-blue-parity` job) is enforced in CI.
 3. `parity-target` tuple drift gate is enforced in CI.
 4. `unsupported-gap-manifest` drift gate is enforced in CI (`yul-identity-report` with `--enforce-unsupported-manifest`).
-5. `yul-identity-report` artifacts are emitted in CI.
+5. `yul-identity-report` emits structural AST diagnostics in CI artifacts.
 
 Not yet enforced:
-1. `yul-identity-check`.
+1. strict `yul-identity-check` (zero structural AST mismatch for supported fragment).
 2. machine-tracked `equivalence-obligations` status in CI output.
 
 ## Required Gates (Target State)

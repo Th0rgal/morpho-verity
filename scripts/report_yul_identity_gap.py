@@ -32,6 +32,15 @@ class FunctionBlock:
   text: str
 
 
+@dataclass(frozen=True)
+class FunctionAstDigest:
+  name: str
+  ordinal: int
+  key: str
+  digest: str
+  tokens: tuple[str, ...]
+
+
 def sha256_text(text: str) -> str:
   return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -69,6 +78,105 @@ def normalize_yul(text: str) -> str:
   without_line_comments = re.sub(r"//[^\n]*", "", without_block_comments)
   lines = [line.rstrip() for line in without_line_comments.splitlines() if line.strip()]
   return "\n".join(lines) + ("\n" if lines else "")
+
+
+def tokenize_normalized_yul(text: str) -> list[str]:
+  tokens: list[str] = []
+  i = 0
+  n = len(text)
+  while i < n:
+    ch = text[i]
+    if ch.isspace():
+      i += 1
+      continue
+    if ch in {'"', "'"}:
+      quote = ch
+      start = i
+      i += 1
+      escaped = False
+      while i < n:
+        c = text[i]
+        if escaped:
+          escaped = False
+        elif c == "\\":
+          escaped = True
+        elif c == quote:
+          i += 1
+          break
+        i += 1
+      else:
+        raise RuntimeError("Unterminated string literal while tokenizing normalized Yul.")
+      tokens.append(text[start:i])
+      continue
+    if ch.isdigit():
+      start = i
+      i += 1
+      while i < n and (text[i].isalnum() or text[i] == "_"):
+        i += 1
+      tokens.append(text[start:i])
+      continue
+    if ch.isalpha() or ch in {"_", "$"}:
+      start = i
+      i += 1
+      while i < n and (text[i].isalnum() or text[i] in {"_", "$"}):
+        i += 1
+      tokens.append(text[start:i])
+      continue
+    if text.startswith("->", i):
+      tokens.append("->")
+      i += 2
+      continue
+    if text.startswith(":=", i):
+      tokens.append(":=")
+      i += 2
+      continue
+    if ch in "{}()[],:;.":
+      tokens.append(ch)
+      i += 1
+      continue
+    if ch in "+-*/%<>=!&|^~?":
+      start = i
+      i += 1
+      while i < n and text[i] in "+-*/%<>=!&|^~?":
+        i += 1
+      tokens.append(text[start:i])
+      continue
+    raise RuntimeError(f"Unsupported character while tokenizing normalized Yul: {ch!r}")
+  return tokens
+
+
+def render_tokens(tokens: list[str] | tuple[str, ...]) -> str:
+  return " ".join(tokens)
+
+
+def find_matching_token(tokens: list[str], start_index: int, open_tok: str, close_tok: str) -> int:
+  depth = 1
+  i = start_index
+  while i < len(tokens):
+    tok = tokens[i]
+    if tok == open_tok:
+      depth += 1
+    elif tok == close_tok:
+      depth -= 1
+      if depth == 0:
+        return i
+    i += 1
+  raise RuntimeError(f"Unbalanced delimiters while parsing normalized Yul: {open_tok} .. {close_tok}")
+
+
+def validate_balanced_delimiters(tokens: list[str]) -> None:
+  stack: list[str] = []
+  opening = {"{": "}", "(": ")", "[": "]"}
+  closing = {"}": "{", ")": "(", "]": "["}
+  for tok in tokens:
+    if tok in opening:
+      stack.append(tok)
+    elif tok in closing:
+      if not stack or stack[-1] != closing[tok]:
+        raise RuntimeError("Unbalanced delimiters while parsing normalized Yul.")
+      stack.pop()
+  if stack:
+    raise RuntimeError("Unbalanced delimiters while parsing normalized Yul.")
 
 
 def is_ident_char(ch: str) -> bool:
@@ -152,24 +260,85 @@ def extract_function_blocks(normalized_yul: str) -> list[FunctionBlock]:
   return blocks
 
 
-def function_hashes(normalized_yul: str) -> dict[str, str]:
-  return {block.key: sha256_text(block.text) for block in extract_function_blocks(normalized_yul)}
+def function_ast_digests(normalized_yul: str) -> dict[str, FunctionAstDigest]:
+  tokens = tokenize_normalized_yul(normalized_yul)
+  validate_balanced_delimiters(tokens)
+  n = len(tokens)
+  i = 0
+  counts: dict[str, int] = {}
+  digests: dict[str, FunctionAstDigest] = {}
+
+  while i < n:
+    if tokens[i] != "function":
+      i += 1
+      continue
+    if i + 2 >= n:
+      i += 1
+      continue
+    name = tokens[i + 1]
+    if not (name and (name[0].isalpha() or name[0] in {"_", "$"})):
+      i += 1
+      continue
+    if tokens[i + 2] != "(":
+      i += 1
+      continue
+    params_end = find_matching_token(tokens, i + 3, "(", ")")
+    cursor = params_end + 1
+    if cursor < n and tokens[cursor] == "->":
+      cursor += 1
+      while cursor < n and tokens[cursor] != "{":
+        cursor += 1
+    if cursor >= n or tokens[cursor] != "{":
+      i += 1
+      continue
+    body_end = find_matching_token(tokens, cursor + 1, "{", "}")
+    fn_tokens = tuple(tokens[i : body_end + 1])
+    ordinal = counts.get(name, 0)
+    counts[name] = ordinal + 1
+    key = f"{name}#{ordinal}"
+    digests[key] = FunctionAstDigest(
+      name=name,
+      ordinal=ordinal,
+      key=key,
+      digest=sha256_text(render_tokens(fn_tokens)),
+      tokens=fn_tokens,
+    )
+    i = body_end + 1
+  return digests
+
+
+def first_token_mismatch(solidity_tokens: tuple[str, ...], verity_tokens: tuple[str, ...]) -> dict[str, Any]:
+  shared_len = min(len(solidity_tokens), len(verity_tokens))
+  for idx in range(shared_len):
+    if solidity_tokens[idx] != verity_tokens[idx]:
+      return {
+        "tokenIndex": idx,
+        "solidityToken": solidity_tokens[idx],
+        "verityToken": verity_tokens[idx],
+      }
+  if len(solidity_tokens) != len(verity_tokens):
+    return {
+      "tokenIndex": shared_len,
+      "solidityToken": solidity_tokens[shared_len] if shared_len < len(solidity_tokens) else None,
+      "verityToken": verity_tokens[shared_len] if shared_len < len(verity_tokens) else None,
+    }
+  return {"tokenIndex": -1, "solidityToken": None, "verityToken": None}
 
 
 def compare_function_hashes(
-    solidity_hashes: dict[str, str], verity_hashes: dict[str, str]
+    solidity_digests: dict[str, FunctionAstDigest], verity_digests: dict[str, FunctionAstDigest]
 ) -> dict[str, list[str]]:
   only_solidity: list[str] = []
   only_verity: list[str] = []
   hash_mismatch: list[str] = []
-  for key in sorted(set(solidity_hashes) | set(verity_hashes)):
-    sol_hash = solidity_hashes.get(key)
-    ver_hash = verity_hashes.get(key)
-    if sol_hash is None:
+  for key in sorted(set(solidity_digests) | set(verity_digests)):
+    sol_digest = solidity_digests.get(key)
+    ver_digest = verity_digests.get(key)
+    if sol_digest is None:
       only_verity.append(key)
-    elif ver_hash is None:
+    elif ver_digest is None:
       only_solidity.append(key)
-    elif sol_hash != ver_hash:
+    elif sol_digest.digest != ver_digest.digest:
       hash_mismatch.append(key)
   return {
     "hashMismatch": hash_mismatch,
@@ -282,9 +451,14 @@ def compile_verity_yul() -> None:
 def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[dict[str, Any], str]:
   normalized_verity = normalize_yul(verity_yul)
   normalized_solc = normalize_yul(solc_ir)
-  solidity_function_hashes = function_hashes(normalized_solc)
-  verity_function_hashes = function_hashes(normalized_verity)
-  function_deltas = compare_function_hashes(solidity_function_hashes, verity_function_hashes)
+  solidity_function_digests = function_ast_digests(normalized_solc)
+  verity_function_digests = function_ast_digests(normalized_verity)
+  function_deltas = compare_function_hashes(solidity_function_digests, verity_function_digests)
+  solidity_tokens = tokenize_normalized_yul(normalized_solc)
+  verity_tokens = tokenize_normalized_yul(normalized_verity)
+  validate_balanced_delimiters(solidity_tokens)
+  validate_balanced_delimiters(verity_tokens)
+  ast_equal = solidity_tokens == verity_tokens
   raw_equal = verity_yul == solc_ir
   normalized_equal = normalized_verity == normalized_solc
 
@@ -296,14 +470,31 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
         normalized_verity.splitlines(),
         fromfile="solidity/Morpho.irOptimized.normalized.yul",
         tofile="verity/Morpho.normalized.yul",
-        lineterm="",
+          lineterm="",
       )
+    )
+  mismatch_details: list[dict[str, Any]] = []
+  for key in function_deltas["hashMismatch"]:
+    sol_fn = solidity_function_digests[key]
+    ver_fn = verity_function_digests[key]
+    mismatch = first_token_mismatch(sol_fn.tokens, ver_fn.tokens)
+    mismatch_details.append(
+      {
+        "key": key,
+        "name": sol_fn.name,
+        "ordinal": sol_fn.ordinal,
+        "firstMismatch": mismatch,
+        "solidityDigest": sol_fn.digest,
+        "verityDigest": ver_fn.digest,
+      }
     )
 
   report = {
-    "status": "match" if normalized_equal else "mismatch",
+    "status": "match" if ast_equal else "mismatch",
+    "astComparatorVersion": "yul-struct-v1",
     "rawEqual": raw_equal,
     "normalizedEqual": normalized_equal,
+    "astEqual": ast_equal,
     "raw": {
       "solidity": {"bytes": len(solc_ir.encode("utf-8")), "sha256": sha256_text(solc_ir)},
       "verity": {"bytes": len(verity_yul.encode("utf-8")), "sha256": sha256_text(verity_yul)},
@@ -312,12 +503,19 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
       "solidity": {"bytes": len(normalized_solc.encode("utf-8")), "sha256": sha256_text(normalized_solc)},
       "verity": {"bytes": len(normalized_verity.encode("utf-8")), "sha256": sha256_text(normalized_verity)},
     },
+    "ast": {
+      "solidity": {"tokenCount": len(solidity_tokens), "sha256": sha256_text(render_tokens(solidity_tokens))},
+      "verity": {"tokenCount": len(verity_tokens), "sha256": sha256_text(render_tokens(verity_tokens))},
+      "firstMismatch": first_token_mismatch(tuple(solidity_tokens), tuple(verity_tokens)),
+    },
     "functionBlocks": {
-      "solidityCount": len(solidity_function_hashes),
-      "verityCount": len(verity_function_hashes),
+      "comparator": "ast-function-digest",
+      "solidityCount": len(solidity_function_digests),
+      "verityCount": len(verity_function_digests),
       "hashMismatch": function_deltas["hashMismatch"],
       "onlyInSolidity": function_deltas["onlyInSolidity"],
       "onlyInVerity": function_deltas["onlyInVerity"],
+      "mismatchDetails": mismatch_details,
     },
     "diff": {"lineCount": len(diff_lines), "truncated": len(diff_lines) > max_diff_lines},
   }
@@ -413,6 +611,7 @@ def main() -> int:
   print(f"status: {report['status']}")
   print(f"rawEqual: {report['rawEqual']}")
   print(f"normalizedEqual: {report['normalizedEqual']}")
+  print(f"astEqual: {report['astEqual']}")
   print(f"report: {display_path(out_dir / 'report.json')}")
   print(f"diff: {display_path(out_dir / 'normalized.diff')}")
   if report["unsupportedManifest"]["found"]:
@@ -422,7 +621,7 @@ def main() -> int:
   else:
     print(f"unsupportedManifest: missing ({display_path(unsupported_manifest_path)})")
 
-  if args.strict and not report["normalizedEqual"]:
+  if args.strict and not report["astEqual"]:
     print("yul-identity check failed in strict mode", file=sys.stderr)
     return 1
   if args.enforce_unsupported_manifest:
