@@ -1,7 +1,8 @@
 {
   "parityTarget": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
   "allowedHashMismatchKeys": [
-    "fun_accrueInterest#0"
+    "fun_accrueInterest#0",
+    "fun_toSharesDown#0"
   ],
   "allowedOnlyInSolidityKeys": [
     "abi_decode_address#0",
@@ -41,7 +42,6 @@
     "fun_safeTransferFrom#0",
     "fun_toAssetsDown#0",
     "fun_toAssetsUp#0",
-    "fun_toSharesDown#0",
     "fun_toSharesUp#0",
     "fun_toUint128#0",
     "require_helper_string#0",
