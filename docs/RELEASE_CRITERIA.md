@@ -10,12 +10,12 @@ Partially enforced:
 1. `build-proofs` (`verity-proofs` job) is enforced in CI.
 2. `differential-parity` (`morpho-blue-parity` job) is enforced in CI.
 3. `parity-target` tuple drift gate is enforced in CI.
-4. non-blocking `yul-identity-report` artifacts are emitted in CI, including unsupported-manifest drift diagnostics.
+4. `unsupported-gap-manifest` drift gate is enforced in CI (`yul-identity-report` with `--enforce-unsupported-manifest`).
+5. `yul-identity-report` artifacts are emitted in CI.
 
 Not yet enforced:
 1. `yul-identity-check`.
-2. strict unsupported-manifest enforcement in CI (`--enforce-unsupported-manifest`).
-3. machine-tracked `equivalence-obligations` status in CI output.
+2. machine-tracked `equivalence-obligations` status in CI output.
 
 ## Required Gates (Target State)
 

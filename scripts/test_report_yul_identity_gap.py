@@ -76,14 +76,32 @@ object "M" {
       "onlyInVerity": [],
     }
     manifest = {
+      "parityTarget": "target-v1",
       "allowedHashMismatchKeys": ["f#0"],
       "allowedOnlyInSolidityKeys": [],
       "allowedOnlyInVerityKeys": [],
     }
-    check = evaluate_unsupported_manifest(deltas, manifest)
+    check = evaluate_unsupported_manifest(deltas, manifest, "target-v1")
     self.assertFalse(check["ok"])
+    self.assertTrue(check["parityTarget"]["ok"])
     self.assertEqual(check["unexpected"]["onlyInSolidity"], ["g#0"])
     self.assertEqual(check["missingExpected"]["hashMismatch"], [])
+
+  def test_manifest_check_detects_target_mismatch(self) -> None:
+    deltas = {
+      "hashMismatch": [],
+      "onlyInSolidity": [],
+      "onlyInVerity": [],
+    }
+    manifest = {
+      "parityTarget": "target-v1",
+      "allowedHashMismatchKeys": [],
+      "allowedOnlyInSolidityKeys": [],
+      "allowedOnlyInVerityKeys": [],
+    }
+    check = evaluate_unsupported_manifest(deltas, manifest, "target-v2")
+    self.assertFalse(check["ok"])
+    self.assertFalse(check["parityTarget"]["ok"])
 
 
 if __name__ == "__main__":

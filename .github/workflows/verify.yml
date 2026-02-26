@@ -78,7 +78,7 @@ jobs:
           solc-select use 0.8.28
 
       - name: Generate Yul identity report
-        run: python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000
+        run: python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
 
       - name: Upload Yul identity artifacts
         if: always()

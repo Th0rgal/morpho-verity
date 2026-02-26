@@ -182,6 +182,11 @@ def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
     raise RuntimeError(f"Unsupported manifest must be a JSON object: {path}")
+  parity_target = data.get("parityTarget")
+  if not isinstance(parity_target, str) or not parity_target.strip():
+    raise RuntimeError(
+      f"Unsupported manifest key `parityTarget` must be a non-empty string: {path}"
+    )
   for key in ("allowedHashMismatchKeys", "allowedOnlyInSolidityKeys", "allowedOnlyInVerityKeys"):
     value = data.get(key)
     if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
@@ -190,8 +195,10 @@ def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
 
 
 def evaluate_unsupported_manifest(
-    deltas: dict[str, list[str]], manifest: dict[str, Any]
+    deltas: dict[str, list[str]], manifest: dict[str, Any], active_parity_target: str
 ) -> dict[str, Any]:
+  expected_target = manifest.get("parityTarget")
+  target_ok = expected_target == active_parity_target
   expected_hash = sorted(manifest.get("allowedHashMismatchKeys", []))
   expected_sol = sorted(manifest.get("allowedOnlyInSolidityKeys", []))
   expected_ver = sorted(manifest.get("allowedOnlyInVerityKeys", []))
@@ -207,9 +214,14 @@ def evaluate_unsupported_manifest(
   missing_ver = sorted(set(expected_ver) - set(actual_ver))
 
   return {
-    "ok": not (
+    "ok": target_ok and not (
       unexpected_hash or unexpected_sol or unexpected_ver or missing_hash or missing_sol or missing_ver
     ),
+    "parityTarget": {
+      "expected": expected_target,
+      "actual": active_parity_target,
+      "ok": target_ok,
+    },
     "expected": {
       "hashMismatch": expected_hash,
       "onlyInSolidity": expected_sol,
@@ -384,7 +396,9 @@ def main() -> int:
   if unsupported_manifest_path.exists():
     manifest = load_unsupported_manifest(unsupported_manifest_path)
     report["unsupportedManifest"]["found"] = True
-    report["unsupportedManifest"]["check"] = evaluate_unsupported_manifest(report["functionBlocks"], manifest)
+    report["unsupportedManifest"]["check"] = evaluate_unsupported_manifest(
+      report["functionBlocks"], manifest, target["id"]
+    )
   report["paths"] = {
     "solidityRaw": display_path(solc_dir / "Morpho.irOptimized.yul"),
     "verityRaw": display_path(verity_dir / "Morpho.yul"),
@@ -404,6 +418,7 @@ def main() -> int:
   if report["unsupportedManifest"]["found"]:
     print(f"unsupportedManifest: {display_path(unsupported_manifest_path)}")
     print(f"unsupportedManifestOk: {report['unsupportedManifest']['check']['ok']}")
+    print(f"unsupportedManifestTargetOk: {report['unsupportedManifest']['check']['parityTarget']['ok']}")
   else:
     print(f"unsupportedManifest: missing ({display_path(unsupported_manifest_path)})")
 
