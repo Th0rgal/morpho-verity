@@ -383,6 +383,63 @@ def build_name_insensitive_pairs(
   }
 
 
+def function_family_for_key(key: str) -> str:
+  base = key.split("#", 1)[0]
+  base = re.sub(r"_[0-9]+$", "", base)
+  if base.startswith("copy_literal_to_memory_"):
+    return "copy_literal_to_memory"
+  if base.startswith("abi_decode_"):
+    tail = base[len("abi_decode_") :]
+    head = tail.split("_", 1)[0] if tail else ""
+    return f"abi_decode_{head}" if head else "abi_decode"
+  if base.startswith("abi_encode_"):
+    tail = base[len("abi_encode_") :]
+    head = tail.split("_", 1)[0] if tail else ""
+    return f"abi_encode_{head}" if head else "abi_encode"
+  if base.startswith("checked_"):
+    parts = base.split("_")
+    if len(parts) >= 2:
+      return "_".join(parts[:2])
+  if base.startswith("finalize_allocation"):
+    return "finalize_allocation"
+  if base.startswith("update_storage_value_"):
+    return "update_storage_value"
+  if base.startswith("array_allocation_size_"):
+    return "array_allocation_size"
+  if base.startswith("fun_"):
+    return "fun"
+  return base
+
+
+def _family_entries(keys: list[str]) -> list[dict[str, Any]]:
+  grouped: dict[str, list[str]] = {}
+  for key in sorted(keys):
+    grouped.setdefault(function_family_for_key(key), []).append(key)
+  entries = [
+    {
+      "family": family,
+      "count": len(group_keys),
+      "keys": group_keys,
+    }
+    for family, group_keys in grouped.items()
+  ]
+  entries.sort(key=lambda item: (-item["count"], item["family"]))
+  return entries
+
+
+def build_function_family_summary(deltas: dict[str, list[str]]) -> dict[str, Any]:
+  only_sol = _family_entries(deltas["onlyInSolidity"])
+  only_ver = _family_entries(deltas["onlyInVerity"])
+  return {
+    "version": "function-family-v1",
+    "onlyInSolidity": only_sol,
+    "onlyInVerity": only_ver,
+    "priorityOnlyInSolidityFamilies": [
+      {"family": item["family"], "count": item["count"]} for item in only_sol
+    ],
+  }
+
+
 def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
@@ -494,6 +551,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
   name_insensitive_pairs = build_name_insensitive_pairs(
     solidity_function_digests, verity_function_digests, function_deltas
   )
+  family_summary = build_function_family_summary(function_deltas)
 
   solidity_tokens = tokenize_normalized_yul_with_spans(normalized_solc)
   verity_tokens = tokenize_normalized_yul_with_spans(normalized_verity)
@@ -566,6 +624,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
       "onlyInVerity": function_deltas["onlyInVerity"],
       "mismatchDetails": mismatch_details,
       "nameInsensitivePairs": name_insensitive_pairs,
+      "familySummary": family_summary,
     },
     "diff": {"lineCount": len(diff_lines), "truncated": len(diff_lines) > max_diff_lines},
   }

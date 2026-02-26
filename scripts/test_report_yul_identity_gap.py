@@ -10,11 +10,13 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from report_yul_identity_gap import (  # noqa: E402
   ROOT,
+  build_function_family_summary,
   build_name_insensitive_pairs,
   build_report,
   compare_function_hashes,
   display_path,
   evaluate_unsupported_manifest,
+  function_family_for_key,
   function_ast_digests,
   normalize_yul,
   tokenize_normalized_yul,
@@ -90,6 +92,42 @@ object "M" {
     self.assertEqual(len(pairs["ambiguousGroups"][0]["solidity"]), 2)
     self.assertEqual(len(pairs["ambiguousGroups"][0]["verity"]), 2)
 
+  def test_function_family_for_key_canonicalizes_known_patterns(self) -> None:
+    self.assertEqual(function_family_for_key("abi_decode_address_27017#0"), "abi_decode_address")
+    self.assertEqual(function_family_for_key("abi_encode_struct_MarketParams#0"), "abi_encode_struct")
+    self.assertEqual(function_family_for_key("checked_add_uint256#0"), "checked_add")
+    self.assertEqual(function_family_for_key("copy_literal_to_memory_deadbeef#0"), "copy_literal_to_memory")
+    self.assertEqual(function_family_for_key("finalize_allocation_27020#0"), "finalize_allocation")
+    self.assertEqual(function_family_for_key("fun_safeTransfer#0"), "fun")
+
+  def test_build_function_family_summary_groups_and_sorts(self) -> None:
+    summary = build_function_family_summary(
+      {
+        "hashMismatch": [],
+        "onlyInSolidity": [
+          "checked_add_uint128#0",
+          "checked_add_uint256#0",
+          "copy_literal_to_memory_a#0",
+          "copy_literal_to_memory_b#0",
+          "abi_decode_address_27017#0",
+        ],
+        "onlyInVerity": [
+          "mappingSlot#0",
+          "mappingSlot#1",
+          "keccakMarketParams#0",
+        ],
+      }
+    )
+    self.assertEqual(summary["version"], "function-family-v1")
+    self.assertEqual(summary["onlyInSolidity"][0]["family"], "checked_add")
+    self.assertEqual(summary["onlyInSolidity"][0]["count"], 2)
+    self.assertEqual(summary["onlyInSolidity"][1]["family"], "copy_literal_to_memory")
+    self.assertEqual(summary["onlyInVerity"][0]["family"], "mappingSlot")
+    self.assertEqual(summary["onlyInVerity"][0]["count"], 2)
+    self.assertEqual(
+      summary["priorityOnlyInSolidityFamilies"][0], {"family": "checked_add", "count": 2}
+    )
+
   def test_tokenizer_keeps_strings_and_compound_tokens(self) -> None:
     tokens = tokenize_normalized_yul('let x := add("a b", 0x10) -> y')
     self.assertEqual(tokens, ["let", "x", ":=", "add", "(", '"a b"', ",", "0x10", ")", "->", "y"])
@@ -118,6 +156,20 @@ object "M" {
     self.assertEqual(pairs["pairCount"], 1)
     self.assertEqual(pairs["pairs"][0]["solidity"]["key"], "h#0")
     self.assertEqual(pairs["pairs"][0]["verity"]["key"], "g#0")
+
+  def test_build_report_includes_family_summary(self) -> None:
+    report, _ = build_report(
+      normalize_yul(
+        'object "M" { code { function checked_add_uint256() { leave } function mappingSlot() { leave } } }'
+      ),
+      normalize_yul('object "M" { code { function checked_add_uint128() { leave } } }'),
+      max_diff_lines=50,
+    )
+    summary = report["functionBlocks"]["familySummary"]
+    self.assertEqual(summary["version"], "function-family-v1")
+    self.assertEqual(summary["onlyInSolidity"][0]["family"], "checked_add")
+    self.assertEqual(summary["onlyInVerity"][0]["family"], "checked_add")
+    self.assertIn("mappingSlot", [entry["family"] for entry in summary["onlyInVerity"]])
 
   def test_build_report_top_level_mismatch_includes_token_coordinates(self) -> None:
     report, _ = build_report(

@@ -47,6 +47,6 @@ This file is the single source of truth for that context.
 2. Tuple drift between `config/parity-target.json` and `morpho-blue/foundry.toml` fails CI.
 3. solc version drift fails CI.
 4. CI publishes `out/parity-target/` identity artifacts (`report.json`, `normalized.diff`) for each run.
-5. `report.json` includes structural AST equality status, top-level token mismatch location (token index + line/column), function-level mismatch keys, name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), and unsupported-manifest drift diagnostics.
+5. `report.json` includes structural AST equality status, top-level token mismatch location (token index + line/column), function-level mismatch keys, name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and unsupported-manifest drift diagnostics.
 6. Unsupported manifest checks also validate `parityTarget` equality with the active tuple.
 7. Future strict identity checks must reference this tuple explicitly.
