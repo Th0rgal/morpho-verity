@@ -14,7 +14,6 @@ from report_yul_identity_gap import (  # noqa: E402
   compare_function_hashes,
   display_path,
   evaluate_unsupported_manifest,
-  extract_function_blocks,
   function_ast_digests,
   normalize_yul,
   tokenize_normalized_yul,
@@ -47,22 +46,6 @@ object "M" {
     inside = (ROOT / "out" / "parity-target" / "report.json").resolve()
     self.assertEqual(display_path(inside), "out/parity-target/report.json")
 
-  def test_extract_function_blocks_tracks_ordinals(self) -> None:
-    yul = normalize_yul(
-      """
-      object "M" {
-        code {
-          function f(x) -> r { r := add(x, 1) }
-          function f(y) -> z { z := sub(y, 1) }
-          function g() { leave }
-        }
-      }
-      """
-    )
-    blocks = extract_function_blocks(yul)
-    keys = [block.key for block in blocks]
-    self.assertEqual(keys, ["f#0", "f#1", "g#0"])
-
   def test_compare_function_hashes(self) -> None:
     deltas = compare_function_hashes(
       {
@@ -93,6 +76,23 @@ object "M" {
     self.assertEqual(details[0]["key"], "f#0")
     self.assertEqual(details[0]["firstMismatch"]["solidityToken"], "2")
     self.assertEqual(details[0]["firstMismatch"]["verityToken"], "1")
+    self.assertEqual(details[0]["firstMismatch"]["solidityLine"], 1)
+    self.assertEqual(details[0]["firstMismatch"]["verityLine"], 1)
+
+  def test_build_report_top_level_mismatch_includes_token_coordinates(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function f() -> r { r := 1 } } }'),
+      normalize_yul('object "M" { code { function f() -> r { r := 2 } } }'),
+      max_diff_lines=50,
+    )
+    mismatch = report["ast"]["firstMismatch"]
+    self.assertEqual(mismatch["solidityToken"], "2")
+    self.assertEqual(mismatch["verityToken"], "1")
+    self.assertEqual(mismatch["tokenIndex"], 14)
+    self.assertEqual(mismatch["solidityLine"], 1)
+    self.assertEqual(mismatch["solidityColumn"], 46)
+    self.assertEqual(mismatch["verityLine"], 1)
+    self.assertEqual(mismatch["verityColumn"], 46)
 
   def test_manifest_check_detects_drift(self) -> None:
     deltas = {

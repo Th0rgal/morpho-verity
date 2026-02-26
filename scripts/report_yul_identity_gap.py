@@ -25,11 +25,10 @@ DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
 
 
 @dataclass(frozen=True)
-class FunctionBlock:
-  name: str
-  ordinal: int
-  key: str
-  text: str
+class YulToken:
+  value: str
+  line: int
+  column: int
 
 
 @dataclass(frozen=True)
@@ -38,7 +37,7 @@ class FunctionAstDigest:
   ordinal: int
   key: str
   digest: str
-  tokens: tuple[str, ...]
+  tokens: tuple[YulToken, ...]
 
 
 def sha256_text(text: str) -> str:
@@ -80,15 +79,35 @@ def normalize_yul(text: str) -> str:
   return "\n".join(lines) + ("\n" if lines else "")
 
 
-def tokenize_normalized_yul(text: str) -> list[str]:
-  tokens: list[str] = []
+def tokenize_normalized_yul_with_spans(text: str) -> list[YulToken]:
+  tokens: list[YulToken] = []
   i = 0
   n = len(text)
+  line = 1
+  column = 1
+
+  def advance_char(ch: str) -> None:
+    nonlocal line, column
+    if ch == "\n":
+      line += 1
+      column = 1
+    else:
+      column += 1
+
+  def advance_text(segment: str) -> None:
+    for ch in segment:
+      advance_char(ch)
+
   while i < n:
     ch = text[i]
     if ch.isspace():
+      advance_char(ch)
       i += 1
       continue
+
+    token_line = line
+    token_column = column
+
     if ch in {'"', "'"}:
       quote = ch
       start = i
@@ -106,54 +125,81 @@ def tokenize_normalized_yul(text: str) -> list[str]:
         i += 1
       else:
         raise RuntimeError("Unterminated string literal while tokenizing normalized Yul.")
-      tokens.append(text[start:i])
+      value = text[start:i]
+      tokens.append(YulToken(value=value, line=token_line, column=token_column))
+      advance_text(value)
       continue
+
     if ch.isdigit():
       start = i
       i += 1
       while i < n and (text[i].isalnum() or text[i] == "_"):
         i += 1
-      tokens.append(text[start:i])
+      value = text[start:i]
+      tokens.append(YulToken(value=value, line=token_line, column=token_column))
+      advance_text(value)
       continue
+
     if ch.isalpha() or ch in {"_", "$"}:
       start = i
       i += 1
       while i < n and (text[i].isalnum() or text[i] in {"_", "$"}):
         i += 1
-      tokens.append(text[start:i])
+      value = text[start:i]
+      tokens.append(YulToken(value=value, line=token_line, column=token_column))
+      advance_text(value)
       continue
+
     if text.startswith("->", i):
-      tokens.append("->")
+      tokens.append(YulToken(value="->", line=token_line, column=token_column))
       i += 2
+      advance_text("->")
       continue
+
     if text.startswith(":=", i):
-      tokens.append(":=")
+      tokens.append(YulToken(value=":=", line=token_line, column=token_column))
       i += 2
+      advance_text(":=")
       continue
+
     if ch in "{}()[],:;.":
-      tokens.append(ch)
+      tokens.append(YulToken(value=ch, line=token_line, column=token_column))
       i += 1
+      advance_char(ch)
       continue
+
     if ch in "+-*/%<>=!&|^~?":
       start = i
       i += 1
       while i < n and text[i] in "+-*/%<>=!&|^~?":
         i += 1
-      tokens.append(text[start:i])
+      value = text[start:i]
+      tokens.append(YulToken(value=value, line=token_line, column=token_column))
+      advance_text(value)
       continue
+
     raise RuntimeError(f"Unsupported character while tokenizing normalized Yul: {ch!r}")
+
   return tokens
+
+
+def tokenize_normalized_yul(text: str) -> list[str]:
+  return [tok.value for tok in tokenize_normalized_yul_with_spans(text)]
 
 
 def render_tokens(tokens: list[str] | tuple[str, ...]) -> str:
   return " ".join(tokens)
 
 
-def find_matching_token(tokens: list[str], start_index: int, open_tok: str, close_tok: str) -> int:
+def render_struct_tokens(tokens: list[YulToken] | tuple[YulToken, ...]) -> str:
+  return " ".join(tok.value for tok in tokens)
+
+
+def find_matching_token(tokens: list[YulToken], start_index: int, open_tok: str, close_tok: str) -> int:
   depth = 1
   i = start_index
   while i < len(tokens):
-    tok = tokens[i]
+    tok = tokens[i].value
     if tok == open_tok:
       depth += 1
     elif tok == close_tok:
@@ -164,104 +210,24 @@ def find_matching_token(tokens: list[str], start_index: int, open_tok: str, clos
   raise RuntimeError(f"Unbalanced delimiters while parsing normalized Yul: {open_tok} .. {close_tok}")
 
 
-def validate_balanced_delimiters(tokens: list[str]) -> None:
+def validate_balanced_delimiters(tokens: list[YulToken]) -> None:
   stack: list[str] = []
   opening = {"{": "}", "(": ")", "[": "]"}
   closing = {"}": "{", ")": "(", "]": "["}
   for tok in tokens:
-    if tok in opening:
-      stack.append(tok)
-    elif tok in closing:
-      if not stack or stack[-1] != closing[tok]:
+    value = tok.value
+    if value in opening:
+      stack.append(value)
+    elif value in closing:
+      if not stack or stack[-1] != closing[value]:
         raise RuntimeError("Unbalanced delimiters while parsing normalized Yul.")
       stack.pop()
   if stack:
     raise RuntimeError("Unbalanced delimiters while parsing normalized Yul.")
 
 
-def is_ident_char(ch: str) -> bool:
-  return ch.isalnum() or ch in {"_", "$"}
-
-
-def extract_function_blocks(normalized_yul: str) -> list[FunctionBlock]:
-  text = normalized_yul
-  n = len(text)
-  cursor = 0
-  counts: dict[str, int] = {}
-  blocks: list[FunctionBlock] = []
-
-  while cursor < n:
-    idx = text.find("function", cursor)
-    if idx < 0:
-      break
-    prev_ok = idx == 0 or not is_ident_char(text[idx - 1])
-    next_pos = idx + len("function")
-    next_ok = next_pos >= n or not is_ident_char(text[next_pos])
-    if not (prev_ok and next_ok):
-      cursor = idx + len("function")
-      continue
-
-    pos = next_pos
-    while pos < n and text[pos].isspace():
-      pos += 1
-    name_start = pos
-    while pos < n and is_ident_char(text[pos]):
-      pos += 1
-    if pos == name_start:
-      cursor = next_pos
-      continue
-    name = text[name_start:pos]
-    while pos < n and text[pos].isspace():
-      pos += 1
-    if pos >= n or text[pos] != "(":
-      cursor = next_pos
-      continue
-
-    paren_depth = 1
-    pos += 1
-    while pos < n and paren_depth > 0:
-      if text[pos] == "(":
-        paren_depth += 1
-      elif text[pos] == ")":
-        paren_depth -= 1
-      pos += 1
-    if paren_depth != 0:
-      raise RuntimeError("Unbalanced function parameter list while parsing Yul.")
-
-    while pos < n and text[pos].isspace():
-      pos += 1
-    if text.startswith("->", pos):
-      pos += 2
-      while pos < n and text[pos] != "{":
-        pos += 1
-    while pos < n and text[pos].isspace():
-      pos += 1
-    if pos >= n or text[pos] != "{":
-      cursor = next_pos
-      continue
-
-    brace_depth = 1
-    pos += 1
-    while pos < n and brace_depth > 0:
-      if text[pos] == "{":
-        brace_depth += 1
-      elif text[pos] == "}":
-        brace_depth -= 1
-      pos += 1
-    if brace_depth != 0:
-      raise RuntimeError(f"Unbalanced function body braces for function `{name}`.")
-
-    ordinal = counts.get(name, 0)
-    counts[name] = ordinal + 1
-    key = f"{name}#{ordinal}"
-    blocks.append(FunctionBlock(name=name, ordinal=ordinal, key=key, text=text[idx:pos]))
-    cursor = pos
-
-  return blocks
-
-
 def function_ast_digests(normalized_yul: str) -> dict[str, FunctionAstDigest]:
-  tokens = tokenize_normalized_yul(normalized_yul)
+  tokens = tokenize_normalized_yul_with_spans(normalized_yul)
   validate_balanced_delimiters(tokens)
   n = len(tokens)
   i = 0
@@ -269,28 +235,31 @@ def function_ast_digests(normalized_yul: str) -> dict[str, FunctionAstDigest]:
   digests: dict[str, FunctionAstDigest] = {}
 
   while i < n:
-    if tokens[i] != "function":
+    if tokens[i].value != "function":
       i += 1
       continue
     if i + 2 >= n:
       i += 1
       continue
-    name = tokens[i + 1]
+
+    name = tokens[i + 1].value
     if not (name and (name[0].isalpha() or name[0] in {"_", "$"})):
       i += 1
       continue
-    if tokens[i + 2] != "(":
+    if tokens[i + 2].value != "(":
       i += 1
       continue
+
     params_end = find_matching_token(tokens, i + 3, "(", ")")
     cursor = params_end + 1
-    if cursor < n and tokens[cursor] == "->":
+    if cursor < n and tokens[cursor].value == "->":
       cursor += 1
-      while cursor < n and tokens[cursor] != "{":
+      while cursor < n and tokens[cursor].value != "{":
         cursor += 1
-    if cursor >= n or tokens[cursor] != "{":
+    if cursor >= n or tokens[cursor].value != "{":
       i += 1
       continue
+
     body_end = find_matching_token(tokens, cursor + 1, "{", "}")
     fn_tokens = tuple(tokens[i : body_end + 1])
     ordinal = counts.get(name, 0)
@@ -300,29 +269,50 @@ def function_ast_digests(normalized_yul: str) -> dict[str, FunctionAstDigest]:
       name=name,
       ordinal=ordinal,
       key=key,
-      digest=sha256_text(render_tokens(fn_tokens)),
+      digest=sha256_text(render_struct_tokens(fn_tokens)),
       tokens=fn_tokens,
     )
     i = body_end + 1
+
   return digests
 
 
-def first_token_mismatch(solidity_tokens: tuple[str, ...], verity_tokens: tuple[str, ...]) -> dict[str, Any]:
+def first_token_mismatch(solidity_tokens: tuple[YulToken, ...], verity_tokens: tuple[YulToken, ...]) -> dict[str, Any]:
   shared_len = min(len(solidity_tokens), len(verity_tokens))
   for idx in range(shared_len):
-    if solidity_tokens[idx] != verity_tokens[idx]:
+    if solidity_tokens[idx].value != verity_tokens[idx].value:
       return {
         "tokenIndex": idx,
-        "solidityToken": solidity_tokens[idx],
-        "verityToken": verity_tokens[idx],
+        "solidityToken": solidity_tokens[idx].value,
+        "verityToken": verity_tokens[idx].value,
+        "solidityLine": solidity_tokens[idx].line,
+        "solidityColumn": solidity_tokens[idx].column,
+        "verityLine": verity_tokens[idx].line,
+        "verityColumn": verity_tokens[idx].column,
       }
+
   if len(solidity_tokens) != len(verity_tokens):
+    sol_extra = solidity_tokens[shared_len] if shared_len < len(solidity_tokens) else None
+    ver_extra = verity_tokens[shared_len] if shared_len < len(verity_tokens) else None
     return {
       "tokenIndex": shared_len,
-      "solidityToken": solidity_tokens[shared_len] if shared_len < len(solidity_tokens) else None,
-      "verityToken": verity_tokens[shared_len] if shared_len < len(verity_tokens) else None,
+      "solidityToken": sol_extra.value if sol_extra is not None else None,
+      "verityToken": ver_extra.value if ver_extra is not None else None,
+      "solidityLine": sol_extra.line if sol_extra is not None else None,
+      "solidityColumn": sol_extra.column if sol_extra is not None else None,
+      "verityLine": ver_extra.line if ver_extra is not None else None,
+      "verityColumn": ver_extra.column if ver_extra is not None else None,
     }
-  return {"tokenIndex": -1, "solidityToken": None, "verityToken": None}
+
+  return {
+    "tokenIndex": -1,
+    "solidityToken": None,
+    "verityToken": None,
+    "solidityLine": None,
+    "solidityColumn": None,
+    "verityLine": None,
+    "verityColumn": None,
+  }
 
 
 def compare_function_hashes(
@@ -451,14 +441,17 @@ def compile_verity_yul() -> None:
 def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[dict[str, Any], str]:
   normalized_verity = normalize_yul(verity_yul)
   normalized_solc = normalize_yul(solc_ir)
+
   solidity_function_digests = function_ast_digests(normalized_solc)
   verity_function_digests = function_ast_digests(normalized_verity)
   function_deltas = compare_function_hashes(solidity_function_digests, verity_function_digests)
-  solidity_tokens = tokenize_normalized_yul(normalized_solc)
-  verity_tokens = tokenize_normalized_yul(normalized_verity)
+
+  solidity_tokens = tokenize_normalized_yul_with_spans(normalized_solc)
+  verity_tokens = tokenize_normalized_yul_with_spans(normalized_verity)
   validate_balanced_delimiters(solidity_tokens)
   validate_balanced_delimiters(verity_tokens)
-  ast_equal = solidity_tokens == verity_tokens
+
+  ast_equal = [tok.value for tok in solidity_tokens] == [tok.value for tok in verity_tokens]
   raw_equal = verity_yul == solc_ir
   normalized_equal = normalized_verity == normalized_solc
 
@@ -470,9 +463,10 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
         normalized_verity.splitlines(),
         fromfile="solidity/Morpho.irOptimized.normalized.yul",
         tofile="verity/Morpho.normalized.yul",
-          lineterm="",
+        lineterm="",
       )
     )
+
   mismatch_details: list[dict[str, Any]] = []
   for key in function_deltas["hashMismatch"]:
     sol_fn = solidity_function_digests[key]
@@ -504,8 +498,14 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
       "verity": {"bytes": len(normalized_verity.encode("utf-8")), "sha256": sha256_text(normalized_verity)},
     },
     "ast": {
-      "solidity": {"tokenCount": len(solidity_tokens), "sha256": sha256_text(render_tokens(solidity_tokens))},
-      "verity": {"tokenCount": len(verity_tokens), "sha256": sha256_text(render_tokens(verity_tokens))},
+      "solidity": {
+        "tokenCount": len(solidity_tokens),
+        "sha256": sha256_text(render_struct_tokens(solidity_tokens)),
+      },
+      "verity": {
+        "tokenCount": len(verity_tokens),
+        "sha256": sha256_text(render_struct_tokens(verity_tokens)),
+      },
       "firstMismatch": first_token_mismatch(tuple(solidity_tokens), tuple(verity_tokens)),
     },
     "functionBlocks": {
@@ -542,7 +542,7 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--strict",
     action="store_true",
-    help="Exit non-zero when normalized outputs differ.",
+    help="Exit non-zero when structural AST outputs differ.",
   )
   parser.add_argument(
     "--unsupported-manifest",
