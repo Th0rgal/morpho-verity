@@ -46,6 +46,13 @@ def write_text(path: pathlib.Path, content: str) -> None:
     f.write(content)
 
 
+def display_path(path: pathlib.Path) -> str:
+  try:
+    return str(path.relative_to(ROOT))
+  except ValueError:
+    return str(path)
+
+
 def normalize_yul(text: str) -> str:
   # Drop comments and normalize trailing whitespace for stable comparisons.
   without_block_comments = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
@@ -178,9 +185,9 @@ def main() -> int:
   report, diff_text = build_report(verity_yul, solc_ir, args.max_diff_lines)
   report["parityTarget"] = target["id"]
   report["paths"] = {
-    "solidityRaw": str((solc_dir / "Morpho.irOptimized.yul").relative_to(ROOT)),
-    "verityRaw": str((verity_dir / "Morpho.yul").relative_to(ROOT)),
-    "diff": str((out_dir / "normalized.diff").relative_to(ROOT)),
+    "solidityRaw": display_path(solc_dir / "Morpho.irOptimized.yul"),
+    "verityRaw": display_path(verity_dir / "Morpho.yul"),
+    "diff": display_path(out_dir / "normalized.diff"),
   }
 
   write_text(out_dir / "normalized.diff", diff_text)
@@ -191,8 +198,8 @@ def main() -> int:
   print(f"status: {report['status']}")
   print(f"rawEqual: {report['rawEqual']}")
   print(f"normalizedEqual: {report['normalizedEqual']}")
-  print(f"report: {(out_dir / 'report.json').relative_to(ROOT)}")
-  print(f"diff: {(out_dir / 'normalized.diff').relative_to(ROOT)}")
+  print(f"report: {display_path(out_dir / 'report.json')}")
+  print(f"diff: {display_path(out_dir / 'normalized.diff')}")
 
   if args.strict and not report["normalizedEqual"]:
     print("yul-identity check failed in strict mode", file=sys.stderr)

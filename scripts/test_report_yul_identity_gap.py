@@ -8,7 +8,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from report_yul_identity_gap import build_report, normalize_yul  # noqa: E402
+from report_yul_identity_gap import ROOT, build_report, display_path, normalize_yul  # noqa: E402
 
 
 class ReportYulIdentityGapTests(unittest.TestCase):
@@ -29,6 +29,12 @@ object "M" {
     self.assertFalse(report["normalizedEqual"])
     self.assertGreater(report["diff"]["lineCount"], 0)
     self.assertIn("solidity/Morpho.irOptimized.normalized.yul", diff)
+
+  def test_display_path_falls_back_for_paths_outside_repo(self) -> None:
+    outside = pathlib.Path("/tmp/report-yul-identity-gap-test/report.json").resolve()
+    self.assertEqual(display_path(outside), str(outside))
+    inside = (ROOT / "out" / "parity-target" / "report.json").resolve()
+    self.assertEqual(display_path(inside), "out/parity-target/report.json")
 
 
 if __name__ == "__main__":
