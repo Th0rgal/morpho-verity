@@ -18,7 +18,6 @@
     "abi_encode_struct_MarketParams_struct_Market_storage#0",
     "abi_encode_uint256_bytes_calldata#0",
     "array_allocation_size_array_bytes32_dyn#0",
-    "checked_add_uint128#0",
     "checked_sub_uint128#0",
     "copy_literal_to_memory_032999fca1188e683f4a316e0deaa9b99b639717686bfe7875953796fc849c71#0",
     "copy_literal_to_memory_1798fe1b45706024844fe1ae37566f71d02866731bfe8dd8db26da9baccb8204#0",
