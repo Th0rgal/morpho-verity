@@ -108,9 +108,9 @@ theorem setFeeRecipient_preserves_borrowSharesConsistent (s : MorphoState) (addr
   rw [← h_ok.right.right]; exact h_consistent
 
 theorem createMarket_preserves_supplySharesConsistent (s : MorphoState)
-    (params : MarketParams) (marketId : Id) (id : Id) (allUsers : List Address)
+    (params : MarketParams) (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
-    (h_ok : Morpho.createMarket s params marketId = some s') :
+    (h_ok : Morpho.createMarket s params = some s') :
     supplySharesConsistent s' id allUsers := by
   unfold Morpho.createMarket at h_ok; simp at h_ok
   obtain ⟨_, _, _, h_eq⟩ := h_ok
@@ -120,9 +120,9 @@ theorem createMarket_preserves_supplySharesConsistent (s : MorphoState)
   · intro u; rfl
 
 theorem createMarket_preserves_borrowSharesConsistent (s : MorphoState)
-    (params : MarketParams) (marketId : Id) (id : Id) (allUsers : List Address)
+    (params : MarketParams) (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
-    (h_ok : Morpho.createMarket s params marketId = some s') :
+    (h_ok : Morpho.createMarket s params = some s') :
     borrowSharesConsistent s' id allUsers := by
   unfold Morpho.createMarket at h_ok; simp at h_ok
   obtain ⟨_, _, _, h_eq⟩ := h_ok
