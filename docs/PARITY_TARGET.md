@@ -1,4 +1,4 @@
-# Parity Target (Groundwork)
+# Parity Target
 
 Issue: [#25](https://github.com/Th0rgal/morpho-verity/issues/25)
 
@@ -6,14 +6,21 @@ This document defines the planned canonical target tuple used for artifact ident
 
 ## Status
 
-Groundwork only. The tuple and enforcement workflow below are proposed and must be implemented in CI before release claims depend on them.
+Partially implemented:
+1. Canonical tuple file: `config/parity-target.json`.
+2. Validation script: `scripts/check_parity_target.py`.
+3. CI gate: `parity-target` job in `.github/workflows/verify.yml`.
+
+Not implemented yet:
+1. Yul AST identity comparison artifacts under `out/parity-target/`.
+2. CI failure artifacts with mismatch localization.
 
 ## Purpose
 
 Parity and identity claims are only meaningful when the Solidity compilation context is fully pinned.
 This file is the single source of truth for that context.
 
-## Proposed Canonical Tuple
+## Canonical Tuple Fields
 
 1. `solcVersion`: exact version and commit hash.
 2. `optimizer`: enabled/disabled + runs.
@@ -22,15 +29,16 @@ This file is the single source of truth for that context.
 5. `metadataMode`: bytecode metadata settings.
 6. `stdlib/dependency revisions`: pinned commits for relevant submodules.
 
-## Proposed Repo Artifacts
+## Repo Artifacts
 
-1. `config/parity-target.json`: machine-readable tuple.
-2. `out/parity-target/`: generated Yul fixtures and identity reports.
-3. `docs/RELEASE_CRITERIA.md`: gate that references this tuple.
+1. `config/parity-target.json`: machine-readable tuple (implemented).
+2. `scripts/check_parity_target.py`: tuple drift checker (implemented).
+3. `out/parity-target/`: generated Yul fixtures and identity reports (planned).
+4. `docs/RELEASE_CRITERIA.md`: gate definitions tied to this tuple.
 
 ## CI Expectations
 
-1. CI prints the active tuple in logs.
-2. Any tuple drift fails CI unless updated in a dedicated PR.
-3. Identity checks must reference this tuple explicitly.
-
+1. CI prints the active tuple in logs (`parity-target` job).
+2. Tuple drift between `config/parity-target.json` and `morpho-blue/foundry.toml` fails CI.
+3. solc version drift fails CI.
+4. Future identity checks must reference this tuple explicitly.

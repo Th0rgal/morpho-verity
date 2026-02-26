@@ -1,0 +1,15 @@
+{
+  "id": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
+  "solc": {
+    "version": "0.8.28",
+    "commit": null
+  },
+  "foundryDefaultProfile": {
+    "optimizer": true,
+    "optimizerRuns": 999999,
+    "viaIR": true,
+    "evmVersion": "paris",
+    "bytecodeHash": "none"
+  },
+  "notes": "Pinned tuple validated against morpho-blue/foundry.toml and CI solc toolchain."
+}

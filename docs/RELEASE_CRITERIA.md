@@ -1,4 +1,4 @@
-# Release Criteria (Groundwork)
+# Release Criteria
 
 Issue: [#25](https://github.com/Th0rgal/morpho-verity/issues/25)
 
@@ -6,14 +6,22 @@ This document defines proposed release gates required before making strong "safe
 
 ## Status
 
-Groundwork only. These criteria are not fully enforced yet.
+Partially enforced:
+1. `build-proofs` (`verity-proofs` job) is enforced in CI.
+2. `differential-parity` (`morpho-blue-parity` job) is enforced in CI.
+3. `parity-target` tuple drift gate is enforced in CI.
 
-## Proposed Required Gates
+Not yet enforced:
+1. `yul-identity-check`.
+2. machine-tracked `equivalence-obligations` status in CI output.
+
+## Required Gates (Target State)
 
 1. `build-proofs`: `lake build` must pass on pinned toolchain.
 2. `yul-identity-check`: Verity Yul AST must match Solidity Yul AST for supported contracts and pinned tuple.
 3. `differential-parity`: Foundry behavior parity across Solidity baseline, Verity default, and Verity parity-pack artifacts.
 4. `equivalence-obligations`: obligation table must be reported with explicit `proved` vs `assumed` counts.
+5. `parity-target`: tuple drift checks against `config/parity-target.json` must pass.
 
 ## Claim Levels
 
@@ -27,4 +35,3 @@ Groundwork only. These criteria are not fully enforced yet.
 2. `docs/PARITY_TARGET.md` must define the active tuple.
 3. `docs/EQUIVALENCE_OBLIGATIONS.md` must be up to date.
 4. CI artifacts must include identity report on failure.
-

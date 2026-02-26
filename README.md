@@ -38,6 +38,10 @@ Groundwork docs for closing these gaps:
 - [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
 - [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
 
+Machine-readable parity target artifacts:
+- [`config/parity-target.json`](config/parity-target.json)
+- [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
+
 ### Solidity Equivalence Bridge
 
 `Morpho/Proofs/SolidityBridge.lean` adds 46 proof-transfer theorems for core invariants.
@@ -107,6 +111,12 @@ Run the exact same Morpho Blue suite against both implementations (Solidity and 
 
 ```bash
 ./scripts/run_morpho_blue_parity.sh
+```
+
+Validate pinned parity tuple (solc + Foundry profile):
+
+```bash
+python3 scripts/check_parity_target.py
 ```
 
 Build the Morpho Verity artifact:
