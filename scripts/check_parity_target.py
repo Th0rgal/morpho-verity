@@ -52,10 +52,10 @@ def parse_foundry_default(text: str) -> dict[str, Any]:
     return m.group(1) == "true"
 
   def get_int(name: str) -> int:
-    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*(\d+)\s*{trailing_comment}$", section)
+    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*([\d_]+)\s*{trailing_comment}$", section)
     if not m:
       raise RuntimeError(f"Missing integer key `{name}` in [profile.default]")
-    return int(m.group(1))
+    return int(m.group(1).replace("_", ""))
 
   def get_str(name: str) -> str:
     m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*\"([^\"]+)\"\s*{trailing_comment}$", section)

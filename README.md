@@ -41,6 +41,7 @@ Groundwork docs for closing these gaps:
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
+- [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
 
 ### Solidity Equivalence Bridge
 
@@ -119,6 +120,12 @@ Validate pinned parity tuple (solc + Foundry profile):
 python3 scripts/check_parity_target.py
 ```
 
+Generate Solidity-vs-Verity Yul identity report artifacts:
+
+```bash
+python3 scripts/report_yul_identity_gap.py
+```
+
 Build the Morpho Verity artifact:
 
 ```bash
@@ -143,6 +150,7 @@ Current status:
 - The full Morpho Blue Foundry suite is wired to run against both implementations via `MORPHO_IMPL=solidity|verity` in `morpho-blue/test/BaseTest.sol`.
 - `./scripts/run_morpho_blue_parity.sh` runs that exact suite for both targets and stores logs in `out/parity/`.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) and is run in CI as a non-blocking gap report.
 
 ## Proof progress
 

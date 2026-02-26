@@ -10,6 +10,7 @@ Partially enforced:
 1. `build-proofs` (`verity-proofs` job) is enforced in CI.
 2. `differential-parity` (`morpho-blue-parity` job) is enforced in CI.
 3. `parity-target` tuple drift gate is enforced in CI.
+4. non-blocking `yul-identity-report` artifacts are emitted in CI.
 
 Not yet enforced:
 1. `yul-identity-check`.

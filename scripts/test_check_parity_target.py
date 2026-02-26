@@ -33,6 +33,18 @@ bytecode_hash = "none" # deterministic bytecode
       },
     )
 
+  def test_optimizer_runs_with_underscores_are_accepted(self) -> None:
+    text = """
+[profile.default]
+optimizer = true
+optimizer_runs = 999_999
+via_ir = true
+evm_version = "paris"
+bytecode_hash = "none"
+"""
+    got = parse_foundry_default(text)
+    self.assertEqual(got["optimizerRuns"], 999999)
+
 
 if __name__ == "__main__":
   unittest.main()
