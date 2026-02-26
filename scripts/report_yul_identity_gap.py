@@ -187,10 +187,6 @@ def tokenize_normalized_yul(text: str) -> list[str]:
   return [tok.value for tok in tokenize_normalized_yul_with_spans(text)]
 
 
-def render_tokens(tokens: list[str] | tuple[str, ...]) -> str:
-  return " ".join(tokens)
-
-
 def render_struct_tokens(tokens: list[YulToken] | tuple[YulToken, ...]) -> str:
   return " ".join(tok.value for tok in tokens)
 
