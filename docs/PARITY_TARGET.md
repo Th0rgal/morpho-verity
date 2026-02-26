@@ -33,8 +33,9 @@ This file is the single source of truth for that context.
 
 1. `config/parity-target.json`: machine-readable tuple (implemented).
 2. `scripts/check_parity_target.py`: tuple drift checker (implemented).
-3. `out/parity-target/`: generated Yul fixtures and identity reports (planned).
-4. `docs/RELEASE_CRITERIA.md`: gate definitions tied to this tuple.
+3. `config/parity-target.json -> verity.parityPackId`: pinned Verity parity-pack binding (implemented).
+4. `out/parity-target/`: generated Yul fixtures and identity reports (planned).
+5. `docs/RELEASE_CRITERIA.md`: gate definitions tied to this tuple.
 
 ## CI Expectations
 

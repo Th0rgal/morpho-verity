@@ -125,6 +125,13 @@ Build the Morpho Verity artifact:
 ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
+Compile using a specific Verity parity pack:
+
+```bash
+MORPHO_VERITY_PARITY_PACK=solc-0.8.28-o999999-viair-true-evm-paris \
+  ./scripts/prepare_verity_morpho_artifact.sh
+```
+
 Run Foundry smoke tests on the compiled Verity artifact:
 
 ```bash

@@ -94,8 +94,13 @@ def main() -> None:
     if foundry[key] != expected_foundry[key]:
       fail(f"foundry default `{key}` mismatch: expected {expected_foundry[key]!r}, got {foundry[key]!r}")
 
+  verity_pack = target.get("verity", {}).get("parityPackId")
+  if not isinstance(verity_pack, str) or not verity_pack:
+    fail("missing required config `verity.parityPackId` in config/parity-target.json")
+
   print(f"parity-target id: {target['id']}")
   print(f"solc: {version}+commit.{commit}")
+  print(f"verity parity-pack: {verity_pack}")
   print(
     "foundry.default: "
     f"optimizer={foundry['optimizer']} "

@@ -3,6 +3,7 @@ import Compiler.ContractSpec
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
+import Compiler.ParityPacks
 import Morpho.Compiler.Spec
 
 namespace Morpho.Compiler.Main
@@ -17,35 +18,133 @@ private def orThrow {α : Type} (r : Except String α) : IO α :=
   | .ok v => pure v
   | .error e => throw (IO.userError e)
 
-private def parseArgs (args : List String) : IO (String × List String × Bool) :=
-  let rec go : List String → String → List String → Bool → IO (String × List String × Bool)
-    | [], outDir, libs, verbose => pure (outDir, libs.reverse, verbose)
-    | "--output" :: dir :: rest, _, libs, verbose => go rest dir libs verbose
-    | "-o" :: dir :: rest, _, libs, verbose => go rest dir libs verbose
-    | "--link" :: path :: rest, outDir, libs, verbose => go rest outDir (path :: libs) verbose
-    | "--verbose" :: rest, outDir, libs, _ => go rest outDir libs true
-    | "-v" :: rest, outDir, libs, _ => go rest outDir libs true
-    | "--help" :: _, _, _, _
-    | "-h" :: _, _, _, _ => do
+private structure CLIArgs where
+  outDir : String := "compiler/yul"
+  libs : List String := []
+  verbose : Bool := false
+  backendProfile : _root_.Compiler.BackendProfile := .semantic
+  backendProfileExplicit : Bool := false
+  parityPackId : Option String := none
+  patchEnabled : Bool := false
+  patchMaxIterations : Nat := 2
+  patchMaxIterationsExplicit : Bool := false
+  mappingSlotScratchBase : Nat := 0x200
+
+private def parseBackendProfile (raw : String) : Option _root_.Compiler.BackendProfile :=
+  match raw with
+  | "semantic" => some .semantic
+  | "solidity-parity-ordering" => some .solidityParityOrdering
+  | "solidity-parity" => some .solidityParity
+  | _ => none
+
+private def backendProfileString (profile : _root_.Compiler.BackendProfile) : String :=
+  match profile with
+  | .semantic => "semantic"
+  | .solidityParityOrdering => "solidity-parity-ordering"
+  | .solidityParity => "solidity-parity"
+
+private def profileForcesPatches (profile : _root_.Compiler.BackendProfile) : Bool :=
+  match profile with
+  | .solidityParity => true
+  | _ => false
+
+private def packForcesPatches (cfg : CLIArgs) : Bool :=
+  match cfg.parityPackId with
+  | some packId =>
+      match _root_.Compiler.findParityPack? packId with
+      | some pack => pack.forcePatches
+      | none => false
+  | none => false
+
+private def patchEnabledFor (cfg : CLIArgs) : Bool :=
+  cfg.patchEnabled || profileForcesPatches cfg.backendProfile || packForcesPatches cfg
+
+private def parseArgs (args : List String) : IO CLIArgs :=
+  let rec go : List String → CLIArgs → IO CLIArgs
+    | [], cfg => pure { cfg with libs := cfg.libs.reverse }
+    | "--output" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
+    | "-o" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
+    | "--link" :: path :: rest, cfg => go rest { cfg with libs := path :: cfg.libs }
+    | ["--output"], _ | ["-o"], _ =>
+        throw (IO.userError "Missing value for --output")
+    | ["--link"], _ =>
+        throw (IO.userError "Missing value for --link")
+    | "--backend-profile" :: raw :: rest, cfg =>
+        if cfg.parityPackId.isSome then
+          throw (IO.userError "Cannot combine --backend-profile with --parity-pack")
+        else
+          match parseBackendProfile raw with
+          | some profile => go rest { cfg with backendProfile := profile, backendProfileExplicit := true }
+          | none =>
+              throw (IO.userError
+                s!"Invalid value for --backend-profile: {raw} (expected semantic, solidity-parity-ordering, or solidity-parity)")
+    | ["--backend-profile"], _ =>
+        throw (IO.userError "Missing value for --backend-profile")
+    | "--parity-pack" :: raw :: rest, cfg =>
+        if cfg.backendProfileExplicit then
+          throw (IO.userError "Cannot combine --parity-pack with --backend-profile")
+        else
+          match _root_.Compiler.findParityPack? raw with
+          | some pack =>
+              go rest {
+                cfg with
+                  parityPackId := some pack.id
+                  backendProfile := pack.backendProfile
+                  patchEnabled := cfg.patchEnabled || pack.forcePatches
+                  patchMaxIterations :=
+                    if cfg.patchMaxIterationsExplicit then cfg.patchMaxIterations else pack.defaultPatchMaxIterations
+              }
+          | none =>
+              throw (IO.userError
+                s!"Invalid value for --parity-pack: {raw} (supported: {String.intercalate ", " _root_.Compiler.supportedParityPackIds})")
+    | ["--parity-pack"], _ =>
+        throw (IO.userError "Missing value for --parity-pack")
+    | "--enable-patches" :: rest, cfg =>
+        go rest { cfg with patchEnabled := true }
+    | "--patch-max-iterations" :: raw :: rest, cfg =>
+        match raw.toNat? with
+        | some n => go rest { cfg with patchEnabled := true, patchMaxIterations := n, patchMaxIterationsExplicit := true }
+        | none => throw (IO.userError s!"Invalid value for --patch-max-iterations: {raw}")
+    | ["--patch-max-iterations"], _ =>
+        throw (IO.userError "Missing value for --patch-max-iterations")
+    | "--mapping-slot-scratch-base" :: raw :: rest, cfg =>
+        match raw.toNat? with
+        | some n => go rest { cfg with mappingSlotScratchBase := n }
+        | none => throw (IO.userError s!"Invalid value for --mapping-slot-scratch-base: {raw}")
+    | ["--mapping-slot-scratch-base"], _ =>
+        throw (IO.userError "Missing value for --mapping-slot-scratch-base")
+    | "--verbose" :: rest, cfg => go rest { cfg with verbose := true }
+    | "-v" :: rest, cfg => go rest { cfg with verbose := true }
+    | "--help" :: _, _
+    | "-h" :: _, _ => do
       IO.println "Usage: morpho-verity-compiler [options]"
       IO.println ""
       IO.println "Options:"
       IO.println "  --output <dir>, -o <dir>    Output directory (default: compiler/yul)"
       IO.println "  --link <path>               Link external Yul library (repeatable)"
+      IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
+      IO.println "  --parity-pack <id>          Versioned parity pack from verity"
+      IO.println "  --enable-patches            Enable deterministic Yul patch pass"
+      IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
+      IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 512)"
       IO.println "  --verbose, -v               Verbose logs"
       IO.println "  --help, -h                  Show this help"
       throw (IO.userError "help")
-    | x :: _, _, _, _ =>
+    | x :: _, _ =>
       throw (IO.userError s!"Unknown argument: {x}")
-  go args "compiler/yul" [] false
+  go args {}
 
-private def morphoEmitOptions : _root_.Compiler.YulEmitOptions :=
-  { backendProfile := .semantic
-    patchConfig := { enabled := false, maxIterations := 2 }
-    mappingSlotScratchBase := 0x200 }
+private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :=
+  { backendProfile := cfg.backendProfile
+    patchConfig := { enabled := patchEnabledFor cfg, maxIterations := cfg.patchMaxIterations }
+    mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
-private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) : IO Unit := do
-  let yulObj := _root_.Compiler.emitYulWithOptions contract morphoEmitOptions
+private def writeContract
+    (outDir : String)
+    (contract : IRContract)
+    (libraryPaths : List String)
+    (options : _root_.Compiler.YulEmitOptions) : IO Unit := do
+  let yulObj := _root_.Compiler.emitYulWithOptions contract options
   let libraries ← libraryPaths.mapM loadLibrary
   let allLibFunctions := libraries.flatten
 
@@ -67,17 +166,35 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
 
 def main (args : List String) : IO Unit := do
   try
-    let (outDir, libs, verbose) ← parseArgs args
-    if verbose then
-      IO.println s!"Compiling Morpho ContractSpec to {outDir}"
-      if !libs.isEmpty then
-        IO.println s!"Linking {libs.length} external libraries"
+    let cfg ← parseArgs args
+    if cfg.verbose then
+      IO.println s!"Compiling Morpho ContractSpec to {cfg.outDir}"
+      IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
+      match cfg.parityPackId with
+      | some packId =>
+          IO.println s!"Parity pack: {packId}"
+          match _root_.Compiler.findParityPack? packId with
+          | some pack =>
+              IO.println s!"  target solc: {pack.compat.solcVersion}+commit.{pack.compat.solcCommit}"
+              IO.println s!"  optimizer runs: {pack.compat.optimizerRuns}"
+              IO.println s!"  viaIR: {pack.compat.viaIR}"
+              IO.println s!"  evmVersion: {pack.compat.evmVersion}"
+          | none => pure ()
+      | none => pure ()
+      let patchEnabled := patchEnabledFor cfg
+      if patchEnabled then
+        IO.println s!"Patch pass: enabled (max iterations = {cfg.patchMaxIterations})"
+      IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
+      if !cfg.libs.isEmpty then
+        IO.println s!"Linking {cfg.libs.length} external libraries"
+        for lib in cfg.libs do
+          IO.println s!"  - {lib}"
 
     let ir ← orThrow (compile Morpho.Compiler.Spec.morphoSpec Morpho.Compiler.Spec.morphoSelectors)
-    writeContract outDir ir libs
+    writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
 
-    if verbose then
-      IO.println s!"✓ Wrote {outDir}/{ir.name}.yul"
+    if cfg.verbose then
+      IO.println s!"✓ Wrote {cfg.outDir}/{ir.name}.yul"
   catch e =>
     if e.toString == "help" then
       pure ()
