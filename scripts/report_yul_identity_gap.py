@@ -37,6 +37,7 @@ class FunctionAstDigest:
   ordinal: int
   key: str
   digest: str
+  body_digest: str
   tokens: tuple[YulToken, ...]
 
 
@@ -266,6 +267,9 @@ def function_ast_digests(normalized_yul: str) -> dict[str, FunctionAstDigest]:
       ordinal=ordinal,
       key=key,
       digest=sha256_text(render_struct_tokens(fn_tokens)),
+      body_digest=sha256_text(
+        render_struct_tokens(tuple(tok for idx, tok in enumerate(fn_tokens) if idx != 1))
+      ),
       tokens=fn_tokens,
     )
     i = body_end + 1
@@ -330,6 +334,52 @@ def compare_function_hashes(
     "hashMismatch": hash_mismatch,
     "onlyInSolidity": only_solidity,
     "onlyInVerity": only_verity,
+  }
+
+
+def build_name_insensitive_pairs(
+    solidity_digests: dict[str, FunctionAstDigest],
+    verity_digests: dict[str, FunctionAstDigest],
+    deltas: dict[str, list[str]],
+) -> dict[str, Any]:
+  only_sol = [solidity_digests[key] for key in deltas["onlyInSolidity"] if key in solidity_digests]
+  only_ver = [verity_digests[key] for key in deltas["onlyInVerity"] if key in verity_digests]
+
+  by_digest_sol: dict[str, list[FunctionAstDigest]] = {}
+  by_digest_ver: dict[str, list[FunctionAstDigest]] = {}
+  for fn in only_sol:
+    by_digest_sol.setdefault(fn.body_digest, []).append(fn)
+  for fn in only_ver:
+    by_digest_ver.setdefault(fn.body_digest, []).append(fn)
+
+  pair_matches: list[dict[str, Any]] = []
+  ambiguous_groups: list[dict[str, Any]] = []
+  for digest in sorted(set(by_digest_sol) & set(by_digest_ver)):
+    sol_group = sorted(by_digest_sol[digest], key=lambda fn: fn.key)
+    ver_group = sorted(by_digest_ver[digest], key=lambda fn: fn.key)
+    if len(sol_group) == 1 and len(ver_group) == 1:
+      pair_matches.append(
+        {
+          "bodyDigest": digest,
+          "solidity": {"key": sol_group[0].key, "name": sol_group[0].name, "ordinal": sol_group[0].ordinal},
+          "verity": {"key": ver_group[0].key, "name": ver_group[0].name, "ordinal": ver_group[0].ordinal},
+        }
+      )
+    else:
+      ambiguous_groups.append(
+        {
+          "bodyDigest": digest,
+          "solidity": [{"key": fn.key, "name": fn.name, "ordinal": fn.ordinal} for fn in sol_group],
+          "verity": [{"key": fn.key, "name": fn.name, "ordinal": fn.ordinal} for fn in ver_group],
+        }
+      )
+
+  return {
+    "comparator": "ast-function-body-digest-no-name-v1",
+    "pairCount": len(pair_matches),
+    "ambiguousGroupCount": len(ambiguous_groups),
+    "pairs": pair_matches,
+    "ambiguousGroups": ambiguous_groups,
   }
 
 
@@ -441,6 +491,9 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
   solidity_function_digests = function_ast_digests(normalized_solc)
   verity_function_digests = function_ast_digests(normalized_verity)
   function_deltas = compare_function_hashes(solidity_function_digests, verity_function_digests)
+  name_insensitive_pairs = build_name_insensitive_pairs(
+    solidity_function_digests, verity_function_digests, function_deltas
+  )
 
   solidity_tokens = tokenize_normalized_yul_with_spans(normalized_solc)
   verity_tokens = tokenize_normalized_yul_with_spans(normalized_verity)
@@ -512,6 +565,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
       "onlyInSolidity": function_deltas["onlyInSolidity"],
       "onlyInVerity": function_deltas["onlyInVerity"],
       "mismatchDetails": mismatch_details,
+      "nameInsensitivePairs": name_insensitive_pairs,
     },
     "diff": {"lineCount": len(diff_lines), "truncated": len(diff_lines) > max_diff_lines},
   }

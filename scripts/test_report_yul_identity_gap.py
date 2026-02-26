@@ -10,6 +10,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from report_yul_identity_gap import (  # noqa: E402
   ROOT,
+  build_name_insensitive_pairs,
   build_report,
   compare_function_hashes,
   display_path,
@@ -61,6 +62,34 @@ object "M" {
     self.assertEqual(deltas["onlyInSolidity"], ["g#0"])
     self.assertEqual(deltas["onlyInVerity"], ["h#0"])
 
+  def test_name_insensitive_pairs_detects_rename_only_candidate(self) -> None:
+    sol = function_ast_digests("function g() { leave }\n")
+    ver = function_ast_digests("function h() { leave }\n")
+    deltas = {
+      "hashMismatch": [],
+      "onlyInSolidity": ["g#0"],
+      "onlyInVerity": ["h#0"],
+    }
+    pairs = build_name_insensitive_pairs(sol, ver, deltas)
+    self.assertEqual(pairs["pairCount"], 1)
+    self.assertEqual(pairs["ambiguousGroupCount"], 0)
+    self.assertEqual(pairs["pairs"][0]["solidity"]["key"], "g#0")
+    self.assertEqual(pairs["pairs"][0]["verity"]["key"], "h#0")
+
+  def test_name_insensitive_pairs_surfaces_ambiguous_groups(self) -> None:
+    sol = function_ast_digests("function s0() { leave }\nfunction s1() { leave }\n")
+    ver = function_ast_digests("function v0() { leave }\nfunction v1() { leave }\n")
+    deltas = {
+      "hashMismatch": [],
+      "onlyInSolidity": ["s0#0", "s1#0"],
+      "onlyInVerity": ["v0#0", "v1#0"],
+    }
+    pairs = build_name_insensitive_pairs(sol, ver, deltas)
+    self.assertEqual(pairs["pairCount"], 0)
+    self.assertEqual(pairs["ambiguousGroupCount"], 1)
+    self.assertEqual(len(pairs["ambiguousGroups"][0]["solidity"]), 2)
+    self.assertEqual(len(pairs["ambiguousGroups"][0]["verity"]), 2)
+
   def test_tokenizer_keeps_strings_and_compound_tokens(self) -> None:
     tokens = tokenize_normalized_yul('let x := add("a b", 0x10) -> y')
     self.assertEqual(tokens, ["let", "x", ":=", "add", "(", '"a b"', ",", "0x10", ")", "->", "y"])
@@ -78,6 +107,17 @@ object "M" {
     self.assertEqual(details[0]["firstMismatch"]["verityToken"], "1")
     self.assertEqual(details[0]["firstMismatch"]["solidityLine"], 1)
     self.assertEqual(details[0]["firstMismatch"]["verityLine"], 1)
+
+  def test_build_report_includes_name_insensitive_pairs(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function g() { leave } } }'),
+      normalize_yul('object "M" { code { function h() { leave } } }'),
+      max_diff_lines=50,
+    )
+    pairs = report["functionBlocks"]["nameInsensitivePairs"]
+    self.assertEqual(pairs["pairCount"], 1)
+    self.assertEqual(pairs["pairs"][0]["solidity"]["key"], "h#0")
+    self.assertEqual(pairs["pairs"][0]["verity"]["key"], "g#0")
 
   def test_build_report_top_level_mismatch_includes_token_coordinates(self) -> None:
     report, _ = build_report(

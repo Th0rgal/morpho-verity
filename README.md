@@ -157,7 +157,7 @@ Current status:
 - The full Morpho Blue Foundry suite is wired to run against both implementations via `MORPHO_IMPL=solidity|verity` in `morpho-blue/test/BaseTest.sol`.
 - `./scripts/run_morpho_blue_parity.sh` runs that exact suite for both targets and stores logs in `out/parity/`.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
-- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates) and an enforced unsupported-manifest drift gate (including parity-target ID match).
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`) to surface rewrite/canonicalization candidates, and an enforced unsupported-manifest drift gate (including parity-target ID match).
 
 ## Proof progress
 
