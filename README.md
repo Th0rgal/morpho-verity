@@ -24,6 +24,20 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers, EIP-712 signature verification) is modeled as parameters, not verified end-to-end.
 
+### Proof Boundaries (Proved vs Assumed)
+
+| Area | Current status | Gate/condition |
+|------|----------------|----------------|
+| Lean invariants/specs | Proved in this repo | `lake build` succeeds |
+| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged |
+| Verity artifact parity | Empirical/differential today | Pinned parity target + Yul identity gate in CI |
+| External dependencies (oracle/token/signature env) | Assumed model inputs | Explicit trust assumptions and scenario matrix |
+
+Groundwork docs for closing these gaps:
+- [`docs/PARITY_TARGET.md`](docs/PARITY_TARGET.md)
+- [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
+- [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
+
 ### Solidity Equivalence Bridge
 
 `Morpho/Proofs/SolidityBridge.lean` adds 46 proof-transfer theorems for core invariants.
