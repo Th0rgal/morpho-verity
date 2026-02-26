@@ -55,8 +55,6 @@
     "update_storage_value_offsett_bool_to_bool#0",
     "update_storage_value_offsett_uint128_to_uint128#0"
   ],
-  "allowedOnlyInVerityKeys": [
-    "keccakMarketParams#0"
-  ],
+  "allowedOnlyInVerityKeys": [],
   "notes": "Pinned unsupported function-level Yul identity deltas for the active parity target. Keep in sync with CI report artifacts."
 }

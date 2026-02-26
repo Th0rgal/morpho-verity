@@ -161,19 +161,20 @@ private def writeContract
   let yulObj := _root_.Compiler.emitYulWithOptions contract options
   let libraries ← libraryPaths.mapM loadLibrary
   let allLibFunctions := libraries.flatten
+  let linkedLibFunctions := selectDirectlyReferencedLibraries yulObj allLibFunctions
 
-  if !allLibFunctions.isEmpty then
-    let _ ← orThrow (validateNoDuplicateNames allLibFunctions)
-    let _ ← orThrow (validateNoNameCollisions yulObj allLibFunctions)
-  let _ ← orThrow (validateExternalReferences yulObj allLibFunctions)
-  if !allLibFunctions.isEmpty then
-    let _ ← orThrow (validateCallArity yulObj allLibFunctions)
+  if !linkedLibFunctions.isEmpty then
+    let _ ← orThrow (validateNoDuplicateNames linkedLibFunctions)
+    let _ ← orThrow (validateNoNameCollisions yulObj linkedLibFunctions)
+  let _ ← orThrow (validateExternalReferences yulObj linkedLibFunctions)
+  if !linkedLibFunctions.isEmpty then
+    let _ ← orThrow (validateCallArity yulObj linkedLibFunctions)
 
   let text ←
-    if allLibFunctions.isEmpty then
+    if linkedLibFunctions.isEmpty then
       pure (_root_.Compiler.Yul.render yulObj)
     else
-      orThrow (renderWithLibraries yulObj allLibFunctions)
+      orThrow (renderWithLibraries yulObj linkedLibFunctions)
 
   IO.FS.createDirAll outDir
   IO.FS.writeFile s!"{outDir}/{contract.name}.yul" text
