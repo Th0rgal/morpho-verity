@@ -43,20 +43,22 @@ def parse_foundry_default(text: str) -> dict[str, Any]:
   end = start + next_section.start() if next_section else len(text)
   section = text[start:end]
 
+  trailing_comment = r"(?:\s+#.*)?"
+
   def get_bool(name: str) -> bool:
-    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*(true|false)\s*$", section)
+    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*(true|false)\s*{trailing_comment}$", section)
     if not m:
       raise RuntimeError(f"Missing boolean key `{name}` in [profile.default]")
     return m.group(1) == "true"
 
   def get_int(name: str) -> int:
-    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*(\d+)\s*$", section)
+    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*(\d+)\s*{trailing_comment}$", section)
     if not m:
       raise RuntimeError(f"Missing integer key `{name}` in [profile.default]")
     return int(m.group(1))
 
   def get_str(name: str) -> str:
-    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*\"([^\"]+)\"\s*$", section)
+    m = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*\"([^\"]+)\"\s*{trailing_comment}$", section)
     if not m:
       raise RuntimeError(f"Missing string key `{name}` in [profile.default]")
     return m.group(1)

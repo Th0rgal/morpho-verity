@@ -47,6 +47,9 @@ jobs:
       - name: Validate pinned parity target
         run: python3 scripts/check_parity_target.py
 
+      - name: Run parity-target parser regression tests
+        run: python3 scripts/test_check_parity_target.py
+
   solidity-tests:
     name: Solidity tests (Foundry)
     runs-on: ubuntu-latest
