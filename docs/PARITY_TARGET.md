@@ -11,6 +11,7 @@ Partially implemented:
 2. Validation script: `scripts/check_parity_target.py`.
 3. CI gate: `parity-target` job in `.github/workflows/verify.yml`.
 4. Yul identity gap report script + CI artifacts: `scripts/report_yul_identity_gap.py` and `yul-identity-report` job.
+5. Function-level mismatch localization + unsupported-manifest drift check in report output (`config/yul-identity-unsupported.json`).
 
 Not implemented yet:
 1. AST-level identity checker (current report is normalized text-level).
@@ -36,7 +37,8 @@ This file is the single source of truth for that context.
 2. `scripts/check_parity_target.py`: tuple drift checker (implemented).
 3. `config/parity-target.json -> verity.parityPackId`: pinned Verity parity-pack binding (implemented).
 4. `out/parity-target/`: generated Yul fixtures and identity reports (implemented, non-blocking).
-5. `docs/RELEASE_CRITERIA.md`: gate definitions tied to this tuple.
+5. `config/yul-identity-unsupported.json`: machine-tracked known unsupported function-level deltas.
+6. `docs/RELEASE_CRITERIA.md`: gate definitions tied to this tuple.
 
 ## CI Expectations
 
@@ -44,4 +46,5 @@ This file is the single source of truth for that context.
 2. Tuple drift between `config/parity-target.json` and `morpho-blue/foundry.toml` fails CI.
 3. solc version drift fails CI.
 4. CI publishes `out/parity-target/` identity artifacts (`report.json`, `normalized.diff`) for each run.
-5. Future strict identity checks must reference this tuple explicitly.
+5. `report.json` includes function-level mismatch keys and unsupported-manifest drift diagnostics.
+6. Future strict identity checks must reference this tuple explicitly.

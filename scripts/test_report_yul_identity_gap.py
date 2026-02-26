@@ -8,7 +8,15 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from report_yul_identity_gap import ROOT, build_report, display_path, normalize_yul  # noqa: E402
+from report_yul_identity_gap import (  # noqa: E402
+  ROOT,
+  build_report,
+  compare_function_hashes,
+  display_path,
+  evaluate_unsupported_manifest,
+  extract_function_blocks,
+  normalize_yul,
+)
 
 
 class ReportYulIdentityGapTests(unittest.TestCase):
@@ -35,6 +43,47 @@ object "M" {
     self.assertEqual(display_path(outside), str(outside))
     inside = (ROOT / "out" / "parity-target" / "report.json").resolve()
     self.assertEqual(display_path(inside), "out/parity-target/report.json")
+
+  def test_extract_function_blocks_tracks_ordinals(self) -> None:
+    yul = normalize_yul(
+      """
+      object "M" {
+        code {
+          function f(x) -> r { r := add(x, 1) }
+          function f(y) -> z { z := sub(y, 1) }
+          function g() { leave }
+        }
+      }
+      """
+    )
+    blocks = extract_function_blocks(yul)
+    keys = [block.key for block in blocks]
+    self.assertEqual(keys, ["f#0", "f#1", "g#0"])
+
+  def test_compare_function_hashes(self) -> None:
+    deltas = compare_function_hashes(
+      {"f#0": "a", "g#0": "b"},
+      {"f#0": "c", "h#0": "d"},
+    )
+    self.assertEqual(deltas["hashMismatch"], ["f#0"])
+    self.assertEqual(deltas["onlyInSolidity"], ["g#0"])
+    self.assertEqual(deltas["onlyInVerity"], ["h#0"])
+
+  def test_manifest_check_detects_drift(self) -> None:
+    deltas = {
+      "hashMismatch": ["f#0"],
+      "onlyInSolidity": ["g#0"],
+      "onlyInVerity": [],
+    }
+    manifest = {
+      "allowedHashMismatchKeys": ["f#0"],
+      "allowedOnlyInSolidityKeys": [],
+      "allowedOnlyInVerityKeys": [],
+    }
+    check = evaluate_unsupported_manifest(deltas, manifest)
+    self.assertFalse(check["ok"])
+    self.assertEqual(check["unexpected"]["onlyInSolidity"], ["g#0"])
+    self.assertEqual(check["missingExpected"]["hashMismatch"], [])
 
 
 if __name__ == "__main__":

@@ -10,11 +10,12 @@ Partially enforced:
 1. `build-proofs` (`verity-proofs` job) is enforced in CI.
 2. `differential-parity` (`morpho-blue-parity` job) is enforced in CI.
 3. `parity-target` tuple drift gate is enforced in CI.
-4. non-blocking `yul-identity-report` artifacts are emitted in CI.
+4. non-blocking `yul-identity-report` artifacts are emitted in CI, including unsupported-manifest drift diagnostics.
 
 Not yet enforced:
 1. `yul-identity-check`.
-2. machine-tracked `equivalence-obligations` status in CI output.
+2. strict unsupported-manifest enforcement in CI (`--enforce-unsupported-manifest`).
+3. machine-tracked `equivalence-obligations` status in CI output.
 
 ## Required Gates (Target State)
 
@@ -23,6 +24,7 @@ Not yet enforced:
 3. `differential-parity`: Foundry behavior parity across Solidity baseline, Verity default, and Verity parity-pack artifacts.
 4. `equivalence-obligations`: obligation table must be reported with explicit `proved` vs `assumed` counts.
 5. `parity-target`: tuple drift checks against `config/parity-target.json` must pass.
+6. `unsupported-gap-manifest`: function-level mismatch keys must match `config/yul-identity-unsupported.json` for non-identity phases.
 
 ## Claim Levels
 

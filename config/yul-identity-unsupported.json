@@ -1,0 +1,7 @@
+{
+  "parityTarget": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
+  "allowedHashMismatchKeys": [],
+  "allowedOnlyInSolidityKeys": [],
+  "allowedOnlyInVerityKeys": [],
+  "notes": "Function-level Yul identity gap manifest. Populate these lists from report.json functionBlocks deltas as parity work lands."
+}
