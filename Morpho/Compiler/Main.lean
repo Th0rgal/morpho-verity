@@ -28,6 +28,8 @@ private structure CLIArgs where
   patchEnabled : Bool := false
   patchMaxIterations : Nat := 2
   patchMaxIterationsExplicit : Bool := false
+  rewriteBundleId : String := _root_.Compiler.Yul.foundationRewriteBundleId
+  requiredProofRefs : List String := []
   mappingSlotScratchBase : Nat := 0x200
 
 private def parseBackendProfile (raw : String) : Option _root_.Compiler.BackendProfile :=
@@ -86,6 +88,10 @@ private def parseArgs (args : List String) : IO CLIArgs :=
         else
           match _root_.Compiler.findParityPack? raw with
           | some pack =>
+              if !pack.proofCompositionValid then
+                throw (IO.userError
+                  s!"Invalid parity pack proof composition: {pack.id}")
+              else
               go rest {
                 cfg with
                   parityPackId := some pack.id
@@ -93,6 +99,8 @@ private def parseArgs (args : List String) : IO CLIArgs :=
                   patchEnabled := cfg.patchEnabled || pack.forcePatches
                   patchMaxIterations :=
                     if cfg.patchMaxIterationsExplicit then cfg.patchMaxIterations else pack.defaultPatchMaxIterations
+                  rewriteBundleId := pack.rewriteBundleId
+                  requiredProofRefs := pack.requiredProofRefs
               }
           | none =>
               throw (IO.userError
@@ -136,7 +144,13 @@ private def parseArgs (args : List String) : IO CLIArgs :=
 
 private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :=
   { backendProfile := cfg.backendProfile
-    patchConfig := { enabled := patchEnabledFor cfg, maxIterations := cfg.patchMaxIterations }
+    patchConfig := {
+      enabled := patchEnabledFor cfg
+      maxIterations := cfg.patchMaxIterations
+      packId := cfg.parityPackId.getD ""
+      rewriteBundleId := cfg.rewriteBundleId
+      requiredProofRefs := cfg.requiredProofRefs
+    }
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
 private def writeContract
@@ -184,6 +198,8 @@ def main (args : List String) : IO Unit := do
       let patchEnabled := patchEnabledFor cfg
       if patchEnabled then
         IO.println s!"Patch pass: enabled (max iterations = {cfg.patchMaxIterations})"
+        IO.println s!"Rewrite bundle: {cfg.rewriteBundleId}"
+        IO.println s!"Registered proof refs: {cfg.requiredProofRefs.length}"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       if !cfg.libs.isEmpty then
         IO.println s!"Linking {cfg.libs.length} external libraries"
