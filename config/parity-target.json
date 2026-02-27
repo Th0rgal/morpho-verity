@@ -2,7 +2,7 @@
   "id": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
   "solc": {
     "version": "0.8.28",
-    "commit": null
+    "commit": "7893614a"
   },
   "foundryDefaultProfile": {
     "optimizer": true,
