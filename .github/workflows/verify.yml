@@ -64,15 +64,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          SOLC_VERSION=0.8.28
-          if ! command -v solc-select >/dev/null 2>&1; then
-            pip3 install solc-select
-          fi
-          if ! solc-select versions | grep -q "${SOLC_VERSION}"; then
-            solc-select install "${SOLC_VERSION}"
-          fi
-          solc-select use "${SOLC_VERSION}"
+        run: ./scripts/install_solc.sh 0.8.28
 
       - name: Validate pinned parity target
         run: python3 scripts/check_parity_target.py
@@ -138,15 +130,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          SOLC_VERSION=0.8.28
-          if ! command -v solc-select >/dev/null 2>&1; then
-            pip3 install solc-select
-          fi
-          if ! solc-select versions | grep -q "${SOLC_VERSION}"; then
-            solc-select install "${SOLC_VERSION}"
-          fi
-          solc-select use "${SOLC_VERSION}"
+        run: ./scripts/install_solc.sh 0.8.28
 
       - name: Generate Yul identity report
         run: python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
@@ -247,15 +231,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          SOLC_VERSION=0.8.28
-          if ! command -v solc-select >/dev/null 2>&1; then
-            pip3 install solc-select
-          fi
-          if ! solc-select versions | grep -q "${SOLC_VERSION}"; then
-            solc-select install "${SOLC_VERSION}"
-          fi
-          solc-select use "${SOLC_VERSION}"
+        run: ./scripts/install_solc.sh 0.8.28
 
       - name: Compile Morpho Verity artifact and enforce model/edsl parity
         run: ./scripts/check_input_mode_parity.sh
@@ -322,15 +298,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          SOLC_VERSION=0.8.28
-          if ! command -v solc-select >/dev/null 2>&1; then
-            pip3 install solc-select
-          fi
-          if ! solc-select versions | grep -q "${SOLC_VERSION}"; then
-            solc-select install "${SOLC_VERSION}"
-          fi
-          solc-select use "${SOLC_VERSION}"
+        run: ./scripts/install_solc.sh 0.8.28
 
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_morpho_blue_parity.sh
