@@ -146,6 +146,7 @@ jobs:
   solidity-tests:
     name: Solidity tests (Foundry)
     runs-on: ubuntu-latest
+    needs: [parity-target]
     timeout-minutes: 90
     steps:
       - name: Checkout
