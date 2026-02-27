@@ -164,8 +164,10 @@ def setFeeRecipient (s : MorphoState) (newFeeRecipient : Address) : Option Morph
 
 /-! ## Market creation -/
 
-/-- Create a new lending market. Matches `createMarket` (Morpho.sol:150). -/
-def createMarket (s : MorphoState) (params : MarketParams) (id : Id) : Option MorphoState :=
+/-- Create a new lending market. Matches `createMarket` (Morpho.sol:150).
+    The market id is always derived from `params` (as in Solidity). -/
+def createMarket (s : MorphoState) (params : MarketParams) : Option MorphoState :=
+  let id := marketId params
   if ¬(s.isIrmEnabled params.irm) then none
   else if ¬(s.isLltvEnabled params.lltv) then none
   else let m := s.market id

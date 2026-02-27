@@ -61,7 +61,7 @@ abbrev SetFeeRecipientSem :=
   MorphoState → Address → Option MorphoState
 
 abbrev CreateMarketSem :=
-  MorphoState → MarketParams → Id → Option MorphoState
+  MorphoState → MarketParams → Option MorphoState
 
 abbrev SetFeeSem :=
   MorphoState → Id → Uint256 → Uint256 → Bool → Option MorphoState
@@ -134,8 +134,8 @@ def setFeeRecipientSemEq (soliditySetFeeRecipient : SetFeeRecipientSem) : Prop :
     soliditySetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient
 
 def createMarketSemEq (solidityCreateMarket : CreateMarketSem) : Prop :=
-  ∀ s params marketId,
-    solidityCreateMarket s params marketId = Morpho.createMarket s params marketId
+  ∀ s params,
+    solidityCreateMarket s params = Morpho.createMarket s params
 
 def setFeeSemEq (soliditySetFee : SetFeeSem) : Prop :=
   ∀ s id newFee borrowRate hasIrm,
@@ -862,46 +862,46 @@ theorem solidity_setFeeRecipient_preserves_lltvMonotone
 theorem solidity_createMarket_preserves_borrowLeSupply
     (solidityCreateMarket : CreateMarketSem)
     (h_eq : createMarketSemEq solidityCreateMarket)
-    (s : MorphoState) (params : MarketParams) (marketId id : Id) (s' : MorphoState)
+    (s : MorphoState) (params : MarketParams) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : solidityCreateMarket s params marketId = some s') :
+    (h_ok : solidityCreateMarket s params = some s') :
     borrowLeSupply s' id := by
-  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
-    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
-  exact createMarket_preserves_borrowLeSupply s params marketId id h_solvent h_ok_morpho
+  have h_ok_morpho : Morpho.createMarket s params = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params).symm.trans h_ok
+  exact createMarket_preserves_borrowLeSupply s params id h_solvent h_ok_morpho
 
 theorem solidity_createMarket_preserves_alwaysCollateralized
     (solidityCreateMarket : CreateMarketSem)
     (h_eq : createMarketSemEq solidityCreateMarket)
-    (s : MorphoState) (params : MarketParams) (marketId id : Id) (user : Address) (s' : MorphoState)
+    (s : MorphoState) (params : MarketParams) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : solidityCreateMarket s params marketId = some s') :
+    (h_ok : solidityCreateMarket s params = some s') :
     alwaysCollateralized s' id user := by
-  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
-    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
-  exact createMarket_preserves_alwaysCollateralized s params marketId id user h_collat h_ok_morpho
+  have h_ok_morpho : Morpho.createMarket s params = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params).symm.trans h_ok
+  exact createMarket_preserves_alwaysCollateralized s params id user h_collat h_ok_morpho
 
 theorem solidity_createMarket_preserves_irmMonotone
     (solidityCreateMarket : CreateMarketSem)
     (h_eq : createMarketSemEq solidityCreateMarket)
-    (s : MorphoState) (params : MarketParams) (marketId : Id) (irm : Address) (s' : MorphoState)
+    (s : MorphoState) (params : MarketParams) (irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : solidityCreateMarket s params marketId = some s') :
+    (h_ok : solidityCreateMarket s params = some s') :
     s'.isIrmEnabled irm := by
-  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
-    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
-  exact createMarket_preserves_irmMonotone s params marketId irm h_enabled h_ok_morpho
+  have h_ok_morpho : Morpho.createMarket s params = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params).symm.trans h_ok
+  exact createMarket_preserves_irmMonotone s params irm h_enabled h_ok_morpho
 
 theorem solidity_createMarket_preserves_lltvMonotone
     (solidityCreateMarket : CreateMarketSem)
     (h_eq : createMarketSemEq solidityCreateMarket)
-    (s : MorphoState) (params : MarketParams) (marketId : Id) (lltv : Uint256) (s' : MorphoState)
+    (s : MorphoState) (params : MarketParams) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : solidityCreateMarket s params marketId = some s') :
+    (h_ok : solidityCreateMarket s params = some s') :
     s'.isLltvEnabled lltv := by
-  have h_ok_morpho : Morpho.createMarket s params marketId = some s' := by
-    simpa [createMarketSemEq] using (h_eq s params marketId).symm.trans h_ok
-  exact createMarket_preserves_lltvMonotone s params marketId lltv h_enabled h_ok_morpho
+  have h_ok_morpho : Morpho.createMarket s params = some s' := by
+    simpa [createMarketSemEq] using (h_eq s params).symm.trans h_ok
+  exact createMarket_preserves_lltvMonotone s params lltv h_enabled h_ok_morpho
 
 theorem solidity_setFee_preserves_borrowLeSupply
     (soliditySetFee : SetFeeSem)
