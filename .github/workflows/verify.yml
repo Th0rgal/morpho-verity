@@ -133,8 +133,8 @@ jobs:
           solc-select install 0.8.28
           solc-select use 0.8.28
 
-      - name: Compile Morpho Verity artifact
-        run: ./scripts/prepare_verity_morpho_artifact.sh
+      - name: Compile Morpho Verity artifact and enforce model/edsl parity
+        run: ./scripts/check_input_mode_parity.sh
 
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry

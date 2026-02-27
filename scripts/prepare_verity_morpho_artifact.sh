@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT_DIR="${ROOT_DIR}/compiler/yul"
+OUT_DIR="${MORPHO_VERITY_OUT_DIR:-${ROOT_DIR}/compiler/yul}"
 MORPHO_YUL="${OUT_DIR}/Morpho.yul"
 MORPHO_BIN="${OUT_DIR}/Morpho.bin"
 HASH_LIB="${ROOT_DIR}/compiler/external-libs/MarketParamsHash.yul"
@@ -14,6 +14,7 @@ if [[ -f "${TARGET_JSON}" ]]; then
 fi
 PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
 INPUT_MODE="${MORPHO_VERITY_INPUT_MODE:-edsl}"
+SKIP_BUILD="${MORPHO_VERITY_SKIP_BUILD:-0}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -22,8 +23,10 @@ if [[ ! -f "${HASH_LIB}" ]]; then
   exit 1
 fi
 
-echo "Building Morpho Verity compiler target..."
-(cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
+if [[ "${SKIP_BUILD}" != "1" ]]; then
+  echo "Building Morpho Verity compiler target..."
+  (cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
+fi
 
 echo "Running Morpho Verity compiler..."
 if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then

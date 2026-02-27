@@ -155,6 +155,18 @@ Select compiler input boundary mode explicitly (`edsl` default, transitionally r
 MORPHO_VERITY_INPUT_MODE=model ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
+Override artifact output directory when needed:
+
+```bash
+MORPHO_VERITY_OUT_DIR=/tmp/morpho-artifact ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho artifacts:
+
+```bash
+./scripts/check_input_mode_parity.sh
+```
+
 Compile using a specific Verity parity pack:
 
 ```bash
