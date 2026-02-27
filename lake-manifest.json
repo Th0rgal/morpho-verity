@@ -5,7 +5,7 @@
    "type": "git",
    "subDir": null,
    "scope": "",
-   "rev": "75c4fa9b480ad33210905e383989c3c7a93e5d88",
+   "rev": "3ee5973dd1f5628ec0bba24c9e1c277ed13635a6",
    "name": "verity",
    "manifestFile": "lake-manifest.json",
    "inputRev": "75c4fa9",
