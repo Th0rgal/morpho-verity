@@ -1,10 +1,10 @@
 {
   "parityTarget": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
   "allowedHashMismatchKeys": [
-    "extract_returndata#0",
     "fun_accrueInterest#0"
   ],
   "allowedOnlyInSolidityKeys": [
+    "extract_returndata#0",
     "abi_decode_address#0",
     "abi_decode_address_27017#0",
     "abi_decode_address_27022#0",
