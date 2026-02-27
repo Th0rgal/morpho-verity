@@ -24,6 +24,26 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers, EIP-712 signature verification) is modeled as parameters, not verified end-to-end.
 
+### Proof Boundaries (Proved vs Assumed)
+
+| Area | Current status | Gate/condition |
+|------|----------------|----------------|
+| Lean invariants/specs | Proved in this repo | `lake build` succeeds |
+| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged |
+| Verity artifact parity | Empirical/differential today | Pinned parity target + Yul identity gate in CI |
+| External dependencies (oracle/token/signature env) | Assumed model inputs | Explicit trust assumptions and scenario matrix |
+
+Groundwork docs for closing these gaps:
+- [`docs/PARITY_TARGET.md`](docs/PARITY_TARGET.md)
+- [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
+- [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
+
+Machine-readable parity target artifacts:
+- [`config/parity-target.json`](config/parity-target.json)
+- [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
+- [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
+- [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
+
 ### Solidity Equivalence Bridge
 
 `Morpho/Proofs/SolidityBridge.lean` adds 46 proof-transfer theorems for core invariants.
@@ -95,10 +115,35 @@ Run the exact same Morpho Blue suite against both implementations (Solidity and 
 ./scripts/run_morpho_blue_parity.sh
 ```
 
+Validate pinned parity tuple (solc + Foundry profile):
+
+```bash
+python3 scripts/check_parity_target.py
+```
+
+Generate Solidity-vs-Verity Yul identity report artifacts:
+
+```bash
+python3 scripts/report_yul_identity_gap.py
+```
+
+Validate that current function-level Yul gaps match the tracked unsupported manifest:
+
+```bash
+python3 scripts/report_yul_identity_gap.py --enforce-unsupported-manifest
+```
+
 Build the Morpho Verity artifact:
 
 ```bash
 ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Compile using a specific Verity parity pack:
+
+```bash
+MORPHO_VERITY_PARITY_PACK=solc-0.8.28-o999999-viair-true-evm-paris \
+  ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
 Run Foundry smoke tests on the compiled Verity artifact:
@@ -112,6 +157,7 @@ Current status:
 - The full Morpho Blue Foundry suite is wired to run against both implementations via `MORPHO_IMPL=solidity|verity` in `morpho-blue/test/BaseTest.sol`.
 - `./scripts/run_morpho_blue_parity.sh` runs that exact suite for both targets and stores logs in `out/parity/`.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`) to prioritize rewrite families, and an enforced unsupported-manifest drift gate (including parity-target ID match).
 
 ## Proof progress
 

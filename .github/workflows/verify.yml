@@ -29,6 +29,65 @@ jobs:
       - name: Build and check proofs
         run: lake build
 
+  parity-target:
+    name: Parity target tuple check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install solc
+        run: |
+          pip3 install solc-select
+          solc-select install 0.8.28
+          solc-select use 0.8.28
+
+      - name: Validate pinned parity target
+        run: python3 scripts/check_parity_target.py
+
+      - name: Run parity-target parser regression tests
+        run: python3 scripts/test_check_parity_target.py
+
+      - name: Run Yul identity report unit tests
+        run: python3 scripts/test_report_yul_identity_gap.py
+
+  yul-identity-report:
+    name: Yul identity gap report (Solidity vs Verity)
+    runs-on: ubuntu-latest
+    needs: [parity-target]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Lean toolchain
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install solc
+        run: |
+          pip3 install solc-select
+          solc-select install 0.8.28
+          solc-select use 0.8.28
+
+      - name: Generate Yul identity report
+        run: python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+
+      - name: Upload Yul identity artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yul-identity-report
+          path: out/parity-target
+          if-no-files-found: error
+
   solidity-tests:
     name: Solidity tests (Foundry)
     runs-on: ubuntu-latest
@@ -53,6 +112,7 @@ jobs:
   verity-compiled-tests:
     name: Verity compiled artifact smoke tests (Foundry)
     runs-on: ubuntu-latest
+    needs: [parity-target]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -86,6 +146,7 @@ jobs:
   morpho-blue-parity:
     name: Morpho Blue differential suite (Solidity vs Verity)
     runs-on: ubuntu-latest
+    needs: [parity-target]
     steps:
       - name: Checkout
         uses: actions/checkout@v5

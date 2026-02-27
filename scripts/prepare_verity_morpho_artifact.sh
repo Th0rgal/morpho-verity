@@ -6,6 +6,13 @@ OUT_DIR="${ROOT_DIR}/compiler/yul"
 MORPHO_YUL="${OUT_DIR}/Morpho.yul"
 MORPHO_BIN="${OUT_DIR}/Morpho.bin"
 HASH_LIB="${ROOT_DIR}/compiler/external-libs/MarketParamsHash.yul"
+TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
+
+default_pack=""
+if [[ -f "${TARGET_JSON}" ]]; then
+  default_pack="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("verity",{}).get("parityPackId",""))' "${TARGET_JSON}")"
+fi
+PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -18,7 +25,12 @@ echo "Building Morpho Verity compiler target..."
 (cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
 
 echo "Running Morpho Verity compiler..."
-(cd "${ROOT_DIR}" && lake exe morpho-verity-compiler --output "${OUT_DIR}" --link "${HASH_LIB}" --verbose)
+compiler_args=(--output "${OUT_DIR}" --link "${HASH_LIB}" --verbose)
+if [[ -n "${PARITY_PACK}" ]]; then
+  compiler_args+=(--parity-pack "${PARITY_PACK}")
+  echo "Using Verity parity pack: ${PARITY_PACK}"
+fi
+(cd "${ROOT_DIR}" && lake exe morpho-verity-compiler "${compiler_args[@]}")
 
 if [[ ! -f "${MORPHO_YUL}" ]]; then
   cat <<'EOF'

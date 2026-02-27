@@ -4,3 +4,4 @@ build/
 compiler/yul/
 verity-foundry/cache/
 verity-foundry/out/
+__pycache__/
