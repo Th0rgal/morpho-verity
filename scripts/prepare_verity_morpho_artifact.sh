@@ -42,8 +42,8 @@ echo "Using input mode: ${INPUT_MODE}"
 (cd "${ROOT_DIR}" && lake exe morpho-verity-compiler "${compiler_args[@]}")
 
 if [[ ! -f "${MORPHO_YUL}" ]]; then
-  cat <<'EOF'
-ERROR: compiler/yul/Morpho.yul was not generated.
+  cat <<EOF
+ERROR: ${MORPHO_YUL} was not generated.
 
 The Morpho compiler target did not emit the expected artifact.
 Check `lake exe morpho-verity-compiler --help` and build logs above.

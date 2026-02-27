@@ -6,7 +6,7 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
 MODEL_OUT="${TMP_DIR}/model"
-EDSL_OUT="${ROOT_DIR}/compiler/yul"
+EDSL_OUT="${TMP_DIR}/edsl"
 
 echo "Checking Morpho compiler input-mode parity (model vs edsl)..."
 
@@ -23,6 +23,13 @@ MODEL_YUL="${MODEL_OUT}/Morpho.yul"
 EDSL_YUL="${EDSL_OUT}/Morpho.yul"
 MODEL_BIN="${MODEL_OUT}/Morpho.bin"
 EDSL_BIN="${EDSL_OUT}/Morpho.bin"
+
+for artifact in "${MODEL_YUL}" "${EDSL_YUL}" "${MODEL_BIN}" "${EDSL_BIN}"; do
+  if [[ ! -s "${artifact}" ]]; then
+    echo "ERROR: missing or empty artifact: ${artifact}"
+    exit 1
+  fi
+done
 
 if ! cmp -s "${MODEL_YUL}" "${EDSL_YUL}"; then
   echo "ERROR: model vs edsl Yul artifacts differ"
