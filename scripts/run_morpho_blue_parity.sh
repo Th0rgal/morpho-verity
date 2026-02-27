@@ -5,8 +5,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/out/parity"
 mkdir -p "${LOG_DIR}"
 
+# Fast fail-closed guard before the long differential suite.
+"${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+
 # Build latest Verity artifact before running differential tests.
-"${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+# Reuse the compiler build already produced during parity checking.
+MORPHO_VERITY_SKIP_BUILD=1 "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
 
 run_suite() {
   local impl="$1"
