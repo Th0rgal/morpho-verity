@@ -16,6 +16,7 @@ fi
 PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
 INPUT_MODE="${MORPHO_VERITY_INPUT_MODE:-edsl}"
 SKIP_BUILD="${MORPHO_VERITY_SKIP_BUILD:-0}"
+SKIP_SOLC="${MORPHO_VERITY_SKIP_SOLC:-0}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -42,7 +43,7 @@ fi
 echo "Using input mode: ${INPUT_MODE}"
 (cd "${ROOT_DIR}" && lake exe morpho-verity-compiler "${compiler_args[@]}")
 
-if [[ ! -f "${MORPHO_YUL}" ]]; then
+if [[ ! -s "${MORPHO_YUL}" ]]; then
   cat <<EOF
 ERROR: ${MORPHO_YUL} was not generated.
 
@@ -52,12 +53,14 @@ EOF
   exit 1
 fi
 
-echo "Compiling Yul to EVM init bytecode..."
-solc --strict-assembly --bin "${MORPHO_YUL}" \
-  | awk '/Binary representation:/{getline; print; exit}' \
-  > "${MORPHO_BIN}"
+if [[ "${SKIP_SOLC}" != "1" ]]; then
+  echo "Compiling Yul to EVM init bytecode..."
+  solc --strict-assembly --bin "${MORPHO_YUL}" \
+    | awk '/Binary representation:/{getline; print; exit}' \
+    > "${MORPHO_BIN}"
+fi
 
-if [[ ! -s "${MORPHO_BIN}" ]]; then
+if [[ "${SKIP_SOLC}" != "1" && ! -s "${MORPHO_BIN}" ]]; then
   echo "ERROR: failed to generate ${MORPHO_BIN}"
   exit 1
 fi
@@ -67,5 +70,9 @@ if [[ ! -s "${MORPHO_ABI}" ]]; then
 fi
 
 echo "Generated Verity artifact: ${MORPHO_YUL}"
-echo "Generated Verity bytecode: ${MORPHO_BIN}"
+if [[ "${SKIP_SOLC}" != "1" ]]; then
+  echo "Generated Verity bytecode: ${MORPHO_BIN}"
+else
+  echo "Skipped bytecode generation (MORPHO_VERITY_SKIP_SOLC=1)"
+fi
 echo "Generated Verity ABI: ${MORPHO_ABI}"

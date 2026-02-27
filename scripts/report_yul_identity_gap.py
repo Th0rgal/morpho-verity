@@ -7,6 +7,7 @@ import argparse
 import difflib
 import hashlib
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -45,8 +46,11 @@ def sha256_text(text: str) -> str:
   return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def run(cmd: list[str], *, cwd: pathlib.Path) -> None:
-  subprocess.check_call(cmd, cwd=str(cwd))
+def run(cmd: list[str], *, cwd: pathlib.Path, env: dict[str, str] | None = None) -> None:
+  merged_env = os.environ.copy()
+  if env is not None:
+    merged_env.update(env)
+  subprocess.check_call(cmd, cwd=str(cwd), env=merged_env)
 
 
 def read_json(path: pathlib.Path) -> dict[str, Any]:
@@ -538,7 +542,12 @@ def compile_solidity_ir() -> None:
 
 
 def compile_verity_yul() -> None:
-  run(["./scripts/prepare_verity_morpho_artifact.sh"], cwd=ROOT)
+  # The Yul identity report only consumes Morpho.yul; skip solc bytecode generation.
+  run(
+    ["./scripts/prepare_verity_morpho_artifact.sh"],
+    cwd=ROOT,
+    env={"MORPHO_VERITY_SKIP_SOLC": "1"},
+  )
 
 
 def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[dict[str, Any], str]:

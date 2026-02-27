@@ -149,6 +149,12 @@ Build the Morpho Verity artifact:
 ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
+Generate only Yul + ABI (skip `solc` bytecode generation):
+
+```bash
+MORPHO_VERITY_SKIP_SOLC=1 ./scripts/prepare_verity_morpho_artifact.sh
+```
+
 Select compiler input boundary mode explicitly (`edsl` default, transitionally routed via manual bridge):
 
 ```bash
