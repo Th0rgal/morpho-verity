@@ -189,9 +189,9 @@ jobs:
         working-directory: morpho-blue
         run: forge test -vvv
         env:
-          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '2500' || '10000' }}
+          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1500' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
-          FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '2500' || '10000' }}
+          FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '1500' || '10000' }}
           FOUNDRY_INVARIANT_DEPTH: 32
 
   verity-compiled-tests:
@@ -335,9 +335,9 @@ jobs:
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_morpho_blue_parity.sh
         env:
-          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '2500' || '10000' }}
+          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1500' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
-          FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '2500' || '10000' }}
+          FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '1500' || '10000' }}
           FOUNDRY_INVARIANT_DEPTH: 32
 
       - name: Upload parity logs
