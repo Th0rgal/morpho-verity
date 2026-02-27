@@ -32,7 +32,6 @@
     "finalize_allocation#0",
     "finalize_allocation_27020#0",
     "finalize_allocation_27033#0",
-    "finalize_allocation_35876#0",
     "fun__isHealthy#0",
     "fun_isHealthy#0",
     "fun_isSenderAuthorized#0",
@@ -41,9 +40,7 @@
     "fun_safeTransferFrom#0",
     "fun_toAssetsDown#0",
     "fun_toAssetsUp#0",
-    "fun_toSharesUp#0",
-    "fun_toUint128#0",
-    "require_helper_string#0"
+    "fun_toSharesUp#0"
   ],
   "allowedOnlyInVerityKeys": [],
   "notes": "Pinned unsupported function-level Yul identity deltas for the active parity target. Keep in sync with CI report artifacts."
