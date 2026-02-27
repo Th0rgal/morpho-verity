@@ -75,6 +75,9 @@ jobs:
       - name: Run Yul identity report unit tests
         run: python3 scripts/test_report_yul_identity_gap.py
 
+      - name: Run Morpho Blue parity script unit tests
+        run: ./scripts/test_run_morpho_blue_parity.sh
+
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest

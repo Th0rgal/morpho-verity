@@ -31,6 +31,11 @@ cp "${PARITY_OUT_DIR}/edsl/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
 cp "${PARITY_OUT_DIR}/edsl/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
 cp "${PARITY_OUT_DIR}/edsl/Morpho.abi.json" "${ROOT_DIR}/compiler/yul/Morpho.abi.json"
 
+if [[ "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}" == "1" ]]; then
+  echo "Exiting after artifact preparation (MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1)."
+  exit 0
+fi
+
 run_suite() {
   local impl="$1"
   local log_file="${LOG_DIR}/morpho_blue_${impl}.log"
