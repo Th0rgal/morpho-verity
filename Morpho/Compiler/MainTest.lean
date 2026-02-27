@@ -42,8 +42,9 @@ private def fileExists (path : String) : IO Bool := do
   expectErrorContains "missing --link value" ["--link"] "Missing value for --link"
   expectErrorContains "unknown argument still reported" ["--definitely-unknown-flag"] "Unknown argument: --definitely-unknown-flag"
 
-  let modelOutDir := "/tmp/morpho-main-test-model-out"
-  let edslOutDir := "/tmp/morpho-main-test-edsl-out"
+  let nonce ← IO.monoMsNow
+  let modelOutDir := s!"/tmp/morpho-main-test-{nonce}-model-out"
+  let edslOutDir := s!"/tmp/morpho-main-test-{nonce}-edsl-out"
   IO.FS.createDirAll modelOutDir
   IO.FS.createDirAll edslOutDir
 
