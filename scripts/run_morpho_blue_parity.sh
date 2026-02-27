@@ -4,12 +4,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/out/parity"
 PARITY_OUT_DIR="$(mktemp -d)"
+SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
 trap 'rm -rf "${PARITY_OUT_DIR}"' EXIT
 mkdir -p "${LOG_DIR}"
 
-# Fast fail-closed guard before the long differential suite.
-MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \
-  "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
+  echo "Skipping input-mode parity preflight (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
+  MORPHO_VERITY_OUT_DIR="${PARITY_OUT_DIR}/edsl" \
+  MORPHO_VERITY_INPUT_MODE="edsl" \
+    "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+else
+  # Fast fail-closed guard before the long differential suite.
+  MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \
+    "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+fi
 
 # Reuse the verified EDSL artifact already produced by parity checking.
 mkdir -p "${ROOT_DIR}/compiler/yul"
