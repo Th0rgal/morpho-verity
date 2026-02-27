@@ -85,7 +85,7 @@ Morpho/
     ShareConsistency.lean # Share accounting proofs (36 proven, 34 public + 2 helper lemmas)
     NatListSum.lean       # List sum lemmas for share accounting (5/5 proven)
   Compiler/
-    Spec.lean             # Morpho Blue contract specification (ContractSpec DSL)
+    Spec.lean             # Morpho Blue contract specification (CompilationModel DSL)
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
 compiler/
   external-libs/          # External Yul libraries (MarketParamsHash, etc.)
@@ -147,6 +147,12 @@ Build the Morpho Verity artifact:
 
 ```bash
 ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Select compiler input boundary mode explicitly (`edsl` default, transitionally routed via manual bridge):
+
+```bash
+MORPHO_VERITY_INPUT_MODE=model ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
 Compile using a specific Verity parity pack:

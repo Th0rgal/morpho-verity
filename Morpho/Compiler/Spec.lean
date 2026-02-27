@@ -1,4 +1,4 @@
-import Compiler.ContractSpec
+import Compiler.CompilationModel
 import Compiler.Modules.ERC20
 import Compiler.Modules.Callbacks
 import Compiler.Modules.Calls
@@ -6,7 +6,7 @@ import Compiler.Modules.Precompiles
 
 namespace Morpho.Compiler.Spec
 
-open Compiler.ContractSpec
+open Compiler.CompilationModel
 open Compiler.Modules
 
 -- ============================================================================
@@ -710,7 +710,7 @@ private def setAuthorizationWithSigBody : List Stmt := [
 -- ============================================================================
 
 /--
-Morpho Blue ContractSpec — full DSL specification covering all 26 external
+Morpho Blue CompilationModel — full DSL specification covering all 26 external
 functions plus the _accrueInterest internal function.
 
 Storage layout matches the Solidity contract exactly:
@@ -734,7 +734,7 @@ No post-codegen patches are required — all storage access uses struct-typed
 fields with packed bit ranges, and accrueInterest is a DSL-native internal
 function.
 -/
-def morphoSpec : ContractSpec := {
+def morphoSpec : CompilationModel := {
   name := "Morpho"
   fields := [
     { name := "owner", ty := .address },

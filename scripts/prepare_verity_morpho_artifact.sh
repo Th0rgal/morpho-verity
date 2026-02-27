@@ -13,6 +13,7 @@ if [[ -f "${TARGET_JSON}" ]]; then
   default_pack="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("verity",{}).get("parityPackId",""))' "${TARGET_JSON}")"
 fi
 PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
+INPUT_MODE="${MORPHO_VERITY_INPUT_MODE:-edsl}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -25,11 +26,16 @@ echo "Building Morpho Verity compiler target..."
 (cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
 
 echo "Running Morpho Verity compiler..."
-compiler_args=(--output "${OUT_DIR}" --link "${HASH_LIB}" --verbose)
+if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then
+  echo "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: ${INPUT_MODE})"
+  exit 1
+fi
+compiler_args=(--output "${OUT_DIR}" --input "${INPUT_MODE}" --link "${HASH_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"
 fi
+echo "Using input mode: ${INPUT_MODE}"
 (cd "${ROOT_DIR}" && lake exe morpho-verity-compiler "${compiler_args[@]}")
 
 if [[ ! -f "${MORPHO_YUL}" ]]; then

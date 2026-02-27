@@ -1,15 +1,16 @@
 import Std
-import Compiler.ContractSpec
+import Compiler.CompilationModel
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ParityPacks
+import Compiler.Lowering.FromEDSL
 import Morpho.Compiler.Spec
 
 namespace Morpho.Compiler.Main
 
 open _root_.Compiler
-open _root_.Compiler.ContractSpec
+open _root_.Compiler.CompilationModel
 open _root_.Compiler.Yul
 open _root_.Compiler.Linker
 
@@ -20,6 +21,7 @@ private def orThrow {α : Type} (r : Except String α) : IO α :=
 
 private structure CLIArgs where
   outDir : String := "compiler/yul"
+  inputMode : String := "edsl"
   libs : List String := []
   verbose : Bool := false
   backendProfile : _root_.Compiler.BackendProfile := .semantic
@@ -38,6 +40,9 @@ private def parseBackendProfile (raw : String) : Option _root_.Compiler.BackendP
   | "solidity-parity-ordering" => some .solidityParityOrdering
   | "solidity-parity" => some .solidityParity
   | _ => none
+
+private def parseInputMode (raw : String) : Option String :=
+  if raw == "model" || raw == "edsl" then some raw else none
 
 private def backendProfileString (profile : _root_.Compiler.BackendProfile) : String :=
   match profile with
@@ -67,10 +72,17 @@ private def parseArgs (args : List String) : IO CLIArgs :=
     | "--output" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
     | "-o" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
     | "--link" :: path :: rest, cfg => go rest { cfg with libs := path :: cfg.libs }
+    | "--input" :: raw :: rest, cfg =>
+        match parseInputMode raw with
+        | some mode => go rest { cfg with inputMode := mode }
+        | none =>
+            throw (IO.userError s!"Invalid value for --input: {raw} (expected model or edsl)")
     | ["--output"], _ | ["-o"], _ =>
         throw (IO.userError "Missing value for --output")
     | ["--link"], _ =>
         throw (IO.userError "Missing value for --link")
+    | ["--input"], _ =>
+        throw (IO.userError "Missing value for --input")
     | "--backend-profile" :: raw :: rest, cfg =>
         if cfg.parityPackId.isSome then
           throw (IO.userError "Cannot combine --backend-profile with --parity-pack")
@@ -129,6 +141,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
       IO.println ""
       IO.println "Options:"
       IO.println "  --output <dir>, -o <dir>    Output directory (default: compiler/yul)"
+      IO.println "  --input <model|edsl>        Input boundary mode (default: edsl)"
       IO.println "  --link <path>               Link external Yul library (repeatable)"
       IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
       IO.println "  --parity-pack <id>          Versioned parity pack from verity"
@@ -152,6 +165,17 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
       requiredProofRefs := cfg.requiredProofRefs
     }
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
+
+private def lowerMorphoSpec (inputMode : String) : IO _root_.Compiler.CompilationModel.CompilationModel := do
+  let lowered :=
+    if inputMode == "edsl" then
+      _root_.Compiler.Lowering.lowerFromEDSLSubset
+        (.manualBridge (_root_.Compiler.Lowering.liftModel Morpho.Compiler.Spec.morphoSpec))
+    else
+      _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
+  match lowered with
+  | .ok spec => pure spec
+  | .error err => throw (IO.userError err.message)
 
 private def writeContract
     (outDir : String)
@@ -183,7 +207,8 @@ def main (args : List String) : IO Unit := do
   try
     let cfg ← parseArgs args
     if cfg.verbose then
-      IO.println s!"Compiling Morpho ContractSpec to {cfg.outDir}"
+      IO.println s!"Compiling Morpho CompilationModel to {cfg.outDir}"
+      IO.println s!"Input mode: {cfg.inputMode}"
       IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
       match cfg.parityPackId with
       | some packId =>
@@ -207,7 +232,8 @@ def main (args : List String) : IO Unit := do
         for lib in cfg.libs do
           IO.println s!"  - {lib}"
 
-    let ir ← orThrow (compile Morpho.Compiler.Spec.morphoSpec Morpho.Compiler.Spec.morphoSelectors)
+    let loweredSpec ← lowerMorphoSpec cfg.inputMode
+    let ir ← orThrow (compile loweredSpec Morpho.Compiler.Spec.morphoSelectors)
     writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
 
     if cfg.verbose then
