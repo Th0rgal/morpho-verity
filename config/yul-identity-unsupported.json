@@ -1,8 +1,7 @@
 {
   "parityTarget": "morpho-blue-solc-0.8.28-o999999-viair-true-evm-paris",
   "allowedHashMismatchKeys": [
-    "fun_accrueInterest#0",
-    "fun_toSharesDown#0"
+    "fun_accrueInterest#0"
   ],
   "allowedOnlyInSolidityKeys": [
     "abi_decode_address#0",
@@ -19,6 +18,7 @@
     "abi_encode_struct_MarketParams_struct_Market_storage#0",
     "abi_encode_uint256_bytes_calldata#0",
     "array_allocation_size_array_bytes32_dyn#0",
+    "checked_sub_uint128#0",
     "copy_literal_to_memory_032999fca1188e683f4a316e0deaa9b99b639717686bfe7875953796fc849c71#0",
     "copy_literal_to_memory_1798fe1b45706024844fe1ae37566f71d02866731bfe8dd8db26da9baccb8204#0",
     "copy_literal_to_memory_3b807cd2312cb7a8816bf8f90c8b8fabc63939f2d074d6f3426cd3f6aa264952#0",
