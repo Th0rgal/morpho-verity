@@ -3,14 +3,19 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/out/parity"
+PARITY_OUT_DIR="$(mktemp -d)"
+trap 'rm -rf "${PARITY_OUT_DIR}"' EXIT
 mkdir -p "${LOG_DIR}"
 
 # Fast fail-closed guard before the long differential suite.
-"${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \
+  "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
 
-# Build latest Verity artifact before running differential tests.
-# Reuse the compiler build already produced during parity checking.
-MORPHO_VERITY_SKIP_BUILD=1 "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+# Reuse the verified EDSL artifact already produced by parity checking.
+mkdir -p "${ROOT_DIR}/compiler/yul"
+cp "${PARITY_OUT_DIR}/edsl/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
+cp "${PARITY_OUT_DIR}/edsl/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
+cp "${PARITY_OUT_DIR}/edsl/Morpho.abi.json" "${ROOT_DIR}/compiler/yul/Morpho.abi.json"
 
 run_suite() {
   local impl="$1"

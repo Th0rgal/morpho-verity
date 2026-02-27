@@ -2,11 +2,21 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+PARITY_OUT_DIR="${MORPHO_VERITY_PARITY_OUT_DIR:-}"
+TMP_DIR=""
 
-MODEL_OUT="${TMP_DIR}/model"
-EDSL_OUT="${TMP_DIR}/edsl"
+if [[ -n "${PARITY_OUT_DIR}" ]]; then
+  mkdir -p "${PARITY_OUT_DIR}"
+  MODEL_OUT="${PARITY_OUT_DIR}/model"
+  EDSL_OUT="${PARITY_OUT_DIR}/edsl"
+  rm -rf "${MODEL_OUT}" "${EDSL_OUT}"
+  mkdir -p "${MODEL_OUT}" "${EDSL_OUT}"
+else
+  TMP_DIR="$(mktemp -d)"
+  trap 'rm -rf "${TMP_DIR}"' EXIT
+  MODEL_OUT="${TMP_DIR}/model"
+  EDSL_OUT="${TMP_DIR}/edsl"
+fi
 
 echo "Checking Morpho compiler input-mode parity (model vs edsl)..."
 
