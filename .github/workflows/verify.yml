@@ -22,6 +22,18 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
         run: |
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
@@ -42,6 +54,16 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
         run: |
@@ -69,13 +91,48 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
         run: |
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
         run: |
@@ -104,6 +161,19 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
@@ -127,13 +197,48 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
         run: |
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
         run: |
@@ -162,13 +267,48 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
         run: |
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
         run: |
