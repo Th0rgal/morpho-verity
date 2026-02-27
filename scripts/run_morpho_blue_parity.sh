@@ -5,10 +5,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/out/parity"
 PARITY_OUT_DIR="$(mktemp -d)"
 SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
+ALLOW_LOCAL_SKIP="${MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP:-0}"
 trap 'rm -rf "${PARITY_OUT_DIR}"' EXIT
 mkdir -p "${LOG_DIR}"
 
 if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
+  if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then
+    echo "Refusing to skip parity preflight outside CI."
+    echo "Set MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1 only for explicit local debugging."
+    exit 1
+  fi
   echo "Skipping input-mode parity preflight (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
   MORPHO_VERITY_OUT_DIR="${PARITY_OUT_DIR}/edsl" \
   MORPHO_VERITY_INPUT_MODE="edsl" \

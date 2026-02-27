@@ -125,6 +125,11 @@ Run the exact same Morpho Blue suite against both implementations (Solidity and 
 ./scripts/run_morpho_blue_parity.sh
 ```
 
+CI can skip the internal parity preflight in this script by setting
+`MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1` because parity is already enforced in
+dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
+overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
+
 Validate pinned parity tuple (solc + Foundry profile):
 
 ```bash
