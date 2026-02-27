@@ -29,6 +29,9 @@ jobs:
       - name: Build and check proofs
         run: lake build
 
+      - name: Run Morpho compiler CLI regression tests
+        run: lake build Morpho.Compiler.MainTest
+
   parity-target:
     name: Parity target tuple check
     runs-on: ubuntu-latest
