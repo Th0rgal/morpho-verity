@@ -2,8 +2,8 @@
   Morpho Blue types — Matches morpho-blue/src/interfaces/IMorpho.sol
 
   In Solidity, `Id` is `bytes32 = keccak256(abi.encode(marketParams))`.
-  Here we use `MarketParams` directly as the key, which is equivalent
-  since the hash is a deterministic function of the params.
+  Here `Id` stays abstract as `Nat`, produced by a deterministic hash
+  over `MarketParams`.
 -/
 import Verity.Core
 
@@ -69,13 +69,19 @@ instance : Inhabited MorphoState := ⟨{
   sender := 0, blockTimestamp := 0
 }⟩
 
-/-- Compute market Id from params. In Solidity this is keccak256(abi.encode(params)).
-    Here we use a deterministic hash function stub — the exact value doesn't matter
-    for verification since we only need injectivity. -/
-def marketId (_params : MarketParams) : Id :=
-  -- Placeholder: in a real implementation this would be a proper hash.
-  -- For verification purposes, we work with Id abstractly.
-  0
+/-- Compute market Id from params. Mirrors Solidity's `id()` at the model level. -/
+private def cantorPair (a b : Nat) : Nat :=
+  let s := a + b
+  (s * (s + 1)) / 2 + b
+
+def marketId (params : MarketParams) : Id :=
+  cantorPair
+    (cantorPair
+      (cantorPair
+        (cantorPair params.loanToken.toNat params.collateralToken.toNat)
+        params.oracle.toNat)
+      params.irm.toNat)
+    params.lltv.val
 
 /-- EIP-712 authorization struct. Matches `Authorization` (IMorpho.sol:35).
     Used by `setAuthorizationWithSig` for gasless delegation via signatures. -/

@@ -44,12 +44,22 @@ Machine-readable parity target artifacts:
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
 
+Some theorems are conditional on arithmetic side conditions (`h_no_overflow`) that model Solidity checked arithmetic.
+These are explicit theorem hypotheses today, not globally discharged reachability facts.
+
 ### Solidity Equivalence Bridge
 
 `Morpho/Proofs/SolidityBridge.lean` adds 46 proof-transfer theorems for core invariants.
+This file is a conditional transfer layer: it assumes operation-by-operation semantic equivalence hypotheses and then transports proved invariants.
 If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation
 (`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`, `enableIrm`, `enableLltv`, `setAuthorization`, `setAuthorizationWithSig`),
 the existing Verity proofs for `borrowLeSupply`, `alwaysCollateralized`, `irmMonotone`, and `lltvMonotone` transfer directly to Solidity.
+
+## Key Modeling Notes
+
+- `createMarket` now derives `id = marketId(params)` inside the transition (matching Solidity), so callers cannot provide arbitrary ids.
+- `marketId` is no longer a constant placeholder; it is a deterministic function of `MarketParams`.
+- Interest accrual remains a compositional model (`accrueInterest` can be called explicitly by clients/proofs), while Solidity calls it internally in several entrypoints.
 
 ## Structure
 

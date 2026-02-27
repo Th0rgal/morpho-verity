@@ -56,8 +56,8 @@ theorem enableLltv_lt_wad (s : MorphoState) (lltv : Uint256)
 
 /-! ## Market creation validity -/
 
-theorem createMarket_requires_enabled (s : MorphoState) (params : MarketParams) (id : Id)
-    (h : Morpho.createMarket s params id = some s') :
+theorem createMarket_requires_enabled (s : MorphoState) (params : MarketParams)
+    (h : Morpho.createMarket s params = some s') :
     s.isIrmEnabled params.irm ∧ s.isLltvEnabled params.lltv := by
   unfold Morpho.createMarket at h
   simp at h
@@ -383,16 +383,21 @@ theorem setFee_preserves_borrowLeSupply (s : MorphoState) (id : Id) (newFee borr
 
 /-- createMarket only sets lastUpdate and idToParams, so solvency is trivially preserved. -/
 theorem createMarket_preserves_borrowLeSupply (s : MorphoState) (params : MarketParams)
-    (marketId id : Id) (h_solvent : borrowLeSupply s id)
-    (h_ok : Morpho.createMarket s params marketId = some s') :
+    (id : Id) (h_solvent : borrowLeSupply s id)
+    (h_ok : Morpho.createMarket s params = some s') :
     borrowLeSupply s' id := by
   unfold Morpho.createMarket at h_ok; simp at h_ok
   obtain ⟨_, _, _, h_eq⟩ := h_ok
-  unfold borrowLeSupply at h_solvent ⊢
-  rw [← h_eq]; simp
-  by_cases h : id = marketId
-  · subst h; simp; exact h_solvent
-  · simp [h]; exact h_solvent
+  rw [← h_eq]
+  by_cases h : id = marketId params
+  · subst h
+    simpa [borrowLeSupply]
+  · have h_market :
+      (if id = marketId params then
+          { (s.market (marketId params)) with lastUpdate := s.blockTimestamp }
+        else s.market id) = s.market id := by
+      simp [h]
+    simpa [borrowLeSupply, h_market] using h_solvent
 
 /-- setAuthorization doesn't touch market records, so solvency is trivially preserved. -/
 theorem setAuthorization_preserves_borrowLeSupply (s : MorphoState) (authorized : Address)
@@ -738,8 +743,8 @@ theorem setFeeRecipient_preserves_alwaysCollateralized (s : MorphoState)
 
 /-- createMarket doesn't touch positions. -/
 theorem createMarket_preserves_alwaysCollateralized (s : MorphoState) (params : MarketParams)
-    (marketId : Id) (id : Id) (user : Address) (h_collat : alwaysCollateralized s id user)
-    (h_ok : Morpho.createMarket s params marketId = some s') :
+    (id : Id) (user : Address) (h_collat : alwaysCollateralized s id user)
+    (h_ok : Morpho.createMarket s params = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
   unfold Morpho.createMarket at h_ok; simp at h_ok
@@ -1411,8 +1416,8 @@ theorem setFeeRecipient_preserves_irmMonotone (s : MorphoState) (newRecipient : 
   rw [← h_ok.right]; exact h_enabled
 
 theorem createMarket_preserves_irmMonotone (s : MorphoState) (params : MarketParams)
-    (marketId : Id) (irm : Address) (h_enabled : s.isIrmEnabled irm)
-    (h_ok : Morpho.createMarket s params marketId = some s') :
+    (irm : Address) (h_enabled : s.isIrmEnabled irm)
+    (h_ok : Morpho.createMarket s params = some s') :
     s'.isIrmEnabled irm := by
   unfold Morpho.createMarket at h_ok; simp at h_ok
   obtain ⟨_, _, _, h_eq⟩ := h_ok
@@ -1544,8 +1549,8 @@ theorem setFeeRecipient_preserves_lltvMonotone (s : MorphoState) (newRecipient :
   rw [← h_ok.right]; exact h_enabled
 
 theorem createMarket_preserves_lltvMonotone (s : MorphoState) (params : MarketParams)
-    (marketId : Id) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : Morpho.createMarket s params marketId = some s') :
+    (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
+    (h_ok : Morpho.createMarket s params = some s') :
     s'.isLltvEnabled lltv := by
   unfold Morpho.createMarket at h_ok; simp at h_ok
   obtain ⟨_, _, _, h_eq⟩ := h_ok
