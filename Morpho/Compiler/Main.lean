@@ -5,6 +5,7 @@ import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ParityPacks
 import Compiler.Lowering.FromEDSL
+import Compiler.ABI
 import Morpho.Compiler.Spec
 
 namespace Morpho.Compiler.Main
@@ -21,6 +22,7 @@ private def orThrow {α : Type} (r : Except String α) : IO α :=
 
 private structure CLIArgs where
   outDir : String := "compiler/yul"
+  abiOutDir : Option String := none
   inputMode : String := "edsl"
   libs : List String := []
   verbose : Bool := false
@@ -71,6 +73,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
     | [], cfg => pure { cfg with libs := cfg.libs.reverse }
     | "--output" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
     | "-o" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
+    | "--abi-output" :: dir :: rest, cfg => go rest { cfg with abiOutDir := some dir }
     | "--link" :: path :: rest, cfg => go rest { cfg with libs := path :: cfg.libs }
     | "--input" :: raw :: rest, cfg =>
         match parseInputMode raw with
@@ -79,6 +82,8 @@ private def parseArgs (args : List String) : IO CLIArgs :=
             throw (IO.userError s!"Invalid value for --input: {raw} (expected model or edsl)")
     | ["--output"], _ | ["-o"], _ =>
         throw (IO.userError "Missing value for --output")
+    | ["--abi-output"], _ =>
+        throw (IO.userError "Missing value for --abi-output")
     | ["--link"], _ =>
         throw (IO.userError "Missing value for --link")
     | ["--input"], _ =>
@@ -141,6 +146,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
       IO.println ""
       IO.println "Options:"
       IO.println "  --output <dir>, -o <dir>    Output directory (default: compiler/yul)"
+      IO.println "  --abi-output <dir>          Output ABI JSON artifact (<Contract>.abi.json)"
       IO.println "  --input <model|edsl>        Input boundary mode (default: edsl)"
       IO.println "  --link <path>               Link external Yul library (repeatable)"
       IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
@@ -208,6 +214,9 @@ def main (args : List String) : IO Unit := do
     let cfg ← parseArgs args
     if cfg.verbose then
       IO.println s!"Compiling Morpho CompilationModel to {cfg.outDir}"
+      match cfg.abiOutDir with
+      | some dir => IO.println s!"ABI output directory: {dir}"
+      | none => pure ()
       IO.println s!"Input mode: {cfg.inputMode}"
       IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
       match cfg.parityPackId with
@@ -235,6 +244,13 @@ def main (args : List String) : IO Unit := do
     let loweredSpec ← lowerMorphoSpec cfg.inputMode
     let ir ← orThrow (compile loweredSpec Morpho.Compiler.Spec.morphoSelectors)
     writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
+    match cfg.abiOutDir with
+    | some dir =>
+        IO.FS.createDirAll dir
+        Compiler.ABI.writeContractABIFile dir loweredSpec
+        if cfg.verbose then
+          IO.println s!"✓ Wrote {dir}/{ir.name}.abi.json"
+    | none => pure ()
 
     if cfg.verbose then
       IO.println s!"✓ Wrote {cfg.outDir}/{ir.name}.yul"

@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${MORPHO_VERITY_OUT_DIR:-${ROOT_DIR}/compiler/yul}"
 MORPHO_YUL="${OUT_DIR}/Morpho.yul"
 MORPHO_BIN="${OUT_DIR}/Morpho.bin"
+MORPHO_ABI="${OUT_DIR}/Morpho.abi.json"
 HASH_LIB="${ROOT_DIR}/compiler/external-libs/MarketParamsHash.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
@@ -33,7 +34,7 @@ if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then
   echo "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: ${INPUT_MODE})"
   exit 1
 fi
-compiler_args=(--output "${OUT_DIR}" --input "${INPUT_MODE}" --link "${HASH_LIB}" --verbose)
+compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --input "${INPUT_MODE}" --link "${HASH_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"
@@ -60,6 +61,11 @@ if [[ ! -s "${MORPHO_BIN}" ]]; then
   echo "ERROR: failed to generate ${MORPHO_BIN}"
   exit 1
 fi
+if [[ ! -s "${MORPHO_ABI}" ]]; then
+  echo "ERROR: failed to generate ${MORPHO_ABI}"
+  exit 1
+fi
 
 echo "Generated Verity artifact: ${MORPHO_YUL}"
 echo "Generated Verity bytecode: ${MORPHO_BIN}"
+echo "Generated Verity ABI: ${MORPHO_ABI}"

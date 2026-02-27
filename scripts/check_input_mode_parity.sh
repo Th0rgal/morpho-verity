@@ -23,8 +23,10 @@ MODEL_YUL="${MODEL_OUT}/Morpho.yul"
 EDSL_YUL="${EDSL_OUT}/Morpho.yul"
 MODEL_BIN="${MODEL_OUT}/Morpho.bin"
 EDSL_BIN="${EDSL_OUT}/Morpho.bin"
+MODEL_ABI="${MODEL_OUT}/Morpho.abi.json"
+EDSL_ABI="${EDSL_OUT}/Morpho.abi.json"
 
-for artifact in "${MODEL_YUL}" "${EDSL_YUL}" "${MODEL_BIN}" "${EDSL_BIN}"; do
+for artifact in "${MODEL_YUL}" "${EDSL_YUL}" "${MODEL_BIN}" "${EDSL_BIN}" "${MODEL_ABI}" "${EDSL_ABI}"; do
   if [[ ! -s "${artifact}" ]]; then
     echo "ERROR: missing or empty artifact: ${artifact}"
     exit 1
@@ -42,4 +44,9 @@ if ! cmp -s "${MODEL_BIN}" "${EDSL_BIN}"; then
   exit 1
 fi
 
-echo "Input-mode parity passed: model and edsl artifacts are identical."
+if ! cmp -s "${MODEL_ABI}" "${EDSL_ABI}"; then
+  echo "ERROR: model vs edsl ABI artifacts differ"
+  exit 1
+fi
+
+echo "Input-mode parity passed: model and edsl Yul/bytecode/ABI artifacts are identical."

@@ -161,7 +161,7 @@ Override artifact output directory when needed:
 MORPHO_VERITY_OUT_DIR=/tmp/morpho-artifact ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
-Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho artifacts:
+Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho artifacts (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`):
 
 ```bash
 ./scripts/check_input_mode_parity.sh
