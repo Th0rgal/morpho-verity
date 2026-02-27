@@ -56,6 +56,7 @@ test_skip_refused_outside_ci() {
   set +e
   (
     cd "${fake_root}"
+    env -u CI \
     MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1 \
       ./scripts/run_morpho_blue_parity.sh
   ) >"${output_file}" 2>&1
