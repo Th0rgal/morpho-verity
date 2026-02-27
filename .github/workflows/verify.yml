@@ -81,7 +81,7 @@ jobs:
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    needs: [verity-proofs, parity-target]
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -149,7 +149,7 @@ jobs:
   solidity-tests:
     name: Solidity tests (Foundry)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    needs: [verity-proofs, parity-target]
     timeout-minutes: 90
     steps:
       - name: Checkout
@@ -185,7 +185,7 @@ jobs:
   verity-compiled-tests:
     name: Verity compiled artifact smoke tests (Foundry)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    needs: [verity-proofs, parity-target]
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -250,7 +250,7 @@ jobs:
   morpho-blue-parity:
     name: Morpho Blue differential suite (Solidity vs Verity)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    needs: [verity-proofs, parity-target]
     timeout-minutes: 120
     steps:
       - name: Checkout
