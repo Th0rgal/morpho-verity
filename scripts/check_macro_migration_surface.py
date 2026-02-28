@@ -7,6 +7,7 @@ import argparse
 import json
 import pathlib
 import re
+import subprocess
 import sys
 from typing import Any
 
@@ -14,6 +15,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC_PATH = ROOT / "Morpho" / "Compiler" / "Spec.lean"
 INTERFACE_PATH = ROOT / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol"
+IMORPHO_CONTRACT = "IMorpho"
 
 TYPE_ALIASES = {
   "Id": "bytes32",
@@ -145,7 +147,7 @@ def extract_interface_signatures(solidity_text: str) -> set[str]:
   return signatures
 
 
-def extract_spec_signatures(spec_text: str) -> set[str]:
+def extract_spec_selector_entries(spec_text: str) -> list[tuple[str, int]]:
   lines = spec_text.splitlines()
   start_idx = None
   for idx, line in enumerate(lines):
@@ -161,44 +163,111 @@ def extract_spec_signatures(spec_text: str) -> set[str]:
     block_lines.append(line)
   if not block_lines:
     raise RuntimeError("unable to parse morphoSelectors list body in Morpho/Compiler/Spec.lean")
-  signatures: set[str] = set()
+  entries: list[tuple[str, int]] = []
   for line in block_lines:
-    m = re.search(r"--\s*(.+?)\s*$", line)
+    m = re.match(r"^\s*0x([0-9a-fA-F]+)\s*,?\s*--\s*(.+?)\s*$", line)
     if not m:
       continue
-    candidate = m.group(1).strip()
+    selector = int(m.group(1), 16)
+    candidate = m.group(2).strip()
     if re.match(r"^[A-Za-z_][A-Za-z0-9_]*\(.*\)$", candidate):
-      signatures.add(candidate)
-  if not signatures:
+      entries.append((candidate, selector))
+  if not entries:
     raise RuntimeError("morphoSelectors comments did not contain any parseable signatures")
-  return signatures
+  return entries
 
 
-def build_report(spec_signatures: set[str], interface_signatures: set[str]) -> dict[str, Any]:
+def extract_spec_signatures(spec_text: str) -> set[str]:
+  return {signature for signature, _ in extract_spec_selector_entries(spec_text)}
+
+
+def extract_solc_selector_map(interface_path: pathlib.Path, contract_name: str = IMORPHO_CONTRACT) -> dict[str, int]:
+  proc = subprocess.run(
+    ["solc", "--hashes", str(interface_path)],
+    check=False,
+    capture_output=True,
+    text=True,
+  )
+  if proc.returncode != 0:
+    raise RuntimeError(f"solc --hashes failed for {interface_path}: {proc.stderr.strip()}")
+
+  selector_map: dict[str, int] = {}
+  in_contract_block = False
+  block_header = re.compile(rf"^======= .+:{re.escape(contract_name)} =======$")
+  entry = re.compile(r"^([0-9a-fA-F]{8}):\s*(\S.*)$")
+  for line in proc.stdout.splitlines():
+    if line.startswith("======="):
+      in_contract_block = bool(block_header.match(line))
+      continue
+    if not in_contract_block:
+      continue
+    m = entry.match(line.strip())
+    if not m:
+      continue
+    selector_map[m.group(2)] = int(m.group(1), 16)
+
+  if not selector_map:
+    raise RuntimeError(f"failed to parse selector hashes for contract {contract_name} from solc output")
+  return selector_map
+
+
+def build_report(
+  spec_signatures: set[str],
+  interface_signatures: set[str],
+  spec_selector_map: dict[str, int] | None = None,
+  solc_selector_map: dict[str, int] | None = None,
+) -> dict[str, Any]:
   only_in_spec = sorted(spec_signatures - interface_signatures)
   only_in_interface = sorted(interface_signatures - spec_signatures)
   shared = sorted(spec_signatures & interface_signatures)
   unexpected_only_in_spec = sorted(set(only_in_spec) - EXPECTED_ONLY_IN_SPEC)
   missing_expected_only_in_spec = sorted(EXPECTED_ONLY_IN_SPEC - set(only_in_spec))
+  selector_mismatches: list[dict[str, str]] = []
+  if spec_selector_map is not None and solc_selector_map is not None:
+    for signature in shared:
+      spec_selector = spec_selector_map.get(signature)
+      solc_selector = solc_selector_map.get(signature)
+      if spec_selector is None or solc_selector is None:
+        continue
+      if spec_selector != solc_selector:
+        selector_mismatches.append({
+          "signature": signature,
+          "specSelector": f"0x{spec_selector:08x}",
+          "solcSelector": f"0x{solc_selector:08x}",
+        })
+  status = "ok"
+  if unexpected_only_in_spec or only_in_interface or missing_expected_only_in_spec or selector_mismatches:
+    status = "mismatch"
   return {
-    "status": "ok" if not unexpected_only_in_spec and not only_in_interface and not missing_expected_only_in_spec else "mismatch",
+    "status": status,
     "specSignatureCount": len(spec_signatures),
     "interfaceSignatureCount": len(interface_signatures),
     "matchedSignatureCount": len(shared),
+    "selectorComparableCount": len(shared) - len(only_in_spec),
     "onlyInSpec": only_in_spec,
     "onlyInInterface": only_in_interface,
     "allowedOnlyInSpec": sorted(EXPECTED_ONLY_IN_SPEC),
     "unexpectedOnlyInSpec": unexpected_only_in_spec,
     "missingExpectedOnlyInSpec": missing_expected_only_in_spec,
+    "selectorMismatches": selector_mismatches,
+    "selectorMismatchCount": len(selector_mismatches),
+    "specSelectorCount": 0 if spec_selector_map is None else len(spec_selector_map),
+    "solcSelectorCount": 0 if solc_selector_map is None else len(solc_selector_map),
   }
 
 
 def run_check(spec_path: pathlib.Path = SPEC_PATH, interface_path: pathlib.Path = INTERFACE_PATH) -> dict[str, Any]:
-  spec_signatures = extract_spec_signatures(read_text(spec_path))
-  interface_signatures = extract_interface_signatures(read_text(interface_path))
-  report = build_report(spec_signatures, interface_signatures)
+  spec_text = read_text(spec_path)
+  interface_text = read_text(interface_path)
+  spec_entries = extract_spec_selector_entries(spec_text)
+  spec_selector_map = {signature: selector for signature, selector in spec_entries}
+  spec_signatures = set(spec_selector_map)
+  interface_signatures = extract_interface_signatures(interface_text)
+  solc_selector_map = extract_solc_selector_map(interface_path)
+  report = build_report(spec_signatures, interface_signatures, spec_selector_map, solc_selector_map)
   report["specPath"] = str(spec_path.relative_to(ROOT))
   report["interfacePath"] = str(interface_path.relative_to(ROOT))
+  report["selectorSource"] = f"solc --hashes ({IMORPHO_CONTRACT})"
   return report
 
 
@@ -217,7 +286,8 @@ def main() -> None:
     "macro-migration-surface: "
     f"spec={report['specSignatureCount']} "
     f"interface={report['interfaceSignatureCount']} "
-    f"matched={report['matchedSignatureCount']}"
+    f"matched={report['matchedSignatureCount']} "
+    f"selector_mismatches={report['selectorMismatchCount']}"
   )
   if report["status"] != "ok":
     if report["unexpectedOnlyInSpec"]:
@@ -232,6 +302,15 @@ def main() -> None:
       print("only in IMorpho.sol interface declarations:")
       for sig in report["onlyInInterface"]:
         print(f"  - {sig}")
+    if report["selectorMismatches"]:
+      print("selector mismatches between Spec.lean and IMorpho.sol:")
+      for mismatch in report["selectorMismatches"]:
+        print(
+          "  - "
+          f"{mismatch['signature']}: "
+          f"spec={mismatch['specSelector']} "
+          f"solc={mismatch['solcSelector']}"
+        )
     fail("selector/signature migration surface mismatch")
   print("macro-migration-surface check: OK")
 

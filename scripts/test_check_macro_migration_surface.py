@@ -12,6 +12,7 @@ from check_macro_migration_surface import (  # noqa: E402
   ROOT,
   build_report,
   canonicalize_type,
+  extract_spec_selector_entries,
   run_check,
   split_top_level_csv,
 )
@@ -42,6 +43,29 @@ class CheckMacroMigrationSurfaceTests(unittest.TestCase):
     self.assertEqual(report["status"], "mismatch")
     self.assertEqual(report["unexpectedOnlyInSpec"], ["b(uint256)"])
     self.assertEqual(report["onlyInInterface"], ["c()"])
+    self.assertEqual(report["selectorMismatchCount"], 0)
+
+  def test_build_report_marks_selector_mismatch(self) -> None:
+    report = build_report(
+      {"a()", "b(uint256)"},
+      {"a()", "b(uint256)"},
+      {"a()": 0xAAAAAAAA, "b(uint256)": 0xBBBBBBBB},
+      {"a()": 0xAAAAAAAA, "b(uint256)": 0xCCCCCCCC},
+    )
+    self.assertEqual(report["status"], "mismatch")
+    self.assertEqual(report["selectorMismatchCount"], 1)
+    self.assertEqual(report["selectorMismatches"][0]["signature"], "b(uint256)")
+
+  def test_extract_spec_selector_entries_parses_hex_and_signature(self) -> None:
+    spec_text = """
+def morphoSelectors : List Nat := [
+  0x3644e515, -- DOMAIN_SEPARATOR()
+  0x8da5cb5b  -- owner()
+]
+"""
+    entries = extract_spec_selector_entries(spec_text)
+    self.assertEqual(entries[0], ("DOMAIN_SEPARATOR()", 0x3644E515))
+    self.assertEqual(entries[1], ("owner()", 0x8DA5CB5B))
 
   def test_current_repo_surface_matches(self) -> None:
     report = run_check()
@@ -51,6 +75,8 @@ class CheckMacroMigrationSurfaceTests(unittest.TestCase):
     self.assertGreater(report["matchedSignatureCount"], 0)
     self.assertEqual(report["specSignatureCount"], report["interfaceSignatureCount"] + len(report["allowedOnlyInSpec"]))
     self.assertEqual(sorted(report["onlyInSpec"]), report["allowedOnlyInSpec"])
+    self.assertEqual(report["selectorMismatchCount"], 0)
+    self.assertIn("solc --hashes", report["selectorSource"])
 
   def test_root_constant_points_to_repo(self) -> None:
     self.assertTrue((ROOT / "Morpho" / "Compiler" / "Spec.lean").exists())
