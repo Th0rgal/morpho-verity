@@ -75,11 +75,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-mkdir -p "${out_dir}" "${abi_out_dir}"
 printf "// yul artifact (%s)\n" "${input_mode}" > "${out_dir}/Morpho.yul"
-cat > "${abi_out_dir}/Morpho.abi.json" <<'EOF_ABI'
-[{"type":"function","name":"foo","inputs":[],"outputs":[]}]
-EOF_ABI
+printf "%s\n" "[{\"type\":\"function\",\"name\":\"foo\",\"inputs\":[],\"outputs\":[]}]" > "${abi_out_dir}/Morpho.abi.json"
 '
 }
 
@@ -129,6 +126,32 @@ test_fail_closed_on_invalid_skip_build_toggle() {
     exit 1
   fi
   assert_contains "ERROR: MORPHO_VERITY_SKIP_BUILD must be '0' or '1' (got: oops)" "${output_file}"
+}
+
+test_fail_closed_on_invalid_skip_solc_toggle() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_SKIP_SOLC=nope "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected invalid MORPHO_VERITY_SKIP_SOLC to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_SKIP_SOLC must be '0' or '1' (got: nope)" "${output_file}"
 }
 
 test_fail_closed_when_python3_missing_for_parity_target_read() {
@@ -185,6 +208,33 @@ test_fail_closed_on_invalid_parity_target_json() {
   assert_contains "ERROR: failed to read parity pack from ${fake_root}/config/parity-target.json" "${output_file}"
 }
 
+test_fail_closed_when_lake_missing() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_SKIP_BUILD=1 MORPHO_VERITY_SKIP_SOLC=1 "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected missing lake to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: lake is required to build and compile Morpho artifacts" "${output_file}"
+}
+
 test_fail_closed_when_solc_missing_and_not_skipped() {
   local fake_root fake_bin output_file rc
   fake_root="$(mktemp -d)"
@@ -212,6 +262,37 @@ test_fail_closed_when_solc_missing_and_not_skipped() {
     exit 1
   fi
   assert_contains "ERROR: solc is required unless MORPHO_VERITY_SKIP_SOLC=1" "${output_file}"
+}
+
+test_fail_closed_when_awk_missing_and_not_skipped() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  ln -s "$(command -v dirname)" "${fake_bin}/dirname"
+  ln -s "$(command -v mkdir)" "${fake_bin}/mkdir"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+  install_fake_solc "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}" MORPHO_VERITY_SKIP_BUILD=1 "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected missing awk to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: awk is required to extract bytecode from solc output" "${output_file}"
 }
 
 test_success_when_solc_is_skipped() {
@@ -246,9 +327,12 @@ test_success_when_solc_is_skipped() {
 }
 
 test_fail_closed_on_invalid_skip_build_toggle
+test_fail_closed_on_invalid_skip_solc_toggle
 test_fail_closed_when_python3_missing_for_parity_target_read
 test_fail_closed_on_invalid_parity_target_json
+test_fail_closed_when_lake_missing
 test_fail_closed_when_solc_missing_and_not_skipped
+test_fail_closed_when_awk_missing_and_not_skipped
 test_success_when_solc_is_skipped
 
 echo "prepare_verity_morpho_artifact.sh tests passed"
