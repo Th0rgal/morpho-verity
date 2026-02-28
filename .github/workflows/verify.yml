@@ -152,7 +152,9 @@ jobs:
             python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
             exit $?
           fi
-          if ! timeout "${timeout_sec}" python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest; then
+          if timeout "${timeout_sec}" python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest; then
+            :
+          else
             status=$?
             if [[ "${status}" -eq 124 ]]; then
               echo "ERROR: Yul identity report timed out after ${timeout_sec}s"
@@ -207,7 +209,9 @@ jobs:
             forge test -vvv
             exit $?
           fi
-          if ! timeout "${timeout_sec}" forge test -vvv; then
+          if timeout "${timeout_sec}" forge test -vvv; then
+            :
+          else
             status=$?
             if [[ "${status}" -eq 124 ]]; then
               echo "ERROR: Morpho Blue Solidity tests timed out after ${timeout_sec}s"
@@ -292,7 +296,9 @@ jobs:
             forge test -vvv
             exit $?
           fi
-          if ! timeout "${timeout_sec}" forge test -vvv; then
+          if timeout "${timeout_sec}" forge test -vvv; then
+            :
+          else
             status=$?
             if [[ "${status}" -eq 124 ]]; then
               echo "ERROR: Verity artifact smoke tests timed out after ${timeout_sec}s"
