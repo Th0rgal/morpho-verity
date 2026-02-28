@@ -124,8 +124,36 @@ exit 0'
   assert_contains "anvil via foundryup" "${output_file}"
 }
 
+test_links_version_suffixed_binaries() {
+  local fake_root fake_bin fake_home output_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  fake_home="${fake_root}/home"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}" "${fake_home}/.foundry/releases/stable"
+  make_exe "${fake_home}/.foundry/releases/stable/forge-1.5.1" '#!/usr/bin/env bash
+set -euo pipefail
+echo "forge from suffixed binary"'
+  make_exe "${fake_home}/.foundry/releases/stable/anvil-1.5.1" '#!/usr/bin/env bash
+set -euo pipefail
+echo "anvil from suffixed binary"'
+  make_exe "${fake_bin}/foundryup" '#!/usr/bin/env bash
+set -euo pipefail
+exit 0'
+
+  HOME="${fake_home}" \
+  PATH="${fake_bin}:/usr/bin:/bin" \
+    "${SCRIPT_UNDER_TEST}" >"${output_file}" 2>&1
+
+  assert_contains "forge from suffixed binary" "${output_file}"
+  assert_contains "anvil from suffixed binary" "${output_file}"
+}
+
 test_fast_path_when_forge_and_anvil_exist
 test_fast_path_after_path_bootstrap
 test_retry_foundryup_then_succeed
+test_links_version_suffixed_binaries
 
 echo "install_foundry.sh tests passed"

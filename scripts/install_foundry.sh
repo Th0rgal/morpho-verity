@@ -21,6 +21,25 @@ retry() {
   done
 }
 
+resolve_tool_candidate() {
+  local tool="$1"
+  local candidate=""
+
+  if candidate="$(command -v "${tool}" 2>/dev/null || true)" && [[ -n "${candidate}" && -x "${candidate}" ]]; then
+    printf '%s\n' "${candidate}"
+    return 0
+  fi
+
+  while IFS= read -r match; do
+    if [[ -x "${match}" ]]; then
+      printf '%s\n' "${match}"
+      return 0
+    fi
+  done < <(find "${HOME}/.foundry" -type f \( -name "${tool}" -o -name "${tool}-*" \) 2>/dev/null || true)
+
+  return 1
+}
+
 if command -v forge >/dev/null 2>&1 && command -v anvil >/dev/null 2>&1; then
   echo "Foundry already available:"
   forge --version
@@ -59,22 +78,26 @@ else
 fi
 
 export PATH="$HOME/.foundry/bin:$PATH"
-FORGE_BIN="${HOME}/.foundry/bin/forge"
-ANVIL_BIN="${HOME}/.foundry/bin/anvil"
-if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
-  for tool in forge anvil cast chisel; do
-    target="${HOME}/.foundry/bin/${tool}"
-    if [[ ! -x "${target}" ]]; then
-      candidate="$(find "${HOME}/.foundry" -type f -name "${tool}" -perm -111 2>/dev/null | head -n 1 || true)"
-      if [[ -n "${candidate}" ]]; then
-        ln -sf "${candidate}" "${target}"
-      fi
-    fi
-  done
-fi
+mkdir -p "${HOME}/.foundry/bin"
+for tool in forge anvil cast chisel; do
+  target="${HOME}/.foundry/bin/${tool}"
+  if [[ -x "${target}" ]]; then
+    continue
+  fi
+  if candidate="$(resolve_tool_candidate "${tool}" 2>/dev/null || true)" && [[ -n "${candidate}" ]]; then
+    ln -sf "${candidate}" "${target}"
+    chmod +x "${target}" || true
+  fi
+done
+FORGE_BIN="$(resolve_tool_candidate forge 2>/dev/null || true)"
+ANVIL_BIN="$(resolve_tool_candidate anvil 2>/dev/null || true)"
 
 if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
   echo "ERROR: expected forge/anvil binaries are missing after installation" >&2
+  echo "DEBUG: ~/.foundry/bin contents:" >&2
+  ls -la "${HOME}/.foundry/bin" >&2 || true
+  echo "DEBUG: forge/anvil candidates under ~/.foundry:" >&2
+  find "${HOME}/.foundry" -maxdepth 5 -type f \( -name "forge*" -o -name "anvil*" \) 2>/dev/null >&2 || true
   exit 127
 fi
 
