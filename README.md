@@ -182,6 +182,7 @@ Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho arti
 ```
 
 The parity gate is fail-closed: `Morpho.yul` and `Morpho.bin` must match byte-for-byte, and `Morpho.abi.json` must match semantically (canonical JSON).
+ABI canonicalization requires `python3`; missing or invalid ABI JSON artifacts fail closed with deterministic diagnostics.
 Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `900`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)

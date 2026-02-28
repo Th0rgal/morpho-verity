@@ -19,10 +19,33 @@ build_path_without_timeout() {
     bash
     cmp
     diff
+    dirname
     head
     mkdir
     mktemp
     python3
+    rm
+    sleep
+  )
+
+  mkdir -p "${path_dir}"
+  for cmd in "${commands[@]}"; do
+    local source_cmd
+    source_cmd="$(command -v "${cmd}")"
+    ln -s "${source_cmd}" "${path_dir}/${cmd}"
+  done
+}
+
+build_path_without_python3() {
+  local path_dir="$1"
+  local -a commands=(
+    bash
+    cmp
+    diff
+    dirname
+    head
+    mkdir
+    mktemp
     rm
     sleep
   )
@@ -55,6 +78,10 @@ fi
 if [[ "${mode}" == "model" ]]; then
   printf '%s\n' "shared-yul" > "${out}/Morpho.yul"
   printf '%s\n' "shared-bin" > "${out}/Morpho.bin"
+  if [[ "${FAKE_INVALID_MODEL_ABI:-0}" == "1" ]]; then
+    printf '%s\n' '{"invalid":' > "${out}/Morpho.abi.json"
+    exit 0
+  fi
   if [[ "${FAKE_ABI_FORMAT_DRIFT:-0}" == "1" ]]; then
     printf '%s\n' '[{"type":"function","name":"same"}]' > "${out}/Morpho.abi.json"
   else
@@ -74,7 +101,9 @@ else
   printf '%s\n' "shared-bin" > "${out}/Morpho.bin"
 fi
 if [[ "${FAKE_MISSING_ABI:-0}" != "1" ]]; then
-  if [[ "${FAKE_MISMATCH_ABI:-0}" == "1" ]]; then
+  if [[ "${FAKE_INVALID_EDSL_ABI:-0}" == "1" ]]; then
+    printf '%s\n' '{"invalid":' > "${out}/Morpho.abi.json"
+  elif [[ "${FAKE_MISMATCH_ABI:-0}" == "1" ]]; then
     printf '%s\n' "[{\"type\":\"function\",\"name\":\"different\"}]" > "${out}/Morpho.abi.json"
   elif [[ "${FAKE_ABI_FORMAT_DRIFT:-0}" == "1" ]]; then
     printf '%s\n' '[ { "name":"same" , "type":"function" } ]' > "${out}/Morpho.abi.json"
@@ -207,6 +236,56 @@ test_fail_closed_on_missing_artifact() {
   assert_contains "ERROR: missing or empty artifact" "${output_file}"
 }
 
+test_fail_closed_on_invalid_model_abi_json() {
+  local fake_root output_file out_dir
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    FAKE_INVALID_MODEL_ABI=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid model ABI JSON to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: failed to canonicalize model ABI artifact" "${output_file}"
+}
+
+test_fail_closed_on_invalid_edsl_abi_json() {
+  local fake_root output_file out_dir
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    FAKE_INVALID_EDSL_ABI=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid edsl ABI JSON to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: failed to canonicalize edsl ABI artifact" "${output_file}"
+}
+
 test_success_on_abi_formatting_drift() {
   local fake_root out_dir
   fake_root="$(mktemp -d)"
@@ -264,6 +343,7 @@ test_fail_closed_when_timeout_missing_but_enabled() {
   set +e
   (
     cd "${fake_root}"
+    hash -r
     PATH="${restricted_path}" \
     MORPHO_VERITY_PREP_TIMEOUT_SEC=1 \
     MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
@@ -279,13 +359,45 @@ test_fail_closed_when_timeout_missing_but_enabled() {
   assert_contains "ERROR: timeout command is required when MORPHO_VERITY_PREP_TIMEOUT_SEC is greater than zero" "${output_file}"
 }
 
+test_fail_closed_when_python3_missing() {
+  local fake_root output_file out_dir restricted_path
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  restricted_path="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}" "${restricted_path}"' RETURN
+  make_fake_repo "${fake_root}"
+  build_path_without_python3 "${restricted_path}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    hash -r
+    PATH="${restricted_path}" \
+    MORPHO_VERITY_PREP_TIMEOUT_SEC=0 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing python3 to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: python3 is required to canonicalize ABI artifacts for parity checks" "${output_file}"
+}
+
 test_success_when_model_and_edsl_artifacts_match
 test_success_on_abi_formatting_drift
 test_fail_closed_on_yul_mismatch
 test_fail_closed_on_bytecode_mismatch
 test_fail_closed_on_abi_mismatch
 test_fail_closed_on_missing_artifact
+test_fail_closed_on_invalid_model_abi_json
+test_fail_closed_on_invalid_edsl_abi_json
 test_fail_closed_on_prepare_timeout
 test_fail_closed_when_timeout_missing_but_enabled
+test_fail_closed_when_python3_missing
 
 echo "check_input_mode_parity.sh tests passed"

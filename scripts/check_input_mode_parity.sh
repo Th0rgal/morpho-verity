@@ -55,6 +55,37 @@ run_prepare() {
   fi
 }
 
+canonicalize_abi() {
+  local abi_path="$1"
+  local out_path="$2"
+  local label="$3"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required to canonicalize ABI artifacts for parity checks"
+    exit 1
+  fi
+
+  if ! python3 - "${abi_path}" "${out_path}" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as src:
+        data = json.load(src)
+except json.JSONDecodeError as exc:
+    print(f"invalid JSON: {exc}", file=sys.stderr)
+    sys.exit(2)
+
+with open(sys.argv[2], "w", encoding="utf-8") as dst:
+    json.dump(data, dst, sort_keys=True, separators=(",", ":"))
+    dst.write("\n")
+PY
+  then
+    echo "ERROR: failed to canonicalize ${label} ABI artifact: ${abi_path}"
+    exit 1
+  fi
+}
+
 if [[ -n "${PARITY_OUT_DIR}" ]]; then
   mkdir -p "${PARITY_OUT_DIR}"
   MODEL_OUT="${PARITY_OUT_DIR}/model"
@@ -120,26 +151,8 @@ fi
 
 ABI_MODEL_CANONICAL="$(mktemp)"
 ABI_EDSL_CANONICAL="$(mktemp)"
-python3 - "${MODEL_ABI}" "${ABI_MODEL_CANONICAL}" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], "r", encoding="utf-8") as src, open(
-    sys.argv[2], "w", encoding="utf-8"
-) as dst:
-    json.dump(json.load(src), dst, sort_keys=True, separators=(",", ":"))
-    dst.write("\n")
-PY
-python3 - "${EDSL_ABI}" "${ABI_EDSL_CANONICAL}" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], "r", encoding="utf-8") as src, open(
-    sys.argv[2], "w", encoding="utf-8"
-) as dst:
-    json.dump(json.load(src), dst, sort_keys=True, separators=(",", ":"))
-    dst.write("\n")
-PY
+canonicalize_abi "${MODEL_ABI}" "${ABI_MODEL_CANONICAL}" "model"
+canonicalize_abi "${EDSL_ABI}" "${ABI_EDSL_CANONICAL}" "edsl"
 
 if ! cmp -s "${ABI_MODEL_CANONICAL}" "${ABI_EDSL_CANONICAL}"; then
   echo "ERROR: model vs edsl ABI artifacts differ semantically"
