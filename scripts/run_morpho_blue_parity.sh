@@ -38,7 +38,7 @@ if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
     echo "Set MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1 only for explicit local debugging."
     exit 1
   fi
-  echo "Skipping input-mode parity preflight (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
+  echo "Skipping artifact preflight gate (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
   MORPHO_VERITY_OUT_DIR="${PARITY_OUT_DIR}/edsl" \
   MORPHO_VERITY_INPUT_MODE="edsl" \
     "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PREP_TIMEOUT_SEC 900 \
@@ -48,7 +48,7 @@ else
   # Fast fail-closed guard before the long differential suite.
   MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \
     "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC 1800 \
-      "Input-mode parity preflight" -- \
+      "Artifact preflight gate" -- \
       "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
 fi
 

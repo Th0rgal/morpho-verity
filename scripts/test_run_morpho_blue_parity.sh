@@ -461,7 +461,7 @@ test_parity_preflight_timeout_fails_closed() {
     echo "ASSERTION FAILED: expected parity-preflight timeout to fail"
     exit 1
   fi
-  assert_contains "ERROR: Input-mode parity preflight timed out after 1s" "${output_file}"
+  assert_contains "ERROR: Artifact preflight gate timed out after 1s" "${output_file}"
 }
 
 test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode() {
