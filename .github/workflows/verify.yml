@@ -33,9 +33,9 @@ jobs:
             ${{ runner.os }}-lean-lake-
 
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Build and check proofs
         run: lake build
@@ -102,9 +102,9 @@ jobs:
             ${{ runner.os }}-lean-lake-
 
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -204,9 +204,9 @@ jobs:
             ${{ runner.os }}-lean-lake-
 
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -271,9 +271,9 @@ jobs:
             ${{ runner.os }}-lean-lake-
 
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
