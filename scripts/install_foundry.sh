@@ -21,6 +21,54 @@ retry() {
   done
 }
 
+resolve_tool_candidate() {
+  local tool="$1"
+  local candidate=""
+
+  if candidate="$(command -v "${tool}" 2>/dev/null || true)" && [[ -n "${candidate}" && -x "${candidate}" ]]; then
+    printf '%s\n' "${candidate}"
+    return 0
+  fi
+
+  while IFS= read -r match; do
+    if [[ -x "${match}" ]]; then
+      printf '%s\n' "${match}"
+      return 0
+    fi
+  done < <(find "${HOME}/.foundry" -type f \( -name "${tool}" -o -name "${tool}-*" \) 2>/dev/null || true)
+
+  return 1
+}
+
+install_from_release_archive() {
+  local os arch archive url
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  case "${arch}" in
+    x86_64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      echo "ERROR: unsupported architecture for Foundry archive fallback: ${arch}" >&2
+      return 2
+      ;;
+  esac
+  case "${os}" in
+    linux|darwin) ;;
+    *)
+      echo "ERROR: unsupported OS for Foundry archive fallback: ${os}" >&2
+      return 2
+      ;;
+  esac
+
+  mkdir -p "${HOME}/.foundry/bin"
+  archive="$(mktemp)"
+  url="https://github.com/foundry-rs/foundry/releases/download/stable/foundry_stable_${os}_${arch}.tar.gz"
+  retry 4 curl -fsSL "${url}" -o "${archive}"
+  tar -xzf "${archive}" -C "${HOME}/.foundry/bin"
+  rm -f "${archive}"
+  chmod +x "${HOME}/.foundry/bin/forge" "${HOME}/.foundry/bin/anvil" "${HOME}/.foundry/bin/cast" "${HOME}/.foundry/bin/chisel" 2>/dev/null || true
+}
+
 if command -v forge >/dev/null 2>&1 && command -v anvil >/dev/null 2>&1; then
   echo "Foundry already available:"
   forge --version
@@ -45,7 +93,48 @@ if ! command -v foundryup >/dev/null 2>&1; then
   retry 4 bash -lc 'curl -fsSL https://foundry.paradigm.xyz | bash'
 fi
 
-retry 4 foundryup
+FOUNDRYUP_BIN="$HOME/.foundry/bin/foundryup"
+if ! command -v foundryup >/dev/null 2>&1; then
+  if [[ ! -x "${FOUNDRYUP_BIN}" ]]; then
+    echo "WARN: foundryup missing after bootstrap; downloading standalone script..." >&2
+    mkdir -p "$(dirname "${FOUNDRYUP_BIN}")"
+    retry 4 curl -fsSL "https://raw.githubusercontent.com/foundry-rs/foundry/master/foundryup/foundryup" -o "${FOUNDRYUP_BIN}"
+    chmod +x "${FOUNDRYUP_BIN}"
+  fi
+  retry 4 "${FOUNDRYUP_BIN}"
+else
+  retry 4 foundryup
+fi
 
-forge --version
-anvil --version
+export PATH="$HOME/.foundry/bin:$PATH"
+mkdir -p "${HOME}/.foundry/bin"
+for tool in forge anvil cast chisel; do
+  target="${HOME}/.foundry/bin/${tool}"
+  if [[ -x "${target}" ]]; then
+    continue
+  fi
+  if candidate="$(resolve_tool_candidate "${tool}" 2>/dev/null || true)" && [[ -n "${candidate}" ]]; then
+    ln -sf "${candidate}" "${target}"
+    chmod +x "${target}" || true
+  fi
+done
+FORGE_BIN="$(resolve_tool_candidate forge 2>/dev/null || true)"
+ANVIL_BIN="$(resolve_tool_candidate anvil 2>/dev/null || true)"
+if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
+  echo "WARN: foundryup did not materialize forge/anvil binaries; falling back to direct release archive install." >&2
+  install_from_release_archive
+  FORGE_BIN="$(resolve_tool_candidate forge 2>/dev/null || true)"
+  ANVIL_BIN="$(resolve_tool_candidate anvil 2>/dev/null || true)"
+fi
+
+if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
+  echo "ERROR: expected forge/anvil binaries are missing after installation" >&2
+  echo "DEBUG: ~/.foundry/bin contents:" >&2
+  ls -la "${HOME}/.foundry/bin" >&2 || true
+  echo "DEBUG: forge/anvil candidates under ~/.foundry:" >&2
+  find "${HOME}/.foundry" -maxdepth 5 -type f \( -name "forge*" -o -name "anvil*" \) 2>/dev/null >&2 || true
+  exit 127
+fi
+
+"${FORGE_BIN}" --version
+"${ANVIL_BIN}" --version
