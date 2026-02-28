@@ -30,6 +30,7 @@ validate_toggle() {
 INPUT_MODE="${MORPHO_VERITY_INPUT_MODE:-edsl}"
 SKIP_BUILD="${MORPHO_VERITY_SKIP_BUILD:-0}"
 SKIP_SOLC="${MORPHO_VERITY_SKIP_SOLC:-0}"
+COMPILER_INPUT_MODE="${INPUT_MODE}"
 
 validate_toggle "MORPHO_VERITY_SKIP_BUILD" "${SKIP_BUILD}"
 validate_toggle "MORPHO_VERITY_SKIP_SOLC" "${SKIP_SOLC}"
@@ -37,6 +38,10 @@ validate_toggle "MORPHO_VERITY_SKIP_SOLC" "${SKIP_SOLC}"
 if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then
   echo "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: ${INPUT_MODE})"
   exit 2
+fi
+
+if [[ "${INPUT_MODE}" == "model" ]]; then
+  COMPILER_INPUT_MODE="edsl"
 fi
 
 default_pack=""
@@ -74,12 +79,15 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
 fi
 
 echo "Running Morpho Verity compiler..."
-compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --input "${INPUT_MODE}" --link "${HASH_LIB}" --verbose)
+compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --input "${COMPILER_INPUT_MODE}" --link "${HASH_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"
 fi
-echo "Using input mode: ${INPUT_MODE}"
+if [[ "${INPUT_MODE}" == "model" ]]; then
+  echo "Using input mode alias: model -> edsl"
+fi
+echo "Using input mode: ${COMPILER_INPUT_MODE}"
 (cd "${ROOT_DIR}" && lake exe morpho-verity-compiler "${compiler_args[@]}")
 
 if [[ ! -s "${MORPHO_YUL}" ]]; then

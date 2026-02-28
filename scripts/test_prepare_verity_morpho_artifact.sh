@@ -408,6 +408,36 @@ test_success_when_solc_is_skipped() {
   assert_contains "Skipped bytecode generation (MORPHO_VERITY_SKIP_SOLC=1)" "${output_file}"
 }
 
+test_model_input_alias_is_canonicalized_to_edsl() {
+  local fake_root fake_bin output_file out_dir
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  out_dir="${fake_root}/out"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_INPUT_MODE=model \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  if [[ ! -s "${out_dir}/Morpho.yul" ]]; then
+    echo "ASSERTION FAILED: expected Morpho.yul output"
+    exit 1
+  fi
+  assert_contains "// yul artifact (edsl)" "${out_dir}/Morpho.yul"
+  assert_contains "Using input mode alias: model -> edsl" "${output_file}"
+  assert_contains "Using input mode: edsl" "${output_file}"
+}
+
 test_fail_closed_on_invalid_skip_build_toggle
 test_fail_closed_on_invalid_skip_solc_toggle
 test_fail_closed_on_invalid_input_mode
@@ -419,5 +449,6 @@ test_fail_closed_when_lake_missing
 test_fail_closed_when_solc_missing_and_not_skipped
 test_fail_closed_when_awk_missing_and_not_skipped
 test_success_when_solc_is_skipped
+test_model_input_alias_is_canonicalized_to_edsl
 
 echo "prepare_verity_morpho_artifact.sh tests passed"
