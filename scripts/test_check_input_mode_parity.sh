@@ -62,7 +62,9 @@ make_fake_repo() {
   local fake_root="$1"
   mkdir -p "${fake_root}/scripts"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/check_input_mode_parity.sh"
+  cp "${ROOT_DIR}/scripts/run_with_timeout.sh" "${fake_root}/scripts/run_with_timeout.sh"
   chmod +x "${fake_root}/scripts/check_input_mode_parity.sh"
+  chmod +x "${fake_root}/scripts/run_with_timeout.sh"
 
   cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -327,7 +329,32 @@ test_fail_closed_on_prepare_timeout() {
     echo "ASSERTION FAILED: expected prepare timeout to fail"
     exit 1
   fi
-  assert_contains "ERROR: timed out while preparing model artifact after 1s" "${output_file}"
+  assert_contains "ERROR: Prepare model artifact timed out after 1s" "${output_file}"
+}
+
+test_fail_closed_on_invalid_prepare_timeout_value() {
+  local fake_root output_file out_dir
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_PREP_TIMEOUT_SEC=oops \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid timeout value to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_PREP_TIMEOUT_SEC must be a non-negative integer (got: oops)" "${output_file}"
 }
 
 test_fail_closed_when_timeout_missing_but_enabled() {
@@ -397,6 +424,7 @@ test_fail_closed_on_missing_artifact
 test_fail_closed_on_invalid_model_abi_json
 test_fail_closed_on_invalid_edsl_abi_json
 test_fail_closed_on_prepare_timeout
+test_fail_closed_on_invalid_prepare_timeout_value
 test_fail_closed_when_timeout_missing_but_enabled
 test_fail_closed_when_python3_missing
 

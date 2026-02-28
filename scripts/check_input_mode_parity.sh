@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN_WITH_TIMEOUT="${ROOT_DIR}/scripts/run_with_timeout.sh"
 PARITY_OUT_DIR="${MORPHO_VERITY_PARITY_OUT_DIR:-}"
-PREP_TIMEOUT_SEC="${MORPHO_VERITY_PREP_TIMEOUT_SEC:-900}"
 TMP_DIR=""
 ABI_MODEL_CANONICAL=""
 ABI_EDSL_CANONICAL=""
@@ -26,32 +26,24 @@ run_prepare() {
   local mode="$1"
   local out_dir="$2"
   local skip_build="${3:-0}"
-
-  if [[ ! "${PREP_TIMEOUT_SEC}" =~ ^[0-9]+$ ]]; then
-    echo "ERROR: MORPHO_VERITY_PREP_TIMEOUT_SEC must be a non-negative integer (got: ${PREP_TIMEOUT_SEC})"
-    exit 1
-  fi
-
-  if [[ "${PREP_TIMEOUT_SEC}" -gt 0 ]] && ! command -v timeout >/dev/null 2>&1; then
-    echo "ERROR: timeout command is required when MORPHO_VERITY_PREP_TIMEOUT_SEC is greater than zero"
-    exit 1
-  fi
-
-  local -a prepare_cmd=("${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh")
-  local -a maybe_timeout=()
-  if [[ "${PREP_TIMEOUT_SEC}" -gt 0 ]] && command -v timeout >/dev/null 2>&1; then
-    maybe_timeout=(timeout "${PREP_TIMEOUT_SEC}")
-  fi
+  local -a prepare_cmd=(
+    "${RUN_WITH_TIMEOUT}"
+    MORPHO_VERITY_PREP_TIMEOUT_SEC
+    900
+    "Prepare ${mode} artifact"
+    --
+    "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+  )
 
   if [[ "${skip_build}" == "1" ]]; then
     MORPHO_VERITY_SKIP_BUILD="1" \
     MORPHO_VERITY_OUT_DIR="${out_dir}" \
     MORPHO_VERITY_INPUT_MODE="${mode}" \
-      "${maybe_timeout[@]}" "${prepare_cmd[@]}"
+      "${prepare_cmd[@]}"
   else
     MORPHO_VERITY_OUT_DIR="${out_dir}" \
     MORPHO_VERITY_INPUT_MODE="${mode}" \
-      "${maybe_timeout[@]}" "${prepare_cmd[@]}"
+      "${prepare_cmd[@]}"
   fi
 }
 
@@ -100,29 +92,8 @@ fi
 
 echo "Checking Morpho compiler input-mode parity (model vs edsl)..."
 
-set +e
 run_prepare "model" "${MODEL_OUT}" "0"
-model_status=$?
-set -e
-if [[ "${model_status}" -eq 124 ]]; then
-  echo "ERROR: timed out while preparing model artifact after ${PREP_TIMEOUT_SEC}s"
-  exit 1
-fi
-if [[ "${model_status}" -ne 0 ]]; then
-  exit "${model_status}"
-fi
-
-set +e
 run_prepare "edsl" "${EDSL_OUT}" "1"
-edsl_status=$?
-set -e
-if [[ "${edsl_status}" -eq 124 ]]; then
-  echo "ERROR: timed out while preparing edsl artifact after ${PREP_TIMEOUT_SEC}s"
-  exit 1
-fi
-if [[ "${edsl_status}" -ne 0 ]]; then
-  exit "${edsl_status}"
-fi
 
 MODEL_YUL="${MODEL_OUT}/Morpho.yul"
 EDSL_YUL="${EDSL_OUT}/Morpho.yul"
