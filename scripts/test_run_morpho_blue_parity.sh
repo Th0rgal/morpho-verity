@@ -16,7 +16,7 @@ assert_contains() {
 build_path_without_timeout() {
   local out_dir="$1"
   mkdir -p "${out_dir}"
-  for tool in bash dirname mkdir mktemp pwd rm; do
+  for tool in bash cat cp cut dirname grep mkdir mktemp pwd rm tee; do
     ln -sf "$(command -v "${tool}")" "${out_dir}/${tool}"
   done
 }
@@ -177,6 +177,30 @@ test_fail_closed_on_invalid_exit_after_artifact_prep_toggle() {
   assert_contains "ERROR: MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP must be '0' or '1' (got: true)" "${output_file}"
 }
 
+test_fail_closed_on_invalid_suite_timeout_value() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    PATH="${fake_root}/bin:${PATH}" \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=oops \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid suite timeout value to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_BLUE_SUITE_TIMEOUT_SEC must be a non-negative integer (got: oops)" "${output_file}"
+}
+
 test_skip_refused_outside_ci() {
   local fake_root output_file
   fake_root="$(mktemp -d)"
@@ -333,6 +357,7 @@ test_skip_refused_outside_ci
 test_fail_closed_on_invalid_skip_toggle
 test_fail_closed_on_invalid_local_skip_override_toggle
 test_fail_closed_on_invalid_exit_after_artifact_prep_toggle
+test_fail_closed_on_invalid_suite_timeout_value
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight

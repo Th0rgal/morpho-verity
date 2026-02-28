@@ -24,16 +24,6 @@ validate_toggle "MORPHO_VERITY_SKIP_PARITY_PREFLIGHT" "${SKIP_PARITY_PREFLIGHT}"
 validate_toggle "MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP" "${ALLOW_LOCAL_SKIP}"
 validate_toggle "MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP" "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}"
 
-if [[ ! "${SUITE_TIMEOUT_SEC}" =~ ^[0-9]+$ ]]; then
-  echo "ERROR: MORPHO_BLUE_SUITE_TIMEOUT_SEC must be a non-negative integer (got: ${SUITE_TIMEOUT_SEC})"
-  exit 1
-fi
-
-if [[ "${SUITE_TIMEOUT_SEC}" -gt 0 ]] && ! command -v timeout >/dev/null 2>&1; then
-  echo "ERROR: timeout command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero"
-  exit 1
-fi
-
 if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then
     echo "Refusing to skip parity preflight outside CI."

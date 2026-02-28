@@ -137,6 +137,7 @@ Even in skip mode, artifact preparation stays fail-closed behind the shared
 timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
 The full differential suite can also be fail-closed with
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
+`MORPHO_BLUE_SUITE_TIMEOUT_SEC` must be a non-negative integer.
 When this guard is enabled, `timeout` must be available in `PATH`.
 
 Validate pinned parity tuple (solc + Foundry profile):
