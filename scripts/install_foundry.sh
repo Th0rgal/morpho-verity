@@ -33,6 +33,14 @@ if [[ -n "${GITHUB_PATH:-}" ]]; then
   echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
 fi
 
+# CI caches commonly restore binaries under ~/.foundry/bin without PATH wiring.
+if command -v forge >/dev/null 2>&1 && command -v anvil >/dev/null 2>&1; then
+  echo "Foundry available after PATH bootstrap:"
+  forge --version
+  anvil --version
+  exit 0
+fi
+
 if ! command -v foundryup >/dev/null 2>&1; then
   retry 4 bash -lc 'curl -fsSL https://foundry.paradigm.xyz | bash'
 fi
