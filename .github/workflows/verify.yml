@@ -47,6 +47,9 @@ jobs:
     name: Parity target tuple check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC: "300"
+      MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC: "900"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -67,34 +70,34 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Validate pinned parity target
-        run: python3 scripts/check_parity_target.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate pinned parity target" -- python3 scripts/check_parity_target.py
 
       - name: Run parity-target parser regression tests
-        run: python3 scripts/test_check_parity_target.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
       - name: Run Yul identity report unit tests
-        run: python3 scripts/test_report_yul_identity_gap.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Yul identity report unit tests" -- python3 scripts/test_report_yul_identity_gap.py
 
       - name: Run input-mode parity script unit tests
-        run: ./scripts/test_check_input_mode_parity.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Input-mode parity script unit tests" -- ./scripts/test_check_input_mode_parity.sh
 
       - name: Run artifact-prep script unit tests
-        run: ./scripts/test_prepare_verity_morpho_artifact.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-prep script unit tests" -- ./scripts/test_prepare_verity_morpho_artifact.sh
 
       - name: Run Morpho Blue parity script unit tests
-        run: ./scripts/test_run_morpho_blue_parity.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho Blue parity script unit tests" -- ./scripts/test_run_morpho_blue_parity.sh
 
       - name: Run Foundry installer unit tests
-        run: ./scripts/test_install_foundry.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Foundry installer unit tests" -- ./scripts/test_install_foundry.sh
 
       - name: Run Lean installer unit tests
-        run: ./scripts/test_install_lean.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Lean installer unit tests" -- ./scripts/test_install_lean.sh
 
       - name: Run solc installer unit tests
-        run: ./scripts/test_install_solc.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "solc installer unit tests" -- ./scripts/test_install_solc.sh
 
       - name: Run timeout wrapper unit tests
-        run: ./scripts/test_run_with_timeout.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Timeout wrapper unit tests" -- ./scripts/test_run_with_timeout.sh
 
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
