@@ -13,6 +13,87 @@ assert_contains() {
   fi
 }
 
+test_usage_fails_closed_on_missing_args() {
+  local output_file
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 10 "desc" -- >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2 for missing args, got ${status}"
+    exit 1
+  fi
+  assert_contains "Usage: " "${output_file}"
+}
+
+test_invalid_timeout_env_var_name_fails_closed() {
+  local output_file
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  "${SCRIPT_UNDER_TEST}" 1INVALID 10 "desc" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2 for invalid timeout env var name, got ${status}"
+    exit 1
+  fi
+  assert_contains "ERROR: invalid timeout environment variable name: 1INVALID" "${output_file}"
+}
+
+test_invalid_default_timeout_fails_closed() {
+  local output_file
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC nope "desc" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2 for invalid default timeout, got ${status}"
+    exit 1
+  fi
+  assert_contains "ERROR: default timeout must be a non-negative integer (got: nope)" "${output_file}"
+}
+
+test_missing_separator_fails_closed() {
+  local output_file
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 10 "desc" bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2 for missing '--' separator, got ${status}"
+    exit 1
+  fi
+  assert_contains "ERROR: expected '--' before command arguments" "${output_file}"
+}
+
+test_default_timeout_is_used_when_env_unset() {
+  set +e
+  env -u MORPHO_TEST_TIMEOUT_SEC \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 0 "default-zero timeout" -- bash -lc 'exit 9'
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 9 ]]; then
+    echo "ASSERTION FAILED: expected default timeout value to apply when env var unset, got ${status}"
+    exit 1
+  fi
+}
+
 test_invalid_timeout_value_fails_closed() {
   local output_file
   output_file="$(mktemp)"
@@ -103,6 +184,11 @@ test_success_passthrough() {
   "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "success command" -- bash -lc 'exit 0'
 }
 
+test_usage_fails_closed_on_missing_args
+test_invalid_timeout_env_var_name_fails_closed
+test_invalid_default_timeout_fails_closed
+test_missing_separator_fails_closed
+test_default_timeout_is_used_when_env_unset
 test_invalid_timeout_value_fails_closed
 test_timeout_failure_reports_diagnostic
 test_non_timeout_failure_preserves_exit_code
