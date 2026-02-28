@@ -16,12 +16,12 @@ jobs:
     name: Lean proofs (Verity)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      MORPHO_VERITY_PROOFS_TIMEOUT_SEC: "1500"
-      MORPHO_VERITY_MAINTEST_TIMEOUT_SEC: "300"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Load CI timeout defaults
+        run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
       - name: Restore Lean/Lake cache
         uses: actions/cache@v4
@@ -52,15 +52,14 @@ jobs:
     name: Parity target tuple check
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC: "300"
-      MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC: "900"
-      MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC: "180"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Load CI timeout defaults
+        run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
@@ -86,6 +85,9 @@ jobs:
       - name: Validate morpho selector block sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho selector block sync" -- python3 scripts/check_morpho_selectors_sync.py
 
+      - name: Validate CI timeout defaults sync
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout defaults sync" -- python3 scripts/check_ci_timeout_defaults.py
+
       - name: Run parity-target parser regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
@@ -97,6 +99,9 @@ jobs:
 
       - name: Run morpho selector sync unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho selector sync unit tests" -- python3 scripts/test_check_morpho_selectors_sync.py
+
+      - name: Run CI timeout defaults unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "CI timeout defaults unit tests" -- python3 scripts/test_check_ci_timeout_defaults.py
 
       - name: Run artifact-gate script unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh
@@ -133,6 +138,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Load CI timeout defaults
+        run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
       - name: Restore Lean/Lake cache
         uses: actions/cache@v4
@@ -183,9 +191,8 @@ jobs:
         run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Generate Yul identity report
-        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 4200 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
         env:
-          MORPHO_YUL_IDENTITY_TIMEOUT_SEC: "4200"
           MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
           MORPHO_VERITY_PREP_TIMEOUT_SEC: "3000"
 
@@ -207,6 +214,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Load CI timeout defaults
+        run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -245,6 +255,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Load CI timeout defaults
+        run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
       - name: Restore Lean/Lake cache
         uses: actions/cache@v4
@@ -295,10 +308,7 @@ jobs:
         run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Compile Morpho Verity artifact and enforce artifact gate
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 2400 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
-        env:
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "2400"
-          MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC: "3600"
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 3600 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
 
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
@@ -318,6 +328,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Load CI timeout defaults
+        run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
       - name: Restore Lean/Lake cache
         uses: actions/cache@v4
@@ -370,11 +383,7 @@ jobs:
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_with_timeout.sh MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC 6900 "Morpho Blue differential parity script" -- ./scripts/run_morpho_blue_parity.sh
         env:
-          MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC: "6900"
           MORPHO_VERITY_SKIP_PARITY_PREFLIGHT: "1"
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1200"
-          MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC: "1800"
-          MORPHO_BLUE_SUITE_TIMEOUT_SEC: "3300"
           FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
           FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
