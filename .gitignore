@@ -1,7 +1,7 @@
 .lake/
 lake-packages/
 build/
-compiler/yul/
+artifacts/yul/
 verity-foundry/cache/
 verity-foundry/out/
 __pycache__/

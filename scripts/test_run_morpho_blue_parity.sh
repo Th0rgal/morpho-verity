@@ -23,7 +23,7 @@ build_path_without_timeout() {
 
 make_fake_repo() {
   local fake_root="$1"
-  mkdir -p "${fake_root}/scripts" "${fake_root}/compiler/yul" "${fake_root}/morpho-blue"
+  mkdir -p "${fake_root}/scripts" "${fake_root}/artifacts/yul" "${fake_root}/morpho-blue"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/run_morpho_blue_parity.sh"
   cp "${ROOT_DIR}/scripts/run_with_timeout.sh" "${fake_root}/scripts/run_with_timeout.sh"
   chmod +x "${fake_root}/scripts/run_morpho_blue_parity.sh"
@@ -287,9 +287,9 @@ test_skip_allowed_with_explicit_override() {
       ./scripts/run_morpho_blue_parity.sh
   )
 
-  [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.yul" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.bin" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.abi.json" ]]
   [[ ! -s "${sentinel}" ]]
 }
 
@@ -309,9 +309,9 @@ test_skip_allowed_in_ci_without_override() {
       ./scripts/run_morpho_blue_parity.sh
   )
 
-  [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.yul" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.bin" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.abi.json" ]]
   [[ ! -s "${sentinel}" ]]
 }
 
@@ -329,9 +329,9 @@ test_default_mode_runs_parity_preflight() {
       ./scripts/run_morpho_blue_parity.sh
   )
 
-  [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.yul" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.bin" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.abi.json" ]]
   [[ -s "${sentinel}" ]]
   if grep -Fq "/model/" "${fake_root}/scripts/check_input_mode_parity.sh"; then
     echo "ASSERTION FAILED: expected parity preflight fixture to stay edsl-only"
@@ -360,9 +360,9 @@ test_reuse_prepared_artifacts_skips_parity_preflight() {
       ./scripts/run_morpho_blue_parity.sh
   )
 
-  [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
-  [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.yul" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.bin" ]]
+  [[ -s "${fake_root}/artifacts/yul/Morpho.abi.json" ]]
   [[ ! -s "${sentinel}" ]]
 }
 

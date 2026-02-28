@@ -66,10 +66,10 @@ fi
 require_nonempty_artifact "${artifact_source_dir}/Morpho.yul"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.bin"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.abi.json"
-mkdir -p "${ROOT_DIR}/compiler/yul"
-cp "${artifact_source_dir}/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
-cp "${artifact_source_dir}/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
-cp "${artifact_source_dir}/Morpho.abi.json" "${ROOT_DIR}/compiler/yul/Morpho.abi.json"
+mkdir -p "${ROOT_DIR}/artifacts/yul"
+cp "${artifact_source_dir}/Morpho.yul" "${ROOT_DIR}/artifacts/yul/Morpho.yul"
+cp "${artifact_source_dir}/Morpho.bin" "${ROOT_DIR}/artifacts/yul/Morpho.bin"
+cp "${artifact_source_dir}/Morpho.abi.json" "${ROOT_DIR}/artifacts/yul/Morpho.abi.json"
 
 if [[ "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}" == "1" ]]; then
   echo "Exiting after artifact preparation (MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1)."

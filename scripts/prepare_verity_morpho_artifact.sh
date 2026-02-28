@@ -2,11 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT_DIR="${MORPHO_VERITY_OUT_DIR:-${ROOT_DIR}/compiler/yul}"
+OUT_DIR="${MORPHO_VERITY_OUT_DIR:-${ROOT_DIR}/artifacts/yul}"
 MORPHO_YUL="${OUT_DIR}/Morpho.yul"
 MORPHO_BIN="${OUT_DIR}/Morpho.bin"
 MORPHO_ABI="${OUT_DIR}/Morpho.abi.json"
-HASH_LIB="${ROOT_DIR}/compiler/external-libs/MarketParamsHash.yul"
+HASH_LIB="${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
 require_command() {

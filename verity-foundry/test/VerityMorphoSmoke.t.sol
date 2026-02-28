@@ -256,7 +256,7 @@ contract VerityMorphoSmokeTest {
     event Supply(bytes32 indexed id, address caller, address indexed onBehalf, uint256 assets, uint256 shares);
 
     function setUp() public {
-        bytes memory initCode = bytes.concat(_loadBytecode("../compiler/yul/Morpho.bin"), abi.encode(OWNER));
+        bytes memory initCode = bytes.concat(_loadBytecode("../artifacts/yul/Morpho.bin"), abi.encode(OWNER));
         address deployed;
         assembly {
             deployed := create(0, add(initCode, 0x20), mload(initCode))

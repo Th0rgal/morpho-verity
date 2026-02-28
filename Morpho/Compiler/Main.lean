@@ -22,7 +22,7 @@ private def orThrow {α : Type} (r : Except String α) : IO α :=
   | .error e => throw (IO.userError e)
 
 private structure CLIArgs where
-  outDir : String := "compiler/yul"
+  outDir : String := "artifacts/yul"
   abiOutDir : Option String := none
   libs : List String := []
   verbose : Bool := false
@@ -135,7 +135,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
       IO.println "Usage: morpho-verity-compiler [options]"
       IO.println ""
       IO.println "Options:"
-      IO.println "  --output <dir>, -o <dir>    Output directory (default: compiler/yul)"
+      IO.println "  --output <dir>, -o <dir>    Output directory (default: artifacts/yul)"
       IO.println "  --abi-output <dir>          Output ABI JSON artifact (<Contract>.abi.json)"
       IO.println "  (EDSL input boundary is the only supported mode.)"
       IO.println "  --link <path>               Link external Yul library (repeatable)"
