@@ -130,6 +130,8 @@ CI can skip the internal artifact preflight in this script by setting
 `MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1` because parity is already enforced in
 dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
 overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
+CI can also bypass both preflight and prep by reusing a previously verified
+artifact bundle via `MORPHO_VERITY_PREPARED_ARTIFACT_DIR`.
 `MORPHO_VERITY_SKIP_PARITY_PREFLIGHT`,
 `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP`, and
 `MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP` are fail-closed toggles and must be
@@ -199,6 +201,9 @@ Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho
 
 The artifact gate is fail-closed: all three artifacts must exist and be non-empty.
 Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `900`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
+When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is set, the differential runner
+uses that verified bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
+still fails closed if any file is missing or empty.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `1500`)
@@ -209,6 +214,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC` (default `900`)
 - `MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC` (default `180`)
 - `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`)
+- `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` (optional path; reuse verified EDSL artifacts)
 - `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC` (default `1200`)
 - `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `2400`)
 - `MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC` (default `6900`)

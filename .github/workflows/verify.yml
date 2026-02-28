@@ -321,6 +321,15 @@ jobs:
 
       - name: Compile Morpho Verity artifact and enforce artifact gate
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 3600 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
+        env:
+          MORPHO_VERITY_PARITY_OUT_DIR: out/parity-shared
+
+      - name: Upload verified EDSL artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: verity-edsl-artifacts
+          path: out/parity-shared
+          if-no-files-found: error
 
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
@@ -392,10 +401,16 @@ jobs:
       - name: Check full toolchain readiness
         run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
+      - name: Download verified EDSL artifact bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: verity-edsl-artifacts
+          path: out/parity-shared
+
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_with_timeout.sh MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC 6900 "Morpho Blue differential parity script" -- ./scripts/run_morpho_blue_parity.sh
         env:
-          MORPHO_VERITY_SKIP_PARITY_PREFLIGHT: "1"
+          MORPHO_VERITY_PREPARED_ARTIFACT_DIR: out/parity-shared
           FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
           FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}

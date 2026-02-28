@@ -339,6 +339,63 @@ test_default_mode_runs_parity_preflight() {
   fi
 }
 
+test_reuse_prepared_artifacts_skips_parity_preflight() {
+  local fake_root sentinel prepared_root
+  fake_root="$(mktemp -d)"
+  sentinel="$(mktemp)"
+  prepared_root="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${sentinel}" "${prepared_root}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  mkdir -p "${prepared_root}/edsl"
+  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
+  printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
+  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+
+  (
+    cd "${fake_root}"
+    MORPHO_TEST_PARITY_SENTINEL="${sentinel}" \
+    MORPHO_VERITY_PREPARED_ARTIFACT_DIR="${prepared_root}" \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  )
+
+  [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
+  [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
+  [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ ! -s "${sentinel}" ]]
+}
+
+test_fail_closed_when_prepared_artifacts_missing_required_file() {
+  local fake_root output_file prepared_root
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  prepared_root="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${prepared_root}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  mkdir -p "${prepared_root}/edsl"
+  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
+  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_PREPARED_ARTIFACT_DIR="${prepared_root}" \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing prepared artifact to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: expected non-empty parity artifact:" "${output_file}"
+  assert_contains "Morpho.bin" "${output_file}"
+}
+
 test_suite_timeout_fails_closed() {
   if ! command -v timeout >/dev/null 2>&1; then
     echo "Skipping timeout regression: 'timeout' command is unavailable."
@@ -552,6 +609,7 @@ test_fail_closed_on_invalid_parity_preflight_timeout_value
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
+test_reuse_prepared_artifacts_skips_parity_preflight
 test_fail_closed_when_timeout_missing_but_enabled
 test_suite_timeout_fails_closed
 test_suite_timeout_force_kill_fails_closed
@@ -560,5 +618,6 @@ test_parity_preflight_timeout_fails_closed
 test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode
 test_fail_closed_when_parity_preflight_missing_required_artifact
 test_fail_closed_when_skip_prep_missing_required_artifact
+test_fail_closed_when_prepared_artifacts_missing_required_file
 
 echo "run_morpho_blue_parity.sh tests passed"
