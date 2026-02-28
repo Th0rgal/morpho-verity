@@ -224,6 +224,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_TIMEOUT_KILL_AFTER_SEC` (default `30`)
 - `0` disables timeout for each respective command
 The shared timeout wrapper enforces hard fail-closed termination (`timeout --kill-after=${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}s`) so TERM-ignoring subprocesses cannot hang CI indefinitely.
+`MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
 
 Compile using a specific Verity parity pack:
 

@@ -43,6 +43,10 @@ if [[ ! "${kill_after_sec}" =~ ^[0-9]+$ ]]; then
   echo "ERROR: MORPHO_TIMEOUT_KILL_AFTER_SEC must be a non-negative integer (got: ${kill_after_sec})" >&2
   exit 2
 fi
+if [[ "${kill_after_sec}" -eq 0 ]]; then
+  echo "ERROR: MORPHO_TIMEOUT_KILL_AFTER_SEC must be greater than zero to keep hard-kill timeout semantics" >&2
+  exit 2
+fi
 
 if [[ "${timeout_sec}" -eq 0 ]]; then
   "$@"
