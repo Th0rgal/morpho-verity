@@ -227,6 +227,9 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 The shared timeout wrapper enforces hard fail-closed termination (`timeout --kill-after=${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}s`) so TERM-ignoring subprocesses cannot hang CI indefinitely.
 `MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
 The Yul identity report script now wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics.
+CI sets stricter non-conflicting outer budgets for nested timeout-wrapped stages:
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=3000` (greater than two `MORPHO_VERITY_PREP_TIMEOUT_SEC=1200` runs plus overhead)
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=2400` (greater than `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC=900` + `MORPHO_VERITY_PREP_TIMEOUT_SEC=900` plus report-generation overhead)
 
 Compile using a specific Verity parity pack:
 
