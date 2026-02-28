@@ -62,7 +62,19 @@ export PATH="$HOME/.foundry/bin:$PATH"
 FORGE_BIN="${HOME}/.foundry/bin/forge"
 ANVIL_BIN="${HOME}/.foundry/bin/anvil"
 if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
-  echo "ERROR: expected foundry binaries are missing after installation" >&2
+  for tool in forge anvil cast chisel; do
+    target="${HOME}/.foundry/bin/${tool}"
+    if [[ ! -x "${target}" ]]; then
+      candidate="$(find "${HOME}/.foundry" -type f -name "${tool}" -perm -111 2>/dev/null | head -n 1 || true)"
+      if [[ -n "${candidate}" ]]; then
+        ln -sf "${candidate}" "${target}"
+      fi
+    fi
+  done
+fi
+
+if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
+  echo "ERROR: expected forge/anvil binaries are missing after installation" >&2
   exit 127
 fi
 
