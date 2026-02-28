@@ -333,8 +333,9 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Run full Morpho Blue parity script
-        run: ./scripts/run_morpho_blue_parity.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC 6900 "Morpho Blue differential parity script" -- ./scripts/run_morpho_blue_parity.sh
         env:
+          MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC: "6900"
           MORPHO_VERITY_SKIP_PARITY_PREFLIGHT: "1"
           MORPHO_VERITY_PREP_TIMEOUT_SEC: "1200"
           MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC: "1800"
