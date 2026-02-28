@@ -164,6 +164,8 @@ test_timeout_failure_reports_diagnostic() {
     exit 1
   fi
   assert_contains "ERROR: sleeping command timed out after 1s" "${output_file}"
+  assert_contains "ERROR: timeout env=MORPHO_TEST_TIMEOUT_SEC kill-after=30s" "${output_file}"
+  assert_contains "ERROR: remediate by increasing MORPHO_TEST_TIMEOUT_SEC or reducing work in this stage" "${output_file}"
 }
 
 test_timeout_kills_term_ignoring_processes() {
@@ -184,6 +186,8 @@ test_timeout_kills_term_ignoring_processes() {
     exit 1
   fi
   assert_contains "ERROR: term-ignoring command timed out after 1s" "${output_file}"
+  assert_contains "ERROR: timeout env=MORPHO_TEST_TIMEOUT_SEC kill-after=1s" "${output_file}"
+  assert_contains "ERROR: remediate by increasing MORPHO_TEST_TIMEOUT_SEC or reducing work in this stage" "${output_file}"
 }
 
 test_non_timeout_failure_preserves_exit_code() {

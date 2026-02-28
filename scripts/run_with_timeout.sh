@@ -58,13 +58,18 @@ if ! command -v timeout >/dev/null 2>&1; then
   exit 2
 fi
 
+start_epoch="$(date +%s)"
 if timeout --kill-after="${kill_after_sec}s" "${timeout_sec}" "$@"; then
   exit 0
 else
   status=$?
 fi
+end_epoch="$(date +%s)"
+elapsed_sec="$((end_epoch - start_epoch))"
 
 if [[ "${status}" -eq 124 || "${status}" -eq 137 ]]; then
   echo "ERROR: ${description} timed out after ${timeout_sec}s" >&2
+  echo "ERROR: timeout env=${timeout_env_var} kill-after=${kill_after_sec}s elapsed=${elapsed_sec}s exit=${status}" >&2
+  echo "ERROR: remediate by increasing ${timeout_env_var} or reducing work in this stage" >&2
 fi
 exit "${status}"
