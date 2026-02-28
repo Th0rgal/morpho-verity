@@ -25,11 +25,11 @@ EOF_INNER
 setup_fake_repo() {
   local fake_root="$1"
   local target_json_content="${2:-{\"verity\":{\"parityPackId\":\"test-pack\"}}}"
-  mkdir -p "${fake_root}/scripts" "${fake_root}/config" "${fake_root}/compiler/external-libs"
+  mkdir -p "${fake_root}/scripts" "${fake_root}/config" "${fake_root}/artifacts/inputs"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
-  cat > "${fake_root}/compiler/external-libs/MarketParamsHash.yul" <<'EOF_LIB'
+  cat > "${fake_root}/artifacts/inputs/MarketParamsHash.yul" <<'EOF_LIB'
 {
   function hashMarketParams() -> result { result := 0 }
 }
@@ -186,7 +186,7 @@ test_fail_closed_when_hash_library_missing() {
   mkdir -p "${fake_bin}"
   ln -s /bin/bash "${fake_bin}/bash"
   setup_fake_repo "${fake_root}"
-  rm -f "${fake_root}/compiler/external-libs/MarketParamsHash.yul"
+  rm -f "${fake_root}/artifacts/inputs/MarketParamsHash.yul"
   install_fake_python3 "${fake_bin}"
 
   rc=0
@@ -201,7 +201,7 @@ test_fail_closed_when_hash_library_missing() {
     echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
     exit 1
   fi
-  assert_contains "ERROR: missing hash library: ${fake_root}/compiler/external-libs/MarketParamsHash.yul" "${output_file}"
+  assert_contains "ERROR: missing hash library: ${fake_root}/artifacts/inputs/MarketParamsHash.yul" "${output_file}"
 }
 
 test_fail_closed_when_python3_missing_for_parity_target_read() {

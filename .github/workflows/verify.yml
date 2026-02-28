@@ -97,6 +97,9 @@ jobs:
       - name: Validate parity EDSL-only naming
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate parity EDSL-only naming" -- python3 scripts/check_parity_edsl_naming.py
 
+      - name: Validate artifact layout boundary
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate artifact layout boundary" -- python3 scripts/check_artifact_layout_boundary.py
+
       - name: Run parity-target parser regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
@@ -120,6 +123,9 @@ jobs:
 
       - name: Run parity EDSL-only naming unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity EDSL-only naming unit tests" -- python3 scripts/test_check_parity_edsl_naming.py
+
+      - name: Run artifact layout boundary unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact layout boundary unit tests" -- python3 scripts/test_check_artifact_layout_boundary.py
 
       - name: Run artifact-gate script unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh

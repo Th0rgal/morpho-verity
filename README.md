@@ -88,9 +88,9 @@ Morpho/
     Spec.lean             # Morpho Blue contract specification (CompilationModel DSL)
     Generated.lean        # Canonical compiler boundary: generated spec + generated selectors
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
-compiler/
-  external-libs/          # External Yul libraries (MarketParamsHash, etc.)
-  yul/                    # Generated Yul output
+artifacts/
+  inputs/                 # Tracked external Yul libraries (MarketParamsHash, etc.)
+  yul/                    # Generated Yul output (ignored)
 verity-foundry/           # Foundry project for Verity-compiled artifact testing
 scripts/
   prepare_verity_morpho_artifact.sh  # Build + compile Verity Morpho artifact
@@ -178,7 +178,7 @@ Artifact preparation is fail-closed for invalid toggle values and missing requir
 - `MORPHO_VERITY_INPUT_MODE` is a legacy alias; when both are set they must match.
 - `python3` is required to read `config/parity-target.json` when present.
 - `config/parity-target.json` must include a non-empty `verity.parityPackId`.
-- `compiler/external-libs/MarketParamsHash.yul` must be present.
+- `artifacts/inputs/MarketParamsHash.yul` must be present.
 - `lake` is required for compiler build/exec.
 - `solc` and `awk` are required unless `MORPHO_VERITY_SKIP_SOLC=1`.
 

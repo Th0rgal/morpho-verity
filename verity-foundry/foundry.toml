@@ -4,7 +4,7 @@ out = "out"
 libs = ["lib"]
 test = "test"
 ffi = true
-fs_permissions = [{ access = "read", path = "../compiler/yul" }]
+fs_permissions = [{ access = "read", path = "../artifacts/yul" }]
 
 [fmt]
 line_length = 120

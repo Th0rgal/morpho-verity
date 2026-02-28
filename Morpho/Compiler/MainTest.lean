@@ -48,7 +48,7 @@ private def fileExists (path : String) : IO Bool := do
   IO.FS.createDirAll edslOutDir
   IO.FS.createDirAll edslAbiDir
 
-  let hashLib := "compiler/external-libs/MarketParamsHash.yul"
+  let hashLib := "artifacts/inputs/MarketParamsHash.yul"
   Morpho.Compiler.Main.main
     ["--output", edslOutDir, "--abi-output", edslAbiDir, "--link", hashLib]
 
