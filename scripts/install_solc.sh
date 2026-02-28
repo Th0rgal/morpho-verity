@@ -23,11 +23,18 @@ retry() {
 
 SOLC_VERSION="${1:-0.8.28}"
 
+has_solc_version() {
+  solc-select versions \
+    | tr '[:space:]' '\n' \
+    | sed '/^$/d; s/^\*//g' \
+    | grep -Fxq "${SOLC_VERSION}"
+}
+
 if ! command -v solc-select >/dev/null 2>&1; then
   retry 4 pip3 install solc-select
 fi
 
-if ! solc-select versions | grep -q "${SOLC_VERSION}"; then
+if ! has_solc_version; then
   retry 4 solc-select install "${SOLC_VERSION}"
 fi
 

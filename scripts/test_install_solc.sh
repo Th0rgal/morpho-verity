@@ -164,8 +164,58 @@ echo "Version: 0.8.28"'
   assert_contains "Version: 0.8.28" "${output_file}"
 }
 
+test_version_matching_is_exact_not_substring() {
+  local fake_root fake_bin output_file state_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  state_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${state_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  make_exe "${fake_bin}/sleep" '#!/usr/bin/env bash
+set -euo pipefail
+# keep retries fast in tests'
+  make_exe "${fake_bin}/solc-select" '#!/usr/bin/env bash
+set -euo pipefail
+state_file="${TEST_STATE_FILE:?}"
+case "${1:-}" in
+  versions)
+    if grep -q "^installed$" "${state_file}" 2>/dev/null; then
+      echo "0.8.28"
+    else
+      echo "0.8.280"
+    fi
+    ;;
+  install)
+    echo "installed" > "${state_file}"
+    exit 0
+    ;;
+  use)
+    if ! grep -q "^installed$" "${state_file}" 2>/dev/null; then
+      echo "ASSERTION FAILED: use should only run after exact-version install" >&2
+      exit 95
+    fi
+    exit 0
+    ;;
+  *)
+    exit 94
+    ;;
+esac'
+  make_exe "${fake_bin}/solc" '#!/usr/bin/env bash
+set -euo pipefail
+echo "Version: 0.8.28"'
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  TEST_STATE_FILE="${state_file}" \
+    "${SCRIPT_UNDER_TEST}" 0.8.28 >"${output_file}" 2>&1
+
+  assert_contains "Version: 0.8.28" "${output_file}"
+}
+
 test_fast_path_with_existing_solc_version
 test_retry_install_then_succeed
 test_retry_pip_install_when_solc_select_missing
+test_version_matching_is_exact_not_substring
 
 echo "install_solc.sh tests passed"
