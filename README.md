@@ -210,6 +210,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`)
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `2400`)
 - `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`)
 - `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `1500`)
 - `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
