@@ -58,5 +58,13 @@ else
   retry 4 foundryup
 fi
 
-forge --version
-anvil --version
+export PATH="$HOME/.foundry/bin:$PATH"
+FORGE_BIN="${HOME}/.foundry/bin/forge"
+ANVIL_BIN="${HOME}/.foundry/bin/anvil"
+if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
+  echo "ERROR: expected foundry binaries are missing after installation" >&2
+  exit 127
+fi
+
+"${FORGE_BIN}" --version
+"${ANVIL_BIN}" --version
