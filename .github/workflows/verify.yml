@@ -15,7 +15,7 @@ jobs:
   verity-proofs:
     name: Lean proofs (Verity)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -44,6 +44,9 @@ jobs:
 
       - name: Build and check proofs
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 1500 "Build and check Lean proofs" -- lake build
+
+      - name: Build compiler executable (populate cache for downstream jobs)
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 3600 "Build morpho-verity-compiler executable" -- lake build morpho-verity-compiler
 
       - name: Run Morpho compiler CLI regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_MAINTEST_TIMEOUT_SEC 300 "Run Morpho compiler CLI regression tests" -- lake build Morpho.Compiler.MainTest
@@ -224,7 +227,7 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 4200 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
         env:
           MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "3000"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "3600"
           MORPHO_VERITY_PREPARED_ARTIFACT_DIR: out/parity-shared
 
       - name: Upload Yul identity artifacts
