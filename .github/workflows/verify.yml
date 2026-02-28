@@ -123,7 +123,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/install_foundry.sh
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
@@ -190,7 +190,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/install_foundry.sh
 
       - name: Run Morpho Blue tests
         working-directory: morpho-blue
@@ -257,7 +257,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/install_foundry.sh
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
@@ -343,7 +343,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/install_foundry.sh
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
