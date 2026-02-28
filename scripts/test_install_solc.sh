@@ -187,6 +187,32 @@ exit 0'
   assert_contains "ERROR: solc-select is still unavailable after installation; ensure ~/.local/bin is on PATH" "${output_file}"
 }
 
+test_fail_closed_when_pip3_missing_and_solc_select_missing() {
+  local fake_root fake_bin output_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+
+  local rc=0
+  if PATH="${fake_bin}" "${SCRIPT_UNDER_TEST}" 0.8.28 >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected install to fail when both solc-select and pip3 are missing"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+
+  assert_contains "ERROR: solc-select is missing and pip3 is unavailable; cannot install solc-select" "${output_file}"
+}
+
 test_version_matching_is_exact_not_substring() {
   local fake_root fake_bin output_file state_file
   fake_root="$(mktemp -d)"
@@ -240,6 +266,7 @@ test_fast_path_with_existing_solc_version
 test_retry_install_then_succeed
 test_retry_pip_install_when_solc_select_missing
 test_fail_closed_when_solc_select_still_missing_after_install
+test_fail_closed_when_pip3_missing_and_solc_select_missing
 test_version_matching_is_exact_not_substring
 
 echo "install_solc.sh tests passed"
