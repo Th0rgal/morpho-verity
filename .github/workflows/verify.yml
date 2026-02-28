@@ -75,6 +75,9 @@ jobs:
       - name: Run Yul identity report unit tests
         run: python3 scripts/test_report_yul_identity_gap.py
 
+      - name: Run input-mode parity script unit tests
+        run: ./scripts/test_check_input_mode_parity.sh
+
       - name: Run Morpho Blue parity script unit tests
         run: ./scripts/test_run_morpho_blue_parity.sh
 

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_UNDER_TEST="${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+
+assert_contains() {
+  local needle="$1"
+  local haystack_file="$2"
+  if ! grep -Fq "${needle}" "${haystack_file}"; then
+    echo "ASSERTION FAILED: expected to find '${needle}' in ${haystack_file}"
+    exit 1
+  fi
+}
+
+make_fake_repo() {
+  local fake_root="$1"
+  mkdir -p "${fake_root}/scripts"
+  cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/check_input_mode_parity.sh"
+  chmod +x "${fake_root}/scripts/check_input_mode_parity.sh"
+
+  cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+out="${MORPHO_VERITY_OUT_DIR:?MORPHO_VERITY_OUT_DIR is required}"
+mkdir -p "${out}"
+mode="${MORPHO_VERITY_INPUT_MODE:-unknown}"
+
+if [[ "${mode}" == "model" ]]; then
+  printf '%s\n' "shared-yul" > "${out}/Morpho.yul"
+  printf '%s\n' "shared-bin" > "${out}/Morpho.bin"
+  printf '%s\n' "[]" > "${out}/Morpho.abi.json"
+  exit 0
+fi
+
+if [[ "${FAKE_MISMATCH_YUL:-0}" == "1" ]]; then
+  printf '%s\n' "different-yul" > "${out}/Morpho.yul"
+else
+  printf '%s\n' "shared-yul" > "${out}/Morpho.yul"
+fi
+printf '%s\n' "shared-bin" > "${out}/Morpho.bin"
+if [[ "${FAKE_MISSING_ABI:-0}" != "1" ]]; then
+  printf '%s\n' "[]" > "${out}/Morpho.abi.json"
+fi
+EOF
+  chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
+}
+
+test_success_when_model_and_edsl_artifacts_match() {
+  local fake_root out_dir
+  fake_root="$(mktemp -d)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  )
+
+  [[ -s "${out_dir}/model/Morpho.yul" ]]
+  [[ -s "${out_dir}/edsl/Morpho.yul" ]]
+  [[ -s "${out_dir}/model/Morpho.bin" ]]
+  [[ -s "${out_dir}/edsl/Morpho.bin" ]]
+  [[ -s "${out_dir}/model/Morpho.abi.json" ]]
+  [[ -s "${out_dir}/edsl/Morpho.abi.json" ]]
+}
+
+test_fail_closed_on_yul_mismatch() {
+  local fake_root output_file out_dir
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    FAKE_MISMATCH_YUL=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected Yul mismatch to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: model vs edsl Yul artifacts differ" "${output_file}"
+}
+
+test_fail_closed_on_missing_artifact() {
+  local fake_root output_file out_dir
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    FAKE_MISSING_ABI=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing artifact to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: missing or empty artifact" "${output_file}"
+}
+
+test_success_when_model_and_edsl_artifacts_match
+test_fail_closed_on_yul_mismatch
+test_fail_closed_on_missing_artifact
+
+echo "check_input_mode_parity.sh tests passed"
