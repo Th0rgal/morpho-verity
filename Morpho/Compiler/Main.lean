@@ -7,6 +7,7 @@ import Compiler.ParityPacks
 import Compiler.Lowering.FromEDSL
 import Compiler.ABI
 import Morpho.Compiler.Spec
+import Morpho.Compiler.Generated
 
 namespace Morpho.Compiler.Main
 
@@ -161,8 +162,8 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
     }
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
-private def lowerMorphoSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
-  let lowered := _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
+private def lowerMorphoGeneratedSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
+  let lowered := _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Generated.morphoGeneratedSpec
   match lowered with
   | .ok spec => pure spec
   | .error err => throw (IO.userError err.message)
@@ -197,7 +198,7 @@ def main (args : List String) : IO Unit := do
   try
     let cfg ← parseArgs args
     if cfg.verbose then
-      IO.println s!"Compiling Morpho CompilationModel to {cfg.outDir}"
+      IO.println s!"Compiling Morpho generated spec to {cfg.outDir}"
       match cfg.abiOutDir with
       | some dir => IO.println s!"ABI output directory: {dir}"
       | none => pure ()
@@ -225,7 +226,7 @@ def main (args : List String) : IO Unit := do
         for lib in cfg.libs do
           IO.println s!"  - {lib}"
 
-    let loweredSpec ← lowerMorphoSpec
+    let loweredSpec ← lowerMorphoGeneratedSpec
     let ir ← orThrow (compile loweredSpec Morpho.Compiler.Spec.morphoSelectors)
     writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
     match cfg.abiOutDir with
