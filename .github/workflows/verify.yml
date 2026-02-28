@@ -39,6 +39,8 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Check Lean toolchain readiness
+        run: ./scripts/check_toolchain_readiness.sh --require lean
 
       - name: Build and check proofs
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 1500 "Build and check Lean proofs" -- lake build
@@ -72,6 +74,8 @@ jobs:
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
+      - name: Check solc toolchain readiness
+        run: ./scripts/check_toolchain_readiness.sh --require solc
 
       - name: Validate pinned parity target
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate pinned parity target" -- python3 scripts/check_parity_target.py
@@ -93,6 +97,8 @@ jobs:
 
       - name: Run Foundry installer unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Foundry installer unit tests" -- ./scripts/test_install_foundry.sh
+      - name: Run toolchain readiness unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Toolchain readiness unit tests" -- ./scripts/test_check_toolchain_readiness.sh
 
       - name: Run Lean installer unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Lean installer unit tests" -- ./scripts/test_install_lean.sh
@@ -161,6 +167,8 @@ jobs:
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
+      - name: Check full toolchain readiness
+        run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Generate Yul identity report
         run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
@@ -203,6 +211,8 @@ jobs:
 
       - name: Install Foundry
         run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
+      - name: Check Foundry readiness
+        run: ./scripts/check_toolchain_readiness.sh --require foundry
 
       - name: Run Morpho Blue tests
         working-directory: morpho-blue
@@ -269,6 +279,8 @@ jobs:
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
+      - name: Check full toolchain readiness
+        run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Compile Morpho Verity artifact and enforce model/edsl parity
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 2400 "Input-mode parity gate" -- ./scripts/check_input_mode_parity.sh
@@ -340,6 +352,8 @@ jobs:
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
+      - name: Check full toolchain readiness
+        run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_with_timeout.sh MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC 6900 "Morpho Blue differential parity script" -- ./scripts/run_morpho_blue_parity.sh
