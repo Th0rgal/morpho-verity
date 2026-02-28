@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import pathlib
+import os
+import tempfile
 import sys
 import unittest
 
@@ -13,17 +15,37 @@ from report_yul_identity_gap import (  # noqa: E402
   build_function_family_summary,
   build_name_insensitive_pairs,
   build_report,
+  copy_prepared_verity_yul,
   compare_function_hashes,
   display_path,
   evaluate_unsupported_manifest,
   function_family_for_key,
   function_ast_digests,
   normalize_yul,
+  prepared_verity_artifact_dir,
   tokenize_normalized_yul,
 )
 
 
 class ReportYulIdentityGapTests(unittest.TestCase):
+  def test_prepared_artifact_dir_prefers_nested_edsl(self) -> None:
+    old = os.environ.get("MORPHO_VERITY_PREPARED_ARTIFACT_DIR")
+    with tempfile.TemporaryDirectory() as d:
+      base = pathlib.Path(d)
+      (base / "edsl").mkdir(parents=True, exist_ok=True)
+      (base / "edsl" / "Morpho.yul").write_text("nested", encoding="utf-8")
+      os.environ["MORPHO_VERITY_PREPARED_ARTIFACT_DIR"] = str(base)
+      self.assertEqual(prepared_verity_artifact_dir(), base / "edsl")
+    if old is None:
+      os.environ.pop("MORPHO_VERITY_PREPARED_ARTIFACT_DIR", None)
+    else:
+      os.environ["MORPHO_VERITY_PREPARED_ARTIFACT_DIR"] = old
+
+  def test_copy_prepared_verity_yul_fails_closed_when_missing(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      with self.assertRaisesRegex(RuntimeError, "Missing prepared Verity Yul artifact"):
+        copy_prepared_verity_yul(pathlib.Path(d))
+
   def test_normalize_yul_strips_comments(self) -> None:
     text = """
 // leading

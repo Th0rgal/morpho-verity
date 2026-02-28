@@ -13,7 +13,7 @@ Partially enforced:
 4. `unsupported-gap-manifest` drift gate is enforced in CI (`yul-identity-report` with `--enforce-unsupported-manifest`).
 5. `yul-identity-report` emits structural AST diagnostics in CI artifacts.
 6. `macro-migration-blockers` drift gate is enforced in CI (`scripts/check_macro_migration_blockers.py`).
-7. Long differential lane reuses a verified EDSL artifact bundle from `verity-compiled-tests` (reduced duplicate prep/timeout surface).
+7. Long differential and Yul identity lanes reuse a verified EDSL artifact bundle from `verity-compiled-tests` (reduced duplicate prep/timeout surface).
 8. EDSL-only parity naming gate is enforced in CI (`scripts/check_parity_edsl_naming.py`).
 9. Artifact layout boundary gate is enforced in CI (`scripts/check_artifact_layout_boundary.py`).
 
