@@ -31,7 +31,20 @@ has_solc_version() {
 }
 
 if ! command -v solc-select >/dev/null 2>&1; then
-  retry 4 pip3 install solc-select
+  if ! command -v pip3 >/dev/null 2>&1; then
+    echo "ERROR: solc-select is missing and pip3 is unavailable; cannot install solc-select" >&2
+    exit 2
+  fi
+  retry 4 pip3 install --user solc-select
+  export PATH="$HOME/.local/bin:$PATH"
+  if [[ -n "${GITHUB_PATH:-}" ]]; then
+    echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+  fi
+fi
+
+if ! command -v solc-select >/dev/null 2>&1; then
+  echo "ERROR: solc-select is still unavailable after installation; ensure ~/.local/bin is on PATH" >&2
+  exit 2
 fi
 
 if ! has_solc_version; then

@@ -126,9 +126,9 @@ set -euo pipefail
   make_exe "${fake_bin}/pip3" '#!/usr/bin/env bash
 set -euo pipefail
 state_file="${TEST_STATE_FILE:?}"
-fake_bin="${TEST_FAKE_BIN:?}"
 if grep -q "^pip_failed_once$" "${state_file}" 2>/dev/null; then
-  cat > "${fake_bin}/solc-select" <<"EOF_SOLC_SELECT"
+  mkdir -p "${HOME}/.local/bin"
+  cat > "${HOME}/.local/bin/solc-select" <<"EOF_SOLC_SELECT"
 #!/usr/bin/env bash
 set -euo pipefail
 case "${1:-}" in
@@ -146,7 +146,7 @@ case "${1:-}" in
     ;;
 esac
 EOF_SOLC_SELECT
-  chmod +x "${fake_bin}/solc-select"
+  chmod +x "${HOME}/.local/bin/solc-select"
   exit 0
 fi
 echo "pip_failed_once" > "${state_file}"
@@ -156,12 +156,35 @@ set -euo pipefail
 echo "Version: 0.8.28"'
 
   PATH="${fake_bin}:/usr/bin:/bin" \
+  HOME="${fake_root}" \
   TEST_STATE_FILE="${state_file}" \
-  TEST_FAKE_BIN="${fake_bin}" \
     "${SCRIPT_UNDER_TEST}" 0.8.28 >"${output_file}" 2>&1
 
   assert_contains "WARN: command failed (attempt 1/4" "${output_file}"
   assert_contains "Version: 0.8.28" "${output_file}"
+}
+
+test_fail_closed_when_solc_select_still_missing_after_install() {
+  local fake_root fake_bin output_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  make_exe "${fake_bin}/sleep" '#!/usr/bin/env bash
+set -euo pipefail
+# keep retries fast in tests'
+  make_exe "${fake_bin}/pip3" '#!/usr/bin/env bash
+set -euo pipefail
+exit 0'
+
+  if PATH="${fake_bin}:/usr/bin:/bin" HOME="${fake_root}" "${SCRIPT_UNDER_TEST}" 0.8.28 >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected install to fail when solc-select remains unavailable"
+    exit 1
+  fi
+
+  assert_contains "ERROR: solc-select is still unavailable after installation; ensure ~/.local/bin is on PATH" "${output_file}"
 }
 
 test_version_matching_is_exact_not_substring() {
@@ -216,6 +239,7 @@ echo "Version: 0.8.28"'
 test_fast_path_with_existing_solc_version
 test_retry_install_then_succeed
 test_retry_pip_install_when_solc_select_missing
+test_fail_closed_when_solc_select_still_missing_after_install
 test_version_matching_is_exact_not_substring
 
 echo "install_solc.sh tests passed"
