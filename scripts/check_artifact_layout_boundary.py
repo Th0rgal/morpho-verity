@@ -14,6 +14,7 @@ TARGETS = [
   ROOT / "Morpho" / "Compiler" / "MainTest.lean",
   ROOT / "scripts" / "prepare_verity_morpho_artifact.sh",
   ROOT / "scripts" / "run_morpho_blue_parity.sh",
+  ROOT / "scripts" / "report_yul_identity_gap.py",
   ROOT / "scripts" / "test_prepare_verity_morpho_artifact.sh",
   ROOT / "scripts" / "test_run_morpho_blue_parity.sh",
   ROOT / "verity-foundry" / "foundry.toml",

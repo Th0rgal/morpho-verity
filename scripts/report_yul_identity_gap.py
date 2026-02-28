@@ -19,7 +19,7 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PARITY_TARGET = ROOT / "config" / "parity-target.json"
-VERITY_YUL = ROOT / "compiler" / "yul" / "Morpho.yul"
+VERITY_YUL = ROOT / "artifacts" / "yul" / "Morpho.yul"
 SOLIDITY_ARTIFACT = ROOT / "morpho-blue" / "out" / "Morpho.sol" / "Morpho.json"
 RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
@@ -580,6 +580,25 @@ def compile_verity_yul() -> None:
   )
 
 
+def prepared_verity_artifact_dir() -> pathlib.Path | None:
+  raw = os.environ.get("MORPHO_VERITY_PREPARED_ARTIFACT_DIR", "").strip()
+  if not raw:
+    return None
+  base = pathlib.Path(raw)
+  edsl = base / "edsl"
+  if (edsl / "Morpho.yul").is_file():
+    return edsl
+  return base
+
+
+def copy_prepared_verity_yul(prepared_dir: pathlib.Path) -> None:
+  src = prepared_dir / "Morpho.yul"
+  if not src.is_file():
+    raise RuntimeError(f"Missing prepared Verity Yul artifact: {src}")
+  VERITY_YUL.parent.mkdir(parents=True, exist_ok=True)
+  shutil.copy2(src, VERITY_YUL)
+
+
 def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[dict[str, Any], str]:
   normalized_verity = normalize_yul(verity_yul)
   normalized_solc = normalize_yul(solc_ir)
@@ -725,7 +744,11 @@ def main() -> int:
 
   target = read_json(PARITY_TARGET)
   if not args.skip_build:
-    compile_verity_yul()
+    prepared_dir = prepared_verity_artifact_dir()
+    if prepared_dir is not None:
+      copy_prepared_verity_yul(prepared_dir)
+    else:
+      compile_verity_yul()
     compile_solidity_ir()
 
   verity_yul = read_text(VERITY_YUL)
