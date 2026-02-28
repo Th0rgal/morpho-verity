@@ -303,7 +303,8 @@ jobs:
   morpho-blue-parity:
     name: Morpho Blue differential suite (Solidity vs Verity)
     runs-on: ubuntu-latest
-    needs: [verity-proofs, parity-target]
+    # Keep long differential runs behind artifact parity + smoke validation.
+    needs: [verity-proofs, parity-target, verity-compiled-tests]
     timeout-minutes: 120
     steps:
       - name: Checkout
