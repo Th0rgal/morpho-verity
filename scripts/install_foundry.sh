@@ -48,8 +48,10 @@ fi
 FOUNDRYUP_BIN="$HOME/.foundry/bin/foundryup"
 if ! command -v foundryup >/dev/null 2>&1; then
   if [[ ! -x "${FOUNDRYUP_BIN}" ]]; then
-    echo "ERROR: foundryup was not installed at ${FOUNDRYUP_BIN}" >&2
-    exit 127
+    echo "WARN: foundryup missing after bootstrap; downloading standalone script..." >&2
+    mkdir -p "$(dirname "${FOUNDRYUP_BIN}")"
+    retry 4 curl -fsSL "https://raw.githubusercontent.com/foundry-rs/foundry/master/foundryup/foundryup" -o "${FOUNDRYUP_BIN}"
+    chmod +x "${FOUNDRYUP_BIN}"
   fi
   retry 4 "${FOUNDRYUP_BIN}"
 else
