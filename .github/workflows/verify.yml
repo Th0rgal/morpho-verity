@@ -64,7 +64,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: ./scripts/install_solc.sh 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Validate pinned parity target
         run: python3 scripts/check_parity_target.py
@@ -145,7 +145,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: ./scripts/install_solc.sh 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Generate Yul identity report
         run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
@@ -247,7 +247,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: ./scripts/install_solc.sh 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Compile Morpho Verity artifact and enforce model/edsl parity
         run: ./scripts/check_input_mode_parity.sh
@@ -317,7 +317,7 @@ jobs:
             ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: ./scripts/install_solc.sh 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_morpho_blue_parity.sh
