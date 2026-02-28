@@ -25,11 +25,11 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
     self.assertEqual(proc.returncode, 0, msg=proc.stderr)
     self.assertIn("check: OK", proc.stdout)
 
-  def test_detects_direct_morpho_spec_usage(self) -> None:
+  def test_detects_direct_manual_surface_usage(self) -> None:
     original = MAIN_PATH.read_text(encoding="utf-8")
     try:
       MAIN_PATH.write_text(
-        original + "\n-- test sentinel\n#eval Morpho.Compiler.Spec.morphoSpec.name.length\n",
+        original + "\n-- test sentinel\n#eval Morpho.Compiler.Spec.morphoSelectors.length\n",
         encoding="utf-8",
       )
       proc = subprocess.run(

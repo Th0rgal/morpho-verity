@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed check: keep direct `morphoSpec` usage behind Generated.lean."""
+"""Fail-closed check: keep direct manual compiler surfaces behind Generated.lean."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ ALLOWED_FILES = {
   ROOT / "Morpho" / "Compiler" / "Spec.lean",
 }
 TARGET_GLOB = ROOT / "Morpho" / "Compiler"
-SYMBOL_RE = re.compile(r"\bmorphoSpec\b")
+SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
 
 
 def main() -> None:
@@ -30,9 +30,9 @@ def main() -> None:
   if offenders:
     print("morpho-generated-boundary check failed:", file=sys.stderr)
     for rel in offenders:
-      print(f"  direct morphoSpec usage in {rel}", file=sys.stderr)
+      print(f"  direct morphoSpec/morphoSelectors usage in {rel}", file=sys.stderr)
     print(
-      "Use Morpho.Compiler.Generated.morphoGeneratedSpec as the canonical compiler boundary.",
+      "Use Morpho.Compiler.Generated.{morphoGeneratedSpec,morphoGeneratedSelectors} as the canonical compiler boundary.",
       file=sys.stderr,
     )
     sys.exit(1)

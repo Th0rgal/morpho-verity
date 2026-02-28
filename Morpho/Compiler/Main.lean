@@ -168,6 +168,9 @@ private def lowerMorphoGeneratedSpec : IO _root_.Compiler.CompilationModel.Compi
   | .ok spec => pure spec
   | .error err => throw (IO.userError err.message)
 
+private def resolveMorphoGeneratedSelectors : IO (List Nat) := do
+  Morpho.Compiler.Generated.morphoGeneratedSelectors
+
 private def writeContract
     (outDir : String)
     (contract : IRContract)
@@ -227,7 +230,8 @@ def main (args : List String) : IO Unit := do
           IO.println s!"  - {lib}"
 
     let loweredSpec ← lowerMorphoGeneratedSpec
-    let ir ← orThrow (compile loweredSpec Morpho.Compiler.Spec.morphoSelectors)
+    let selectors ← resolveMorphoGeneratedSelectors
+    let ir ← orThrow (compile loweredSpec selectors)
     writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
     match cfg.abiOutDir with
     | some dir =>

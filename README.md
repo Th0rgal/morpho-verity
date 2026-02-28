@@ -86,7 +86,7 @@ Morpho/
     NatListSum.lean       # List sum lemmas for share accounting (5/5 proven)
   Compiler/
     Spec.lean             # Morpho Blue contract specification (CompilationModel DSL)
-    Generated.lean        # Canonical compiler boundary alias for generated/cutover path
+    Generated.lean        # Canonical compiler boundary: generated spec + generated selectors
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
 compiler/
   external-libs/          # External Yul libraries (MarketParamsHash, etc.)
