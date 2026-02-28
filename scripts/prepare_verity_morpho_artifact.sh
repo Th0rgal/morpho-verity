@@ -9,14 +9,45 @@ MORPHO_ABI="${OUT_DIR}/Morpho.abi.json"
 HASH_LIB="${ROOT_DIR}/compiler/external-libs/MarketParamsHash.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
-default_pack=""
-if [[ -f "${TARGET_JSON}" ]]; then
-  default_pack="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("verity",{}).get("parityPackId",""))' "${TARGET_JSON}")"
-fi
-PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
+require_command() {
+  local cmd="$1"
+  local message="$2"
+  if ! command -v "${cmd}" >/dev/null 2>&1; then
+    echo "ERROR: ${message}"
+    exit 2
+  fi
+}
+
+validate_toggle() {
+  local name="$1"
+  local value="$2"
+  if [[ "${value}" != "0" && "${value}" != "1" ]]; then
+    echo "ERROR: ${name} must be '0' or '1' (got: ${value})"
+    exit 2
+  fi
+}
+
 INPUT_MODE="${MORPHO_VERITY_INPUT_MODE:-edsl}"
 SKIP_BUILD="${MORPHO_VERITY_SKIP_BUILD:-0}"
 SKIP_SOLC="${MORPHO_VERITY_SKIP_SOLC:-0}"
+
+validate_toggle "MORPHO_VERITY_SKIP_BUILD" "${SKIP_BUILD}"
+validate_toggle "MORPHO_VERITY_SKIP_SOLC" "${SKIP_SOLC}"
+
+if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then
+  echo "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: ${INPUT_MODE})"
+  exit 1
+fi
+
+default_pack=""
+if [[ -f "${TARGET_JSON}" ]]; then
+  require_command "python3" "python3 is required to read parity pack from ${TARGET_JSON}"
+  if ! default_pack="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("verity",{}).get("parityPackId",""))' "${TARGET_JSON}" 2>/dev/null)"; then
+    echo "ERROR: failed to read parity pack from ${TARGET_JSON}"
+    exit 2
+  fi
+fi
+PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -25,16 +56,14 @@ if [[ ! -f "${HASH_LIB}" ]]; then
   exit 1
 fi
 
+require_command "lake" "lake is required to build and compile Morpho artifacts"
+
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "Building Morpho Verity compiler target..."
   (cd "${ROOT_DIR}" && lake build morpho-verity-compiler)
 fi
 
 echo "Running Morpho Verity compiler..."
-if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then
-  echo "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: ${INPUT_MODE})"
-  exit 1
-fi
 compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --input "${INPUT_MODE}" --link "${HASH_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
@@ -54,6 +83,8 @@ EOF
 fi
 
 if [[ "${SKIP_SOLC}" != "1" ]]; then
+  require_command "solc" "solc is required unless MORPHO_VERITY_SKIP_SOLC=1"
+  require_command "awk" "awk is required to extract bytecode from solc output"
   echo "Compiling Yul to EVM init bytecode..."
   solc --strict-assembly --bin "${MORPHO_YUL}" \
     | awk '/Binary representation:/{getline; print; exit}' \

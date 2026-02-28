@@ -78,6 +78,9 @@ jobs:
       - name: Run input-mode parity script unit tests
         run: ./scripts/test_check_input_mode_parity.sh
 
+      - name: Run artifact-prep script unit tests
+        run: ./scripts/test_prepare_verity_morpho_artifact.sh
+
       - name: Run Morpho Blue parity script unit tests
         run: ./scripts/test_run_morpho_blue_parity.sh
 
