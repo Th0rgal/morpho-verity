@@ -84,6 +84,9 @@ jobs:
       - name: Run Foundry installer unit tests
         run: ./scripts/test_install_foundry.sh
 
+      - name: Run timeout wrapper unit tests
+        run: ./scripts/test_run_with_timeout.sh
+
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
@@ -142,25 +145,7 @@ jobs:
         run: ./scripts/install_solc.sh 0.8.28
 
       - name: Generate Yul identity report
-        run: |
-          timeout_sec="${MORPHO_YUL_IDENTITY_TIMEOUT_SEC:-1500}"
-          if [[ ! "${timeout_sec}" =~ ^[0-9]+$ ]]; then
-            echo "ERROR: MORPHO_YUL_IDENTITY_TIMEOUT_SEC must be a non-negative integer (got: ${timeout_sec})"
-            exit 2
-          fi
-          if [[ "${timeout_sec}" -eq 0 ]]; then
-            python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
-            exit $?
-          fi
-          if timeout "${timeout_sec}" python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest; then
-            :
-          else
-            status=$?
-            if [[ "${status}" -eq 124 ]]; then
-              echo "ERROR: Yul identity report timed out after ${timeout_sec}s"
-            fi
-            exit "${status}"
-          fi
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
 
       - name: Upload Yul identity artifacts
         if: always()
@@ -199,25 +184,7 @@ jobs:
 
       - name: Run Morpho Blue tests
         working-directory: morpho-blue
-        run: |
-          timeout_sec="${MORPHO_SOLIDITY_TEST_TIMEOUT_SEC:-5100}"
-          if [[ ! "${timeout_sec}" =~ ^[0-9]+$ ]]; then
-            echo "ERROR: MORPHO_SOLIDITY_TEST_TIMEOUT_SEC must be a non-negative integer (got: ${timeout_sec})"
-            exit 2
-          fi
-          if [[ "${timeout_sec}" -eq 0 ]]; then
-            forge test -vvv
-            exit $?
-          fi
-          if timeout "${timeout_sec}" forge test -vvv; then
-            :
-          else
-            status=$?
-            if [[ "${status}" -eq 124 ]]; then
-              echo "ERROR: Morpho Blue Solidity tests timed out after ${timeout_sec}s"
-            fi
-            exit "${status}"
-          fi
+        run: ../scripts/run_with_timeout.sh MORPHO_SOLIDITY_TEST_TIMEOUT_SEC 5100 "Morpho Blue Solidity tests" -- forge test -vvv
         env:
           FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
@@ -286,25 +253,7 @@ jobs:
 
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
-        run: |
-          timeout_sec="${MORPHO_VERITY_SMOKE_TIMEOUT_SEC:-3000}"
-          if [[ ! "${timeout_sec}" =~ ^[0-9]+$ ]]; then
-            echo "ERROR: MORPHO_VERITY_SMOKE_TIMEOUT_SEC must be a non-negative integer (got: ${timeout_sec})"
-            exit 2
-          fi
-          if [[ "${timeout_sec}" -eq 0 ]]; then
-            forge test -vvv
-            exit $?
-          fi
-          if timeout "${timeout_sec}" forge test -vvv; then
-            :
-          else
-            status=$?
-            if [[ "${status}" -eq 124 ]]; then
-              echo "ERROR: Verity artifact smoke tests timed out after ${timeout_sec}s"
-            fi
-            exit "${status}"
-          fi
+        run: ../scripts/run_with_timeout.sh MORPHO_VERITY_SMOKE_TIMEOUT_SEC 3000 "Verity artifact smoke tests" -- forge test -vvv
         env:
           FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '500' || '1000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
