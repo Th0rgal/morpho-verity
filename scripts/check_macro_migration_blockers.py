@@ -18,6 +18,7 @@ BASELINE_PATH = ROOT / "config" / "macro-migration-blockers.json"
 
 # Supported constructor surface in Verity macro translation (current upstream state).
 SUPPORTED_STMT = {
+  "assignVar",
   "letVar",
   "setStorage",
   "setMapping",
@@ -35,13 +36,33 @@ SUPPORTED_EXPR = {
   "literal",
   "add",
   "sub",
+  "mul",
+  "div",
+  "mod",
+  "bitAnd",
+  "bitOr",
+  "bitXor",
+  "bitNot",
+  "shl",
+  "shr",
   "eq",
   "ge",
+  "gt",
+  "lt",
+  "le",
+  "logicalNot",
   "storage",
   "mapping",
   "mapping2",
   "mappingUint",
   "caller",
+  "mulDivDown",
+  "mulDivUp",
+  "wMulDown",
+  "wDivUp",
+  "min",
+  "max",
+  "ite",
 }
 
 CTOR_RE = re.compile(r"\b(Stmt|Expr)\.([A-Za-z0-9_]+)")
