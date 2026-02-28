@@ -16,6 +16,9 @@ jobs:
     name: Lean proofs (Verity)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      MORPHO_VERITY_PROOFS_TIMEOUT_SEC: "1500"
+      MORPHO_VERITY_MAINTEST_TIMEOUT_SEC: "300"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -38,10 +41,10 @@ jobs:
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Build and check proofs
-        run: lake build
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 1500 "Build and check Lean proofs" -- lake build
 
       - name: Run Morpho compiler CLI regression tests
-        run: lake build Morpho.Compiler.MainTest
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_MAINTEST_TIMEOUT_SEC 300 "Run Morpho compiler CLI regression tests" -- lake build Morpho.Compiler.MainTest
 
   parity-target:
     name: Parity target tuple check

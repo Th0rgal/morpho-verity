@@ -207,6 +207,8 @@ ABI canonicalization requires `python3`; missing or invalid ABI JSON artifacts f
 Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `900`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
+- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `1500`)
+- `MORPHO_VERITY_MAINTEST_TIMEOUT_SEC` (default `300`)
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC` (default `300`)
