@@ -179,6 +179,7 @@ Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho arti
 ```
 
 The parity gate is fail-closed: `Morpho.yul` and `Morpho.bin` must match byte-for-byte, and `Morpho.abi.json` must match semantically (canonical JSON).
+Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `900`; set `0` to disable).
 
 Compile using a specific Verity parity pack:
 

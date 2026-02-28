@@ -25,6 +25,10 @@ set -euo pipefail
 out="${MORPHO_VERITY_OUT_DIR:?MORPHO_VERITY_OUT_DIR is required}"
 mkdir -p "${out}"
 mode="${MORPHO_VERITY_INPUT_MODE:-unknown}"
+sleep_secs="${FAKE_SLEEP_SECS:-0}"
+if [[ "${sleep_secs}" != "0" ]]; then
+  sleep "${sleep_secs}"
+fi
 
 if [[ "${mode}" == "model" ]]; then
   printf '%s\n' "shared-yul" > "${out}/Morpho.yul"
@@ -199,11 +203,38 @@ test_success_on_abi_formatting_drift() {
   [[ -s "${out_dir}/edsl/Morpho.abi.json" ]]
 }
 
+test_fail_closed_on_prepare_timeout() {
+  local fake_root output_file out_dir
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    FAKE_SLEEP_SECS=2 \
+    MORPHO_VERITY_PREP_TIMEOUT_SEC=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected prepare timeout to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: timed out while preparing model artifact after 1s" "${output_file}"
+}
+
 test_success_when_model_and_edsl_artifacts_match
 test_success_on_abi_formatting_drift
 test_fail_closed_on_yul_mismatch
 test_fail_closed_on_bytecode_mismatch
 test_fail_closed_on_abi_mismatch
 test_fail_closed_on_missing_artifact
+test_fail_closed_on_prepare_timeout
 
 echo "check_input_mode_parity.sh tests passed"
