@@ -154,6 +154,61 @@ test_fail_closed_on_invalid_skip_solc_toggle() {
   assert_contains "ERROR: MORPHO_VERITY_SKIP_SOLC must be '0' or '1' (got: nope)" "${output_file}"
 }
 
+test_fail_closed_on_invalid_input_mode() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_INPUT_MODE=invalid "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected invalid MORPHO_VERITY_INPUT_MODE to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: invalid)" "${output_file}"
+}
+
+test_fail_closed_when_hash_library_missing() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  rm -f "${fake_root}/compiler/external-libs/MarketParamsHash.yul"
+  install_fake_python3 "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_SKIP_BUILD=1 MORPHO_VERITY_SKIP_SOLC=1 "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected missing hash library to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: missing hash library: ${fake_root}/compiler/external-libs/MarketParamsHash.yul" "${output_file}"
+}
+
 test_fail_closed_when_python3_missing_for_parity_target_read() {
   local fake_root fake_bin output_file rc
   fake_root="$(mktemp -d)"
@@ -355,6 +410,8 @@ test_success_when_solc_is_skipped() {
 
 test_fail_closed_on_invalid_skip_build_toggle
 test_fail_closed_on_invalid_skip_solc_toggle
+test_fail_closed_on_invalid_input_mode
+test_fail_closed_when_hash_library_missing
 test_fail_closed_when_python3_missing_for_parity_target_read
 test_fail_closed_on_invalid_parity_target_json
 test_fail_closed_when_parity_pack_missing_in_target_json

@@ -161,8 +161,10 @@ Build the Morpho Verity artifact:
 
 Artifact preparation is fail-closed for invalid toggle values and missing required tooling:
 - `MORPHO_VERITY_SKIP_BUILD` / `MORPHO_VERITY_SKIP_SOLC` must be `0` or `1`.
+- `MORPHO_VERITY_INPUT_MODE` must be `model` or `edsl`.
 - `python3` is required to read `config/parity-target.json` when present.
 - `config/parity-target.json` must include a non-empty `verity.parityPackId`.
+- `compiler/external-libs/MarketParamsHash.yul` must be present.
 - `lake` is required for compiler build/exec.
 - `solc` and `awk` are required unless `MORPHO_VERITY_SKIP_SOLC=1`.
 

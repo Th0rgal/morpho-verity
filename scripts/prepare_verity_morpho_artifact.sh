@@ -36,7 +36,7 @@ validate_toggle "MORPHO_VERITY_SKIP_SOLC" "${SKIP_SOLC}"
 
 if [[ "${INPUT_MODE}" != "model" && "${INPUT_MODE}" != "edsl" ]]; then
   echo "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: ${INPUT_MODE})"
-  exit 1
+  exit 2
 fi
 
 default_pack=""
@@ -63,7 +63,7 @@ mkdir -p "${OUT_DIR}"
 
 if [[ ! -f "${HASH_LIB}" ]]; then
   echo "ERROR: missing hash library: ${HASH_LIB}"
-  exit 1
+  exit 2
 fi
 
 require_command "lake" "lake is required to build and compile Morpho artifacts"
