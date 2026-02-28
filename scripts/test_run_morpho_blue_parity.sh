@@ -58,7 +58,7 @@ out="${MORPHO_VERITY_PARITY_OUT_DIR:?MORPHO_VERITY_PARITY_OUT_DIR is required}"
 sentinel="${MORPHO_TEST_PARITY_SENTINEL:-}"
 missing_artifact="${MORPHO_TEST_MISSING_PARITY_ARTIFACT:-}"
 sleep_secs="${MORPHO_TEST_PARITY_PRECHECK_SLEEP_SECS:-0}"
-mkdir -p "${out}/model" "${out}/edsl"
+mkdir -p "${out}/edsl"
 if [[ "${sleep_secs}" != "0" ]]; then
   sleep "${sleep_secs}"
 fi
@@ -71,9 +71,6 @@ fi
 if [[ "${missing_artifact}" != "abi" ]]; then
   printf '%s\n' "[]" > "${out}/edsl/Morpho.abi.json"
 fi
-printf '%s\n' "fake-yul-model" > "${out}/model/Morpho.yul"
-printf '%s\n' "fake-bin-model" > "${out}/model/Morpho.bin"
-printf '%s\n' "[]" > "${out}/model/Morpho.abi.json"
 if [[ -n "${sentinel}" ]]; then
   printf '%s\n' "called" > "${sentinel}"
 fi
@@ -336,6 +333,10 @@ test_default_mode_runs_parity_preflight() {
   [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
   [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
   [[ -s "${sentinel}" ]]
+  if grep -Fq "/model/" "${fake_root}/scripts/check_input_mode_parity.sh"; then
+    echo "ASSERTION FAILED: expected parity preflight fixture to stay edsl-only"
+    exit 1
+  fi
 }
 
 test_suite_timeout_fails_closed() {
