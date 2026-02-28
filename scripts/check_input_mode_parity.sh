@@ -32,6 +32,11 @@ run_prepare() {
     exit 1
   fi
 
+  if [[ "${PREP_TIMEOUT_SEC}" -gt 0 ]] && ! command -v timeout >/dev/null 2>&1; then
+    echo "ERROR: timeout command is required when MORPHO_VERITY_PREP_TIMEOUT_SEC is greater than zero"
+    exit 1
+  fi
+
   local -a prepare_cmd=("${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh")
   local -a maybe_timeout=()
   if [[ "${PREP_TIMEOUT_SEC}" -gt 0 ]] && command -v timeout >/dev/null 2>&1; then

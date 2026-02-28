@@ -13,6 +13,28 @@ assert_contains() {
   fi
 }
 
+build_path_without_timeout() {
+  local path_dir="$1"
+  local -a commands=(
+    bash
+    cmp
+    diff
+    head
+    mkdir
+    mktemp
+    python3
+    rm
+    sleep
+  )
+
+  mkdir -p "${path_dir}"
+  for cmd in "${commands[@]}"; do
+    local source_cmd
+    source_cmd="$(command -v "${cmd}")"
+    ln -s "${source_cmd}" "${path_dir}/${cmd}"
+  done
+}
+
 make_fake_repo() {
   local fake_root="$1"
   mkdir -p "${fake_root}/scripts"
@@ -229,6 +251,34 @@ test_fail_closed_on_prepare_timeout() {
   assert_contains "ERROR: timed out while preparing model artifact after 1s" "${output_file}"
 }
 
+test_fail_closed_when_timeout_missing_but_enabled() {
+  local fake_root output_file out_dir restricted_path
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  out_dir="$(mktemp -d)"
+  restricted_path="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${out_dir}" "${restricted_path}"' RETURN
+  make_fake_repo "${fake_root}"
+  build_path_without_timeout "${restricted_path}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    PATH="${restricted_path}" \
+    MORPHO_VERITY_PREP_TIMEOUT_SEC=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing timeout command to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: timeout command is required when MORPHO_VERITY_PREP_TIMEOUT_SEC is greater than zero" "${output_file}"
+}
+
 test_success_when_model_and_edsl_artifacts_match
 test_success_on_abi_formatting_drift
 test_fail_closed_on_yul_mismatch
@@ -236,5 +286,6 @@ test_fail_closed_on_bytecode_mismatch
 test_fail_closed_on_abi_mismatch
 test_fail_closed_on_missing_artifact
 test_fail_closed_on_prepare_timeout
+test_fail_closed_when_timeout_missing_but_enabled
 
 echo "check_input_mode_parity.sh tests passed"
