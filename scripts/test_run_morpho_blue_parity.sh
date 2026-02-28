@@ -47,6 +47,25 @@ if [[ -n "${sentinel}" ]]; then
 fi
 EOF
   chmod +x "${fake_root}/scripts/check_input_mode_parity.sh"
+
+  cat > "${fake_root}/morpho-blue/foundry.toml" <<'EOF'
+[profile.default]
+src = "src"
+test = "test"
+EOF
+
+  mkdir -p "${fake_root}/bin"
+  cat > "${fake_root}/bin/forge" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+sleep_sec="${MORPHO_TEST_FAKE_FORGE_SLEEP_SEC:-0}"
+if [[ "${sleep_sec}" != "0" ]]; then
+  sleep "${sleep_sec}"
+fi
+echo "Ran 1 tests for test/Fake.t.sol:FakeTest"
+echo "Ran 1 tests (1 total tests)"
+EOF
+  chmod +x "${fake_root}/bin/forge"
 }
 
 test_skip_refused_outside_ci() {
@@ -137,9 +156,42 @@ test_default_mode_runs_parity_preflight() {
   [[ -s "${sentinel}" ]]
 }
 
+test_suite_timeout_fails_closed() {
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "Skipping timeout regression: 'timeout' command is unavailable."
+    return
+  fi
+
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    PATH="${fake_root}/bin:${PATH}" \
+    MORPHO_TEST_FAKE_FORGE_SLEEP_SEC=2 \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected timeout run to fail"
+    exit 1
+  fi
+
+  assert_contains "timed out after 1s" "${output_file}"
+  assert_contains "Differential suite FAILED: timeout" "${output_file}"
+}
+
 test_skip_refused_outside_ci
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
+test_suite_timeout_fails_closed
 
 echo "run_morpho_blue_parity.sh tests passed"
