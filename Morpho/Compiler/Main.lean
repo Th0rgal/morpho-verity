@@ -23,7 +23,6 @@ private def orThrow {α : Type} (r : Except String α) : IO α :=
 private structure CLIArgs where
   outDir : String := "compiler/yul"
   abiOutDir : Option String := none
-  inputMode : String := "edsl"
   libs : List String := []
   verbose : Bool := false
   backendProfile : _root_.Compiler.BackendProfile := .semantic
@@ -42,9 +41,6 @@ private def parseBackendProfile (raw : String) : Option _root_.Compiler.BackendP
   | "solidity-parity-ordering" => some .solidityParityOrdering
   | "solidity-parity" => some .solidityParity
   | _ => none
-
-private def parseInputMode (raw : String) : Option String :=
-  if raw == "model" || raw == "edsl" then some raw else none
 
 private def backendProfileString (profile : _root_.Compiler.BackendProfile) : String :=
   match profile with
@@ -75,19 +71,12 @@ private def parseArgs (args : List String) : IO CLIArgs :=
     | "-o" :: dir :: rest, cfg => go rest { cfg with outDir := dir }
     | "--abi-output" :: dir :: rest, cfg => go rest { cfg with abiOutDir := some dir }
     | "--link" :: path :: rest, cfg => go rest { cfg with libs := path :: cfg.libs }
-    | "--input" :: raw :: rest, cfg =>
-        match parseInputMode raw with
-        | some mode => go rest { cfg with inputMode := mode }
-        | none =>
-            throw (IO.userError s!"Invalid value for --input: {raw} (expected model or edsl)")
     | ["--output"], _ | ["-o"], _ =>
         throw (IO.userError "Missing value for --output")
     | ["--abi-output"], _ =>
         throw (IO.userError "Missing value for --abi-output")
     | ["--link"], _ =>
         throw (IO.userError "Missing value for --link")
-    | ["--input"], _ =>
-        throw (IO.userError "Missing value for --input")
     | "--backend-profile" :: raw :: rest, cfg =>
         if cfg.parityPackId.isSome then
           throw (IO.userError "Cannot combine --backend-profile with --parity-pack")
@@ -147,7 +136,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
       IO.println "Options:"
       IO.println "  --output <dir>, -o <dir>    Output directory (default: compiler/yul)"
       IO.println "  --abi-output <dir>          Output ABI JSON artifact (<Contract>.abi.json)"
-      IO.println "  --input <model|edsl>        Input boundary mode (model is compatibility alias of edsl; default: edsl)"
+      IO.println "  (EDSL input boundary is the only supported mode.)"
       IO.println "  --link <path>               Link external Yul library (repeatable)"
       IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
       IO.println "  --parity-pack <id>          Versioned parity pack from verity"
@@ -212,10 +201,7 @@ def main (args : List String) : IO Unit := do
       match cfg.abiOutDir with
       | some dir => IO.println s!"ABI output directory: {dir}"
       | none => pure ()
-      if cfg.inputMode == "model" then
-        IO.println "Input mode: model (compatibility alias; canonicalized to edsl)"
-      else
-        IO.println s!"Input mode: {cfg.inputMode}"
+      IO.println "Input mode: edsl"
       IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
       match cfg.parityPackId with
       | some packId =>

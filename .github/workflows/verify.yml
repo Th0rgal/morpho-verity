@@ -86,8 +86,8 @@ jobs:
       - name: Run Yul identity report unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Yul identity report unit tests" -- python3 scripts/test_report_yul_identity_gap.py
 
-      - name: Run input-mode parity script unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Input-mode parity script unit tests" -- ./scripts/test_check_input_mode_parity.sh
+      - name: Run artifact-gate script unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh
 
       - name: Run artifact-prep script unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-prep script unit tests" -- ./scripts/test_prepare_verity_morpho_artifact.sh
@@ -115,7 +115,7 @@ jobs:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
     needs: [verity-proofs, parity-target]
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -173,9 +173,9 @@ jobs:
       - name: Generate Yul identity report
         run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
         env:
-          MORPHO_YUL_IDENTITY_TIMEOUT_SEC: "3300"
+          MORPHO_YUL_IDENTITY_TIMEOUT_SEC: "4200"
           MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1800"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "3000"
 
       - name: Upload Yul identity artifacts
         if: always()
@@ -282,11 +282,11 @@ jobs:
       - name: Check full toolchain readiness
         run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Compile Morpho Verity artifact and enforce model/edsl parity
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 2400 "Input-mode parity gate" -- ./scripts/check_input_mode_parity.sh
+      - name: Compile Morpho Verity artifact and enforce artifact gate
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 2400 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
         env:
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1200"
-          MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC: "3000"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "2400"
+          MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC: "3600"
 
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry

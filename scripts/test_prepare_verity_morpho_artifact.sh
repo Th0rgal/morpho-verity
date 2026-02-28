@@ -54,7 +54,6 @@ shift
 
 out_dir=""
 abi_out_dir=""
-input_mode=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output)
@@ -65,17 +64,13 @@ while [[ $# -gt 0 ]]; do
       abi_out_dir="$2"
       shift 2
       ;;
-    --input)
-      input_mode="$2"
-      shift 2
-      ;;
     *)
       shift
       ;;
   esac
 done
 
-printf "// yul artifact (%s)\n" "${input_mode}" > "${out_dir}/Morpho.yul"
+printf "// yul artifact (edsl)\n" > "${out_dir}/Morpho.yul"
 printf "%s\n" "[{\"type\":\"function\",\"name\":\"foo\",\"inputs\":[],\"outputs\":[]}]" > "${abi_out_dir}/Morpho.abi.json"
 '
 }
@@ -178,7 +173,7 @@ test_fail_closed_on_invalid_input_mode() {
     echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
     exit 1
   fi
-  assert_contains "ERROR: MORPHO_VERITY_INPUT_MODE must be 'model' or 'edsl' (got: invalid)" "${output_file}"
+  assert_contains "ERROR: MORPHO_VERITY_INPUT_MODE only supports 'edsl' (got: invalid)" "${output_file}"
 }
 
 test_fail_closed_when_hash_library_missing() {
@@ -408,7 +403,7 @@ test_success_when_solc_is_skipped() {
   assert_contains "Skipped bytecode generation (MORPHO_VERITY_SKIP_SOLC=1)" "${output_file}"
 }
 
-test_model_input_alias_is_canonicalized_to_edsl() {
+test_fail_closed_on_non_edsl_input_mode() {
   local fake_root fake_bin output_file out_dir
   fake_root="$(mktemp -d)"
   fake_bin="${fake_root}/bin"
@@ -422,20 +417,16 @@ test_model_input_alias_is_canonicalized_to_edsl() {
   install_fake_python3 "${fake_bin}"
   install_fake_lake "${fake_bin}"
 
-  PATH="${fake_bin}:/usr/bin:/bin" \
-  MORPHO_VERITY_SKIP_BUILD=1 \
-  MORPHO_VERITY_SKIP_SOLC=1 \
-  MORPHO_VERITY_INPUT_MODE=model \
-  MORPHO_VERITY_OUT_DIR="${out_dir}" \
-    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
-
-  if [[ ! -s "${out_dir}/Morpho.yul" ]]; then
-    echo "ASSERTION FAILED: expected Morpho.yul output"
+  if PATH="${fake_bin}:/usr/bin:/bin" \
+    MORPHO_VERITY_SKIP_BUILD=1 \
+    MORPHO_VERITY_SKIP_SOLC=1 \
+    MORPHO_VERITY_INPUT_MODE=model \
+    MORPHO_VERITY_OUT_DIR="${out_dir}" \
+      "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected non-edsl input mode to fail"
     exit 1
   fi
-  assert_contains "// yul artifact (edsl)" "${out_dir}/Morpho.yul"
-  assert_contains "Using input mode alias: model -> edsl" "${output_file}"
-  assert_contains "Using input mode: edsl" "${output_file}"
+  assert_contains "ERROR: MORPHO_VERITY_INPUT_MODE only supports 'edsl' (got: model)" "${output_file}"
 }
 
 test_fail_closed_on_invalid_skip_build_toggle
@@ -449,6 +440,6 @@ test_fail_closed_when_lake_missing
 test_fail_closed_when_solc_missing_and_not_skipped
 test_fail_closed_when_awk_missing_and_not_skipped
 test_success_when_solc_is_skipped
-test_model_input_alias_is_canonicalized_to_edsl
+test_fail_closed_on_non_edsl_input_mode
 
 echo "prepare_verity_morpho_artifact.sh tests passed"
