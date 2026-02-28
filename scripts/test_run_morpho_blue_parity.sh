@@ -108,6 +108,75 @@ test_fail_closed_when_timeout_missing_but_enabled() {
   assert_contains "ERROR: timeout command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero" "${output_file}"
 }
 
+test_fail_closed_on_invalid_skip_toggle() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=maybe \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid skip toggle to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_SKIP_PARITY_PREFLIGHT must be '0' or '1' (got: maybe)" "${output_file}"
+}
+
+test_fail_closed_on_invalid_local_skip_override_toggle() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=yes \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid local skip override toggle to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP must be '0' or '1' (got: yes)" "${output_file}"
+}
+
+test_fail_closed_on_invalid_exit_after_artifact_prep_toggle() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=true \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid exit-after-artifact-prep toggle to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP must be '0' or '1' (got: true)" "${output_file}"
+}
+
 test_skip_refused_outside_ci() {
   local fake_root output_file
   fake_root="$(mktemp -d)"
@@ -261,6 +330,9 @@ test_skip_mode_prep_timeout_fails_closed() {
 }
 
 test_skip_refused_outside_ci
+test_fail_closed_on_invalid_skip_toggle
+test_fail_closed_on_invalid_local_skip_override_toggle
+test_fail_closed_on_invalid_exit_after_artifact_prep_toggle
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight

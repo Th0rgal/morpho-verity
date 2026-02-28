@@ -129,6 +129,10 @@ CI can skip the internal parity preflight in this script by setting
 `MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1` because parity is already enforced in
 dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
 overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
+`MORPHO_VERITY_SKIP_PARITY_PREFLIGHT`,
+`MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP`, and
+`MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP` are fail-closed toggles and must be
+set to `0` or `1`.
 Even in skip mode, artifact preparation stays fail-closed behind the shared
 timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
 The full differential suite can also be fail-closed with

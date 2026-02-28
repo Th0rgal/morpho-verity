@@ -11,6 +11,19 @@ SUITE_TIMEOUT_SEC="${MORPHO_BLUE_SUITE_TIMEOUT_SEC:-0}"
 trap 'rm -rf "${PARITY_OUT_DIR}"' EXIT
 mkdir -p "${LOG_DIR}"
 
+validate_toggle() {
+  local name="$1"
+  local value="$2"
+  if [[ "${value}" != "0" && "${value}" != "1" ]]; then
+    echo "ERROR: ${name} must be '0' or '1' (got: ${value})"
+    exit 2
+  fi
+}
+
+validate_toggle "MORPHO_VERITY_SKIP_PARITY_PREFLIGHT" "${SKIP_PARITY_PREFLIGHT}"
+validate_toggle "MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP" "${ALLOW_LOCAL_SKIP}"
+validate_toggle "MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP" "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}"
+
 if [[ ! "${SUITE_TIMEOUT_SEC}" =~ ^[0-9]+$ ]]; then
   echo "ERROR: MORPHO_BLUE_SUITE_TIMEOUT_SEC must be a non-negative integer (got: ${SUITE_TIMEOUT_SEC})"
   exit 1
