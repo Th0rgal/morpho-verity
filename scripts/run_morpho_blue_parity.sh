@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN_WITH_TIMEOUT="${ROOT_DIR}/scripts/run_with_timeout.sh"
 LOG_DIR="${ROOT_DIR}/out/parity"
 PARITY_OUT_DIR="$(mktemp -d)"
 SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
@@ -52,14 +53,9 @@ run_suite() {
   local log_file="${LOG_DIR}/morpho_blue_${impl}.log"
   local status=0
   local foundry_profile=""
-  local -a timeout_cmd=()
 
   if grep -Eq "^\[profile\.difftest\]" "${ROOT_DIR}/morpho-blue/foundry.toml"; then
     foundry_profile="difftest"
-  fi
-
-  if [[ "${SUITE_TIMEOUT_SEC}" -gt 0 ]]; then
-    timeout_cmd=(timeout "${SUITE_TIMEOUT_SEC}")
   fi
 
   echo "==> Running Morpho Blue suite with MORPHO_IMPL=${impl}"
@@ -68,9 +64,14 @@ run_suite() {
     cd "${ROOT_DIR}/morpho-blue"
     if [[ -n "${foundry_profile}" ]]; then
       FOUNDRY_PROFILE="${foundry_profile}" MORPHO_IMPL="${impl}" \
-        "${timeout_cmd[@]}" forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
+        "${RUN_WITH_TIMEOUT}" MORPHO_BLUE_SUITE_TIMEOUT_SEC 0 \
+        "Morpho Blue suite (${impl})" -- \
+        forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
     else
-      MORPHO_IMPL="${impl}" "${timeout_cmd[@]}" forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
+      MORPHO_IMPL="${impl}" \
+        "${RUN_WITH_TIMEOUT}" MORPHO_BLUE_SUITE_TIMEOUT_SEC 0 \
+        "Morpho Blue suite (${impl})" -- \
+        forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
     fi
   ) | tee "${log_file}"
   status=${PIPESTATUS[0]}

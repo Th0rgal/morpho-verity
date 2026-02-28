@@ -25,7 +25,9 @@ make_fake_repo() {
   local fake_root="$1"
   mkdir -p "${fake_root}/scripts" "${fake_root}/compiler/yul" "${fake_root}/morpho-blue"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/run_morpho_blue_parity.sh"
+  cp "${ROOT_DIR}/scripts/run_with_timeout.sh" "${fake_root}/scripts/run_with_timeout.sh"
   chmod +x "${fake_root}/scripts/run_morpho_blue_parity.sh"
+  chmod +x "${fake_root}/scripts/run_with_timeout.sh"
 
   cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
 #!/usr/bin/env bash
