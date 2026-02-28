@@ -175,8 +175,7 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
 private def lowerMorphoSpec (inputMode : String) : IO _root_.Compiler.CompilationModel.CompilationModel := do
   let lowered :=
     if inputMode == "edsl" then
-      _root_.Compiler.Lowering.lowerFromEDSLSubset
-        (.manualBridge (_root_.Compiler.Lowering.liftModel Morpho.Compiler.Spec.morphoSpec))
+      _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
     else
       _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
   match lowered with

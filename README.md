@@ -184,7 +184,7 @@ Generate only Yul + ABI (skip `solc` bytecode generation):
 MORPHO_VERITY_SKIP_SOLC=1 ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
-Select compiler input boundary mode explicitly (`edsl` default, transitionally routed via manual bridge):
+Select compiler input boundary mode explicitly (`edsl` default, routed through Verity's generalized lowering boundary):
 
 ```bash
 MORPHO_VERITY_INPUT_MODE=model ./scripts/prepare_verity_morpho_artifact.sh
