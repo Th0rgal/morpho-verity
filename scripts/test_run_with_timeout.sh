@@ -150,7 +150,9 @@ test_zero_kill_after_value_fails_closed() {
 
 test_timeout_failure_reports_diagnostic() {
   local output_file
+  local expected_kill_after
   output_file="$(mktemp)"
+  expected_kill_after="${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}"
   trap 'rm -f "${output_file}"' RETURN
 
   set +e
@@ -164,7 +166,7 @@ test_timeout_failure_reports_diagnostic() {
     exit 1
   fi
   assert_contains "ERROR: sleeping command timed out after 1s" "${output_file}"
-  assert_contains "ERROR: timeout env=MORPHO_TEST_TIMEOUT_SEC kill-after=30s" "${output_file}"
+  assert_contains "ERROR: timeout env=MORPHO_TEST_TIMEOUT_SEC kill-after=${expected_kill_after}s" "${output_file}"
   assert_contains "ERROR: remediate by increasing MORPHO_TEST_TIMEOUT_SEC or reducing work in this stage" "${output_file}"
 }
 
