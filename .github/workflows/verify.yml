@@ -15,70 +15,159 @@ jobs:
   verity-proofs:
     name: Lean proofs (Verity)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MORPHO_VERITY_PROOFS_TIMEOUT_SEC: "1500"
+      MORPHO_VERITY_MAINTEST_TIMEOUT_SEC: "300"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
         with:
-          submodules: recursive
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
 
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Build and check proofs
-        run: lake build
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 1500 "Build and check Lean proofs" -- lake build
+
+      - name: Run Morpho compiler CLI regression tests
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_MAINTEST_TIMEOUT_SEC 300 "Run Morpho compiler CLI regression tests" -- lake build Morpho.Compiler.MainTest
 
   parity-target:
     name: Parity target tuple check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC: "300"
+      MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC: "900"
+      MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC: "180"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
 
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
+
       - name: Install solc
-        run: |
-          pip3 install solc-select
-          solc-select install 0.8.28
-          solc-select use 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Validate pinned parity target
-        run: python3 scripts/check_parity_target.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate pinned parity target" -- python3 scripts/check_parity_target.py
 
       - name: Run parity-target parser regression tests
-        run: python3 scripts/test_check_parity_target.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
       - name: Run Yul identity report unit tests
-        run: python3 scripts/test_report_yul_identity_gap.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Yul identity report unit tests" -- python3 scripts/test_report_yul_identity_gap.py
+
+      - name: Run input-mode parity script unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Input-mode parity script unit tests" -- ./scripts/test_check_input_mode_parity.sh
+
+      - name: Run artifact-prep script unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-prep script unit tests" -- ./scripts/test_prepare_verity_morpho_artifact.sh
+
+      - name: Run Morpho Blue parity script unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho Blue parity script unit tests" -- ./scripts/test_run_morpho_blue_parity.sh
+
+      - name: Run Foundry installer unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Foundry installer unit tests" -- ./scripts/test_install_foundry.sh
+
+      - name: Run Lean installer unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Lean installer unit tests" -- ./scripts/test_install_lean.sh
+
+      - name: Run solc installer unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "solc installer unit tests" -- ./scripts/test_install_solc.sh
+
+      - name: Run timeout wrapper unit tests
+        env:
+          MORPHO_TIMEOUT_KILL_AFTER_SEC: "1"
+        run: ./scripts/run_with_timeout.sh MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC 180 "Timeout wrapper unit tests" -- ./scripts/test_run_with_timeout.sh
 
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    needs: [verity-proofs, parity-target]
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          pip3 install solc-select
-          solc-select install 0.8.28
-          solc-select use 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Generate Yul identity report
-        run: python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+        env:
+          MORPHO_YUL_IDENTITY_TIMEOUT_SEC: "3300"
+          MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1800"
 
       - name: Upload Yul identity artifacts
         if: always()
@@ -91,84 +180,179 @@ jobs:
   solidity-tests:
     name: Solidity tests (Foundry)
     runs-on: ubuntu-latest
+    needs: [verity-proofs, parity-target]
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
 
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
       - name: Run Morpho Blue tests
         working-directory: morpho-blue
-        run: forge test -vvv
+        run: ../scripts/run_with_timeout.sh MORPHO_SOLIDITY_TEST_TIMEOUT_SEC 5100 "Morpho Blue Solidity tests" -- forge test -vvv
         env:
-          FOUNDRY_FUZZ_RUNS: 10000
+          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
-          FOUNDRY_INVARIANT_RUNS: 10000
+          FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
           FOUNDRY_INVARIANT_DEPTH: 32
 
   verity-compiled-tests:
     name: Verity compiled artifact smoke tests (Foundry)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    needs: [verity-proofs, parity-target]
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          pip3 install solc-select
-          solc-select install 0.8.28
-          solc-select use 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
-      - name: Compile Morpho Verity artifact
-        run: ./scripts/prepare_verity_morpho_artifact.sh
+      - name: Compile Morpho Verity artifact and enforce model/edsl parity
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 2400 "Input-mode parity gate" -- ./scripts/check_input_mode_parity.sh
+        env:
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1200"
+          MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC: "3000"
 
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
-        run: forge test -vvv
+        run: ../scripts/run_with_timeout.sh MORPHO_VERITY_SMOKE_TIMEOUT_SEC 3000 "Verity artifact smoke tests" -- forge test -vvv
         env:
-          FOUNDRY_FUZZ_RUNS: 1000
+          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '500' || '1000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
 
   morpho-blue-parity:
     name: Morpho Blue differential suite (Solidity vs Verity)
     runs-on: ubuntu-latest
-    needs: [parity-target]
+    # Keep long differential runs behind all long-lane validation gates.
+    needs: [verity-proofs, parity-target, yul-identity-report, solidity-tests, verity-compiled-tests]
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
 
+      - name: Restore Lean/Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lean-lake-
+
       - name: Install Lean toolchain
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Restore Foundry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/bin
+            ~/.svm
+            morpho-blue/cache
+            morpho-blue/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
+
+      - name: Restore solc-select cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.solc-select
+          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
+          restore-keys: |
+            ${{ runner.os }}-solc-select-
 
       - name: Install solc
-        run: |
-          pip3 install solc-select
-          solc-select install 0.8.28
-          solc-select use 0.8.28
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
 
       - name: Run full Morpho Blue parity script
-        run: ./scripts/run_morpho_blue_parity.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC 6900 "Morpho Blue differential parity script" -- ./scripts/run_morpho_blue_parity.sh
+        env:
+          MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC: "6900"
+          MORPHO_VERITY_SKIP_PARITY_PREFLIGHT: "1"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1200"
+          MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC: "1800"
+          MORPHO_BLUE_SUITE_TIMEOUT_SEC: "3300"
+          FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
+          FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000
+          FOUNDRY_INVARIANT_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
+          FOUNDRY_INVARIANT_DEPTH: 32
 
       - name: Upload parity logs
         if: always()

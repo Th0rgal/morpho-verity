@@ -1,0 +1,82 @@
+import Morpho.Compiler.Main
+
+namespace Morpho.Compiler.MainTest
+
+private def contains (haystack needle : String) : Bool :=
+  let h := haystack.toList
+  let n := needle.toList
+  if n.isEmpty then true
+  else
+    let rec go : List Char → Bool
+      | [] => false
+      | c :: cs =>
+        if (c :: cs).take n.length == n then true
+        else go cs
+    go h
+
+private def expectErrorContains (label : String) (args : List String) (needle : String) : IO Unit := do
+  try
+    Morpho.Compiler.Main.main args
+    throw (IO.userError s!"✗ {label}: expected failure, command succeeded")
+  catch e =>
+    let msg := e.toString
+    if !contains msg needle then
+      throw (IO.userError s!"✗ {label}: expected '{needle}', got:\n{msg}")
+    IO.println s!"✓ {label}"
+
+private def expectTrue (label : String) (ok : Bool) : IO Unit := do
+  if !ok then
+    throw (IO.userError s!"✗ {label}")
+  IO.println s!"✓ {label}"
+
+private def fileExists (path : String) : IO Bool := do
+  try
+    let _ ← IO.FS.readFile path
+    pure true
+  catch _ =>
+    pure false
+
+#eval! do
+  expectErrorContains "missing --input value" ["--input"] "Missing value for --input"
+  expectErrorContains "invalid --input value" ["--input", "ast"] "Invalid value for --input: ast"
+  expectErrorContains "missing --link value" ["--link"] "Missing value for --link"
+  expectErrorContains "missing --abi-output value" ["--abi-output"] "Missing value for --abi-output"
+  expectErrorContains "unknown argument still reported" ["--definitely-unknown-flag"] "Unknown argument: --definitely-unknown-flag"
+
+  let nonce ← IO.monoMsNow
+  let modelOutDir := s!"/tmp/morpho-main-test-{nonce}-model-out"
+  let edslOutDir := s!"/tmp/morpho-main-test-{nonce}-edsl-out"
+  let modelAbiDir := s!"/tmp/morpho-main-test-{nonce}-model-abi"
+  let edslAbiDir := s!"/tmp/morpho-main-test-{nonce}-edsl-abi"
+  IO.FS.createDirAll modelOutDir
+  IO.FS.createDirAll edslOutDir
+  IO.FS.createDirAll modelAbiDir
+  IO.FS.createDirAll edslAbiDir
+
+  let hashLib := "compiler/external-libs/MarketParamsHash.yul"
+  Morpho.Compiler.Main.main
+    ["--input", "model", "--output", modelOutDir, "--abi-output", modelAbiDir, "--link", hashLib]
+  Morpho.Compiler.Main.main
+    ["--input", "edsl", "--output", edslOutDir, "--abi-output", edslAbiDir, "--link", hashLib]
+
+  let modelYulPath := s!"{modelOutDir}/Morpho.yul"
+  let edslYulPath := s!"{edslOutDir}/Morpho.yul"
+  let modelExists ← fileExists modelYulPath
+  let edslExists ← fileExists edslYulPath
+  expectTrue "model mode emits Morpho.yul" modelExists
+  expectTrue "edsl mode emits Morpho.yul" edslExists
+  let modelAbiPath := s!"{modelAbiDir}/Morpho.abi.json"
+  let edslAbiPath := s!"{edslAbiDir}/Morpho.abi.json"
+  let modelAbiExists ← fileExists modelAbiPath
+  let edslAbiExists ← fileExists edslAbiPath
+  expectTrue "model mode emits Morpho.abi.json" modelAbiExists
+  expectTrue "edsl mode emits Morpho.abi.json" edslAbiExists
+
+  let modelYul ← IO.FS.readFile modelYulPath
+  let edslYul ← IO.FS.readFile edslYulPath
+  expectTrue "model and edsl modes emit identical Morpho.yul" (modelYul == edslYul)
+  let modelAbi ← IO.FS.readFile modelAbiPath
+  let edslAbi ← IO.FS.readFile edslAbiPath
+  expectTrue "model and edsl modes emit identical Morpho.abi.json" (modelAbi == edslAbi)
+
+end Morpho.Compiler.MainTest

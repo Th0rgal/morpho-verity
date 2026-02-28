@@ -2,11 +2,69 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN_WITH_TIMEOUT="${ROOT_DIR}/scripts/run_with_timeout.sh"
 LOG_DIR="${ROOT_DIR}/out/parity"
+PARITY_OUT_DIR="$(mktemp -d)"
+SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
+ALLOW_LOCAL_SKIP="${MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP:-0}"
+SUITE_TIMEOUT_SEC="${MORPHO_BLUE_SUITE_TIMEOUT_SEC:-0}"
+trap 'rm -rf "${PARITY_OUT_DIR}"' EXIT
 mkdir -p "${LOG_DIR}"
 
-# Build latest Verity artifact before running differential tests.
-"${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+validate_toggle() {
+  local name="$1"
+  local value="$2"
+  if [[ "${value}" != "0" && "${value}" != "1" ]]; then
+    echo "ERROR: ${name} must be '0' or '1' (got: ${value})"
+    exit 2
+  fi
+}
+
+validate_toggle "MORPHO_VERITY_SKIP_PARITY_PREFLIGHT" "${SKIP_PARITY_PREFLIGHT}"
+validate_toggle "MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP" "${ALLOW_LOCAL_SKIP}"
+validate_toggle "MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP" "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}"
+
+require_nonempty_artifact() {
+  local artifact_path="$1"
+  if [[ ! -s "${artifact_path}" ]]; then
+    echo "ERROR: expected non-empty parity artifact: ${artifact_path}"
+    exit 2
+  fi
+}
+
+if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
+  if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then
+    echo "Refusing to skip parity preflight outside CI."
+    echo "Set MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1 only for explicit local debugging."
+    exit 1
+  fi
+  echo "Skipping input-mode parity preflight (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
+  MORPHO_VERITY_OUT_DIR="${PARITY_OUT_DIR}/edsl" \
+  MORPHO_VERITY_INPUT_MODE="edsl" \
+    "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PREP_TIMEOUT_SEC 900 \
+      "Prepare edsl artifact" -- \
+      "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+else
+  # Fast fail-closed guard before the long differential suite.
+  MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \
+    "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC 1800 \
+      "Input-mode parity preflight" -- \
+      "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+fi
+
+# Reuse the verified EDSL artifact already produced by parity checking.
+require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.yul"
+require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.bin"
+require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.abi.json"
+mkdir -p "${ROOT_DIR}/compiler/yul"
+cp "${PARITY_OUT_DIR}/edsl/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
+cp "${PARITY_OUT_DIR}/edsl/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
+cp "${PARITY_OUT_DIR}/edsl/Morpho.abi.json" "${ROOT_DIR}/compiler/yul/Morpho.abi.json"
+
+if [[ "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}" == "1" ]]; then
+  echo "Exiting after artifact preparation (MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1)."
+  exit 0
+fi
 
 run_suite() {
   local impl="$1"
@@ -24,9 +82,14 @@ run_suite() {
     cd "${ROOT_DIR}/morpho-blue"
     if [[ -n "${foundry_profile}" ]]; then
       FOUNDRY_PROFILE="${foundry_profile}" MORPHO_IMPL="${impl}" \
+        "${RUN_WITH_TIMEOUT}" MORPHO_BLUE_SUITE_TIMEOUT_SEC 0 \
+        "Morpho Blue suite (${impl})" -- \
         forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
     else
-      MORPHO_IMPL="${impl}" forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
+      MORPHO_IMPL="${impl}" \
+        "${RUN_WITH_TIMEOUT}" MORPHO_BLUE_SUITE_TIMEOUT_SEC 0 \
+        "Morpho Blue suite (${impl})" -- \
+        forge test -vvv --no-match-path 'test/tmp_yul_deploy.t.sol'
     fi
   ) | tee "${log_file}"
   status=${PIPESTATUS[0]}
@@ -40,6 +103,9 @@ run_suite() {
 
   echo "    ${impl} exit code: ${status}"
   echo "    Log: ${log_file}"
+  if [[ "${status}" -eq 124 || "${status}" -eq 137 ]]; then
+    echo "    ${impl} timed out after ${SUITE_TIMEOUT_SEC}s"
+  fi
   return "${status}"
 }
 
@@ -75,6 +141,9 @@ run_suite solidity || solidity_status=$?
 run_suite verity || verity_status=$?
 
 if [[ "${solidity_status}" -ne 0 || "${verity_status}" -ne 0 ]]; then
+  if [[ "${solidity_status}" -eq 124 || "${solidity_status}" -eq 137 || "${verity_status}" -eq 124 || "${verity_status}" -eq 137 ]]; then
+    echo "==> Differential suite FAILED: timeout (MORPHO_BLUE_SUITE_TIMEOUT_SEC=${SUITE_TIMEOUT_SEC})"
+  fi
   echo "==> Differential suite FAILED"
   exit 1
 fi

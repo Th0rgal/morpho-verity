@@ -85,7 +85,7 @@ Morpho/
     ShareConsistency.lean # Share accounting proofs (36 proven, 34 public + 2 helper lemmas)
     NatListSum.lean       # List sum lemmas for share accounting (5/5 proven)
   Compiler/
-    Spec.lean             # Morpho Blue contract specification (ContractSpec DSL)
+    Spec.lean             # Morpho Blue contract specification (CompilationModel DSL)
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
 compiler/
   external-libs/          # External Yul libraries (MarketParamsHash, etc.)
@@ -125,6 +125,26 @@ Run the exact same Morpho Blue suite against both implementations (Solidity and 
 ./scripts/run_morpho_blue_parity.sh
 ```
 
+CI can skip the internal parity preflight in this script by setting
+`MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1` because parity is already enforced in
+dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
+overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
+`MORPHO_VERITY_SKIP_PARITY_PREFLIGHT`,
+`MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP`, and
+`MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP` are fail-closed toggles and must be
+set to `0` or `1`.
+Even in skip mode, artifact preparation stays fail-closed behind the shared
+timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
+When parity preflight is enabled, the full preflight command is also bounded by
+`MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`).
+`run_morpho_blue_parity.sh` also fails closed if the parity/prep stage does not
+produce non-empty `Morpho.yul`, `Morpho.bin`, and `Morpho.abi.json` artifacts.
+The full differential suite can also be fail-closed with
+`MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
+`MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` and
+`MORPHO_BLUE_SUITE_TIMEOUT_SEC` must be non-negative integers.
+When this guard is enabled, `timeout` must be available in `PATH`.
+
 Validate pinned parity tuple (solc + Foundry profile):
 
 ```bash
@@ -148,6 +168,68 @@ Build the Morpho Verity artifact:
 ```bash
 ./scripts/prepare_verity_morpho_artifact.sh
 ```
+
+Artifact preparation is fail-closed for invalid toggle values and missing required tooling:
+- `MORPHO_VERITY_SKIP_BUILD` / `MORPHO_VERITY_SKIP_SOLC` must be `0` or `1`.
+- `MORPHO_VERITY_INPUT_MODE` must be `model` or `edsl`.
+- `python3` is required to read `config/parity-target.json` when present.
+- `config/parity-target.json` must include a non-empty `verity.parityPackId`.
+- `compiler/external-libs/MarketParamsHash.yul` must be present.
+- `lake` is required for compiler build/exec.
+- `solc` and `awk` are required unless `MORPHO_VERITY_SKIP_SOLC=1`.
+
+Generate only Yul + ABI (skip `solc` bytecode generation):
+
+```bash
+MORPHO_VERITY_SKIP_SOLC=1 ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Select compiler input boundary mode explicitly (`edsl` default, transitionally routed via manual bridge):
+
+```bash
+MORPHO_VERITY_INPUT_MODE=model ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Override artifact output directory when needed:
+
+```bash
+MORPHO_VERITY_OUT_DIR=/tmp/morpho-artifact ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho artifacts (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`):
+
+```bash
+./scripts/check_input_mode_parity.sh
+```
+
+The parity gate is fail-closed: `Morpho.yul` and `Morpho.bin` must match byte-for-byte, and `Morpho.abi.json` must match semantically (canonical JSON).
+ABI canonicalization requires `python3`; missing or invalid ABI JSON artifacts fail closed with deterministic diagnostics.
+Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `900`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
+Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
+- `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
+- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `1500`)
+- `MORPHO_VERITY_MAINTEST_TIMEOUT_SEC` (default `300`)
+- `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
+- `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
+- `MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC` (default `300`)
+- `MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC` (default `900`)
+- `MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC` (default `180`)
+- `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`)
+- `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC` (default `1200`)
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `2400`)
+- `MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC` (default `6900`)
+- `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`)
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `1500`)
+- `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
+- `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)
+- `MORPHO_TIMEOUT_KILL_AFTER_SEC` (default `30`)
+- `0` disables timeout for each respective command
+The shared timeout wrapper enforces hard fail-closed termination (`timeout --kill-after=${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}s`) so TERM-ignoring subprocesses cannot hang CI indefinitely.
+`MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
+The Yul identity report script now wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics.
+CI sets stricter non-conflicting outer budgets for nested timeout-wrapped stages:
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=3000` (greater than two `MORPHO_VERITY_PREP_TIMEOUT_SEC=1200` runs plus overhead)
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=2400` (greater than `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC=900` + `MORPHO_VERITY_PREP_TIMEOUT_SEC=900` plus report-generation overhead)
 
 Compile using a specific Verity parity pack:
 
