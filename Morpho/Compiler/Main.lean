@@ -147,7 +147,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
       IO.println "Options:"
       IO.println "  --output <dir>, -o <dir>    Output directory (default: compiler/yul)"
       IO.println "  --abi-output <dir>          Output ABI JSON artifact (<Contract>.abi.json)"
-      IO.println "  --input <model|edsl>        Input boundary mode (default: edsl)"
+      IO.println "  --input <model|edsl>        Input boundary mode (model is compatibility alias of edsl; default: edsl)"
       IO.println "  --link <path>               Link external Yul library (repeatable)"
       IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
       IO.println "  --parity-pack <id>          Versioned parity pack from verity"
@@ -172,12 +172,8 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
     }
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
-private def lowerMorphoSpec (inputMode : String) : IO _root_.Compiler.CompilationModel.CompilationModel := do
-  let lowered :=
-    if inputMode == "edsl" then
-      _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
-    else
-      _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
+private def lowerMorphoSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
+  let lowered := _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Spec.morphoSpec
   match lowered with
   | .ok spec => pure spec
   | .error err => throw (IO.userError err.message)
@@ -216,7 +212,10 @@ def main (args : List String) : IO Unit := do
       match cfg.abiOutDir with
       | some dir => IO.println s!"ABI output directory: {dir}"
       | none => pure ()
-      IO.println s!"Input mode: {cfg.inputMode}"
+      if cfg.inputMode == "model" then
+        IO.println "Input mode: model (compatibility alias; canonicalized to edsl)"
+      else
+        IO.println s!"Input mode: {cfg.inputMode}"
       IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
       match cfg.parityPackId with
       | some packId =>
@@ -240,7 +239,7 @@ def main (args : List String) : IO Unit := do
         for lib in cfg.libs do
           IO.println s!"  - {lib}"
 
-    let loweredSpec ← lowerMorphoSpec cfg.inputMode
+    let loweredSpec ← lowerMorphoSpec
     let ir ← orThrow (compile loweredSpec Morpho.Compiler.Spec.morphoSelectors)
     writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
     match cfg.abiOutDir with

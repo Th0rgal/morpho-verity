@@ -171,7 +171,7 @@ Build the Morpho Verity artifact:
 
 Artifact preparation is fail-closed for invalid toggle values and missing required tooling:
 - `MORPHO_VERITY_SKIP_BUILD` / `MORPHO_VERITY_SKIP_SOLC` must be `0` or `1`.
-- `MORPHO_VERITY_INPUT_MODE` must be `model` or `edsl`.
+- `MORPHO_VERITY_INPUT_MODE` must be `model` or `edsl` (`model` is a compatibility alias of the canonical `edsl` path).
 - `python3` is required to read `config/parity-target.json` when present.
 - `config/parity-target.json` must include a non-empty `verity.parityPackId`.
 - `compiler/external-libs/MarketParamsHash.yul` must be present.
@@ -184,7 +184,7 @@ Generate only Yul + ABI (skip `solc` bytecode generation):
 MORPHO_VERITY_SKIP_SOLC=1 ./scripts/prepare_verity_morpho_artifact.sh
 ```
 
-Select compiler input boundary mode explicitly (`edsl` default, routed through Verity's generalized lowering boundary):
+Select compiler input boundary mode explicitly (`edsl` default, routed through Verity's generalized lowering boundary; `model` remains accepted as a compatibility alias):
 
 ```bash
 MORPHO_VERITY_INPUT_MODE=model ./scripts/prepare_verity_morpho_artifact.sh
