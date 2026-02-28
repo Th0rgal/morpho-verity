@@ -45,7 +45,16 @@ if ! command -v foundryup >/dev/null 2>&1; then
   retry 4 bash -lc 'curl -fsSL https://foundry.paradigm.xyz | bash'
 fi
 
-retry 4 foundryup
+FOUNDRYUP_BIN="$HOME/.foundry/bin/foundryup"
+if ! command -v foundryup >/dev/null 2>&1; then
+  if [[ ! -x "${FOUNDRYUP_BIN}" ]]; then
+    echo "ERROR: foundryup was not installed at ${FOUNDRYUP_BIN}" >&2
+    exit 127
+  fi
+  retry 4 "${FOUNDRYUP_BIN}"
+else
+  retry 4 foundryup
+fi
 
 forge --version
 anvil --version
