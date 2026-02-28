@@ -40,6 +40,35 @@ resolve_tool_candidate() {
   return 1
 }
 
+install_from_release_archive() {
+  local os arch archive url
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  case "${arch}" in
+    x86_64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      echo "ERROR: unsupported architecture for Foundry archive fallback: ${arch}" >&2
+      return 2
+      ;;
+  esac
+  case "${os}" in
+    linux|darwin) ;;
+    *)
+      echo "ERROR: unsupported OS for Foundry archive fallback: ${os}" >&2
+      return 2
+      ;;
+  esac
+
+  mkdir -p "${HOME}/.foundry/bin"
+  archive="$(mktemp)"
+  url="https://github.com/foundry-rs/foundry/releases/download/stable/foundry_stable_${os}_${arch}.tar.gz"
+  retry 4 curl -fsSL "${url}" -o "${archive}"
+  tar -xzf "${archive}" -C "${HOME}/.foundry/bin"
+  rm -f "${archive}"
+  chmod +x "${HOME}/.foundry/bin/forge" "${HOME}/.foundry/bin/anvil" "${HOME}/.foundry/bin/cast" "${HOME}/.foundry/bin/chisel" 2>/dev/null || true
+}
+
 if command -v forge >/dev/null 2>&1 && command -v anvil >/dev/null 2>&1; then
   echo "Foundry already available:"
   forge --version
@@ -91,6 +120,12 @@ for tool in forge anvil cast chisel; do
 done
 FORGE_BIN="$(resolve_tool_candidate forge 2>/dev/null || true)"
 ANVIL_BIN="$(resolve_tool_candidate anvil 2>/dev/null || true)"
+if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
+  echo "WARN: foundryup did not materialize forge/anvil binaries; falling back to direct release archive install." >&2
+  install_from_release_archive
+  FORGE_BIN="$(resolve_tool_candidate forge 2>/dev/null || true)"
+  ANVIL_BIN="$(resolve_tool_candidate anvil 2>/dev/null || true)"
+fi
 
 if [[ ! -x "${FORGE_BIN}" || ! -x "${ANVIL_BIN}" ]]; then
   echo "ERROR: expected forge/anvil binaries are missing after installation" >&2
