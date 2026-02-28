@@ -164,6 +164,9 @@ jobs:
 
       - name: Generate Yul identity report
         run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 1500 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+        env:
+          MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "900"
 
       - name: Upload Yul identity artifacts
         if: always()
