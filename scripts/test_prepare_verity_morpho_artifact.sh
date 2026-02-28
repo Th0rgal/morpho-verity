@@ -205,7 +205,34 @@ test_fail_closed_on_invalid_parity_target_json() {
     echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
     exit 1
   fi
-  assert_contains "ERROR: failed to read parity pack from ${fake_root}/config/parity-target.json" "${output_file}"
+  assert_contains "ERROR: failed to read required verity.parityPackId from ${fake_root}/config/parity-target.json" "${output_file}"
+}
+
+test_fail_closed_when_parity_pack_missing_in_target_json() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}" '{"verity":{}}'
+  install_fake_python3 "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected missing verity.parityPackId to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: failed to read required verity.parityPackId from ${fake_root}/config/parity-target.json" "${output_file}"
 }
 
 test_fail_closed_when_lake_missing() {
@@ -330,6 +357,7 @@ test_fail_closed_on_invalid_skip_build_toggle
 test_fail_closed_on_invalid_skip_solc_toggle
 test_fail_closed_when_python3_missing_for_parity_target_read
 test_fail_closed_on_invalid_parity_target_json
+test_fail_closed_when_parity_pack_missing_in_target_json
 test_fail_closed_when_lake_missing
 test_fail_closed_when_solc_missing_and_not_skipped
 test_fail_closed_when_awk_missing_and_not_skipped

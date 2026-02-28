@@ -42,8 +42,18 @@ fi
 default_pack=""
 if [[ -f "${TARGET_JSON}" ]]; then
   require_command "python3" "python3 is required to read parity pack from ${TARGET_JSON}"
-  if ! default_pack="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("verity",{}).get("parityPackId",""))' "${TARGET_JSON}" 2>/dev/null)"; then
-    echo "ERROR: failed to read parity pack from ${TARGET_JSON}"
+  if ! default_pack="$(python3 - "${TARGET_JSON}" <<'PY' 2>/dev/null
+import json
+import sys
+
+data = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+parity_pack = data.get("verity", {}).get("parityPackId")
+if not isinstance(parity_pack, str) or not parity_pack:
+    raise ValueError("missing required verity.parityPackId")
+print(parity_pack)
+PY
+)"; then
+    echo "ERROR: failed to read required verity.parityPackId from ${TARGET_JSON}"
     exit 2
   fi
 fi
