@@ -135,11 +135,14 @@ overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
 set to `0` or `1`.
 Even in skip mode, artifact preparation stays fail-closed behind the shared
 timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
+When parity preflight is enabled, the full preflight command is also bounded by
+`MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`).
 `run_morpho_blue_parity.sh` also fails closed if the parity/prep stage does not
 produce non-empty `Morpho.yul`, `Morpho.bin`, and `Morpho.abi.json` artifacts.
 The full differential suite can also be fail-closed with
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
-`MORPHO_BLUE_SUITE_TIMEOUT_SEC` must be a non-negative integer.
+`MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` and
+`MORPHO_BLUE_SUITE_TIMEOUT_SEC` must be non-negative integers.
 When this guard is enabled, `timeout` must be available in `PATH`.
 
 Validate pinned parity tuple (solc + Foundry profile):
@@ -207,6 +210,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`)
+- `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`)
 - `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `1500`)
 - `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)

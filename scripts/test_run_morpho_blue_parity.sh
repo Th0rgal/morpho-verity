@@ -51,13 +51,17 @@ fi
 EOF
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
 
-  cat > "${fake_root}/scripts/check_input_mode_parity.sh" <<'EOF'
+cat > "${fake_root}/scripts/check_input_mode_parity.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 out="${MORPHO_VERITY_PARITY_OUT_DIR:?MORPHO_VERITY_PARITY_OUT_DIR is required}"
 sentinel="${MORPHO_TEST_PARITY_SENTINEL:-}"
 missing_artifact="${MORPHO_TEST_MISSING_PARITY_ARTIFACT:-}"
+sleep_secs="${MORPHO_TEST_PARITY_PRECHECK_SLEEP_SECS:-0}"
 mkdir -p "${out}/model" "${out}/edsl"
+if [[ "${sleep_secs}" != "0" ]]; then
+  sleep "${sleep_secs}"
+fi
 if [[ "${missing_artifact}" != "yul" ]]; then
   printf '%s\n' "fake-yul-edsl" > "${out}/edsl/Morpho.yul"
 fi
@@ -109,6 +113,7 @@ test_fail_closed_when_timeout_missing_but_enabled() {
   (
     cd "${fake_root}"
     PATH="${restricted_path}" \
+    MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC=0 \
     MORPHO_BLUE_SUITE_TIMEOUT_SEC=1 \
       bash ./scripts/run_morpho_blue_parity.sh
   ) >"${output_file}" 2>&1
@@ -120,6 +125,30 @@ test_fail_closed_when_timeout_missing_but_enabled() {
     exit 1
   fi
   assert_contains "ERROR: timeout command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero" "${output_file}"
+}
+
+test_fail_closed_on_invalid_parity_preflight_timeout_value() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC=oops \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid parity-preflight timeout value to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC must be a non-negative integer (got: oops)" "${output_file}"
 }
 
 test_fail_closed_on_invalid_skip_toggle() {
@@ -367,6 +396,36 @@ test_skip_mode_prep_timeout_fails_closed() {
   assert_contains "ERROR: Prepare edsl artifact timed out after 1s" "${output_file}"
 }
 
+test_parity_preflight_timeout_fails_closed() {
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "Skipping parity-preflight timeout regression: 'timeout' command is unavailable."
+    return
+  fi
+
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_TEST_PARITY_PRECHECK_SLEEP_SECS=2 \
+    MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC=1 \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=0 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected parity-preflight timeout to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: Input-mode parity preflight timed out after 1s" "${output_file}"
+}
+
 test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode() {
   local fake_root output_file
   fake_root="$(mktemp -d)"
@@ -450,12 +509,14 @@ test_fail_closed_on_invalid_skip_toggle
 test_fail_closed_on_invalid_local_skip_override_toggle
 test_fail_closed_on_invalid_exit_after_artifact_prep_toggle
 test_fail_closed_on_invalid_suite_timeout_value
+test_fail_closed_on_invalid_parity_preflight_timeout_value
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
 test_fail_closed_when_timeout_missing_but_enabled
 test_suite_timeout_fails_closed
 test_skip_mode_prep_timeout_fails_closed
+test_parity_preflight_timeout_fails_closed
 test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode
 test_fail_closed_when_parity_preflight_missing_required_artifact
 test_fail_closed_when_skip_prep_missing_required_artifact

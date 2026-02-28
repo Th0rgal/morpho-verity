@@ -47,7 +47,9 @@ if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
 else
   # Fast fail-closed guard before the long differential suite.
   MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \
-    "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
+    "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC 1800 \
+      "Input-mode parity preflight" -- \
+      "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
 fi
 
 # Reuse the verified EDSL artifact already produced by parity checking.
