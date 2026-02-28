@@ -132,7 +132,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        run: ./scripts/install_foundry.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
@@ -183,7 +183,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        run: ./scripts/install_foundry.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
       - name: Run Morpho Blue tests
         working-directory: morpho-blue
@@ -234,7 +234,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        run: ./scripts/install_foundry.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
@@ -304,7 +304,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Install Foundry
-        run: ./scripts/install_foundry.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
       - name: Restore solc-select cache
         uses: actions/cache@v4
