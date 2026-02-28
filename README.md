@@ -178,6 +178,8 @@ Enforce transition-boundary parity (`model` vs `edsl`) for generated Morpho arti
 ./scripts/check_input_mode_parity.sh
 ```
 
+The parity gate is fail-closed: `Morpho.yul` and `Morpho.bin` must match byte-for-byte, and `Morpho.abi.json` must match semantically (canonical JSON).
+
 Compile using a specific Verity parity pack:
 
 ```bash

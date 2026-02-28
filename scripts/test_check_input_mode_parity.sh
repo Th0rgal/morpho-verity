@@ -29,7 +29,11 @@ mode="${MORPHO_VERITY_INPUT_MODE:-unknown}"
 if [[ "${mode}" == "model" ]]; then
   printf '%s\n' "shared-yul" > "${out}/Morpho.yul"
   printf '%s\n' "shared-bin" > "${out}/Morpho.bin"
-  printf '%s\n' "[]" > "${out}/Morpho.abi.json"
+  if [[ "${FAKE_ABI_FORMAT_DRIFT:-0}" == "1" ]]; then
+    printf '%s\n' '[{"type":"function","name":"same"}]' > "${out}/Morpho.abi.json"
+  else
+    printf '%s\n' "[]" > "${out}/Morpho.abi.json"
+  fi
   exit 0
 fi
 
@@ -46,6 +50,8 @@ fi
 if [[ "${FAKE_MISSING_ABI:-0}" != "1" ]]; then
   if [[ "${FAKE_MISMATCH_ABI:-0}" == "1" ]]; then
     printf '%s\n' "[{\"type\":\"function\",\"name\":\"different\"}]" > "${out}/Morpho.abi.json"
+  elif [[ "${FAKE_ABI_FORMAT_DRIFT:-0}" == "1" ]]; then
+    printf '%s\n' '[ { "name":"same" , "type":"function" } ]' > "${out}/Morpho.abi.json"
   else
   printf '%s\n' "[]" > "${out}/Morpho.abi.json"
   fi
@@ -175,7 +181,26 @@ test_fail_closed_on_missing_artifact() {
   assert_contains "ERROR: missing or empty artifact" "${output_file}"
 }
 
+test_success_on_abi_formatting_drift() {
+  local fake_root out_dir
+  fake_root="$(mktemp -d)"
+  out_dir="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${out_dir}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  (
+    cd "${fake_root}"
+    FAKE_ABI_FORMAT_DRIFT=1 \
+    MORPHO_VERITY_PARITY_OUT_DIR="${out_dir}" \
+      ./scripts/check_input_mode_parity.sh
+  )
+
+  [[ -s "${out_dir}/model/Morpho.abi.json" ]]
+  [[ -s "${out_dir}/edsl/Morpho.abi.json" ]]
+}
+
 test_success_when_model_and_edsl_artifacts_match
+test_success_on_abi_formatting_drift
 test_fail_closed_on_yul_mismatch
 test_fail_closed_on_bytecode_mismatch
 test_fail_closed_on_abi_mismatch

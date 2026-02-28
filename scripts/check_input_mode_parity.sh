@@ -4,6 +4,22 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PARITY_OUT_DIR="${MORPHO_VERITY_PARITY_OUT_DIR:-}"
 TMP_DIR=""
+ABI_MODEL_CANONICAL=""
+ABI_EDSL_CANONICAL=""
+
+cleanup() {
+  if [[ -n "${TMP_DIR}" ]]; then
+    rm -rf "${TMP_DIR}"
+  fi
+  if [[ -n "${ABI_MODEL_CANONICAL}" ]]; then
+    rm -f "${ABI_MODEL_CANONICAL}"
+  fi
+  if [[ -n "${ABI_EDSL_CANONICAL}" ]]; then
+    rm -f "${ABI_EDSL_CANONICAL}"
+  fi
+}
+
+trap cleanup EXIT
 
 if [[ -n "${PARITY_OUT_DIR}" ]]; then
   mkdir -p "${PARITY_OUT_DIR}"
@@ -13,7 +29,6 @@ if [[ -n "${PARITY_OUT_DIR}" ]]; then
   mkdir -p "${MODEL_OUT}" "${EDSL_OUT}"
 else
   TMP_DIR="$(mktemp -d)"
-  trap 'rm -rf "${TMP_DIR}"' EXIT
   MODEL_OUT="${TMP_DIR}/model"
   EDSL_OUT="${TMP_DIR}/edsl"
 fi
@@ -54,9 +69,32 @@ if ! cmp -s "${MODEL_BIN}" "${EDSL_BIN}"; then
   exit 1
 fi
 
-if ! cmp -s "${MODEL_ABI}" "${EDSL_ABI}"; then
-  echo "ERROR: model vs edsl ABI artifacts differ"
+ABI_MODEL_CANONICAL="$(mktemp)"
+ABI_EDSL_CANONICAL="$(mktemp)"
+python3 - "${MODEL_ABI}" "${ABI_MODEL_CANONICAL}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as src, open(
+    sys.argv[2], "w", encoding="utf-8"
+) as dst:
+    json.dump(json.load(src), dst, sort_keys=True, separators=(",", ":"))
+    dst.write("\n")
+PY
+python3 - "${EDSL_ABI}" "${ABI_EDSL_CANONICAL}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as src, open(
+    sys.argv[2], "w", encoding="utf-8"
+) as dst:
+    json.dump(json.load(src), dst, sort_keys=True, separators=(",", ":"))
+    dst.write("\n")
+PY
+
+if ! cmp -s "${ABI_MODEL_CANONICAL}" "${ABI_EDSL_CANONICAL}"; then
+  echo "ERROR: model vs edsl ABI artifacts differ semantically"
   exit 1
 fi
 
-echo "Input-mode parity passed: model and edsl Yul/bytecode/ABI artifacts are identical."
+echo "Input-mode parity passed: model and edsl Yul/bytecode match byte-for-byte and ABI matches semantically."
