@@ -34,6 +34,7 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 out="${MORPHO_VERITY_PARITY_OUT_DIR:?MORPHO_VERITY_PARITY_OUT_DIR is required}"
+sentinel="${MORPHO_TEST_PARITY_SENTINEL:-}"
 mkdir -p "${out}/model" "${out}/edsl"
 printf '%s\n' "fake-yul-edsl" > "${out}/edsl/Morpho.yul"
 printf '%s\n' "fake-bin-edsl" > "${out}/edsl/Morpho.bin"
@@ -41,7 +42,9 @@ printf '%s\n' "[]" > "${out}/edsl/Morpho.abi.json"
 printf '%s\n' "fake-yul-model" > "${out}/model/Morpho.yul"
 printf '%s\n' "fake-bin-model" > "${out}/model/Morpho.bin"
 printf '%s\n' "[]" > "${out}/model/Morpho.abi.json"
-printf '%s\n' "called" > "${out}/parity_invoked.txt"
+if [[ -n "${sentinel}" ]]; then
+  printf '%s\n' "called" > "${sentinel}"
+fi
 EOF
   chmod +x "${fake_root}/scripts/check_input_mode_parity.sh"
 }
@@ -71,13 +74,15 @@ test_skip_refused_outside_ci() {
 }
 
 test_skip_allowed_with_explicit_override() {
-  local fake_root
+  local fake_root sentinel
   fake_root="$(mktemp -d)"
-  trap 'rm -rf "${fake_root}"' RETURN
+  sentinel="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${sentinel}"' RETURN
   make_fake_repo "${fake_root}"
 
   (
     cd "${fake_root}"
+    MORPHO_TEST_PARITY_SENTINEL="${sentinel}" \
     MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1 \
     MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1 \
     MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
@@ -87,16 +92,21 @@ test_skip_allowed_with_explicit_override() {
   [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
   [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
   [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ ! -s "${sentinel}" ]]
 }
 
-test_default_mode_runs_parity_preflight() {
-  local fake_root
+test_skip_allowed_in_ci_without_override() {
+  local fake_root sentinel
   fake_root="$(mktemp -d)"
-  trap 'rm -rf "${fake_root}"' RETURN
+  sentinel="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${sentinel}"' RETURN
   make_fake_repo "${fake_root}"
 
   (
     cd "${fake_root}"
+    MORPHO_TEST_PARITY_SENTINEL="${sentinel}" \
+    CI=true \
+    MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1 \
     MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
       ./scripts/run_morpho_blue_parity.sh
   )
@@ -104,10 +114,32 @@ test_default_mode_runs_parity_preflight() {
   [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
   [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
   [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ ! -s "${sentinel}" ]]
+}
+
+test_default_mode_runs_parity_preflight() {
+  local fake_root sentinel
+  fake_root="$(mktemp -d)"
+  sentinel="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${sentinel}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  (
+    cd "${fake_root}"
+    MORPHO_TEST_PARITY_SENTINEL="${sentinel}" \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  )
+
+  [[ -s "${fake_root}/compiler/yul/Morpho.yul" ]]
+  [[ -s "${fake_root}/compiler/yul/Morpho.bin" ]]
+  [[ -s "${fake_root}/compiler/yul/Morpho.abi.json" ]]
+  [[ -s "${sentinel}" ]]
 }
 
 test_skip_refused_outside_ci
 test_skip_allowed_with_explicit_override
+test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
 
 echo "run_morpho_blue_parity.sh tests passed"
