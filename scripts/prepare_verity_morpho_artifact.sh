@@ -29,12 +29,23 @@ validate_toggle() {
 
 SKIP_BUILD="${MORPHO_VERITY_SKIP_BUILD:-0}"
 SKIP_SOLC="${MORPHO_VERITY_SKIP_SOLC:-0}"
+ARTIFACT_MODE="${MORPHO_VERITY_ARTIFACT_MODE:-}"
+LEGACY_INPUT_MODE="${MORPHO_VERITY_INPUT_MODE:-}"
 
 validate_toggle "MORPHO_VERITY_SKIP_BUILD" "${SKIP_BUILD}"
 validate_toggle "MORPHO_VERITY_SKIP_SOLC" "${SKIP_SOLC}"
 
-if [[ -n "${MORPHO_VERITY_INPUT_MODE:-}" && "${MORPHO_VERITY_INPUT_MODE}" != "edsl" ]]; then
-  echo "ERROR: MORPHO_VERITY_INPUT_MODE only supports 'edsl' (got: ${MORPHO_VERITY_INPUT_MODE})"
+if [[ -n "${ARTIFACT_MODE}" && -n "${LEGACY_INPUT_MODE}" && "${ARTIFACT_MODE}" != "${LEGACY_INPUT_MODE}" ]]; then
+  echo "ERROR: MORPHO_VERITY_ARTIFACT_MODE and MORPHO_VERITY_INPUT_MODE disagree (${ARTIFACT_MODE} vs ${LEGACY_INPUT_MODE})"
+  exit 2
+fi
+
+if [[ -z "${ARTIFACT_MODE}" ]]; then
+  ARTIFACT_MODE="${LEGACY_INPUT_MODE:-edsl}"
+fi
+
+if [[ "${ARTIFACT_MODE}" != "edsl" ]]; then
+  echo "ERROR: MORPHO_VERITY_ARTIFACT_MODE only supports 'edsl' (got: ${ARTIFACT_MODE})"
   exit 2
 fi
 
@@ -78,7 +89,7 @@ if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"
 fi
-echo "Using input mode: edsl"
+echo "Using artifact mode: ${ARTIFACT_MODE}"
 (cd "${ROOT_DIR}" && lake exe morpho-verity-compiler "${compiler_args[@]}")
 
 if [[ ! -s "${MORPHO_YUL}" ]]; then

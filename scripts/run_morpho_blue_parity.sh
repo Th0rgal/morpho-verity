@@ -50,7 +50,7 @@ elif [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   fi
   echo "Skipping artifact preflight gate (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
   MORPHO_VERITY_OUT_DIR="${PARITY_OUT_DIR}/edsl" \
-  MORPHO_VERITY_INPUT_MODE="edsl" \
+  MORPHO_VERITY_ARTIFACT_MODE="edsl" \
     "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PREP_TIMEOUT_SEC 900 \
       "Prepare edsl artifact" -- \
       "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"

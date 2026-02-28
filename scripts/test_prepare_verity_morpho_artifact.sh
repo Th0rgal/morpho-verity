@@ -149,7 +149,7 @@ test_fail_closed_on_invalid_skip_solc_toggle() {
   assert_contains "ERROR: MORPHO_VERITY_SKIP_SOLC must be '0' or '1' (got: nope)" "${output_file}"
 }
 
-test_fail_closed_on_invalid_input_mode() {
+test_fail_closed_on_invalid_artifact_mode() {
   local fake_root fake_bin output_file rc
   fake_root="$(mktemp -d)"
   fake_bin="${fake_root}/bin"
@@ -162,8 +162,8 @@ test_fail_closed_on_invalid_input_mode() {
   install_fake_python3 "${fake_bin}"
 
   rc=0
-  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_INPUT_MODE=invalid "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
-    echo "ASSERTION FAILED: expected invalid MORPHO_VERITY_INPUT_MODE to fail"
+  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_ARTIFACT_MODE=invalid "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected invalid MORPHO_VERITY_ARTIFACT_MODE to fail"
     exit 1
   else
     rc=$?
@@ -173,7 +173,7 @@ test_fail_closed_on_invalid_input_mode() {
     echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
     exit 1
   fi
-  assert_contains "ERROR: MORPHO_VERITY_INPUT_MODE only supports 'edsl' (got: invalid)" "${output_file}"
+  assert_contains "ERROR: MORPHO_VERITY_ARTIFACT_MODE only supports 'edsl' (got: invalid)" "${output_file}"
 }
 
 test_fail_closed_when_hash_library_missing() {
@@ -403,7 +403,33 @@ test_success_when_solc_is_skipped() {
   assert_contains "Skipped bytecode generation (MORPHO_VERITY_SKIP_SOLC=1)" "${output_file}"
 }
 
-test_fail_closed_on_non_edsl_input_mode() {
+test_legacy_input_mode_alias_remains_compatible() {
+  local fake_root fake_bin output_file out_dir
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  out_dir="${fake_root}/out"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_INPUT_MODE=edsl \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  [[ -s "${out_dir}/Morpho.yul" ]]
+  [[ -s "${out_dir}/Morpho.abi.json" ]]
+  assert_contains "Using artifact mode: edsl" "${output_file}"
+}
+
+test_fail_closed_on_non_edsl_artifact_mode() {
   local fake_root fake_bin output_file out_dir
   fake_root="$(mktemp -d)"
   fake_bin="${fake_root}/bin"
@@ -420,18 +446,18 @@ test_fail_closed_on_non_edsl_input_mode() {
   if PATH="${fake_bin}:/usr/bin:/bin" \
     MORPHO_VERITY_SKIP_BUILD=1 \
     MORPHO_VERITY_SKIP_SOLC=1 \
-    MORPHO_VERITY_INPUT_MODE=model \
+    MORPHO_VERITY_ARTIFACT_MODE=model \
     MORPHO_VERITY_OUT_DIR="${out_dir}" \
       "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
-    echo "ASSERTION FAILED: expected non-edsl input mode to fail"
+    echo "ASSERTION FAILED: expected non-edsl artifact mode to fail"
     exit 1
   fi
-  assert_contains "ERROR: MORPHO_VERITY_INPUT_MODE only supports 'edsl' (got: model)" "${output_file}"
+  assert_contains "ERROR: MORPHO_VERITY_ARTIFACT_MODE only supports 'edsl' (got: model)" "${output_file}"
 }
 
 test_fail_closed_on_invalid_skip_build_toggle
 test_fail_closed_on_invalid_skip_solc_toggle
-test_fail_closed_on_invalid_input_mode
+test_fail_closed_on_invalid_artifact_mode
 test_fail_closed_when_hash_library_missing
 test_fail_closed_when_python3_missing_for_parity_target_read
 test_fail_closed_on_invalid_parity_target_json
@@ -440,6 +466,7 @@ test_fail_closed_when_lake_missing
 test_fail_closed_when_solc_missing_and_not_skipped
 test_fail_closed_when_awk_missing_and_not_skipped
 test_success_when_solc_is_skipped
-test_fail_closed_on_non_edsl_input_mode
+test_legacy_input_mode_alias_remains_compatible
+test_fail_closed_on_non_edsl_artifact_mode
 
 echo "prepare_verity_morpho_artifact.sh tests passed"
