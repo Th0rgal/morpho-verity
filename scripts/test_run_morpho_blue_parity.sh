@@ -90,6 +90,12 @@ EOF
   cat > "${fake_root}/bin/forge" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "${MORPHO_TEST_FAKE_FORGE_IGNORE_TERM:-0}" == "1" ]]; then
+  trap "" TERM
+  while true; do
+    sleep 5
+  done
+fi
 sleep_sec="${MORPHO_TEST_FAKE_FORGE_SLEEP_SEC:-0}"
 if [[ "${sleep_sec}" != "0" ]]; then
   sleep "${sleep_sec}"
@@ -364,6 +370,38 @@ test_suite_timeout_fails_closed() {
   assert_contains "Differential suite FAILED: timeout" "${output_file}"
 }
 
+test_suite_timeout_force_kill_fails_closed() {
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "Skipping force-kill timeout regression: 'timeout' command is unavailable."
+    return
+  fi
+
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    PATH="${fake_root}/bin:${PATH}" \
+    MORPHO_TEST_FAKE_FORGE_IGNORE_TERM=1 \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected force-kill timeout run to fail"
+    exit 1
+  fi
+
+  assert_contains "timed out after 1s" "${output_file}"
+  assert_contains "Differential suite FAILED: timeout" "${output_file}"
+}
+
 test_skip_mode_prep_timeout_fails_closed() {
   if ! command -v timeout >/dev/null 2>&1; then
     echo "Skipping prep-timeout regression: 'timeout' command is unavailable."
@@ -515,6 +553,7 @@ test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
 test_fail_closed_when_timeout_missing_but_enabled
 test_suite_timeout_fails_closed
+test_suite_timeout_force_kill_fails_closed
 test_skip_mode_prep_timeout_fails_closed
 test_parity_preflight_timeout_fails_closed
 test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode

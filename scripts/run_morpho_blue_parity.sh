@@ -103,7 +103,7 @@ run_suite() {
 
   echo "    ${impl} exit code: ${status}"
   echo "    Log: ${log_file}"
-  if [[ "${status}" -eq 124 ]]; then
+  if [[ "${status}" -eq 124 || "${status}" -eq 137 ]]; then
     echo "    ${impl} timed out after ${SUITE_TIMEOUT_SEC}s"
   fi
   return "${status}"
@@ -141,7 +141,7 @@ run_suite solidity || solidity_status=$?
 run_suite verity || verity_status=$?
 
 if [[ "${solidity_status}" -ne 0 || "${verity_status}" -ne 0 ]]; then
-  if [[ "${solidity_status}" -eq 124 || "${verity_status}" -eq 124 ]]; then
+  if [[ "${solidity_status}" -eq 124 || "${solidity_status}" -eq 137 || "${verity_status}" -eq 124 || "${verity_status}" -eq 137 ]]; then
     echo "==> Differential suite FAILED: timeout (MORPHO_BLUE_SUITE_TIMEOUT_SEC=${SUITE_TIMEOUT_SEC})"
   fi
   echo "==> Differential suite FAILED"
