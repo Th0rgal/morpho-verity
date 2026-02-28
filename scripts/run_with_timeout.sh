@@ -43,6 +43,11 @@ if [[ "${timeout_sec}" -eq 0 ]]; then
   exit $?
 fi
 
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "ERROR: timeout command is required when ${timeout_env_var} is greater than zero" >&2
+  exit 2
+fi
+
 if timeout "${timeout_sec}" "$@"; then
   exit 0
 else

@@ -49,6 +49,19 @@ test_timeout_failure_reports_diagnostic() {
   assert_contains "ERROR: sleeping command timed out after 1s" "${output_file}"
 }
 
+test_non_timeout_failure_preserves_exit_code() {
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="5" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 1 "failing command" -- bash -lc 'exit 19'
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 19 ]]; then
+    echo "ASSERTION FAILED: expected non-timeout exit code 19, got ${status}"
+    exit 1
+  fi
+}
+
 test_zero_timeout_disables_timeout_and_preserves_exit_code() {
   set +e
   MORPHO_TEST_TIMEOUT_SEC="0" \
@@ -62,13 +75,39 @@ test_zero_timeout_disables_timeout_and_preserves_exit_code() {
   fi
 }
 
+test_timeout_command_missing_fails_closed() {
+  local fake_root fake_bin output_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s "$(command -v bash)" "${fake_bin}/bash"
+
+  set +e
+  PATH="${fake_bin}" \
+    MORPHO_TEST_TIMEOUT_SEC="1" \
+    bash "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "missing-timeout command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2 when timeout command is missing, got ${status}"
+    exit 1
+  fi
+  assert_contains "ERROR: timeout command is required when MORPHO_TEST_TIMEOUT_SEC is greater than zero" "${output_file}"
+}
+
 test_success_passthrough() {
   "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "success command" -- bash -lc 'exit 0'
 }
 
 test_invalid_timeout_value_fails_closed
 test_timeout_failure_reports_diagnostic
+test_non_timeout_failure_preserves_exit_code
 test_zero_timeout_disables_timeout_and_preserves_exit_code
+test_timeout_command_missing_fails_closed
 test_success_passthrough
 
 echo "run_with_timeout.sh tests passed"
