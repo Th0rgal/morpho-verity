@@ -1,15 +1,8 @@
 {
   "expectedUnsupported": {
     "expr": [
-      "blockTimestamp",
-      "chainid",
       "constructorArg",
-      "contractAddress",
       "externalCall",
-      "keccak256",
-      "logicalAnd",
-      "logicalOr",
-      "mload",
       "structMember",
       "structMember2"
     ],
