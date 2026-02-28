@@ -289,7 +289,7 @@ jobs:
             ${{ runner.os }}-lean-lake-
 
       - name: Install Lean toolchain
-        run: ./scripts/install_lean.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
