@@ -221,6 +221,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Restore Lean/Lake cache
         uses: actions/cache@v4
