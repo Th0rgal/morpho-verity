@@ -40,10 +40,10 @@ if [[ "${sleep_secs}" != "0" ]]; then
   sleep "${sleep_secs}"
 fi
 if [[ "${missing_artifact}" != "yul" ]]; then
-  printf '%s\n' "fake-yul-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.yul"
+  printf '%s\n' "fake-yul-${MORPHO_VERITY_ARTIFACT_MODE:-unknown}" > "${out}/Morpho.yul"
 fi
 if [[ "${missing_artifact}" != "bin" ]]; then
-  printf '%s\n' "fake-bin-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.bin"
+  printf '%s\n' "fake-bin-${MORPHO_VERITY_ARTIFACT_MODE:-unknown}" > "${out}/Morpho.bin"
 fi
 if [[ "${missing_artifact}" != "abi" ]]; then
   printf '%s\n' "[]" > "${out}/Morpho.abi.json"

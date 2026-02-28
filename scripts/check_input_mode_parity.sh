@@ -26,7 +26,7 @@ fi
 
 echo "Preparing Morpho compiler artifact (edsl-only)..."
 MORPHO_VERITY_OUT_DIR="${TARGET_OUT}" \
-  MORPHO_VERITY_INPUT_MODE="edsl" \
+  MORPHO_VERITY_ARTIFACT_MODE="edsl" \
   "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PREP_TIMEOUT_SEC 900 \
     "Prepare edsl artifact" -- \
     "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
