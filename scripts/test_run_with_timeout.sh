@@ -112,6 +112,24 @@ test_invalid_timeout_value_fails_closed() {
   assert_contains "ERROR: MORPHO_TEST_TIMEOUT_SEC must be a non-negative integer (got: abc)" "${output_file}"
 }
 
+test_invalid_kill_after_value_fails_closed() {
+  local output_file
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  MORPHO_TIMEOUT_KILL_AFTER_SEC="bad" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 10 "test command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2 for invalid kill-after timeout, got ${status}"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_TIMEOUT_KILL_AFTER_SEC must be a non-negative integer (got: bad)" "${output_file}"
+}
+
 test_timeout_failure_reports_diagnostic() {
   local output_file
   output_file="$(mktemp)"
@@ -137,6 +155,7 @@ test_timeout_kills_term_ignoring_processes() {
 
   set +e
   MORPHO_TEST_TIMEOUT_SEC="1" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
     "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "term-ignoring command" -- \
       bash -lc 'trap "" TERM; while true; do sleep 5; done' >"${output_file}" 2>&1
   status=$?
@@ -209,6 +228,7 @@ test_invalid_default_timeout_fails_closed
 test_missing_separator_fails_closed
 test_default_timeout_is_used_when_env_unset
 test_invalid_timeout_value_fails_closed
+test_invalid_kill_after_value_fails_closed
 test_timeout_failure_reports_diagnostic
 test_timeout_kills_term_ignoring_processes
 test_non_timeout_failure_preserves_exit_code

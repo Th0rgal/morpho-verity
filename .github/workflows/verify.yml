@@ -53,6 +53,7 @@ jobs:
     env:
       MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC: "300"
       MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC: "900"
+      MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC: "180"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -100,7 +101,9 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "solc installer unit tests" -- ./scripts/test_install_solc.sh
 
       - name: Run timeout wrapper unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Timeout wrapper unit tests" -- ./scripts/test_run_with_timeout.sh
+        env:
+          MORPHO_TIMEOUT_KILL_AFTER_SEC: "1"
+        run: ./scripts/run_with_timeout.sh MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC 180 "Timeout wrapper unit tests" -- ./scripts/test_run_with_timeout.sh
 
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)

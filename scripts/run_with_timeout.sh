@@ -38,6 +38,12 @@ if [[ ! "${timeout_sec}" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+kill_after_sec="${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}"
+if [[ ! "${kill_after_sec}" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: MORPHO_TIMEOUT_KILL_AFTER_SEC must be a non-negative integer (got: ${kill_after_sec})" >&2
+  exit 2
+fi
+
 if [[ "${timeout_sec}" -eq 0 ]]; then
   "$@"
   exit $?
@@ -48,7 +54,7 @@ if ! command -v timeout >/dev/null 2>&1; then
   exit 2
 fi
 
-if timeout --kill-after=30s "${timeout_sec}" "$@"; then
+if timeout --kill-after="${kill_after_sec}s" "${timeout_sec}" "$@"; then
   exit 0
 else
   status=$?
