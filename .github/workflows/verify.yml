@@ -83,6 +83,9 @@ jobs:
       - name: Validate macro migration selector surface
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration selector surface" -- python3 scripts/check_macro_migration_surface.py --json-out out/parity-target/macro-migration-surface.json
 
+      - name: Validate morpho selector block sync
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho selector block sync" -- python3 scripts/check_morpho_selectors_sync.py
+
       - name: Run parity-target parser regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
@@ -91,6 +94,9 @@ jobs:
 
       - name: Run macro migration selector-surface unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Macro migration selector-surface unit tests" -- python3 scripts/test_check_macro_migration_surface.py
+
+      - name: Run morpho selector sync unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho selector sync unit tests" -- python3 scripts/test_check_morpho_selectors_sync.py
 
       - name: Run artifact-gate script unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh
