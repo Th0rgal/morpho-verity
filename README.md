@@ -131,6 +131,7 @@ dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
 overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
 The full differential suite can also be fail-closed with
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
+When this guard is enabled, `timeout` must be available in `PATH`.
 
 Validate pinned parity tuple (solc + Foundry profile):
 

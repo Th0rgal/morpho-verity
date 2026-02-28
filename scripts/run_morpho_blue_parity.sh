@@ -15,6 +15,11 @@ if [[ ! "${SUITE_TIMEOUT_SEC}" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+if [[ "${SUITE_TIMEOUT_SEC}" -gt 0 ]] && ! command -v timeout >/dev/null 2>&1; then
+  echo "ERROR: timeout command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero"
+  exit 1
+fi
+
 if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then
     echo "Refusing to skip parity preflight outside CI."
@@ -53,7 +58,7 @@ run_suite() {
     foundry_profile="difftest"
   fi
 
-  if [[ "${SUITE_TIMEOUT_SEC}" -gt 0 ]] && command -v timeout >/dev/null 2>&1; then
+  if [[ "${SUITE_TIMEOUT_SEC}" -gt 0 ]]; then
     timeout_cmd=(timeout "${SUITE_TIMEOUT_SEC}")
   fi
 

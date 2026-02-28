@@ -13,6 +13,14 @@ assert_contains() {
   fi
 }
 
+build_path_without_timeout() {
+  local out_dir="$1"
+  mkdir -p "${out_dir}"
+  for tool in bash dirname mkdir mktemp pwd rm; do
+    ln -sf "$(command -v "${tool}")" "${out_dir}/${tool}"
+  done
+}
+
 make_fake_repo() {
   local fake_root="$1"
   mkdir -p "${fake_root}/scripts" "${fake_root}/compiler/yul" "${fake_root}/morpho-blue"
@@ -66,6 +74,32 @@ echo "Ran 1 tests for test/Fake.t.sol:FakeTest"
 echo "Ran 1 tests (1 total tests)"
 EOF
   chmod +x "${fake_root}/bin/forge"
+}
+
+test_fail_closed_when_timeout_missing_but_enabled() {
+  local fake_root output_file restricted_path
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  restricted_path="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${restricted_path}"' RETURN
+  make_fake_repo "${fake_root}"
+  build_path_without_timeout "${restricted_path}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    PATH="${restricted_path}" \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=1 \
+      bash ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing timeout command to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: timeout command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero" "${output_file}"
 }
 
 test_skip_refused_outside_ci() {
@@ -192,6 +226,7 @@ test_skip_refused_outside_ci
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
+test_fail_closed_when_timeout_missing_but_enabled
 test_suite_timeout_fails_closed
 
 echo "run_morpho_blue_parity.sh tests passed"
