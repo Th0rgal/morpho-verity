@@ -29,18 +29,25 @@ make_fake_repo() {
   chmod +x "${fake_root}/scripts/run_morpho_blue_parity.sh"
   chmod +x "${fake_root}/scripts/run_with_timeout.sh"
 
-  cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
+cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 out="${MORPHO_VERITY_OUT_DIR:?MORPHO_VERITY_OUT_DIR is required}"
 mkdir -p "${out}"
 sleep_secs="${FAKE_PREP_SLEEP_SECS:-0}"
+missing_artifact="${MORPHO_TEST_MISSING_PREP_ARTIFACT:-}"
 if [[ "${sleep_secs}" != "0" ]]; then
   sleep "${sleep_secs}"
 fi
-printf '%s\n' "fake-yul-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.yul"
-printf '%s\n' "fake-bin-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.bin"
-printf '%s\n' "[]" > "${out}/Morpho.abi.json"
+if [[ "${missing_artifact}" != "yul" ]]; then
+  printf '%s\n' "fake-yul-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.yul"
+fi
+if [[ "${missing_artifact}" != "bin" ]]; then
+  printf '%s\n' "fake-bin-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.bin"
+fi
+if [[ "${missing_artifact}" != "abi" ]]; then
+  printf '%s\n' "[]" > "${out}/Morpho.abi.json"
+fi
 EOF
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
 
@@ -49,10 +56,17 @@ EOF
 set -euo pipefail
 out="${MORPHO_VERITY_PARITY_OUT_DIR:?MORPHO_VERITY_PARITY_OUT_DIR is required}"
 sentinel="${MORPHO_TEST_PARITY_SENTINEL:-}"
+missing_artifact="${MORPHO_TEST_MISSING_PARITY_ARTIFACT:-}"
 mkdir -p "${out}/model" "${out}/edsl"
-printf '%s\n' "fake-yul-edsl" > "${out}/edsl/Morpho.yul"
-printf '%s\n' "fake-bin-edsl" > "${out}/edsl/Morpho.bin"
-printf '%s\n' "[]" > "${out}/edsl/Morpho.abi.json"
+if [[ "${missing_artifact}" != "yul" ]]; then
+  printf '%s\n' "fake-yul-edsl" > "${out}/edsl/Morpho.yul"
+fi
+if [[ "${missing_artifact}" != "bin" ]]; then
+  printf '%s\n' "fake-bin-edsl" > "${out}/edsl/Morpho.bin"
+fi
+if [[ "${missing_artifact}" != "abi" ]]; then
+  printf '%s\n' "[]" > "${out}/edsl/Morpho.abi.json"
+fi
 printf '%s\n' "fake-yul-model" > "${out}/model/Morpho.yul"
 printf '%s\n' "fake-bin-model" > "${out}/model/Morpho.bin"
 printf '%s\n' "[]" > "${out}/model/Morpho.abi.json"
@@ -353,6 +367,84 @@ test_skip_mode_prep_timeout_fails_closed() {
   assert_contains "ERROR: Prepare edsl artifact timed out after 1s" "${output_file}"
 }
 
+test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    CI=true \
+    MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1 \
+    MORPHO_VERITY_PREP_TIMEOUT_SEC=oops \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=0 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected invalid prep timeout value to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: MORPHO_VERITY_PREP_TIMEOUT_SEC must be a non-negative integer (got: oops)" "${output_file}"
+}
+
+test_fail_closed_when_parity_preflight_missing_required_artifact() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_TEST_MISSING_PARITY_ARTIFACT=bin \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing parity-preflight artifact to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: expected non-empty parity artifact:" "${output_file}"
+  assert_contains "/edsl/Morpho.bin" "${output_file}"
+}
+
+test_fail_closed_when_skip_prep_missing_required_artifact() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    CI=true \
+    MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1 \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+    MORPHO_TEST_MISSING_PREP_ARTIFACT=abi \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected missing skip-prep artifact to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: expected non-empty parity artifact:" "${output_file}"
+  assert_contains "/edsl/Morpho.abi.json" "${output_file}"
+}
+
 test_skip_refused_outside_ci
 test_fail_closed_on_invalid_skip_toggle
 test_fail_closed_on_invalid_local_skip_override_toggle
@@ -364,5 +456,8 @@ test_default_mode_runs_parity_preflight
 test_fail_closed_when_timeout_missing_but_enabled
 test_suite_timeout_fails_closed
 test_skip_mode_prep_timeout_fails_closed
+test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode
+test_fail_closed_when_parity_preflight_missing_required_artifact
+test_fail_closed_when_skip_prep_missing_required_artifact
 
 echo "run_morpho_blue_parity.sh tests passed"

@@ -135,6 +135,8 @@ overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
 set to `0` or `1`.
 Even in skip mode, artifact preparation stays fail-closed behind the shared
 timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
+`run_morpho_blue_parity.sh` also fails closed if the parity/prep stage does not
+produce non-empty `Morpho.yul`, `Morpho.bin`, and `Morpho.abi.json` artifacts.
 The full differential suite can also be fail-closed with
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` must be a non-negative integer.

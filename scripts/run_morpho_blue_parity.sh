@@ -24,6 +24,14 @@ validate_toggle "MORPHO_VERITY_SKIP_PARITY_PREFLIGHT" "${SKIP_PARITY_PREFLIGHT}"
 validate_toggle "MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP" "${ALLOW_LOCAL_SKIP}"
 validate_toggle "MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP" "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}"
 
+require_nonempty_artifact() {
+  local artifact_path="$1"
+  if [[ ! -s "${artifact_path}" ]]; then
+    echo "ERROR: expected non-empty parity artifact: ${artifact_path}"
+    exit 2
+  fi
+}
+
 if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then
     echo "Refusing to skip parity preflight outside CI."
@@ -43,6 +51,9 @@ else
 fi
 
 # Reuse the verified EDSL artifact already produced by parity checking.
+require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.yul"
+require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.bin"
+require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.abi.json"
 mkdir -p "${ROOT_DIR}/compiler/yul"
 cp "${PARITY_OUT_DIR}/edsl/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
 cp "${PARITY_OUT_DIR}/edsl/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
