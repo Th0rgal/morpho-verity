@@ -130,6 +130,25 @@ test_timeout_failure_reports_diagnostic() {
   assert_contains "ERROR: sleeping command timed out after 1s" "${output_file}"
 }
 
+test_timeout_kills_term_ignoring_processes() {
+  local output_file
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "term-ignoring command" -- \
+      bash -lc 'trap "" TERM; while true; do sleep 5; done' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 137 ]]; then
+    echo "ASSERTION FAILED: expected kill-after timeout exit code 137, got ${status}"
+    exit 1
+  fi
+  assert_contains "ERROR: term-ignoring command timed out after 1s" "${output_file}"
+}
+
 test_non_timeout_failure_preserves_exit_code() {
   set +e
   MORPHO_TEST_TIMEOUT_SEC="5" \
@@ -191,6 +210,7 @@ test_missing_separator_fails_closed
 test_default_timeout_is_used_when_env_unset
 test_invalid_timeout_value_fails_closed
 test_timeout_failure_reports_diagnostic
+test_timeout_kills_term_ignoring_processes
 test_non_timeout_failure_preserves_exit_code
 test_zero_timeout_disables_timeout_and_preserves_exit_code
 test_timeout_command_missing_fails_closed

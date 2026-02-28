@@ -215,6 +215,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)
 - `0` disables timeout for each respective command
+The shared timeout wrapper enforces hard fail-closed termination (`timeout --kill-after=30s`) so TERM-ignoring subprocesses cannot hang CI indefinitely.
 
 Compile using a specific Verity parity pack:
 

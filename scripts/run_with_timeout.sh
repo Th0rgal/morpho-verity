@@ -48,13 +48,13 @@ if ! command -v timeout >/dev/null 2>&1; then
   exit 2
 fi
 
-if timeout "${timeout_sec}" "$@"; then
+if timeout --kill-after=30s "${timeout_sec}" "$@"; then
   exit 0
 else
   status=$?
 fi
 
-if [[ "${status}" -eq 124 ]]; then
+if [[ "${status}" -eq 124 || "${status}" -eq 137 ]]; then
   echo "ERROR: ${description} timed out after ${timeout_sec}s" >&2
 fi
 exit "${status}"
