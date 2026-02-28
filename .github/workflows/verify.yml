@@ -329,6 +329,7 @@ jobs:
         run: ./scripts/run_morpho_blue_parity.sh
         env:
           MORPHO_VERITY_SKIP_PARITY_PREFLIGHT: "1"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "1200"
           MORPHO_BLUE_SUITE_TIMEOUT_SEC: "3300"
           FOUNDRY_FUZZ_RUNS: ${{ github.event_name == 'pull_request' && '1000' || '10000' }}
           FOUNDRY_FUZZ_MAX_TEST_REJECTS: 500000

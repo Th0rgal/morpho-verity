@@ -30,7 +30,9 @@ if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   echo "Skipping input-mode parity preflight (MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1)."
   MORPHO_VERITY_OUT_DIR="${PARITY_OUT_DIR}/edsl" \
   MORPHO_VERITY_INPUT_MODE="edsl" \
-    "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
+    "${RUN_WITH_TIMEOUT}" MORPHO_VERITY_PREP_TIMEOUT_SEC 900 \
+      "Prepare edsl artifact" -- \
+      "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh"
 else
   # Fast fail-closed guard before the long differential suite.
   MORPHO_VERITY_PARITY_OUT_DIR="${PARITY_OUT_DIR}" \

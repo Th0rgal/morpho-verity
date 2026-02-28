@@ -34,6 +34,10 @@ make_fake_repo() {
 set -euo pipefail
 out="${MORPHO_VERITY_OUT_DIR:?MORPHO_VERITY_OUT_DIR is required}"
 mkdir -p "${out}"
+sleep_secs="${FAKE_PREP_SLEEP_SECS:-0}"
+if [[ "${sleep_secs}" != "0" ]]; then
+  sleep "${sleep_secs}"
+fi
 printf '%s\n' "fake-yul-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.yul"
 printf '%s\n' "fake-bin-${MORPHO_VERITY_INPUT_MODE:-unknown}" > "${out}/Morpho.bin"
 printf '%s\n' "[]" > "${out}/Morpho.abi.json"
@@ -224,11 +228,44 @@ test_suite_timeout_fails_closed() {
   assert_contains "Differential suite FAILED: timeout" "${output_file}"
 }
 
+test_skip_mode_prep_timeout_fails_closed() {
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "Skipping prep-timeout regression: 'timeout' command is unavailable."
+    return
+  fi
+
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  set +e
+  (
+    cd "${fake_root}"
+    CI=true \
+    MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1 \
+    MORPHO_VERITY_PREP_TIMEOUT_SEC=1 \
+    MORPHO_BLUE_SUITE_TIMEOUT_SEC=0 \
+    FAKE_PREP_SLEEP_SECS=2 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected skip-mode prep timeout to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: Prepare edsl artifact timed out after 1s" "${output_file}"
+}
+
 test_skip_refused_outside_ci
 test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
 test_fail_closed_when_timeout_missing_but_enabled
 test_suite_timeout_fails_closed
+test_skip_mode_prep_timeout_fails_closed
 
 echo "run_morpho_blue_parity.sh tests passed"

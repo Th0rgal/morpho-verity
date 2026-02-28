@@ -129,6 +129,8 @@ CI can skip the internal parity preflight in this script by setting
 `MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1` because parity is already enforced in
 dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
 overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
+Even in skip mode, artifact preparation stays fail-closed behind the shared
+timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
 The full differential suite can also be fail-closed with
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
 When this guard is enabled, `timeout` must be available in `PATH`.
@@ -194,6 +196,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
+- `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`)
 - `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `1500`)
 - `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)
