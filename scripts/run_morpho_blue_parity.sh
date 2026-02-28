@@ -7,6 +7,7 @@ LOG_DIR="${ROOT_DIR}/out/parity"
 PARITY_OUT_DIR="$(mktemp -d)"
 SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
 ALLOW_LOCAL_SKIP="${MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP:-0}"
+PREPARED_ARTIFACT_DIR="${MORPHO_VERITY_PREPARED_ARTIFACT_DIR:-}"
 SUITE_TIMEOUT_SEC="${MORPHO_BLUE_SUITE_TIMEOUT_SEC:-0}"
 trap 'rm -rf "${PARITY_OUT_DIR}"' EXIT
 mkdir -p "${LOG_DIR}"
@@ -32,7 +33,16 @@ require_nonempty_artifact() {
   fi
 }
 
-if [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
+artifact_source_dir="${PARITY_OUT_DIR}/edsl"
+if [[ -n "${PREPARED_ARTIFACT_DIR}" ]]; then
+  # Allow either direct artifact directory or parent directory containing `edsl/`.
+  if [[ -s "${PREPARED_ARTIFACT_DIR}/edsl/Morpho.yul" ]]; then
+    artifact_source_dir="${PREPARED_ARTIFACT_DIR}/edsl"
+  else
+    artifact_source_dir="${PREPARED_ARTIFACT_DIR}"
+  fi
+  echo "Reusing prepared EDSL artifacts from ${artifact_source_dir}."
+elif [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then
     echo "Refusing to skip parity preflight outside CI."
     echo "Set MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1 only for explicit local debugging."
@@ -53,13 +63,13 @@ else
 fi
 
 # Reuse the verified EDSL artifact already produced by parity checking.
-require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.yul"
-require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.bin"
-require_nonempty_artifact "${PARITY_OUT_DIR}/edsl/Morpho.abi.json"
+require_nonempty_artifact "${artifact_source_dir}/Morpho.yul"
+require_nonempty_artifact "${artifact_source_dir}/Morpho.bin"
+require_nonempty_artifact "${artifact_source_dir}/Morpho.abi.json"
 mkdir -p "${ROOT_DIR}/compiler/yul"
-cp "${PARITY_OUT_DIR}/edsl/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
-cp "${PARITY_OUT_DIR}/edsl/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
-cp "${PARITY_OUT_DIR}/edsl/Morpho.abi.json" "${ROOT_DIR}/compiler/yul/Morpho.abi.json"
+cp "${artifact_source_dir}/Morpho.yul" "${ROOT_DIR}/compiler/yul/Morpho.yul"
+cp "${artifact_source_dir}/Morpho.bin" "${ROOT_DIR}/compiler/yul/Morpho.bin"
+cp "${artifact_source_dir}/Morpho.abi.json" "${ROOT_DIR}/compiler/yul/Morpho.abi.json"
 
 if [[ "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}" == "1" ]]; then
   echo "Exiting after artifact preparation (MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1)."

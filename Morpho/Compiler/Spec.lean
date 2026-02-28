@@ -1299,7 +1299,7 @@ def morphoSelectors : List Nat := [
   0x20b76e81, -- repay((address,address,address,address,uint256),uint256,uint256,address,bytes)
   0xd8eabcb8, -- liquidate((address,address,address,address,uint256),address,uint256,uint256,bytes)
   0xe0232b42, -- flashLoan(address,uint256,bytes)
-  0x8069218f  -- setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))
+  0x8069218f -- setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))
 ]
 
 end Morpho.Compiler.Spec

@@ -13,6 +13,7 @@ Partially implemented:
 4. Yul identity gap report script + CI artifacts: `scripts/report_yul_identity_gap.py` and `yul-identity-report` job.
 5. Structural Yul AST comparator (deterministic tokenizer + delimiter-validated parser) with function-level mismatch localization.
 6. Enforced unsupported-manifest drift gate (`config/yul-identity-unsupported.json`).
+7. Enforced macro-migration blocker drift gate (`scripts/check_macro_migration_blockers.py` + `config/macro-migration-blockers.json`).
 
 Not implemented yet:
 1. Full semantic AST path localization (current comparator is structural token AST).
@@ -49,4 +50,5 @@ This file is the single source of truth for that context.
 4. CI publishes `out/parity-target/` identity artifacts (`report.json`, `normalized.diff`) for each run.
 5. `report.json` includes structural AST equality status, top-level token mismatch location (token index + line/column), function-level mismatch keys, name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and unsupported-manifest drift diagnostics.
 6. Unsupported manifest checks also validate `parityTarget` equality with the active tuple.
-7. Future strict identity checks must reference this tuple explicitly.
+7. Macro migration blocker check fails on unreviewed constructor-surface drift between `Morpho/Compiler/Spec.lean` and current Verity macro support.
+8. Future strict identity checks must reference this tuple explicitly.
