@@ -14,6 +14,7 @@ verity_contract MorphoViewSlice where
     ownerSlot : Address := slot 0
     feeRecipientSlot : Address := slot 1
     isIrmEnabledSlot : Address -> Uint256 := slot 4
+    isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
     nonceSlot : Address -> Uint256 := slot 7
 
@@ -31,6 +32,10 @@ verity_contract MorphoViewSlice where
 
   function isAuthorized (authorizer : Address, authorized : Address) : Uint256 := do
     let enabled <- getMapping2 isAuthorizedSlot authorizer authorized
+    return enabled
+
+  function isLltvEnabled (lltv : Uint256) : Uint256 := do
+    let enabled <- getMappingUint isLltvEnabledSlot lltv
     return enabled
 
   function nonce (authorizer : Address) : Uint256 := do
@@ -59,6 +64,15 @@ verity_contract MorphoViewSlice where
     let currentValue <- getMapping isIrmEnabledSlot irm
     require (currentValue == 0) "already set"
     setMapping isIrmEnabledSlot irm 1
+
+  function enableLltv (lltv : Uint256) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let currentValue <- getMappingUint isLltvEnabledSlot lltv
+    require (currentValue == 0) "already set"
+    require (lltv < 1000000000000000000) "max LLTV exceeded"
+    setMappingUint isLltvEnabledSlot lltv 1
 
   function setAuthorization (authorized : Address, newIsAuthorized : Bool) : Unit := do
     let sender <- msgSender
