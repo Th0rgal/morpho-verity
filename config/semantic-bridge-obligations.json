@@ -5,129 +5,147 @@
       "hypothesis": "supplySemEq",
       "operation": "supply",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for supply"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-WITHDRAW-SEM-EQ",
       "hypothesis": "withdrawSemEq",
       "operation": "withdraw",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for withdraw"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, authorization, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-BORROW-SEM-EQ",
       "hypothesis": "borrowSemEq",
       "operation": "borrow",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for borrow"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, oracle calls, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-REPAY-SEM-EQ",
       "hypothesis": "repaySemEq",
       "operation": "repay",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for repay"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-SUPPLY-COLLATERAL-SEM-EQ",
       "hypothesis": "supplyCollateralSemEq",
       "operation": "supplyCollateral",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for supplyCollateral"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, callbacks, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-WITHDRAW-COLLATERAL-SEM-EQ",
       "hypothesis": "withdrawCollateralSemEq",
       "operation": "withdrawCollateral",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for withdrawCollateral"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, oracle calls, authorization, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-LIQUIDATE-SEM-EQ",
       "hypothesis": "liquidateSemEq",
       "operation": "liquidate",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for liquidate"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, oracle calls, memory mgmt, 2D struct access) + verity#998"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-SEM-EQ",
       "hypothesis": "accrueInterestSemEq",
       "operation": "accrueInterest",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for accrueInterest"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, external contract calls) + verity#998"
     },
     {
       "id": "OBL-ENABLE-IRM-SEM-EQ",
       "hypothesis": "enableIrmSemEq",
       "operation": "enableIrm",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for enableIrm"
+      "macroMigrated": true,
+      "blockedBy": "verity#998 semantic bridge composition"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
       "hypothesis": "enableLltvSemEq",
       "operation": "enableLltv",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for enableLltv"
+      "macroMigrated": true,
+      "blockedBy": "verity#998 semantic bridge composition"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
       "hypothesis": "setAuthorizationSemEq",
       "operation": "setAuthorization",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for setAuthorization"
+      "macroMigrated": true,
+      "blockedBy": "verity#998 semantic bridge composition"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
       "hypothesis": "setAuthorizationWithSigSemEq",
       "operation": "setAuthorizationWithSig",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for setAuthorizationWithSig"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ecrecover, memory management, EIP-712 hashing) + verity#998"
     },
     {
       "id": "OBL-SET-OWNER-SEM-EQ",
       "hypothesis": "setOwnerSemEq",
       "operation": "setOwner",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for setOwner"
+      "macroMigrated": true,
+      "blockedBy": "verity#998 semantic bridge composition"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
       "hypothesis": "setFeeRecipientSemEq",
       "operation": "setFeeRecipient",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for setFeeRecipient"
+      "macroMigrated": true,
+      "blockedBy": "verity#998 semantic bridge composition"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",
       "hypothesis": "createMarketSemEq",
       "operation": "createMarket",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for createMarket"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (tuple unpacking, multi-field struct init) + verity#998"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",
       "hypothesis": "setFeeSemEq",
       "operation": "setFee",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for setFee"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, tuple unpacking) + verity#998"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ",
       "hypothesis": "accrueInterestPublicSemEq",
       "operation": "accrueInterestPublic",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for accrueInterestPublic"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, external contract calls) + verity#998"
     },
     {
       "id": "OBL-FLASH-LOAN-SEM-EQ",
       "hypothesis": "flashLoanSemEq",
       "operation": "flashLoan",
       "status": "assumed",
-      "blockedBy": "verity#998 step 3: macro-generated semantic proof for flashLoan"
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, callbacks) + verity#998"
     }
   ],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. Status transitions require explicit reviewed updates.",
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean and is ready for end-to-end composition once verity#998 lands. Status transitions require explicit reviewed updates.",
   "source": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/998",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1052"

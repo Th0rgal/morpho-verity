@@ -13,22 +13,36 @@ Groundwork only. Tracking format is proposed; current bridge assumptions are sti
 `Morpho/Proofs/SolidityBridge.lean` currently transfers invariants under semantic-equivalence hypotheses.
 Each hypothesis must be tracked as a proof obligation with owner and status.
 
-## Proposed Obligation Table
+## Obligation Table
 
-| Obligation ID | Bridge hypothesis | Operation | Owner | Status |
-|---------------|-------------------|-----------|-------|--------|
-| `OBL-SUPPLY-SEM-EQ` | `supplySemEq` | `supply` | `TBD` | `assumed` |
-| `OBL-WITHDRAW-SEM-EQ` | `withdrawSemEq` | `withdraw` | `TBD` | `assumed` |
-| `OBL-BORROW-SEM-EQ` | `borrowSemEq` | `borrow` | `TBD` | `assumed` |
-| `OBL-REPAY-SEM-EQ` | `repaySemEq` | `repay` | `TBD` | `assumed` |
-| `OBL-SUPPLY-COLLATERAL-SEM-EQ` | `supplyCollateralSemEq` | `supplyCollateral` | `TBD` | `assumed` |
-| `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | `TBD` | `assumed` |
-| `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | `TBD` | `assumed` |
-| `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | `TBD` | `assumed` |
-| `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | `TBD` | `assumed` |
-| `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | `TBD` | `assumed` |
-| `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | `TBD` | `assumed` |
-| `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | `TBD` | `assumed` |
+| Obligation ID | Bridge hypothesis | Operation | Macro migrated | Status |
+|---------------|-------------------|-----------|:--------------:|--------|
+| `OBL-SUPPLY-SEM-EQ` | `supplySemEq` | `supply` | | `assumed` |
+| `OBL-WITHDRAW-SEM-EQ` | `withdrawSemEq` | `withdraw` | | `assumed` |
+| `OBL-BORROW-SEM-EQ` | `borrowSemEq` | `borrow` | | `assumed` |
+| `OBL-REPAY-SEM-EQ` | `repaySemEq` | `repay` | | `assumed` |
+| `OBL-SUPPLY-COLLATERAL-SEM-EQ` | `supplyCollateralSemEq` | `supplyCollateral` | | `assumed` |
+| `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | | `assumed` |
+| `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | | `assumed` |
+| `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | | `assumed` |
+| `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | Y | `assumed` |
+| `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | Y | `assumed` |
+| `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | Y | `assumed` |
+| `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | | `assumed` |
+| `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `assumed` |
+| `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `assumed` |
+| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | | `assumed` |
+| `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
+| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
+| `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | | `assumed` |
+
+**Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
+`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#998
+lands. 5/18 operations are macro-migrated; the remaining 13 are blocked on upstream macro
+primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
+
+CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
+cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
 
 ## Semantic Bridge Discharge Path
 
@@ -61,6 +75,21 @@ hold unconditionally against formally verified EVM semantics.
 Machine-readable obligation status: [`config/semantic-bridge-obligations.json`](../config/semantic-bridge-obligations.json)
 
 Lean-level obligation registry: `Morpho/Proofs/SemanticBridgeReadiness.lean`
+
+## Macro Migration Blockers
+
+The 13 unmigrated operations depend on upstream verity macro capabilities:
+
+| Blocker | Operations affected |
+|---------|-------------------|
+| Internal function calls (`Stmt.internalCall`) | supply, withdraw, borrow, repay, liquidate, setFee, accrueInterest, accrueInterestPublic |
+| ERC20 module (`ERC20.safeTransfer/From`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate, flashLoan |
+| External callbacks (`Callbacks.callback`) | supply, supplyCollateral, repay, liquidate, flashLoan |
+| External contract calls (`Calls.withReturn`) | accrueInterest, accrueInterestPublic, withdrawCollateral, borrow, liquidate |
+| 2D struct mapping (`structMember2`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate |
+| Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate |
+| Precompile access (`ecrecover`) | setAuthorizationWithSig |
+| Tuple destructuring | createMarket, setFee |
 
 ## Planned Tracking Rules
 

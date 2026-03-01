@@ -6,13 +6,13 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_semantic_bridge_obligations import (  # noqa: E402
     ObligationError,
     build_report,
+    extract_macro_functions,
     extract_sem_eq_definitions,
     validate_config,
 )
@@ -28,6 +28,26 @@ def withdrawSemEq (solidityWithdraw : WithdrawSem) : Prop :=
   sorry
 """
 
+SAMPLE_MACRO = """\
+verity_contract MorphoViewSlice where
+  storage
+    ownerSlot : Address := slot 0
+
+  function setOwner (newOwner : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    require (newOwner != currentOwner) "already set"
+    setStorageAddr ownerSlot newOwner
+
+  function supply (marketParams : Tuple, assets : Uint256) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    require (sender == sender) "supply noop"
+"""
+
 
 def make_config(obligations: list[dict]) -> dict:
     return {
@@ -37,14 +57,19 @@ def make_config(obligations: list[dict]) -> dict:
     }
 
 
-def make_obligation(hyp: str, status: str = "assumed") -> dict:
-    return {
+def make_obligation(
+    hyp: str, status: str = "assumed", macro_migrated: bool | None = None
+) -> dict:
+    obl: dict = {
         "id": f"OBL-{hyp.upper()}",
         "hypothesis": hyp,
         "operation": hyp.replace("SemEq", ""),
         "status": status,
         "blockedBy": "test",
     }
+    if macro_migrated is not None:
+        obl["macroMigrated"] = macro_migrated
+    return obl
 
 
 class ExtractSemEqTests(unittest.TestCase):
@@ -60,6 +85,25 @@ class ExtractSemEqTests(unittest.TestCase):
         text = "-- def fakeSemEq\ntheorem supplySemEq_preserves : True := trivial\n"
         names = extract_sem_eq_definitions(text)
         self.assertEqual(names, [])
+
+
+class ExtractMacroFunctionTests(unittest.TestCase):
+    def test_extracts_functions(self) -> None:
+        fns = extract_macro_functions(SAMPLE_MACRO)
+        self.assertIn("setOwner", fns)
+        self.assertIn("supply", fns)
+
+    def test_detects_real_implementation(self) -> None:
+        fns = extract_macro_functions(SAMPLE_MACRO)
+        self.assertTrue(fns["setOwner"])
+
+    def test_detects_stub(self) -> None:
+        fns = extract_macro_functions(SAMPLE_MACRO)
+        self.assertFalse(fns["supply"])
+
+    def test_empty_file(self) -> None:
+        fns = extract_macro_functions("")
+        self.assertEqual(fns, {})
 
 
 class ValidateConfigTests(unittest.TestCase):
@@ -120,6 +164,69 @@ class ValidateConfigTests(unittest.TestCase):
         self.assertIn("missing 'obligations' array", str(ctx.exception))
 
 
+class MacroMigrationValidationTests(unittest.TestCase):
+    def test_correct_macro_migrated_passes(self) -> None:
+        """macroMigrated=true for real impl, false for stub: passes."""
+        bridge_hyps = ["supplySemEq", "withdrawSemEq"]
+        macro_fns = {"supply": False, "withdraw": True}
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=False),
+            make_obligation("withdrawSemEq", macro_migrated=True),
+        ])
+        validate_config(config, bridge_hyps, macro_fns)
+
+    def test_false_positive_macro_migrated_fails(self) -> None:
+        """macroMigrated=true but function is stub: fails."""
+        bridge_hyps = ["supplySemEq"]
+        macro_fns = {"supply": False}
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=True),
+        ])
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps, macro_fns)
+        self.assertIn("stub", str(ctx.exception))
+
+    def test_false_negative_macro_migrated_fails(self) -> None:
+        """macroMigrated=false but function has full impl: fails."""
+        bridge_hyps = ["supplySemEq"]
+        macro_fns = {"supply": True}
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=False),
+        ])
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps, macro_fns)
+        self.assertIn("full implementation", str(ctx.exception))
+
+    def test_missing_function_with_migrated_true_fails(self) -> None:
+        """macroMigrated=true but function not in MacroSlice: fails."""
+        bridge_hyps = ["supplySemEq"]
+        macro_fns = {}  # supply not found
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=True),
+        ])
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps, macro_fns)
+        self.assertIn("not found", str(ctx.exception))
+
+    def test_missing_function_with_migrated_false_passes(self) -> None:
+        """macroMigrated=false and function not in MacroSlice: passes."""
+        bridge_hyps = ["supplySemEq"]
+        macro_fns = {}
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=False),
+        ])
+        validate_config(config, bridge_hyps, macro_fns)
+
+    def test_no_macro_functions_skips_validation(self) -> None:
+        """When macro_functions=None, skip macro validation."""
+        bridge_hyps = ["supplySemEq"]
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=True),
+        ])
+        # Should not raise even though there's no macro data
+        validate_config(config, bridge_hyps, None)
+
+
 class BuildReportTests(unittest.TestCase):
     def test_report_counts_by_status(self) -> None:
         config = make_config([
@@ -131,6 +238,16 @@ class BuildReportTests(unittest.TestCase):
         self.assertEqual(report["byStatus"]["assumed"], 1)
         self.assertEqual(report["byStatus"]["discharged"], 1)
 
+    def test_report_macro_migration_counts(self) -> None:
+        config = make_config([
+            make_obligation("supplySemEq", macro_migrated=True),
+            make_obligation("withdrawSemEq", macro_migrated=False),
+            make_obligation("borrowSemEq"),  # no macroMigrated field
+        ])
+        report = build_report(config)
+        self.assertEqual(report["macroMigrated"], 1)
+        self.assertEqual(report["macroPending"], 2)
+
     def test_report_json_serializable(self) -> None:
         config = make_config([make_obligation("supplySemEq")])
         report = build_report(config)
@@ -140,10 +257,11 @@ class BuildReportTests(unittest.TestCase):
 
 class IntegrationTests(unittest.TestCase):
     def test_real_config_and_bridge(self) -> None:
-        """Validate that the actual repo config matches actual SolidityBridge.lean."""
+        """Validate that the actual repo config matches actual source files."""
         root = pathlib.Path(__file__).resolve().parent.parent
         bridge_path = root / "Morpho" / "Proofs" / "SolidityBridge.lean"
         config_path = root / "config" / "semantic-bridge-obligations.json"
+        macro_path = root / "Morpho" / "Compiler" / "MacroSlice.lean"
 
         if not bridge_path.exists() or not config_path.exists():
             self.skipTest("repo files not available")
@@ -151,15 +269,29 @@ class IntegrationTests(unittest.TestCase):
         bridge_text = bridge_path.read_text(encoding="utf-8")
         bridge_hyps = extract_sem_eq_definitions(bridge_text)
 
+        macro_fns = None
+        if macro_path.exists():
+            macro_text = macro_path.read_text(encoding="utf-8")
+            macro_fns = extract_macro_functions(macro_text)
+
         with config_path.open("r", encoding="utf-8") as f:
             config = json.load(f)
 
         # Should not raise
-        validate_config(config, bridge_hyps)
+        validate_config(config, bridge_hyps, macro_fns)
 
         # All should be assumed currently
         for obl in config["obligations"]:
             self.assertEqual(obl["status"], "assumed")
+
+        # 5 should be macro-migrated
+        migrated = [o for o in config["obligations"] if o.get("macroMigrated")]
+        self.assertEqual(len(migrated), 5)
+        migrated_ops = sorted(o["operation"] for o in migrated)
+        self.assertEqual(
+            migrated_ops,
+            ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
+        )
 
 
 if __name__ == "__main__":
