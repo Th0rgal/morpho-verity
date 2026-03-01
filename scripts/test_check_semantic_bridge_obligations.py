@@ -295,13 +295,13 @@ class IntegrationTests(unittest.TestCase):
         for obl in config["obligations"]:
             self.assertEqual(obl["status"], "assumed")
 
-        # 5 should be macro-migrated
+        # 6 should be macro-migrated
         migrated = [o for o in config["obligations"] if o.get("macroMigrated")]
-        self.assertEqual(len(migrated), 5)
+        self.assertEqual(len(migrated), 6)
         migrated_ops = sorted(o["operation"] for o in migrated)
         self.assertEqual(
             migrated_ops,
-            ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
+            ["createMarket", "enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
 

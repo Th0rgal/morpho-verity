@@ -200,8 +200,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage)
 
-        # 5 migrated operations
-        self.assertEqual(report["total"], 5)
+        # 6 migrated operations
+        self.assertEqual(report["total"], 6)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])
@@ -211,6 +211,10 @@ class IntegrationTests(unittest.TestCase):
         for op in ["enableIrm", "enableLltv", "setAuthorization"]:
             self.assertFalse(coverage[op]["fully_covered"])
             self.assertTrue(coverage[op]["edsl_ready"])
+
+        # createMarket: has gaps (externalCall, getMappingWord, setMappingWord missing)
+        self.assertFalse(coverage["createMarket"]["fully_covered"])
+        self.assertFalse(coverage["createMarket"].get("edsl_ready", False))
 
         # At least 2 fully covered
         self.assertGreaterEqual(report["fully_covered"], 2)

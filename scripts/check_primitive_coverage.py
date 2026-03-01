@@ -54,6 +54,9 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("chainid", re.compile(r"\bchainid\b")),
     ("contractAddress", re.compile(r"\bcontractAddress\b")),
     ("returnStorageWords", re.compile(r"\breturnStorageWords\b")),
+    ("setMappingWord", re.compile(r"\bsetMappingWord\b")),
+    ("externalCall", re.compile(r"\bexternalCall\b")),
+    ("blockTimestamp", re.compile(r"\bblockTimestamp\b")),
     ("add", re.compile(r"\badd\s+\w+\s+\w+")),
     ("and", re.compile(r"\band\s+\w+\b")),
     ("shr", re.compile(r"\bshr\s+\w+\s+\w+")),
@@ -101,6 +104,9 @@ PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     "getMapping2": "edsl_proven",    # MappingAutomation: getMapping2_runState/runValue
     "setMapping2": "edsl_proven",    # MappingAutomation: setMapping2_runState, same/diff
     "getMappingWord": "missing",     # struct member access via slot offset
+    "setMappingWord": "missing",     # struct member write via slot offset
+    "externalCall": "missing",       # axiomatic external function call
+    "blockTimestamp": "proven",      # block.timestamp access (trivial EVM opcode)
 
     # Other missing primitives
     "returnValues": "missing",       # tuple return encoding

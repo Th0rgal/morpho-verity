@@ -31,18 +31,20 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | | `assumed` |
 | `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `assumed` |
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `assumed` |
-| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | | `assumed` |
+| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
 | `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | | `assumed` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
 `MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#998
-lands. 5/18 operations are macro-migrated; the remaining 13 are blocked on upstream macro
+lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
+`createMarket` uses `setMappingWord`/`getMappingWord` with manual word-offset addressing as a
+workaround for the `.mappingStruct` storage type gap — the same pattern used by view functions.
 
 ## Semantic Bridge Discharge Path
 
@@ -112,17 +114,17 @@ explicit translators, `Bytes32`/`Bool` type support.
 | 2D struct mapping read/write (`structMember2`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate | 7 |
 | External callbacks (`Callbacks.callback`) | supply, supplyCollateral, repay, liquidate, flashLoan | 5 |
 | External contract calls (`Calls.withReturn`) | accrueInterest, accrueInterestPublic, withdrawCollateral, borrow, liquidate | 5 |
-| `.mappingStruct` storage field type declarations | createMarket, setFee, accrueInterest, accrueInterestPublic, + all struct-accessing ops | 4+ |
+| `.mappingStruct` storage field type declarations | setFee, accrueInterest, accrueInterestPublic, + all struct-accessing ops | 3+ |
 | Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate | 2 |
 | Precompile access (`ecrecover`) | setAuthorizationWithSig | 1 |
 
-**Note on createMarket**: All 4 previously identified primitive blockers (tuple destructuring,
-`setStructMember`, `keccakMarketParams`, `blockTimestamp`) are now resolved in the macro
-translator. The remaining blocker is `.mappingStruct` storage field type declarations — the
-macro's `storage` block cannot yet declare struct-mapped storage with packed member layouts
-(e.g., `market : Uint256 -> Struct [("totalSupplyAssets", 0, {offset:0, width:128}), ...]`).
-A workaround via `setMappingWord`/`getMappingWord` with manual bit packing is possible but
-verbose. Once `.mappingStruct` support lands, createMarket can be fully macro-migrated.
+**Note on createMarket**: Now fully macro-migrated using `setMappingWord`/`getMappingWord`
+with manual word-offset addressing (the same pattern used by the view functions). All 4
+previously identified primitive blockers (tuple destructuring, `setStructMember`,
+`keccakMarketParams`, `blockTimestamp`) are resolved in the macro translator. The market
+struct initialization uses word-level writes: word 0 = 0 (totalSupplyAssets|totalSupplyShares),
+word 1 = 0 (totalBorrowAssets|totalBorrowShares), word 2 = blockTimestamp (lastUpdate in low
+128 bits, fee=0 in high 128 bits). The `idToMarketParams` fields are unpacked (one per word).
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -166,8 +168,9 @@ Once verity#1052 merges and morpho-verity bumps the verity pin:
    lemmas connecting `getMapping`/`setMapping` to `sload(keccak256(key,slot))`/
    `sstore(keccak256(key,slot),value)` in compiled Yul. MappingSlot.lean has the
    slot encoding infrastructure (`solidityMappingSlot` via real keccak256 FFI)
-3. **After `.mappingStruct` storage type**: `createMarket` — all statement/expression
-   primitives now exist; blocked only on struct-mapped storage field type declarations
+3. **After mapping bridge + MappingWord lemmas**: `createMarket` — now macro-migrated
+   using `setMappingWord`/`getMappingWord`; needs bridge-level lemmas for word-offset
+   mapping access in addition to the mapping bridge lemmas from step 2
 4. **After remaining macro expansion**: 12 operations — requires internal calls, ERC20,
    callbacks, external contract calls
 

@@ -154,7 +154,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "createMarketSemEq"
     operation := "createMarket"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-SET-FEE-SEM-EQ"
     hypothesis := "setFeeSemEq"
     operation := "setFee"
@@ -180,17 +180,17 @@ theorem all_assumed : obligations.all (fun o => o.status == .assumed) = true := 
 theorem obligation_count : obligations.length = 18 := by
   native_decide
 
-/-- 5 of 18 operations have full (non-stub) macro implementations.
+/-- 6 of 18 operations have full (non-stub) macro implementations.
     These are ready for end-to-end semantic bridge composition once
     verity#998 lands: setOwner, setFeeRecipient, enableIrm, enableLltv,
-    setAuthorization. -/
+    setAuthorization, createMarket. -/
 theorem macro_migrated_count :
-    (obligations.filter (fun o => o.macroMigrated)).length = 5 := by
+    (obligations.filter (fun o => o.macroMigrated)).length = 6 := by
   native_decide
 
-/-- 13 operations still need macro migration before discharge. -/
+/-- 12 operations still need macro migration before discharge. -/
 theorem macro_pending_count :
-    (obligations.filter (fun o => !o.macroMigrated)).length = 13 := by
+    (obligations.filter (fun o => !o.macroMigrated)).length = 12 := by
   native_decide
 
 end Morpho.Proofs.SemanticBridgeReadiness

@@ -39,14 +39,15 @@ def read_text(path: pathlib.Path) -> str:
 # ---------------------------------------------------------------------------
 
 # Matches param entries like: { name := "newOwner", ty := .address }
-SPEC_PARAM_RE = re.compile(r'\{\s*name\s*:=\s*"(\w+)",\s*ty\s*:=\s*\.(\w+)\s*\}')
+# Also matches variable type refs like: { name := "marketParams", ty := marketParamsTy }
+SPEC_PARAM_RE = re.compile(r'\{\s*name\s*:=\s*"(\w+)",\s*ty\s*:=\s*\.?(\w+)\s*\}')
 
 # Matches Stmt.require lines
 SPEC_REQUIRE_RE = re.compile(r"Stmt\.require\b")
 
 # Matches state mutations
 SPEC_SET_RE = re.compile(
-    r"Stmt\.(setStorage|setMapping2?|setMappingUint|setStructMember2?)\b"
+    r"Stmt\.(setStorage|setMapping2?|setMappingUint|setMappingWord|setStructMember2?)\b"
 )
 
 
@@ -125,7 +126,7 @@ MACRO_REQUIRE_RE = re.compile(r"\brequire\s*\(")
 
 # Matches storage mutations in macro
 MACRO_SET_RE = re.compile(
-    r"\b(setStorageAddr|setStorage\b|setMapping2?\b|setMappingUint)\b"
+    r"\b(setStorageAddr|setStorage\b|setMapping2?\b|setMappingUint|setMappingWord)\b"
 )
 
 # Noop stub pattern

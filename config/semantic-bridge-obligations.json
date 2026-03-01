@@ -117,8 +117,8 @@
       "hypothesis": "createMarketSemEq",
       "operation": "createMarket",
       "status": "assumed",
-      "macroMigrated": false,
-      "blockedBy": "macro migration (.mappingStruct storage field type for packed struct access) + verity#998"
+      "macroMigrated": true,
+      "blockedBy": "verity#998 semantic bridge composition"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",
@@ -126,7 +126,7 @@
       "operation": "setFee",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, tuple unpacking) + verity#998"
+      "blockedBy": "macro migration (internal calls, .mappingStruct) + verity#998"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ",

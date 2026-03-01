@@ -13,6 +13,8 @@ def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Ve
 def returnValues (_values : List Uint256) : Contract Unit := Verity.pure ()
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := Verity.pure 0
+def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
+    Contract Unit := Verity.pure ()
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
 def chainid : Uint256 := 0
 def contractAddress : Uint256 := 0
@@ -174,12 +176,36 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    let sender <- msgSender
-    -- createMarket is permissionless (no ownership check);
-    -- it only requires IRM and LLTV to be enabled.
-    let marketParams' := marketParams
-    let _ignored := marketParams'
-    require (sender == sender) "createMarket noop"
+    -- createMarket is permissionless (no ownership check).
+    -- Destructure tuple parameter.
+    let loanToken := marketParams_0
+    let collateralToken := marketParams_1
+    let oracle := marketParams_2
+    let irm := marketParams_3
+    let lltv := marketParams_4
+    -- Compute market id (axiomatic keccak hash of market params).
+    let id := externalCall "keccakMarketParams" [loanToken, collateralToken, oracle, irm, lltv]
+    -- Require IRM and LLTV are enabled.
+    let irmEnabled <- getMapping isIrmEnabledSlot irm
+    require (irmEnabled == 1) "IRM not enabled"
+    let lltvEnabled <- getMappingUint isLltvEnabledSlot lltv
+    require (lltvEnabled == 1) "LLTV not enabled"
+    -- Require market not already created (lastUpdate == 0).
+    let word2 <- getMappingWord marketSlot id 2
+    let currentLastUpdate := and word2 340282366920938463463374607431768211455
+    require (currentLastUpdate == 0) "market already created"
+    -- Initialize market struct (word 0: totalSupplyAssets|totalSupplyShares = 0,
+    -- word 1: totalBorrowAssets|totalBorrowShares = 0,
+    -- word 2: lastUpdate = blockTimestamp in low 128 bits, fee = 0 in high 128 bits).
+    setMappingWord marketSlot id 0 0
+    setMappingWord marketSlot id 1 0
+    setMappingWord marketSlot id 2 blockTimestamp
+    -- Store market params (unpacked, one word each).
+    setMappingWord idToMarketParamsSlot id 0 loanToken
+    setMappingWord idToMarketParamsSlot id 1 collateralToken
+    setMappingWord idToMarketParamsSlot id 2 oracle
+    setMappingWord idToMarketParamsSlot id 3 irm
+    setMappingWord idToMarketParamsSlot id 4 lltv
 
   function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender
