@@ -50,11 +50,81 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
       defaults = pathlib.Path(tmp_dir) / "defaults.env"
       workflow.write_text(
         "run: ./scripts/run_with_timeout.sh MORPHO_A_TIMEOUT_SEC 10 \"A\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 10 \"prep\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 10 \"outer1\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 10 \"outer2\" -- cmd\n"
         "env:\n"
         "  MORPHO_A_TIMEOUT_SEC: \"10\"\n",
         encoding="utf-8",
       )
-      defaults.write_text("MORPHO_A_TIMEOUT_SEC=10\n", encoding="utf-8")
+      defaults.write_text(
+        "MORPHO_A_TIMEOUT_SEC=10\n"
+        "MORPHO_VERITY_PREP_TIMEOUT_SEC=10\n"
+        "MORPHO_YUL_IDENTITY_TIMEOUT_SEC=10\n"
+        "MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=10\n",
+        encoding="utf-8",
+      )
+
+      old_argv = sys.argv
+      try:
+        sys.argv = [
+          "check_ci_timeout_defaults.py",
+          "--workflow",
+          str(workflow),
+          "--defaults",
+          str(defaults),
+        ]
+        self.assertEqual(main(), 0)
+      finally:
+        sys.argv = old_argv
+
+  def test_nested_timeout_invariant_violation_fails(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      defaults = pathlib.Path(tmp_dir) / "defaults.env"
+      workflow.write_text(
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 4500 \"prep\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 4200 \"outer\" -- cmd\n",
+        encoding="utf-8",
+      )
+      defaults.write_text(
+        "MORPHO_VERITY_PREP_TIMEOUT_SEC=4500\n"
+        "MORPHO_YUL_IDENTITY_TIMEOUT_SEC=4200\n"
+        "MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=5100\n",
+        encoding="utf-8",
+      )
+
+      old_argv = sys.argv
+      try:
+        sys.argv = [
+          "check_ci_timeout_defaults.py",
+          "--workflow",
+          str(workflow),
+          "--defaults",
+          str(defaults),
+        ]
+        with self.assertRaises(SystemExit) as ctx:
+          main()
+        self.assertEqual(ctx.exception.code, 1)
+      finally:
+        sys.argv = old_argv
+
+  def test_nested_timeout_invariant_valid_passes(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      defaults = pathlib.Path(tmp_dir) / "defaults.env"
+      workflow.write_text(
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 4500 \"prep\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 5100 \"outer1\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 5100 \"outer2\" -- cmd\n",
+        encoding="utf-8",
+      )
+      defaults.write_text(
+        "MORPHO_VERITY_PREP_TIMEOUT_SEC=4500\n"
+        "MORPHO_YUL_IDENTITY_TIMEOUT_SEC=5100\n"
+        "MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=5100\n",
+        encoding="utf-8",
+      )
 
       old_argv = sys.argv
       try:

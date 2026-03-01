@@ -214,13 +214,13 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC` (default `300`)
 - `MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC` (default `900`)
 - `MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC` (default `180`)
-- `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`)
+- `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `4500`)
 - `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` (optional path; reuse verified EDSL artifacts)
-- `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC` (default `1200`)
-- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `2400`)
+- `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC` (default `900`)
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC` (default `6900`)
 - `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`)
-- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `1500`)
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)
 - `MORPHO_TIMEOUT_KILL_AFTER_SEC` (default `30`)
@@ -229,8 +229,8 @@ The shared timeout wrapper enforces hard fail-closed termination (`timeout --kil
 `MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
 The Yul identity report script wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics. When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is provided, the report reuses that verified bundle and still fails closed if `Morpho.yul` is missing.
 CI sets stricter non-conflicting outer budgets for nested timeout-wrapped stages:
-- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=3600` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=2400`
-- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=4200` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=3000`
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=5100` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=4500`
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=5100` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=4500`
 
 Compile using a specific Verity parity pack:
 
