@@ -6,7 +6,7 @@ namespace Morpho.Compiler.MacroSlice
 open Verity
 
 -- Incremental macro-native Morpho slice for migration progress tracking.
--- This intentionally models a selector-exact subset of read-only functions.
+-- This intentionally models a selector-exact subset with supported constructs.
 verity_contract MorphoViewSlice where
   storage
     ownerSlot : Address := slot 0
@@ -34,5 +34,20 @@ verity_contract MorphoViewSlice where
   function nonce (authorizer : Address) : Uint256 := do
     let currentNonce <- getMapping nonceSlot authorizer
     return currentNonce
+
+  function setOwner (newOwner : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    require (newOwner != currentOwner) "already set"
+    setStorageAddr ownerSlot newOwner
+
+  function setFeeRecipient (newFeeRecipient : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let currentFeeRecipient <- getStorageAddr feeRecipientSlot
+    require (newFeeRecipient != currentFeeRecipient) "already set"
+    setStorageAddr feeRecipientSlot newFeeRecipient
 
 end Morpho.Compiler.MacroSlice
