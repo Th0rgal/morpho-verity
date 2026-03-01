@@ -6,6 +6,8 @@ namespace Morpho.Compiler.MacroSlice
 open Verity
 
 def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
+def and (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
+def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 
 -- Incremental macro-native Morpho slice for migration progress tracking.
 -- This intentionally models a selector-exact subset with supported constructs.
@@ -13,6 +15,9 @@ verity_contract MorphoViewSlice where
   storage
     ownerSlot : Address := slot 0
     feeRecipientSlot : Address := slot 1
+    marketWord0Slot : Uint256 -> Uint256 := slot 3
+    marketWord1Slot : Uint256 -> Uint256 := slot 9
+    marketWord2Slot : Uint256 -> Uint256 := slot 10
     isIrmEnabledSlot : Address -> Uint256 := slot 4
     isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
@@ -41,6 +46,30 @@ verity_contract MorphoViewSlice where
   function nonce (authorizer : Address) : Uint256 := do
     let currentNonce <- getMapping nonceSlot authorizer
     return currentNonce
+
+  function lastUpdate (id : Bytes32) : Uint256 := do
+    let word <- getMappingUint marketWord2Slot id
+    return (and word 340282366920938463463374607431768211455)
+
+  function totalSupplyAssets (id : Bytes32) : Uint256 := do
+    let word <- getMappingUint marketWord0Slot id
+    return (and word 340282366920938463463374607431768211455)
+
+  function totalSupplyShares (id : Bytes32) : Uint256 := do
+    let word <- getMappingUint marketWord0Slot id
+    return (and (shr 128 word) 340282366920938463463374607431768211455)
+
+  function totalBorrowAssets (id : Bytes32) : Uint256 := do
+    let word <- getMappingUint marketWord1Slot id
+    return (and word 340282366920938463463374607431768211455)
+
+  function totalBorrowShares (id : Bytes32) : Uint256 := do
+    let word <- getMappingUint marketWord1Slot id
+    return (and (shr 128 word) 340282366920938463463374607431768211455)
+
+  function fee (id : Bytes32) : Uint256 := do
+    let word <- getMappingUint marketWord2Slot id
+    return (and (shr 128 word) 340282366920938463463374607431768211455)
 
   function setOwner (newOwner : Address) : Unit := do
     let sender <- msgSender
