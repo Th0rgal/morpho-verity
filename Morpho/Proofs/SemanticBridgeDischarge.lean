@@ -1,207 +1,207 @@
 /-!
-# Semantic Bridge Discharge Skeletons
+# Semantic Bridge Discharge: Link 1 (Pure Lean ↔ EDSL)
 
-This module documents the proof structure for discharging `*SemEq` obligations
-once the verity semantic bridge (verity#998, verity#1052) is composed.
+This module proves the first link of the semantic bridge discharge chain:
+the EDSL functions in `MacroSlice.lean` (produced by `verity_contract`) are
+equivalent to the pure Lean model functions in `Morpho.lean`.
 
 ## Architecture
 
-Each `*SemEq` obligation in `SolidityBridge.lean` asserts that a compiled
-Solidity implementation equals the pure Lean model:
+The full discharge chain for an obligation like `setOwnerSemEq` has three links:
 
 ```
-setOwnerSemEq soliditySetOwner :=
-  ∀ s newOwner, soliditySetOwner s newOwner = Morpho.setOwner s newOwner
+   Pure Lean (Morpho.setOwner)          -- this repo, Morpho.lean
+     ↕ Link 1 (this file)
+   EDSL (MorphoViewSlice.setOwner)      -- this repo, MacroSlice.lean
+     ↕ Link 2 (verity SemanticBridge)
+   Compiled IR (interpretIR morphoIR)   -- verity, once compile pipeline lands
+     ↕ Link 3 (verity EndToEnd)
+   EVMYulLean (Yul execution)           -- verity, 1 keccak axiom
 ```
 
-The verity semantic bridge provides, per macro-generated function:
-
-```
-EDSL.f.exec state = EVMYulLean(compile(CompilationModel)).exec state
-```
-
-Discharging requires three correspondences:
-
-1. **Storage encoding**: Map `MorphoState` fields to `ContractState` storage slots
-   - `s.owner` ↔ `state.storageAddr 0` (ownerSlot)
-   - `s.feeRecipient` ↔ `state.storageAddr 1` (feeRecipientSlot)
-   - `s.sender` ↔ `state.sender`
-
-2. **Forward simulation**: Show EDSL execution on encoded state produces
-   an encoded version of the Lean model's output state
-
-3. **Result decoding**: Map EDSL success/revert back to `Option MorphoState`
-
-## Reference Template: verity's `Owned.transferOwnership`
-
-The verity `semantic-bridge` branch (commit `8b3b482`) includes a fully
-discharged (zero sorry) proof for `Owned.transferOwnership` which is
-structurally identical to morpho-verity's `setOwner`:
-
-- **EDSL**: `msgSender → getStorageAddr → require (sender == owner) → setStorageAddr`
-- **IR**: `calldataload(4) & addressMask → eq(caller(), sload(0)) → revert/sstore(0, newOwner)`
-- **Proof**: `encodeStorageAddr` state encoding + direct `simp` unfolding + `by_cases` on slot
-
-Key technique: The proof bypasses `setStorageAddr_matches_sstore` entirely —
-it unfolds both EDSL (`setStorageAddr`) and IR (`abstractStoreStorageOrMapping`)
-directly via `simp`, and uses address masking (`Nat.and_two_pow_sub_one_eq_mod`)
-to handle the `and(calldataload(4), addressMask)` step in the IR.
-
-**Theorem statement** (SemanticBridge.lean):
-```
-theorem owned_transferOwnership_semantic_bridge
-    (state : ContractState) (sender : Address) (newOwner : Address)
-    (hOwner : sender = state.storageAddr 0) :
-    let edslResult := Contract.run (transferOwnership newOwner) { state with sender }
-    ...
-    match edslResult with
-    | .success _ s' =>
-        let irResult := interpretIR ownedIRContract tx irState
-        irResult.success = true ∧
-        ∀ slot, (s'.storageAddr slot).val = irResult.finalStorage slot
-    | .revert _ _ => True
-```
-
-Note: The theorem takes `hOwner` as a hypothesis (only proving the success
-path when sender IS the owner). The revert case is trivially `True`.
-This is the expected pattern — full discharge only needs the success case,
-since revert is semantically "no state change".
+This file proves Link 1 for `setOwner` and `setFeeRecipient`.
+Links 2+3 depend on upstream verity infrastructure (verity#998, #1052).
 
 ## Proof Strategy
 
-For morpho-verity's `setOwner`, the proof extends the Owned template by adding
-the "already set" idempotence check (`require (newOwner != currentOwner)`).
-
-### Required state encoding
-
-```
-def encodeMorphoState (s : MorphoState) : ContractState := {
-  storageAddr := fun slot =>
-    if slot == 0 then s.owner
-    else if slot == 1 then s.feeRecipient
-    else 0,
-  sender := s.sender,
-  ... -- other fields for other operations
-}
-```
-
-### Proof structure for setOwner (3 cases)
-
-**Case 1**: `s.sender ≠ s.owner`
-  - EDSL: `msgSender` returns `state.sender`, `getStorageAddr` returns `state.storageAddr 0`
-  - `require (sender == currentOwner)` fails → `.revert`
-  - Lean: `s.sender != s.owner` → `none`
-  - Both produce failure → conclusion is `True` ✓
-
-**Case 2**: `s.sender = s.owner` ∧ `newOwner = s.owner`
-  - EDSL: first require passes, `require (newOwner != currentOwner)` fails → `.revert`
-  - Lean: first check passes, `newOwner == s.owner` → `none`
-  - Both produce failure → conclusion is `True` ✓
-
-**Case 3**: `s.sender = s.owner` ∧ `newOwner ≠ s.owner`
-  - EDSL: both requires pass, `setStorageAddr ownerSlot newOwner` → `.success`
-    - New state: `storageAddr 0 = newOwner`, all other slots unchanged
-  - Lean: both checks pass → `some { s with owner := newOwner }`
-  - Storage correspondence: `newState.storageAddr 0 = newOwner = (s with owner := newOwner).owner` ✓
-
-### Expected proof (following Owned template)
-
-```
-theorem morpho_setOwner_semantic_bridge
-    (state : ContractState) (sender : Address) (newOwner : Address)
-    (hOwner : sender = state.storageAddr 0)
-    (hNotSame : newOwner ≠ state.storageAddr 0) :
-    ...
-    match edslResult with
-    | .success _ s' =>
-        let irResult := interpretIR morphoIRContract tx irState
-        irResult.success = true ∧
-        ∀ slot, (s'.storageAddr slot).val = irResult.finalStorage slot
-    | .revert _ _ => True
-    := by
-  have haddr : newOwner.val &&& addressMask = newOwner.val := by
-    simp only [addressMask]
-    have hlt : newOwner.val < 2 ^ 160 := by
-      have := newOwner.isLt; simp [ADDRESS_MODULUS] at this; exact this
-    calc newOwner.val &&& (2 ^ 160 - 1)
-        = newOwner.val % 2 ^ 160 := by simpa using (Nat.and_two_pow_sub_one_eq_mod ...)
-      _ = newOwner.val := Nat.mod_eq_of_lt hlt
-  simp [MorphoViewSlice.setOwner, -- EDSL function
-    Contract.run, getStorageAddr, setStorageAddr, msgSender, require,
-    bind, pure, hOwner, hNotSame, encodeStorageAddr,
-    interpretIR, morphoIRContract,
-    execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-    evalBuiltinCallWithBackend, defaultBuiltinBackend, evalBuiltinCall,
-    calldataloadWord,
-    Compiler.Proofs.abstractLoadStorageOrMapping,
-    Compiler.Proofs.abstractStoreStorageOrMapping,
-    Compiler.Proofs.storageAsMappings,
-    IRState.setVar, IRState.getVar, haddr]
-  intro slot
-  by_cases h : slot = 0 <;> simp_all [beq_iff_eq]
-```
-
-## Upstream Dependencies
-
-### Proven (verity PrimitiveBridge.lean, semantic-bridge branch)
-- `getStorageAddr_matches_sload`: reading Address storage
-- `setStorageAddr_matches_sstore`: writing Address storage (verity#1054) — NOT needed for direct unfolding strategy
-- `msgSender_matches_caller`: sender access
-- `require_eq/neq_matches_iszero_revert`: require checks
-- `bind_unfold`, `pure_unfold`: monadic composition
-- `Nat.and_two_pow_sub_one_eq_mod`: address mask arithmetic
-
-### Also proven (from commits 2031992, 8b3b482)
-- Counter: increment, decrement, getCount semantic bridge (zero sorry)
-- Owned: getOwner, transferOwnership semantic bridge (zero sorry)
-- `encodeStorageAddr`: canonical Address-typed storage encoding
-
-### Required but not yet available
-- `morphoIRContract`: the compiled IR for MorphoViewSlice (needs `compile` on morpho spec)
-- Morpho CompilationModel spec must match MacroSlice EDSL
-
-## Status
-
-This file contains only the proof *skeleton* and type-level documentation.
-No theorems are stated; no sorry is introduced. Once the verity semantic
-bridge theorem is composed and the verity pin is bumped, concrete proofs
-will replace these skeletons.
+For each function, we:
+1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage layout
+2. Define an EDSL-based wrapper: run `MorphoViewSlice.f` on encoded state, decode result
+3. Prove the wrapper equals the pure Lean `Morpho.f`
+4. Conclude `*SemEq` obligation is satisfiable
 -/
+
+import Morpho.Compiler.MacroSlice
+import Morpho.Proofs.SolidityBridge
 
 namespace Morpho.Proofs.SemanticBridgeDischarge
 
+open Verity
+open Morpho.Types
+open Morpho.Compiler.MacroSlice
+
 /-! ## State Encoding
 
-The canonical mapping from `MorphoState` (pure Lean) to `ContractState`
-(EDSL), following the `MacroSlice.lean` storage layout.
+The canonical encoding from `MorphoState` to `ContractState` matching the
+storage layout declared in `MacroSlice.lean`:
 
-```
-MorphoState field         | ContractState accessor     | Slot
---------------------------|----------------------------|-----
-owner : Address           | storageAddr 0              | 0
-feeRecipient : Address    | storageAddr 1              | 1
-(markets mapping)         | storageMap 3               | 3
-isIrmEnabled : Addr→Bool  | storageMap 4               | 4
-isLltvEnabled : Uint→Bool | storageMapUint 5           | 5
-isAuthorized : 2D mapping | storageMap2 6              | 6
-nonce : Addr→Uint256      | storageMapUint 7           | 7
-idToMarketParams mapping  | storageMap 8               | 8
-sender : Address          | sender                     | —
-```
-
-Key insight: verity's `encodeStorageAddr` (commit 8b3b482) covers the
-Address-typed fields. Mixed-type contracts (Address + Uint256 + Mapping
-storage) will need a combined encoding function.
+| MorphoState field  | ContractState accessor | Slot |
+|--------------------|------------------------|------|
+| owner : Address    | storageAddr 0          | 0    |
+| feeRecipient       | storageAddr 1          | 1    |
+| isIrmEnabled       | storageMap 4           | 4    |
+| isLltvEnabled      | storageMapUint 5       | 5    |
+| isAuthorized       | storageMap2 6          | 6    |
+| nonce              | storageMapUint 7       | 7    |
+| sender : Address   | sender                 | —    |
 -/
 
-/-! ## Discharge Sequence Summary
+/-- Encode `MorphoState` to `ContractState` matching MacroSlice storage layout. -/
+def encodeMorphoState (s : MorphoState) : ContractState := {
+  storage := fun _ => 0
+  storageAddr := fun slot =>
+    if slot == 0 then s.owner
+    else if slot == 1 then s.feeRecipient
+    else 0
+  storageMap := fun slot key =>
+    if slot == 4 then (if s.isIrmEnabled key then 1 else 0)
+    else 0
+  storageMapUint := fun slot key =>
+    if slot == 5 then (if s.isLltvEnabled key then 1 else 0)
+    else if slot == 7 then s.nonce key
+    else 0
+  storageMap2 := fun slot key1 key2 =>
+    if slot == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
+    else 0
+  sender := s.sender
+  thisAddress := 0
+  msgValue := 0
+  blockTimestamp := s.blockTimestamp
+  knownAddresses := fun _ => Core.FiniteAddressSet.empty
+  events := []
+}
 
-| Phase | Operations | Upstream template | Status |
-|-------|-----------|-------------------|--------|
-| 1 | setOwner, setFeeRecipient | `owned_transferOwnership_semantic_bridge` | **template proven** |
-| 2 | enableIrm, enableLltv, setAuthorization | (needs mapping bridge) | EDSL-ready |
-| 3 | createMarket | (needs MappingWord + externalCall) | macro-migrated |
-| 4 | 12 remaining ops | (needs internal calls, ERC20, etc.) | blocked on macro |
+/-! ## Link 1: setOwner
+
+The EDSL `MorphoViewSlice.setOwner` (MacroSlice.lean:128-133):
+```
+function setOwner (newOwner : Address) : Unit := do
+  let sender <- msgSender
+  let currentOwner <- getStorageAddr ownerSlot
+  require (sender == currentOwner) "not owner"
+  require (newOwner != currentOwner) "already set"
+  setStorageAddr ownerSlot newOwner
+```
+
+The pure Lean `Morpho.setOwner` (Morpho.lean:124-127):
+```
+def setOwner (s : MorphoState) (newOwner : Address) : Option MorphoState :=
+  if s.sender != s.owner then none
+  else if newOwner == s.owner then none
+  else some { s with owner := newOwner }
+```
+-/
+
+/-- Run the EDSL `setOwner` on encoded state and decode. This wraps the
+    monadic EDSL execution as a pure `MorphoState → Address → Option MorphoState`
+    function, which is exactly the type `SetOwnerSem` expects. -/
+noncomputable def edslSetOwner (s : MorphoState) (newOwner : Address) : Option MorphoState :=
+  let state := encodeMorphoState s
+  match (MorphoViewSlice.setOwner newOwner) state with
+  | .success _ newState => some { s with owner := newState.storageAddr 0 }
+  | .revert _ _ => none
+
+/-- **Link 1 for setOwner**: The EDSL `setOwner` matches the pure Lean model.
+
+Proof proceeds by unfolding the EDSL do-notation into its monadic chain
+(`msgSender → getStorageAddr → require → require → setStorageAddr`) and
+evaluating each step on `encodeMorphoState s`, then case-splitting on the
+sender/owner equality conditions. -/
+theorem setOwner_link1 :
+    ∀ s newOwner, edslSetOwner s newOwner = Morpho.setOwner s newOwner := by
+  intro s newOwner
+  unfold edslSetOwner Morpho.setOwner encodeMorphoState
+  -- Unfold the EDSL monadic chain: bind msgSender → bind getStorageAddr →
+  -- bind require → bind require → setStorageAddr
+  simp only [MorphoViewSlice.setOwner, MorphoViewSlice.ownerSlot,
+    bind, Bind.bind, msgSender, getStorageAddr, setStorageAddr, require, pure, Pure.pure,
+    ContractResult.success.injEq, true_and]
+  -- After unfolding, the EDSL reduces to nested if-then-else matching Morpho.setOwner
+  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
+  split <;> simp_all
+
+/-- The EDSL `setOwner` satisfies the semantic equivalence obligation.
+    This discharges `setOwnerSemEq` for the EDSL-based implementation. -/
+theorem setOwner_semEq :
+    SolidityBridge.setOwnerSemEq edslSetOwner :=
+  setOwner_link1
+
+/-! ## Link 1: setFeeRecipient
+
+The EDSL `MorphoViewSlice.setFeeRecipient` (MacroSlice.lean:135-141):
+```
+function setFeeRecipient (newFeeRecipient : Address) : Unit := do
+  let sender <- msgSender
+  let currentOwner <- getStorageAddr ownerSlot
+  require (sender == currentOwner) "not owner"
+  let currentFeeRecipient <- getStorageAddr feeRecipientSlot
+  require (newFeeRecipient != currentFeeRecipient) "already set"
+  setStorageAddr feeRecipientSlot newFeeRecipient
+```
+-/
+
+/-- Run the EDSL `setFeeRecipient` on encoded state and decode. -/
+noncomputable def edslSetFeeRecipient (s : MorphoState) (newFeeRecipient : Address) :
+    Option MorphoState :=
+  let state := encodeMorphoState s
+  match (MorphoViewSlice.setFeeRecipient newFeeRecipient) state with
+  | .success _ newState => some { s with feeRecipient := newState.storageAddr 1 }
+  | .revert _ _ => none
+
+/-- **Link 1 for setFeeRecipient**: EDSL matches the pure Lean model. -/
+theorem setFeeRecipient_link1 :
+    ∀ s newFeeRecipient,
+      edslSetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient := by
+  intro s newFeeRecipient
+  unfold edslSetFeeRecipient Morpho.setFeeRecipient encodeMorphoState
+  simp only [MorphoViewSlice.setFeeRecipient, MorphoViewSlice.ownerSlot,
+    MorphoViewSlice.feeRecipientSlot,
+    bind, Bind.bind, msgSender, getStorageAddr, setStorageAddr, require, pure, Pure.pure,
+    ContractResult.success.injEq, true_and]
+  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
+  split <;> simp_all
+
+/-- The EDSL `setFeeRecipient` satisfies the semantic equivalence obligation. -/
+theorem setFeeRecipient_semEq :
+    SolidityBridge.setFeeRecipientSemEq edslSetFeeRecipient :=
+  setFeeRecipient_link1
+
+/-! ## Discharge Status
+
+With Link 1 proven, the `*SemEq` obligations can be instantiated using the
+EDSL-based wrappers. The remaining gap (Links 2+3) connects the EDSL execution
+to the compiled IR and then to EVMYulLean.
+
+| Phase | Operations | Link 1 | Links 2+3 |
+|-------|-----------|--------|-----------|
+| 1 | setOwner, setFeeRecipient | **proven** | needs verity pin bump |
+| 2 | enableIrm, enableLltv, setAuthorization | provable | needs mapping bridge |
+| 3 | createMarket | provable | needs MappingWord bridge |
+| 4 | 12 remaining ops | blocked on macro | blocked |
+
+### What Link 1 gives us
+
+Once `setOwner_semEq` is proven, the SolidityBridge theorems that take
+`h_eq : setOwnerSemEq soliditySetOwner` can be instantiated with
+`edslSetOwner` and `setOwner_semEq`. For example:
+
+```
+solidity_setOwner_preserves_borrowLeSupply edslSetOwner setOwner_semEq ...
+```
+
+This means the invariant proofs transfer to the EDSL implementation.
+The remaining gap (Links 2+3) then establishes that the *compiled* EVM bytecode
+behaves identically to the EDSL, which is the verity semantic bridge's job.
 -/
 
 end Morpho.Proofs.SemanticBridgeDischarge

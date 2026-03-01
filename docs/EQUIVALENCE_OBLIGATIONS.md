@@ -170,25 +170,33 @@ proven primitive lemmas and have a proven upstream template (`owned_transferOwne
 
 ### Discharge proof structure
 
-For detailed proof skeletons, see `Morpho/Proofs/SemanticBridgeDischarge.lean`.
+`Morpho/Proofs/SemanticBridgeDischarge.lean` contains actual proofs for the
+first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
-The discharge follows the Owned template from verity's `SemanticBridge.lean`:
-1. **State encoding**: `encodeStorageAddr` maps `ContractState.storageAddr` to IR `Nat → Nat`
-2. **Address mask**: `Nat.and_two_pow_sub_one_eq_mod` proves `addr &&& addressMask = addr`
-3. **Direct simp**: Unfold both EDSL and IR execution simultaneously
-4. **Storage equality**: `by_cases` on slot index, `simp_all [beq_iff_eq]`
+The discharge has three links per obligation:
+1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient
+2. **Link 2** (verity): `MorphoViewSlice.f ↔ compiled IR` — follows Owned template
+3. **Link 3** (verity): `compiled IR ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
-Key insight: The proofs do NOT need `setStorageAddr_matches_sstore` — direct
-`simp` with `setStorageAddr` definition suffices. The proof bypasses the
-Layer 3 sorry by unfolding directly (valid for small functions).
+**Link 1 proof pattern** (for setOwner, setFeeRecipient):
+1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
+2. Run EDSL function on encoded state, decode result to `Option MorphoState`
+3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
+4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
+
+**Link 2 proof template** (from verity `SemanticBridge.lean`, commit c1b2bbd):
+- `encodeStorageAddr` maps `ContractState.storageAddr` to IR `Nat → Nat`
+- `Nat.and_two_pow_sub_one_eq_mod` for address masking
+- Direct simp: unfold both EDSL and IR simultaneously
+- `by_cases` on slot index, `simp_all [beq_iff_eq]`
 
 ### Discharge sequence
 
 Once verity#1052 merges and morpho-verity bumps the verity pin:
 
-1. **After verity pin bump**: `setOwner`, `setFeeRecipient` — extend
-   `owned_transferOwnership_semantic_bridge` pattern with idempotence check.
-   All required lemmas proven, template exists. See `SemanticBridgeDischarge.lean`.
+1. **Link 1 proven, Link 2+3 after verity pin bump**: `setOwner`, `setFeeRecipient` —
+   Link 1 (`*SemEq` for EDSL impl) proven in `SemanticBridgeDischarge.lean`.
+   Link 2 follows `owned_transferOwnership_semantic_bridge` template (proven in verity).
 2. **After mapping bridge lemmas**: `enableIrm`, `enableLltv`, `setAuthorization` —
    MappingAutomation.lean already provides EDSL-level correctness; need bridge-level
    lemmas connecting `getMapping`/`setMapping` to `sload(keccak256(key,slot))`/
