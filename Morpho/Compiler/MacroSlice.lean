@@ -9,6 +9,7 @@ def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
 def and (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
+def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := Verity.pure 0
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
@@ -81,6 +82,9 @@ verity_contract MorphoViewSlice where
   function fee (id : Bytes32) : Uint256 := do
     let word <- getMappingWord marketSlot id 2
     return (and (shr 128 word) 340282366920938463463374607431768211455)
+
+  function extSloads (slots : Array Bytes32) : Array Uint256 := do
+    returnStorageWords slots
 
   function setOwner (newOwner : Address) : Unit := do
     let sender <- msgSender
