@@ -5,6 +5,8 @@ namespace Morpho.Compiler.MacroSlice
 
 open Verity
 
+def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
+
 -- Incremental macro-native Morpho slice for migration progress tracking.
 -- This intentionally models a selector-exact subset with supported constructs.
 verity_contract MorphoViewSlice where
@@ -57,5 +59,17 @@ verity_contract MorphoViewSlice where
     let currentValue <- getMapping isIrmEnabledSlot irm
     require (currentValue == 0) "already set"
     setMapping isIrmEnabledSlot irm 1
+
+  function setAuthorization (authorized : Address, newIsAuthorized : Bool) : Unit := do
+    let sender <- msgSender
+    let currentValue <- getMapping2 isAuthorizedSlot sender authorized
+    if newIsAuthorized then
+      require (currentValue == 0) "already set"
+      setMapping2 isAuthorizedSlot sender authorized 1
+    else
+      require (currentValue != 0) "already set"
+      setMapping2 isAuthorizedSlot sender authorized 0
+    let currentNonce <- getMapping nonceSlot sender
+    setMapping nonceSlot sender (add currentNonce 1)
 
 end Morpho.Compiler.MacroSlice

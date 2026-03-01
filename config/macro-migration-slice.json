@@ -16,7 +16,6 @@
     "market(bytes32)": "bytes32 parameters and multi-value tuple returns are not yet supported by verity_contract macro functions",
     "position(bytes32,address)": "bytes32 parameters and multi-value tuple returns are not yet supported by verity_contract macro functions",
     "repay((address,address,address,address,uint256),uint256,uint256,address,bytes)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
-    "setAuthorization(address,bool)": "Bool parameters are not yet supported by verity_contract macro functions",
     "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))": "tuple-typed arguments are not yet supported by verity_contract macro functions",
     "setFee((address,address,address,address,uint256),uint256)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
     "supply((address,address,address,address,uint256),uint256,uint256,address,bytes)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
@@ -36,6 +35,7 @@
     "nonce(address)",
     "owner()",
     "setFeeRecipient(address)",
+    "setAuthorization(address,bool)",
     "setOwner(address)"
   ],
   "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates; every non-migrated signature must stay explicitly classified with a blocker reason.",
