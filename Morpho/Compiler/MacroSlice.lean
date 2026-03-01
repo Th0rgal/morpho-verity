@@ -10,6 +10,7 @@ def and (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
+def returnValues (_values : List Uint256) : Contract Unit := Verity.pure ()
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := Verity.pure 0
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
@@ -23,6 +24,7 @@ verity_contract MorphoViewSlice where
     ownerSlot : Address := slot 0
     feeRecipientSlot : Address := slot 1
     marketSlot : Uint256 -> Uint256 := slot 3
+    idToMarketParamsSlot : Uint256 -> Uint256 := slot 8
     isIrmEnabledSlot : Address -> Uint256 := slot 4
     isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
@@ -82,6 +84,41 @@ verity_contract MorphoViewSlice where
   function fee (id : Bytes32) : Uint256 := do
     let word <- getMappingWord marketSlot id 2
     return (and (shr 128 word) 340282366920938463463374607431768211455)
+
+  function idToMarketParams (id : Bytes32) : Tuple [Address, Address, Address, Address, Uint256] := do
+    let loanToken <- getMappingWord idToMarketParamsSlot id 0
+    let collateralToken <- getMappingWord idToMarketParamsSlot id 1
+    let oracle <- getMappingWord idToMarketParamsSlot id 2
+    let irm <- getMappingWord idToMarketParamsSlot id 3
+    let lltv <- getMappingWord idToMarketParamsSlot id 4
+    let addrMask := 1461501637330902918203684832716283019655932542975
+    returnValues [
+      and loanToken addrMask,
+      and collateralToken addrMask,
+      and oracle addrMask,
+      and irm addrMask,
+      lltv
+    ]
+
+  function market (id : Bytes32) : Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256] := do
+    let word0 <- getMappingWord marketSlot id 0
+    let word1 <- getMappingWord marketSlot id 1
+    let word2 <- getMappingWord marketSlot id 2
+    let loMask := 340282366920938463463374607431768211455
+    returnValues [
+      and word0 loMask,
+      and (shr 128 word0) loMask,
+      and word1 loMask,
+      and (shr 128 word1) loMask,
+      and word2 loMask,
+      and (shr 128 word2) loMask
+    ]
+
+  function position (id : Bytes32, user : Address) : Tuple [Uint256, Uint256, Uint256] := do
+    let _ignoredId := id
+    let _ignoredUser := user
+    -- Pending upstream storage-typing support for mapping(uint256 => mapping(address => ...)).
+    returnValues [0, 0, 0]
 
   function extSloads (slots : Array Bytes32) : Array Uint256 := do
     returnStorageWords slots
