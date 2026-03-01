@@ -5,7 +5,9 @@
     "isAuthorized(address,address)",
     "isIrmEnabled(address)",
     "nonce(address)",
-    "owner()"
+    "owner()",
+    "setFeeRecipient(address)",
+    "setOwner(address)"
   ],
   "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates.",
   "source": "Morpho/Compiler/MacroSlice.lean"
