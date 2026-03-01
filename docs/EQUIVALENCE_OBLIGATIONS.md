@@ -96,7 +96,14 @@ Known expected differences (not checked, handled by semantic bridge):
 
 ## Macro Migration Blockers
 
-The 13 unmigrated operations depend on upstream verity macro capabilities:
+The 13 unmigrated operations depend on upstream verity macro capabilities.
+
+**Resolved blockers** (verity `semantic-bridge` as of 2026-03-01): tuple destructuring,
+`setStructMember`/`structMember` statement/expression primitives, `keccakMarketParams`
+(via `externalCall`), `blockTimestamp`, `mstore`/`mload`, `getMappingUint`/`setMappingUint`
+explicit translators, `Bytes32`/`Bool` type support.
+
+**Remaining blockers**:
 
 | Blocker | Operations affected | Count |
 |---------|-------------------|:-----:|
@@ -105,12 +112,17 @@ The 13 unmigrated operations depend on upstream verity macro capabilities:
 | 2D struct mapping read/write (`structMember2`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate | 7 |
 | External callbacks (`Callbacks.callback`) | supply, supplyCollateral, repay, liquidate, flashLoan | 5 |
 | External contract calls (`Calls.withReturn`) | accrueInterest, accrueInterestPublic, withdrawCollateral, borrow, liquidate | 5 |
-| 1D struct mapping write (`setStructMember`) | createMarket, setFee, accrueInterest, accrueInterestPublic | 4 |
-| Tuple destructuring (access elements of Tuple param) | createMarket, setFee | 2 |
+| `.mappingStruct` storage field type declarations | createMarket, setFee, accrueInterest, accrueInterestPublic, + all struct-accessing ops | 4+ |
 | Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate | 2 |
-| Axiomatic function calls (`keccakMarketParams`) | createMarket | 1 |
 | Precompile access (`ecrecover`) | setAuthorizationWithSig | 1 |
-| `blockTimestamp` access | createMarket | 1 |
+
+**Note on createMarket**: All 4 previously identified primitive blockers (tuple destructuring,
+`setStructMember`, `keccakMarketParams`, `blockTimestamp`) are now resolved in the macro
+translator. The remaining blocker is `.mappingStruct` storage field type declarations — the
+macro's `storage` block cannot yet declare struct-mapped storage with packed member layouts
+(e.g., `market : Uint256 -> Struct [("totalSupplyAssets", 0, {offset:0, width:128}), ...]`).
+A workaround via `setMappingWord`/`getMappingWord` with manual bit packing is possible but
+verbose. Once `.mappingStruct` support lands, createMarket can be fully macro-migrated.
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -118,10 +130,16 @@ For macro-migrated operations, `scripts/check_primitive_coverage.py` analyzes wh
 primitives each function uses and cross-references against proven `PrimitiveBridge` lemmas
 in the upstream verity semantic-bridge branch.
 
-### Current status (verity `semantic-bridge` branch)
+### Current status (verity `semantic-bridge` branch, 2026-03-01)
 
-**Proven PrimitiveBridge lemmas**: `getStorage`, `setStorage`, `require` (eq/neq/lt),
-`msgSender`, `if_then_else`, `uint256.add/sub/mul`
+**Proven PrimitiveBridge lemmas** (EDSL ↔ compiled Yul): `getStorage`, `setStorage`,
+`require` (eq/neq/lt), `msgSender`, `if_then_else`, `uint256.add/sub/mul`
+
+**Proven MappingAutomation lemmas** (EDSL-level, zero sorry): `getMapping`,
+`setMapping` (read-after-write, non-interference), `getMappingUint`, `setMappingUint`,
+`getMapping2`, `setMapping2` — complete read/write/cross-slot preservation.
+These operate at the `ContractState` level; the EDSL-to-Yul bridge for mapping
+operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
 | Operation | Primitives used | All proven? | Blocking |
 |-----------|----------------|:-----------:|----------|
@@ -143,10 +161,15 @@ Once verity#1052 merges and morpho-verity bumps the verity pin:
 
 1. **Immediate** (0 upstream work): `setOwner`, `setFeeRecipient` — compose
    `_semantic_preservation` theorem with proven PrimitiveBridge lemmas
-2. **After mapping lemmas**: `enableIrm`, `enableLltv`, `setAuthorization` — same
-   composition once `getMapping`/`setMapping` PrimitiveBridge lemmas are proven
-3. **After macro primitive expansion**: remaining 13 operations — requires upstream
-   macro support for internal calls, ERC20, callbacks, etc.
+2. **After mapping bridge lemmas**: `enableIrm`, `enableLltv`, `setAuthorization` —
+   MappingAutomation.lean already provides EDSL-level correctness; need bridge-level
+   lemmas connecting `getMapping`/`setMapping` to `sload(keccak256(key,slot))`/
+   `sstore(keccak256(key,slot),value)` in compiled Yul. MappingSlot.lean has the
+   slot encoding infrastructure (`solidityMappingSlot` via real keccak256 FFI)
+3. **After `.mappingStruct` storage type**: `createMarket` — all statement/expression
+   primitives now exist; blocked only on struct-mapped storage field type declarations
+4. **After remaining macro expansion**: 12 operations — requires internal calls, ERC20,
+   callbacks, external contract calls
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`
 

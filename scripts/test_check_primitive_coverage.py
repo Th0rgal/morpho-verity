@@ -113,11 +113,13 @@ class AnalyzeCoverageTests(unittest.TestCase):
         self.assertTrue(coverage["setOwner"]["fully_covered"])
         self.assertEqual(coverage["setOwner"]["missing"], [])
 
-    def test_gap_operation(self) -> None:
+    def test_edsl_ready_operation(self) -> None:
         coverage = analyze_coverage(SAMPLE_MACRO, {"enableIrm"})
         self.assertFalse(coverage["enableIrm"]["fully_covered"])
-        self.assertIn("getMapping", coverage["enableIrm"]["missing"])
-        self.assertIn("setMapping", coverage["enableIrm"]["missing"])
+        self.assertTrue(coverage["enableIrm"]["edsl_ready"])
+        self.assertIn("getMapping", coverage["enableIrm"]["edsl_proven"])
+        self.assertIn("setMapping", coverage["enableIrm"]["edsl_proven"])
+        self.assertEqual(coverage["enableIrm"]["missing"], [])
 
     def test_stub_operation(self) -> None:
         coverage = analyze_coverage(SAMPLE_MACRO, {"supply"})
@@ -131,6 +133,7 @@ class AnalyzeCoverageTests(unittest.TestCase):
         coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner", "enableIrm"})
         self.assertTrue(coverage["setOwner"]["fully_covered"])
         self.assertFalse(coverage["enableIrm"]["fully_covered"])
+        self.assertTrue(coverage["enableIrm"]["edsl_ready"])
 
 
 class BuildReportTests(unittest.TestCase):
@@ -139,7 +142,8 @@ class BuildReportTests(unittest.TestCase):
         report = build_report(coverage)
         self.assertEqual(report["total"], 2)
         self.assertEqual(report["fully_covered"], 1)
-        self.assertEqual(report["partially_covered"], 1)
+        self.assertEqual(report["edsl_ready"], 1)
+        self.assertEqual(report["gaps_remaining"], 0)
 
     def test_report_json_serializable(self) -> None:
         coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
@@ -150,7 +154,8 @@ class BuildReportTests(unittest.TestCase):
         coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
         report = build_report(coverage)
         self.assertEqual(report["fully_covered"], 1)
-        self.assertEqual(report["partially_covered"], 0)
+        self.assertEqual(report["edsl_ready"], 0)
+        self.assertEqual(report["gaps_remaining"], 0)
 
 
 class PrimitiveBridgeStatusTests(unittest.TestCase):
@@ -163,12 +168,13 @@ class PrimitiveBridgeStatusTests(unittest.TestCase):
                 f"{prim} should be proven"
             )
 
-    def test_mapping_missing(self) -> None:
-        """Mapping operations should be missing."""
-        for prim in ["getMapping", "setMapping", "getMapping2", "setMapping2"]:
+    def test_mapping_edsl_proven(self) -> None:
+        """Mapping operations should be edsl_proven (EDSL-level lemmas exist)."""
+        for prim in ["getMapping", "setMapping", "getMapping2", "setMapping2",
+                      "getMappingUint", "setMappingUint"]:
             self.assertEqual(
-                PRIMITIVE_BRIDGE_STATUS[prim], "missing",
-                f"{prim} should be missing"
+                PRIMITIVE_BRIDGE_STATUS[prim], "edsl_proven",
+                f"{prim} should be edsl_proven"
             )
 
 
@@ -201,10 +207,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(coverage["setOwner"]["fully_covered"])
         self.assertTrue(coverage["setFeeRecipient"]["fully_covered"])
 
-        # enableIrm, enableLltv, setAuthorization need mapping lemmas
-        self.assertFalse(coverage["enableIrm"]["fully_covered"])
-        self.assertFalse(coverage["enableLltv"]["fully_covered"])
-        self.assertFalse(coverage["setAuthorization"]["fully_covered"])
+        # enableIrm, enableLltv, setAuthorization: EDSL-ready (bridge lemmas needed)
+        for op in ["enableIrm", "enableLltv", "setAuthorization"]:
+            self.assertFalse(coverage[op]["fully_covered"])
+            self.assertTrue(coverage[op]["edsl_ready"])
 
         # At least 2 fully covered
         self.assertGreaterEqual(report["fully_covered"], 2)

@@ -56,6 +56,7 @@ Machine-readable parity target artifacts:
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
 - [`scripts/check_semantic_bridge_obligations.py`](scripts/check_semantic_bridge_obligations.py)
 - [`scripts/check_spec_correspondence.py`](scripts/check_spec_correspondence.py)
+- [`scripts/check_primitive_coverage.py`](scripts/check_primitive_coverage.py)
 
 Some theorems are conditional on arithmetic side conditions (`h_no_overflow`) that model Solidity checked arithmetic.
 These are explicit theorem hypotheses today, not globally discharged reachability facts.

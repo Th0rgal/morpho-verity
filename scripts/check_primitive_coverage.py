@@ -63,16 +63,20 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # PrimitiveBridge coverage: which EDSL primitives have proven lemmas
 # ---------------------------------------------------------------------------
 
-# Maps EDSL primitive names to their PrimitiveBridge lemma status.
+# Maps EDSL primitive names to their bridge-level lemma status.
 # Status values:
-#   "proven" = lemma exists with no sorry in PrimitiveBridge.lean
+#   "proven" = bridge lemma exists (EDSL ↔ compiled Yul) with no sorry
+#   "edsl_proven" = EDSL-level automation lemma proven (MappingAutomation.lean),
+#                   but EDSL-to-Yul bridge lemma not yet in PrimitiveBridge
 #   "partial" = lemma exists but requires additional composition
 #   "missing" = no lemma yet (upstream work needed)
 #
-# Based on analysis of verity's Verity/Proofs/Stdlib/PrimitiveBridge.lean
-# at commit cac46ad (semantic-bridge branch, 2026-03-01).
+# Based on analysis of verity semantic-bridge branch at 10f6da3 (2026-03-01).
+# PrimitiveBridge.lean: EDSL ↔ compiled Yul bridge lemmas
+# MappingAutomation.lean: EDSL-level read/write/non-interference lemmas (zero sorry)
+# MappingSlot.lean: keccak-based slot encoding infrastructure
 PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
-    # Fully proven in PrimitiveBridge.lean
+    # Fully proven in PrimitiveBridge.lean (EDSL ↔ Yul bridge)
     "msgSender": "proven",           # msgSender_matches_caller
     "getStorageAddr": "proven",      # getStorage_matches_sload
     "setStorageAddr": "proven",      # setStorage_matches_sstore
@@ -86,13 +90,16 @@ PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     "shr": "partial",                # no direct lemma yet
     "return": "partial",             # implicit in monad composition (bind_unfold/pure_unfold)
 
-    # Mapping operations -- not yet in PrimitiveBridge
-    "getMapping": "missing",         # requires keccak-based slot computation
-    "setMapping": "missing",         # requires keccak-based slot computation
-    "getMappingUint": "missing",     # same as getMapping with uint key
-    "setMappingUint": "missing",     # same as setMapping with uint key
-    "getMapping2": "missing",        # double-keccak slot computation
-    "setMapping2": "missing",        # double-keccak slot computation
+    # Mapping operations -- EDSL-level lemmas fully proven in MappingAutomation.lean
+    # (read-after-write, non-interference, cross-slot preservation)
+    # Bridge-level (EDSL ↔ Yul via keccak slot) not yet in PrimitiveBridge.
+    # MappingSlot.lean provides solidityMappingSlot infrastructure.
+    "getMapping": "edsl_proven",     # MappingAutomation: getMapping_runState/runValue
+    "setMapping": "edsl_proven",     # MappingAutomation: setMapping_runState, same/diff
+    "getMappingUint": "edsl_proven", # MappingAutomation: getMappingUint_runState/runValue
+    "setMappingUint": "edsl_proven", # MappingAutomation: setMappingUint_runState, same/diff
+    "getMapping2": "edsl_proven",    # MappingAutomation: getMapping2_runState/runValue
+    "setMapping2": "edsl_proven",    # MappingAutomation: setMapping2_runState, same/diff
     "getMappingWord": "missing",     # struct member access via slot offset
 
     # Other missing primitives
@@ -176,6 +183,7 @@ def analyze_coverage(
 
         primitives = extract_primitives(block)
         proven = set()
+        edsl_proven = set()
         partial = set()
         missing = set()
 
@@ -183,18 +191,24 @@ def analyze_coverage(
             status = PRIMITIVE_BRIDGE_STATUS.get(prim, "missing")
             if status == "proven":
                 proven.add(prim)
+            elif status == "edsl_proven":
+                edsl_proven.add(prim)
             elif status == "partial":
                 partial.add(prim)
             else:
                 missing.add(prim)
 
-        fully_covered = len(missing) == 0 and len(partial) == 0
+        fully_covered = len(missing) == 0 and len(partial) == 0 and len(edsl_proven) == 0
+        # edsl_ready: all gaps are edsl_proven (bridge lemma away from discharge)
+        edsl_ready = len(missing) == 0 and len(partial) == 0 and len(edsl_proven) > 0
         result[op] = {
             "primitives": sorted(primitives),
             "proven": sorted(proven),
+            "edsl_proven": sorted(edsl_proven),
             "partial": sorted(partial),
             "missing": sorted(missing),
             "fully_covered": fully_covered,
+            "edsl_ready": edsl_ready,
         }
 
     return result
@@ -207,11 +221,16 @@ def build_report(
         1 for v in coverage.values()
         if v.get("fully_covered", False)
     )
+    edsl_ready = sum(
+        1 for v in coverage.values()
+        if v.get("edsl_ready", False)
+    )
     total = len(coverage)
     return {
         "total": total,
         "fully_covered": fully_covered,
-        "partially_covered": total - fully_covered,
+        "edsl_ready": edsl_ready,
+        "gaps_remaining": total - fully_covered - edsl_ready,
         "operations": coverage,
     }
 
@@ -250,18 +269,26 @@ def main() -> None:
 
     print("primitive coverage analysis: OK")
     print(f"migrated operations: {report['total']}")
-    print(f"fully covered by proven lemmas: {report['fully_covered']}/{report['total']}")
-    print(f"gaps remaining: {report['partially_covered']}/{report['total']}")
+    print(f"fully covered by proven bridge lemmas: {report['fully_covered']}/{report['total']}")
+    print(f"EDSL-ready (need bridge lemmas only): {report['edsl_ready']}/{report['total']}")
+    print(f"gaps remaining: {report['gaps_remaining']}/{report['total']}")
     print()
     for op, data in sorted(report["operations"].items()):
         if "error" in data:
             print(f"  {op}: ERROR - {data['error']}")
             continue
-        status = "READY" if data["fully_covered"] else "GAPS"
+        if data["fully_covered"]:
+            status = "READY"
+        elif data.get("edsl_ready"):
+            status = "EDSL-READY"
+        else:
+            status = "GAPS"
         print(f"  {op}: [{status}]")
         print(f"    primitives: {', '.join(data['primitives'])}")
         if data["proven"]:
             print(f"    proven:     {', '.join(data['proven'])}")
+        if data.get("edsl_proven"):
+            print(f"    edsl_proven: {', '.join(data['edsl_proven'])}")
         if data["partial"]:
             print(f"    partial:    {', '.join(data['partial'])}")
         if data["missing"]:
