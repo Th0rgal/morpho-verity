@@ -164,8 +164,6 @@ verity_contract MorphoViewSlice where
     else
       require (currentValue != 0) "already set"
       setMapping2 isAuthorizedSlot sender authorized 0
-    let currentNonce <- getMapping nonceSlot sender
-    setMapping nonceSlot sender (add currentNonce 1)
 
   function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
     let sender <- msgSender

@@ -76,6 +76,24 @@ Machine-readable obligation status: [`config/semantic-bridge-obligations.json`](
 
 Lean-level obligation registry: `Morpho/Proofs/SemanticBridgeReadiness.lean`
 
+## Spec Correspondence
+
+For macro-migrated operations, `scripts/check_spec_correspondence.py` validates structural
+correspondence between the macro-generated CompilationModel (`MacroSlice.lean`) and the
+manual spec (`Spec.lean`):
+
+- **Storage slots**: slot numbers must match between macro `storage` declarations and
+  `Spec.lean` field definitions
+- **Parameter count**: macro function parameters must match spec function parameters
+- **Mutation count**: macro must not introduce spurious state mutations beyond if/else
+  branching expansion (2x tolerance)
+- **Stub detection**: macro-migrated operations must not be stubs
+
+Known expected differences (not checked, handled by semantic bridge):
+- **Events**: `Spec.lean` has `Stmt.emit` calls that MacroSlice omits (events don't affect state)
+- **Stop**: `Spec.lean` ends functions with `Stmt.stop` (implicit in EDSL do-blocks)
+- **Require expansion**: MacroSlice expands `requireOwner` into explicit `msgSender` + `require`
+
 ## Macro Migration Blockers
 
 The 13 unmigrated operations depend on upstream verity macro capabilities:

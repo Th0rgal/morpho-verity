@@ -109,6 +109,9 @@ jobs:
       - name: Validate semantic bridge obligations
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge obligations" -- python3 scripts/check_semantic_bridge_obligations.py
 
+      - name: Validate spec correspondence
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate spec correspondence" -- python3 scripts/check_spec_correspondence.py
+
       - name: Run parity-target parser regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
@@ -141,6 +144,9 @@ jobs:
 
       - name: Run semantic bridge obligation unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Semantic bridge obligation unit tests" -- python3 scripts/test_check_semantic_bridge_obligations.py
+
+      - name: Run spec correspondence unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Spec correspondence unit tests" -- python3 scripts/test_check_spec_correspondence.py
 
       - name: Run artifact-gate script unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh
