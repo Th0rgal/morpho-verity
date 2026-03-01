@@ -1,3 +1,6 @@
+import Morpho.Proofs.SemanticBridgeDischarge
+import Morpho.Proofs.SolidityBridge
+
 /-!
 # Semantic Bridge Instantiation: Concrete Invariant Proofs for EDSL Implementations
 
@@ -25,12 +28,11 @@ bytecode behaves identically to the EDSL. Once that lands, these theorems
 extend to the on-chain Morpho contract automatically.
 -/
 
-import Morpho.Proofs.SemanticBridgeDischarge
-import Morpho.Proofs.SolidityBridge
-
 namespace Morpho.Proofs.SemanticBridgeInstantiation
 
+open Verity
 open Morpho.Types
+open Morpho.Specs.Invariants
 open Morpho.Proofs.SemanticBridgeDischarge
 open SolidityBridge
 

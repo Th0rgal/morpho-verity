@@ -1,3 +1,6 @@
+import Morpho.Proofs.SemanticBridgeDischarge
+import Morpho.Proofs.Invariants
+
 /-!
 # Semantic Bridge End-to-End: Direct Link 1 Composition + Links 2+3 Gap
 
@@ -30,11 +33,9 @@ To complete Links 2+3 for setOwner/setFeeRecipient:
 4. Compose with Link 1 for the full chain: Pure Lean ↔ EDSL ↔ IR ↔ Yul
 -/
 
-import Morpho.Proofs.SemanticBridgeDischarge
-import Morpho.Proofs.Invariants
-
 namespace Morpho.Proofs.SemanticBridgeEndToEnd
 
+open Verity
 open Morpho.Types
 open Morpho.Proofs.SemanticBridgeDischarge
 open Morpho.Proofs.Invariants

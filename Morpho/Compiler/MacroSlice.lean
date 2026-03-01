@@ -176,36 +176,14 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    -- createMarket is permissionless (no ownership check).
-    -- Destructure tuple parameter.
-    let loanToken := marketParams_0
-    let collateralToken := marketParams_1
-    let oracle := marketParams_2
-    let irm := marketParams_3
-    let lltv := marketParams_4
-    -- Compute market id (axiomatic keccak hash of market params).
-    let id := externalCall "keccakMarketParams" [loanToken, collateralToken, oracle, irm, lltv]
-    -- Require IRM and LLTV are enabled.
-    let irmEnabled <- getMapping isIrmEnabledSlot irm
-    require (irmEnabled == 1) "IRM not enabled"
-    let lltvEnabled <- getMappingUint isLltvEnabledSlot lltv
-    require (lltvEnabled == 1) "LLTV not enabled"
-    -- Require market not already created (lastUpdate == 0).
-    let word2 <- getMappingWord marketSlot id 2
-    let currentLastUpdate := and word2 340282366920938463463374607431768211455
-    require (currentLastUpdate == 0) "market already created"
-    -- Initialize market struct (word 0: totalSupplyAssets|totalSupplyShares = 0,
-    -- word 1: totalBorrowAssets|totalBorrowShares = 0,
-    -- word 2: lastUpdate = blockTimestamp in low 128 bits, fee = 0 in high 128 bits).
-    setMappingWord marketSlot id 0 0
-    setMappingWord marketSlot id 1 0
-    setMappingWord marketSlot id 2 blockTimestamp
-    -- Store market params (unpacked, one word each).
-    setMappingWord idToMarketParamsSlot id 0 loanToken
-    setMappingWord idToMarketParamsSlot id 1 collateralToken
-    setMappingWord idToMarketParamsSlot id 2 oracle
-    setMappingWord idToMarketParamsSlot id 3 irm
-    setMappingWord idToMarketParamsSlot id 4 lltv
+    -- STUB: Full implementation requires tuple destructuring (marketParams_0..4),
+    -- externalCall for keccak hash, and blockTimestamp as a value expression.
+    -- These constructs are not yet supported by the current verity pin (dccb984).
+    -- Full implementation preserved in git history (commit 82e5572).
+    -- Blocked on: tuple element access, externalCall primitive, blockTimestamp value.
+    let marketParams' := marketParams
+    let _ignored := marketParams'
+    require (0 == 1) "createMarket stub"
 
   function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender

@@ -1,3 +1,6 @@
+import Morpho.Compiler.MacroSlice
+import Morpho.Proofs.SolidityBridge
+
 /-!
 # Semantic Bridge Discharge: Link 1 (Pure Lean ↔ EDSL)
 
@@ -30,10 +33,13 @@ For each function, we:
 2. Define an EDSL-based wrapper: run `MorphoViewSlice.f` on encoded state, decode result
 3. Prove the wrapper equals the pure Lean `Morpho.f`
 4. Conclude `*SemEq` obligation is satisfiable
--/
 
-import Morpho.Compiler.MacroSlice
-import Morpho.Proofs.SolidityBridge
+The key tactic pattern is:
+- Unfold definitions including `Bind.bind` (to resolve do-notation `>>=`)
+- Then `Verity.bind` + primitive definitions to reduce the monadic chain
+- Then `by_cases` on the boolean conditions to case-split
+- Then `simp_all` to close each case
+-/
 
 namespace Morpho.Proofs.SemanticBridgeDischarge
 
@@ -53,103 +59,62 @@ storage layout declared in `MacroSlice.lean`:
 | isIrmEnabled       | storageMap 4           | 4    |
 | isLltvEnabled      | storageMapUint 5       | 5    |
 | isAuthorized       | storageMap2 6          | 6    |
-| nonce              | storageMapUint 7       | 7    |
+| nonce              | storageMap 7           | 7    |
 | sender : Address   | sender                 | —    |
 -/
 
-/-- Encode `MorphoState` to `ContractState` matching MacroSlice storage layout. -/
-def encodeMorphoState (s : MorphoState) : ContractState := {
-  storage := fun _ => 0
-  storageAddr := fun slot =>
-    if slot == 0 then s.owner
-    else if slot == 1 then s.feeRecipient
-    else 0
-  storageMap := fun slot key =>
-    if slot == 4 then (if s.isIrmEnabled key then 1 else 0)
-    else 0
-  storageMapUint := fun slot key =>
-    if slot == 5 then (if s.isLltvEnabled key then 1 else 0)
-    else if slot == 7 then s.nonce key
-    else 0
-  storageMap2 := fun slot key1 key2 =>
-    if slot == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
-    else 0
-  sender := s.sender
-  thisAddress := 0
-  msgValue := 0
-  blockTimestamp := s.blockTimestamp
-  knownAddresses := fun _ => Core.FiniteAddressSet.empty
-  events := []
-}
+/-- Encode `MorphoState` to `ContractState` matching MacroSlice storage layout.
+    Uses `ContractState.mk` to avoid conflict with `storage`/`slot` keywords
+    from verity_contract macro. Lambda params use `n` instead of `slot`. -/
+def encodeMorphoState (s : MorphoState) : ContractState :=
+  ContractState.mk
+    (fun _ => 0)                              -- storage : Nat → Uint256
+    (fun n =>                                 -- storageAddr : Nat → Address
+      if n == 0 then s.owner
+      else if n == 1 then s.feeRecipient
+      else 0)
+    (fun n key =>                             -- storageMap : Nat → Address → Uint256
+      if n == 4 then (if s.isIrmEnabled key then 1 else 0)
+      else if n == 7 then s.nonce key
+      else 0)
+    (fun n key =>                             -- storageMapUint : Nat → Uint256 → Uint256
+      if n == 5 then (if s.isLltvEnabled key then 1 else 0)
+      else 0)
+    (fun n key1 key2 =>                       -- storageMap2 : Nat → Address → Address → Uint256
+      if n == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
+      else 0)
+    s.sender                                  -- sender : Address
+    0                                         -- thisAddress : Address
+    0                                         -- msgValue : Uint256
+    s.blockTimestamp                           -- blockTimestamp : Uint256
+    (fun _ => Core.FiniteAddressSet.empty)    -- knownAddresses
+    []                                        -- events
 
-/-! ## Link 1: setOwner
+/-! ## Link 1: setOwner -/
 
-The EDSL `MorphoViewSlice.setOwner` (MacroSlice.lean:128-133):
-```
-function setOwner (newOwner : Address) : Unit := do
-  let sender <- msgSender
-  let currentOwner <- getStorageAddr ownerSlot
-  require (sender == currentOwner) "not owner"
-  require (newOwner != currentOwner) "already set"
-  setStorageAddr ownerSlot newOwner
-```
-
-The pure Lean `Morpho.setOwner` (Morpho.lean:124-127):
-```
-def setOwner (s : MorphoState) (newOwner : Address) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if newOwner == s.owner then none
-  else some { s with owner := newOwner }
-```
--/
-
-/-- Run the EDSL `setOwner` on encoded state and decode. This wraps the
-    monadic EDSL execution as a pure `MorphoState → Address → Option MorphoState`
-    function, which is exactly the type `SetOwnerSem` expects. -/
+/-- Run the EDSL `setOwner` on encoded state and decode. -/
 noncomputable def edslSetOwner (s : MorphoState) (newOwner : Address) : Option MorphoState :=
   let state := encodeMorphoState s
   match (MorphoViewSlice.setOwner newOwner) state with
   | .success _ newState => some { s with owner := newState.storageAddr 0 }
   | .revert _ _ => none
 
-/-- **Link 1 for setOwner**: The EDSL `setOwner` matches the pure Lean model.
-
-Proof proceeds by unfolding the EDSL do-notation into its monadic chain
-(`msgSender → getStorageAddr → require → require → setStorageAddr`) and
-evaluating each step on `encodeMorphoState s`, then case-splitting on the
-sender/owner equality conditions. -/
+/-- **Link 1 for setOwner**: The EDSL `setOwner` matches the pure Lean model. -/
 theorem setOwner_link1 :
     ∀ s newOwner, edslSetOwner s newOwner = Morpho.setOwner s newOwner := by
   intro s newOwner
-  unfold edslSetOwner Morpho.setOwner encodeMorphoState
-  -- Unfold the EDSL monadic chain: bind msgSender → bind getStorageAddr →
-  -- bind require → bind require → setStorageAddr
-  simp only [MorphoViewSlice.setOwner, MorphoViewSlice.ownerSlot,
-    bind, Bind.bind, msgSender, getStorageAddr, setStorageAddr, require, pure, Pure.pure,
-    ContractResult.success.injEq, true_and]
-  -- After unfolding, the EDSL reduces to nested if-then-else matching Morpho.setOwner
-  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
-  split <;> simp_all
+  simp only [edslSetOwner, Morpho.setOwner, encodeMorphoState,
+    MorphoViewSlice.setOwner, MorphoViewSlice.ownerSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.setStorageAddr, Verity.require]
+  by_cases h1 : s.sender = s.owner <;> by_cases h2 : newOwner = s.owner <;> simp_all
 
-/-- The EDSL `setOwner` satisfies the semantic equivalence obligation.
-    This discharges `setOwnerSemEq` for the EDSL-based implementation. -/
+/-- The EDSL `setOwner` satisfies the semantic equivalence obligation. -/
 theorem setOwner_semEq :
     SolidityBridge.setOwnerSemEq edslSetOwner :=
   setOwner_link1
 
-/-! ## Link 1: setFeeRecipient
-
-The EDSL `MorphoViewSlice.setFeeRecipient` (MacroSlice.lean:135-141):
-```
-function setFeeRecipient (newFeeRecipient : Address) : Unit := do
-  let sender <- msgSender
-  let currentOwner <- getStorageAddr ownerSlot
-  require (sender == currentOwner) "not owner"
-  let currentFeeRecipient <- getStorageAddr feeRecipientSlot
-  require (newFeeRecipient != currentFeeRecipient) "already set"
-  setStorageAddr feeRecipientSlot newFeeRecipient
-```
--/
+/-! ## Link 1: setFeeRecipient -/
 
 /-- Run the EDSL `setFeeRecipient` on encoded state and decode. -/
 noncomputable def edslSetFeeRecipient (s : MorphoState) (newFeeRecipient : Address) :
@@ -164,44 +129,22 @@ theorem setFeeRecipient_link1 :
     ∀ s newFeeRecipient,
       edslSetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient := by
   intro s newFeeRecipient
-  unfold edslSetFeeRecipient Morpho.setFeeRecipient encodeMorphoState
-  simp only [MorphoViewSlice.setFeeRecipient, MorphoViewSlice.ownerSlot,
-    MorphoViewSlice.feeRecipientSlot,
-    bind, Bind.bind, msgSender, getStorageAddr, setStorageAddr, require, pure, Pure.pure,
-    ContractResult.success.injEq, true_and]
-  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
-  split <;> simp_all
+  simp only [edslSetFeeRecipient, Morpho.setFeeRecipient, encodeMorphoState,
+    MorphoViewSlice.setFeeRecipient, MorphoViewSlice.ownerSlot,
+    MorphoViewSlice.feeRecipientSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.setStorageAddr, Verity.require]
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : newFeeRecipient = s.feeRecipient <;> simp_all
 
 /-- The EDSL `setFeeRecipient` satisfies the semantic equivalence obligation. -/
 theorem setFeeRecipient_semEq :
     SolidityBridge.setFeeRecipientSemEq edslSetFeeRecipient :=
   setFeeRecipient_link1
 
-/-! ## Link 1: enableIrm
+/-! ## Link 1: enableIrm -/
 
-The EDSL `MorphoViewSlice.enableIrm` (MacroSlice.lean:143-149):
-```
-function enableIrm (irm : Address) : Unit := do
-  let sender <- msgSender
-  let currentOwner <- getStorageAddr ownerSlot
-  require (sender == currentOwner) "not owner"
-  let currentValue <- getMapping isIrmEnabledSlot irm
-  require (currentValue == 0) "already set"
-  setMapping isIrmEnabledSlot irm 1
-```
-
-The pure Lean `Morpho.enableIrm` (Morpho.lean:130-133):
-```
-def enableIrm (s : MorphoState) (irm : Address) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if s.isIrmEnabled irm then none
-  else some { s with isIrmEnabled := fun a => if a == irm then true else s.isIrmEnabled a }
-```
--/
-
-/-- Run the EDSL `enableIrm` on encoded state and decode.
-    The mapping decode reconstructs the boolean function: after `setMapping slot 4 irm 1`,
-    the new `isIrmEnabled` is `fun a => if a == irm then true else s.isIrmEnabled a`. -/
+/-- Run the EDSL `enableIrm` on encoded state and decode. -/
 noncomputable def edslEnableIrm (s : MorphoState) (irm : Address) : Option MorphoState :=
   let state := encodeMorphoState s
   match (MorphoViewSlice.enableIrm irm) state with
@@ -209,54 +152,26 @@ noncomputable def edslEnableIrm (s : MorphoState) (irm : Address) : Option Morph
       isIrmEnabled := fun a => if a == irm then true else s.isIrmEnabled a }
   | .revert _ _ => none
 
-/-- **Link 1 for enableIrm**: The EDSL `enableIrm` matches the pure Lean model.
-
-Proof unfolds the EDSL monadic chain through `getMapping` (which reads
-`storageMap 4 irm` from `encodeMorphoState`), and matches the `require == 0`
-check against `s.isIrmEnabled irm`. -/
+/-- **Link 1 for enableIrm**: The EDSL `enableIrm` matches the pure Lean model. -/
 theorem enableIrm_link1 :
     ∀ s irm, edslEnableIrm s irm = Morpho.enableIrm s irm := by
   intro s irm
-  unfold edslEnableIrm Morpho.enableIrm encodeMorphoState
-  simp only [MorphoViewSlice.enableIrm, MorphoViewSlice.ownerSlot,
-    MorphoViewSlice.isIrmEnabledSlot,
-    bind, Bind.bind, msgSender, getStorageAddr, getMapping, setMapping, require, pure, Pure.pure,
-    ContractResult.success.injEq, true_and]
-  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
-  split <;> simp_all
+  have h01 : (1 : Uint256) ≠ 0 := by decide
+  simp only [edslEnableIrm, Morpho.enableIrm, encodeMorphoState,
+    MorphoViewSlice.enableIrm, MorphoViewSlice.ownerSlot,
+    MorphoViewSlice.isIrmEnabledSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.getMapping, Verity.setMapping, Verity.require]
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : s.isIrmEnabled irm <;>
+    simp_all
 
 /-- The EDSL `enableIrm` satisfies the semantic equivalence obligation. -/
 theorem enableIrm_semEq :
     SolidityBridge.enableIrmSemEq edslEnableIrm :=
   enableIrm_link1
 
-/-! ## Link 1: enableLltv
-
-The EDSL `MorphoViewSlice.enableLltv` (MacroSlice.lean:151-158):
-```
-function enableLltv (lltv : Uint256) : Unit := do
-  let sender <- msgSender
-  let currentOwner <- getStorageAddr ownerSlot
-  require (sender == currentOwner) "not owner"
-  let currentValue <- getMappingUint isLltvEnabledSlot lltv
-  require (currentValue == 0) "already set"
-  require (lltv < 1000000000000000000) "max LLTV exceeded"
-  setMappingUint isLltvEnabledSlot lltv 1
-```
-
-The pure Lean `Morpho.enableLltv` (Morpho.lean:136-140):
-```
-def enableLltv (s : MorphoState) (lltv : Uint256) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if s.isLltvEnabled lltv then none
-  else if lltv.val ≥ MathLib.WAD then none
-  else some { s with isLltvEnabled := fun l => if l == lltv then true else s.isLltvEnabled l }
-```
-
-Note: `lltv < 1000000000000000000` in the EDSL corresponds to `lltv.val < WAD` since
-`WAD = 10^18 = 1000000000000000000`. The Morpho model checks `lltv.val ≥ MathLib.WAD`
-(the negation). The EDSL `require` reverting on `¬(lltv < WAD)` maps to `lltv.val ≥ WAD → none`.
--/
+/-! ## Link 1: enableLltv -/
 
 /-- Run the EDSL `enableLltv` on encoded state and decode. -/
 noncomputable def edslEnableLltv (s : MorphoState) (lltv : Uint256) : Option MorphoState :=
@@ -270,58 +185,37 @@ noncomputable def edslEnableLltv (s : MorphoState) (lltv : Uint256) : Option Mor
 theorem enableLltv_link1 :
     ∀ s lltv, edslEnableLltv s lltv = Morpho.enableLltv s lltv := by
   intro s lltv
-  unfold edslEnableLltv Morpho.enableLltv encodeMorphoState
-  simp only [MorphoViewSlice.enableLltv, MorphoViewSlice.ownerSlot,
-    MorphoViewSlice.isLltvEnabledSlot,
-    bind, Bind.bind, msgSender, getStorageAddr, getMappingUint, setMappingUint,
-    require, pure, Pure.pure,
-    ContractResult.success.injEq, true_and]
-  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
-  simp only [MathLib.WAD]
-  split <;> simp_all [Nat.not_lt]
+  have h01 : (1 : Uint256) ≠ 0 := by decide
+  simp only [edslEnableLltv, Morpho.enableLltv, encodeMorphoState,
+    MorphoViewSlice.enableLltv, MorphoViewSlice.ownerSlot,
+    MorphoViewSlice.isLltvEnabledSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.getMappingUint, Verity.setMappingUint, Verity.require]
+  simp only [Morpho.Libraries.MathLib.WAD]
+  -- Reduce Uint256.val of the WAD literal to a bare Nat
+  have hWadVal : Verity.Core.Uint256.val (1000000000000000000 : Uint256) = 1000000000000000000 := by
+    native_decide
+  -- Case split on owner check, isLltvEnabled, and WAD bound
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : s.isLltvEnabled lltv <;>
+    simp_all <;>
+    -- Remaining: s.sender = owner, ¬isLltvEnabled, EDSL if-branch on WAD
+    (by_cases h3 : lltv.val < (1000000000000000000 : Nat)
+     · -- lltv < WAD: both sides succeed
+       have hlt : lltv.val < 1000000000000000000 := h3
+       simp [hlt]
+     · -- lltv ≥ WAD: both sides give none
+       have hge : ¬(lltv.val < 1000000000000000000) := h3
+       simp [hge])
 
 /-- The EDSL `enableLltv` satisfies the semantic equivalence obligation. -/
 theorem enableLltv_semEq :
     SolidityBridge.enableLltvSemEq edslEnableLltv :=
   enableLltv_link1
 
-/-! ## Link 1: setAuthorization
+/-! ## Link 1: setAuthorization -/
 
-The EDSL `MorphoViewSlice.setAuthorization` (MacroSlice.lean:160-168):
-```
-function setAuthorization (authorized : Address, newIsAuthorized : Bool) : Unit := do
-  let sender <- msgSender
-  let currentValue <- getMapping2 isAuthorizedSlot sender authorized
-  if newIsAuthorized then
-    require (currentValue == 0) "already set"
-    setMapping2 isAuthorizedSlot sender authorized 1
-  else
-    require (currentValue != 0) "already set"
-    setMapping2 isAuthorizedSlot sender authorized 0
-```
-
-The pure Lean `Morpho.setAuthorization` (Morpho.lean:184-190):
-```
-def setAuthorization (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
-    : Option MorphoState :=
-  if newIsAuthorized == s.isAuthorized s.sender authorized then none
-  else some { s with isAuthorized := fun authorizer auth =>
-      if authorizer == s.sender && auth == authorized then newIsAuthorized
-      else s.isAuthorized authorizer auth }
-```
-
-Correspondence:
-- EDSL `if newIsAuthorized then require (currentValue == 0)` means
-  `newIsAuthorized = true ∧ ¬(isAuthorized sender authorized)`, i.e. `true ≠ current`
-- EDSL `else require (currentValue != 0)` means
-  `newIsAuthorized = false ∧ isAuthorized sender authorized`, i.e. `false ≠ current`
-- Both cases reduce to: `newIsAuthorized ≠ isAuthorized sender authorized`
-  which is equivalent to Morpho's `newIsAuthorized == s.isAuthorized ... → none`
--/
-
-/-- Run the EDSL `setAuthorization` on encoded state and decode.
-    The wrapper extracts sender from the original state and reconstructs
-    the authorization function matching `Morpho.setAuthorization`. -/
+/-- Run the EDSL `setAuthorization` on encoded state and decode. -/
 noncomputable def edslSetAuthorization (s : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) : Option MorphoState :=
   let state := encodeMorphoState s
@@ -332,22 +226,22 @@ noncomputable def edslSetAuthorization (s : MorphoState) (authorized : Address)
         else s.isAuthorized authorizer auth }
   | .revert _ _ => none
 
-/-- **Link 1 for setAuthorization**: The EDSL `setAuthorization` matches the pure Lean model.
-
-The proof case-splits on `newIsAuthorized` (true/false), then on the current authorization
-state `s.isAuthorized s.sender authorized`, showing that the EDSL's if/else with require
-checks is equivalent to Morpho's `newIsAuthorized == s.isAuthorized ... → none`. -/
+/-- **Link 1 for setAuthorization**: The EDSL `setAuthorization` matches the pure Lean model. -/
 theorem setAuthorization_link1 :
     ∀ s authorized newIsAuthorized,
       edslSetAuthorization s authorized newIsAuthorized =
         Morpho.setAuthorization s authorized newIsAuthorized := by
   intro s authorized newIsAuthorized
-  unfold edslSetAuthorization Morpho.setAuthorization encodeMorphoState
-  simp only [MorphoViewSlice.setAuthorization, MorphoViewSlice.isAuthorizedSlot,
-    bind, Bind.bind, msgSender, getMapping2, setMapping2, require, pure, Pure.pure,
-    ContractResult.success.injEq, true_and]
-  simp only [beq_iff_eq, bne_iff_ne, Bool.not_eq_true', decide_eq_true_eq, ite_not]
-  cases newIsAuthorized <;> simp_all [Bool.eq_comm]
+  simp only [edslSetAuthorization, Morpho.setAuthorization, encodeMorphoState,
+    MorphoViewSlice.setAuthorization, MorphoViewSlice.isAuthorizedSlot]
+  have h01 : (1 : Uint256) ≠ 0 := by decide
+  -- Unfold the outer bind chain + reduce concrete beq
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getMapping2,
+    beq_self_eq_true, ite_true]
+  -- Case split on newIsAuthorized and current auth state
+  cases newIsAuthorized <;>
+    by_cases h : s.isAuthorized s.sender authorized <;>
+    simp_all [Verity.bind, Verity.require, Verity.setMapping2]
 
 /-- The EDSL `setAuthorization` satisfies the semantic equivalence obligation. -/
 theorem setAuthorization_semEq :
@@ -366,22 +260,6 @@ execution to the compiled IR and then to EVMYulLean.
 | 2 | enableIrm, enableLltv, setAuthorization | **proven** | needs mapping bridge |
 | 3 | createMarket | provable | needs MappingWord bridge |
 | 4 | 12 remaining ops | blocked on macro | blocked |
-
-### What Link 1 gives us
-
-Once a `*_semEq` theorem is proven, the SolidityBridge theorems that take
-the corresponding `h_eq` hypothesis can be instantiated. For example:
-
-```
-solidity_enableIrm_preserves_borrowLeSupply edslEnableIrm enableIrm_semEq ...
-solidity_enableIrm_preserves_irmMonotone edslEnableIrm enableIrm_semEq ...
-solidity_setAuthorization_preserves_borrowLeSupply edslSetAuthorization setAuthorization_semEq ...
-```
-
-This means the invariant proofs transfer to the EDSL implementation for all 5
-discharged operations. The remaining gap (Links 2+3) then establishes that the
-*compiled* EVM bytecode behaves identically to the EDSL, which is the verity
-semantic bridge's job.
 -/
 
 end Morpho.Proofs.SemanticBridgeDischarge
