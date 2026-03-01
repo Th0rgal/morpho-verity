@@ -1,0 +1,12 @@
+{
+  "contract": "MorphoViewSlice",
+  "expectedMigrated": [
+    "feeRecipient()",
+    "isAuthorized(address,address)",
+    "isIrmEnabled(address)",
+    "nonce(address)",
+    "owner()"
+  ],
+  "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates.",
+  "source": "Morpho/Compiler/MacroSlice.lean"
+}

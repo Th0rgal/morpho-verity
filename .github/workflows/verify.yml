@@ -91,6 +91,9 @@ jobs:
       - name: Validate macro migration blockers baseline
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration blockers baseline" -- python3 scripts/check_macro_migration_blockers.py --json-out out/parity-target/macro-migration-blockers.json
 
+      - name: Validate macro migration selector slice
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration selector slice" -- python3 scripts/check_macro_migration_slice.py --json-out out/parity-target/macro-migration-slice.json
+
       - name: Validate morpho generated boundary
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho generated boundary" -- python3 scripts/check_morpho_generated_boundary.py
 
@@ -117,6 +120,9 @@ jobs:
 
       - name: Run macro migration blockers unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Macro migration blockers unit tests" -- python3 scripts/test_check_macro_migration_blockers.py
+
+      - name: Run macro migration selector-slice unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Macro migration selector-slice unit tests" -- python3 scripts/test_check_macro_migration_slice.py
 
       - name: Run morpho generated boundary unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho generated boundary unit tests" -- python3 scripts/test_check_morpho_generated_boundary.py
