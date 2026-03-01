@@ -209,9 +209,9 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "withdrawCollateral noop"
 
   function flashLoan (token : Address, assets : Uint256, data : Bytes) : Unit := do
+    require (assets > 0) "zero assets"
     let sender <- msgSender
     let _ignoredToken := token
-    let _ignoredAssets := assets
     let _ignoredData := data
     require (sender == sender) "flashLoan noop"
 

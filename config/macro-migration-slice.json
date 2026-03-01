@@ -15,6 +15,7 @@
     "enableIrm(address)",
     "enableLltv(uint256)",
     "extSloads(bytes32[])",
+    "flashLoan(address,uint256,bytes)",
     "fee(bytes32)",
     "feeRecipient()",
     "flashLoan(address,uint256,bytes)",
