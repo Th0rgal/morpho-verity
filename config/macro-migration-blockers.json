@@ -1,21 +1,7 @@
 {
   "expectedUnsupported": {
-    "expr": [
-      "constructorArg",
-      "externalCall",
-      "structMember",
-      "structMember2"
-    ],
-    "stmt": [
-      "emit",
-      "internalCall",
-      "mstore",
-      "rawLog",
-      "returnStorageWords",
-      "returnValues",
-      "setStructMember",
-      "setStructMember2"
-    ]
+    "expr": [],
+    "stmt": []
   },
   "notes": "Fail-closed migration tracker for macro-native cutover. As verity macro support grows and morphoSpec shrinks, these sets should only move via explicit reviewed updates.",
   "source": "Morpho/Compiler/Spec.lean"
