@@ -15,5 +15,10 @@ import Morpho.Proofs.SemanticBridgeReadiness
 import Morpho.Proofs.SemanticBridgeDischarge
 import Morpho.Proofs.SemanticBridgeInstantiation
 import Morpho.Proofs.SemanticBridgeEndToEnd
+import Morpho.Proofs.SpecCorrectness.SetOwner
+import Morpho.Proofs.SpecCorrectness.SetFeeRecipient
+import Morpho.Proofs.SpecCorrectness.EnableIrm
+import Morpho.Proofs.SpecCorrectness.EnableLltv
+import Morpho.Proofs.SpecCorrectness.SetAuthorization
 import Morpho.Proofs.NatListSum
 import Morpho.Proofs.ShareConsistency

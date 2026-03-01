@@ -123,17 +123,17 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-ENABLE-IRM-SEM-EQ"
     hypothesis := "enableIrmSemEq"
     operation := "enableIrm"
-    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge.enableIrm_semEq)
+    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/EnableIrm)
     macroMigrated := true },
   { id := "OBL-ENABLE-LLTV-SEM-EQ"
     hypothesis := "enableLltvSemEq"
     operation := "enableLltv"
-    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge.enableLltv_semEq)
+    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/EnableLltv)
     macroMigrated := true },
   { id := "OBL-SET-AUTH-SEM-EQ"
     hypothesis := "setAuthorizationSemEq"
     operation := "setAuthorization"
-    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge.setAuthorization_semEq)
+    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetAuthorization)
     macroMigrated := true },
   { id := "OBL-SET-AUTH-SIG-SEM-EQ"
     hypothesis := "setAuthorizationWithSigSemEq"
@@ -143,12 +143,12 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-SET-OWNER-SEM-EQ"
     hypothesis := "setOwnerSemEq"
     operation := "setOwner"
-    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge.setOwner_semEq)
+    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetOwner)
     macroMigrated := true },
   { id := "OBL-SET-FEE-RECIPIENT-SEM-EQ"
     hypothesis := "setFeeRecipientSemEq"
     operation := "setFeeRecipient"
-    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge.setFeeRecipient_semEq)
+    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetFeeRecipient)
     macroMigrated := true },
   { id := "OBL-CREATE-MARKET-SEM-EQ"
     hypothesis := "createMarketSemEq"
@@ -176,9 +176,10 @@ def obligations : List SemanticBridgeObligation := [
 theorem obligation_count : obligations.length = 18 := by
   native_decide
 
-/-- 5 of 18 operations have Link 1 (Pure Lean ↔ EDSL) proven.
-    These are: setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization.
-    The proofs are in `SemanticBridgeDischarge.lean`. -/
+/-- 5 of 18 operations have Links 1+2 proven.
+    Link 1 (Pure Lean ↔ EDSL) in `SemanticBridgeDischarge.lean`.
+    Link 2 (EDSL ↔ CompilationModel) in `Morpho/Proofs/SpecCorrectness/`.
+    These are: setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization. -/
 theorem link1_proven_count :
     (obligations.filter (fun o => o.status == .inProgress)).length = 5 := by
   native_decide

@@ -8,8 +8,11 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 
 5/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
 enableIrm, enableLltv, setAuthorization. The proofs are in
-`Morpho/Proofs/SemanticBridgeDischarge.lean`. Links 2+3 (EDSL ↔ compiled IR ↔ EVMYulLean)
-depend on upstream verity infrastructure.
+`Morpho/Proofs/SemanticBridgeDischarge.lean`.
+
+All 5 also have Link 2 (EDSL ↔ CompilationModel) proven in
+`Morpho/Proofs/SpecCorrectness/`. Link 3 (CompilationModel ↔ EVMYulLean)
+depends on upstream verity infrastructure (verity pin bump).
 
 ## Scope
 
@@ -168,13 +171,14 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 |-----------|----------------|:------:|:------------------------:|--------|
 | `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
 | `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | pending | mapping bridge |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | pending | mapping bridge |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | pending | mapping bridge |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
 **Summary**: 5/6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
-2/6 (setOwner, setFeeRecipient) also have Link 2 (EDSL ↔ CompilationModel) proven.
+5/6 (setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization) also have
+Link 2 (EDSL ↔ CompilationModel) proven in `Morpho/Proofs/SpecCorrectness/`.
 1/6 (createMarket) Link 1 is provable but not yet proven.
 
 ### Discharge proof structure
@@ -184,7 +188,7 @@ first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has three links per obligation:
 1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization
-2. **Link 2** (this repo): `EDSL ↔ interpretSpec(CompilationModel)` — proven for setOwner, setFeeRecipient in `Morpho/Proofs/SpecCorrectness/`
+2. **Link 2** (this repo): `EDSL ↔ interpretSpec(CompilationModel)` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/SpecCorrectness/`
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
 **Link 1 proof pattern** (for all 5 proven operations):
@@ -193,25 +197,23 @@ The discharge has three links per obligation:
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
 
-**Link 2 proof pattern** (for setOwner, setFeeRecipient in `Morpho/Proofs/SpecCorrectness/`):
+**Link 2 proof pattern** (for all 5 in `Morpho/Proofs/SpecCorrectness/`):
 1. Reduce 34-function `List.find?` via staged simp: unfold model defs → `simp (config := { decide := true })`
-2. Unfold `setOwner_modelBody` and execute `execStmts`/`execStmt`/`evalExpr`
+2. Unfold `*_modelBody` and execute `execStmts`/`execStmt`/`evalExpr`
 3. Use `addressToNat_mod_eq` for address masking, `addressToNat_beq_false_of_ne` for inequality
-4. Key: do NOT unfold `addressModulus` — leave symbolic so `addressToNat_mod_eq` can fire
+4. For uint256 params: add `@[simp]` lemma `uint256_val_mod_eq` and literal mod reductions (WAD, 0, 1)
+5. For 2D mappings: include `SpecStorage.getMapping2`/`setMapping2` in simp set
+6. Key: do NOT unfold `addressModulus` — leave symbolic so `addressToNat_mod_eq` can fire
 
 ### Discharge sequence
 
 Once verity#1052 merges and morpho-verity bumps the verity pin:
 
-1. **Link 1 proven, Link 2+3 after verity pin bump**: `setOwner`, `setFeeRecipient` —
-   Link 1 (`*SemEq` for EDSL impl) proven in `SemanticBridgeDischarge.lean`.
-   Link 2 follows `owned_transferOwnership_semantic_bridge` template (proven in verity).
-2. **Link 1 proven, Link 2+3 after mapping bridge lemmas**: `enableIrm`, `enableLltv`,
-   `setAuthorization` — Link 1 proven in `SemanticBridgeDischarge.lean`.
-   MappingAutomation.lean already provides EDSL-level correctness; need bridge-level
-   lemmas connecting `getMapping`/`setMapping` to `sload(keccak256(key,slot))`/
-   `sstore(keccak256(key,slot),value)` in compiled Yul. MappingSlot.lean has the
-   slot encoding infrastructure (`solidityMappingSlot` via real keccak256 FFI)
+1. **Links 1+2 proven, Link 3 after verity pin bump**: `setOwner`, `setFeeRecipient`,
+   `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 (Pure Lean ↔ EDSL) proven
+   in `SemanticBridgeDischarge.lean`. Link 2 (EDSL ↔ CompilationModel) proven in
+   `Morpho/Proofs/SpecCorrectness/`. Link 3 needs verity pin bump for the compiled
+   IR ↔ EVMYulLean composition.
 3. **After mapping bridge + MappingWord lemmas**: `createMarket` — now macro-migrated
    using `setMappingWord`/`getMappingWord`; needs bridge-level lemmas for word-offset
    mapping access in addition to the mapping bridge lemmas from step 2

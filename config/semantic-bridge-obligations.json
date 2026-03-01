@@ -70,7 +70,7 @@
       "operation": "enableIrm",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.enableIrm_semEq); Links 2+3 need verity#998 mapping bridge"
+      "blockedBy": "Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/EnableIrm); Link 3 needs verity pin bump"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
@@ -78,7 +78,7 @@
       "operation": "enableLltv",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.enableLltv_semEq); Links 2+3 need verity#998 mapping bridge"
+      "blockedBy": "Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/EnableLltv); Link 3 needs verity pin bump"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
@@ -86,7 +86,7 @@
       "operation": "setAuthorization",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.setAuthorization_semEq); Links 2+3 need verity#998 mapping bridge"
+      "blockedBy": "Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetAuthorization); Link 3 needs verity pin bump"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
@@ -102,7 +102,7 @@
       "operation": "setOwner",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.setOwner_semEq); Links 2+3 need verity#998 pin bump"
+      "blockedBy": "Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetOwner); Link 3 needs verity pin bump"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
@@ -110,7 +110,7 @@
       "operation": "setFeeRecipient",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.setFeeRecipient_semEq); Links 2+3 need verity#998 pin bump"
+      "blockedBy": "Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetFeeRecipient); Link 3 needs verity pin bump"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",
