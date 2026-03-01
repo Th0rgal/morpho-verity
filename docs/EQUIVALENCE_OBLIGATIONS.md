@@ -112,6 +112,44 @@ The 13 unmigrated operations depend on upstream verity macro capabilities:
 | Precompile access (`ecrecover`) | setAuthorizationWithSig | 1 |
 | `blockTimestamp` access | createMarket | 1 |
 
+## Primitive Coverage & Discharge Readiness
+
+For macro-migrated operations, `scripts/check_primitive_coverage.py` analyzes which EDSL
+primitives each function uses and cross-references against proven `PrimitiveBridge` lemmas
+in the upstream verity semantic-bridge branch.
+
+### Current status (verity `semantic-bridge` branch)
+
+**Proven PrimitiveBridge lemmas**: `getStorage`, `setStorage`, `require` (eq/neq/lt),
+`msgSender`, `if_then_else`, `uint256.add/sub/mul`
+
+| Operation | Primitives used | All proven? | Blocking |
+|-----------|----------------|:-----------:|----------|
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | READY | — |
+| `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | READY | — |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | GAPS | mapping lemmas |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | GAPS | mapping lemmas |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | GAPS | mapping lemmas |
+
+**Summary**: 2/5 migrated operations are fully covered by proven primitive lemmas and can
+be discharged end-to-end once the Layer 3 contract-level theorem
+(`yulBody_from_state_eq_yulBody`) is resolved. The remaining 3/5 are blocked only on
+mapping operation lemmas (keccak-based slot computation), which is a single upstream
+capability gap.
+
+### Discharge sequence
+
+Once verity#1052 merges and morpho-verity bumps the verity pin:
+
+1. **Immediate** (0 upstream work): `setOwner`, `setFeeRecipient` — compose
+   `_semantic_preservation` theorem with proven PrimitiveBridge lemmas
+2. **After mapping lemmas**: `enableIrm`, `enableLltv`, `setAuthorization` — same
+   composition once `getMapping`/`setMapping` PrimitiveBridge lemmas are proven
+3. **After macro primitive expansion**: remaining 13 operations — requires upstream
+   macro support for internal calls, ERC20, callbacks, etc.
+
+Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`
+
 ## Planned Tracking Rules
 
 1. Every bridge assumption must map to exactly one obligation ID.
