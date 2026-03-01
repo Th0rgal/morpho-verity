@@ -13,6 +13,7 @@ from check_macro_migration_slice import (  # noqa: E402
   ROOT,
   extract_macro_signatures,
   run_check,
+  validate_blocked_against_baseline,
   validate_against_baseline,
 )
 
@@ -60,6 +61,30 @@ class BaselineValidationTests(unittest.TestCase):
       validate_against_baseline(
         {"owner()", "nonce(address)"},
         {"expectedMigrated": ["owner()"]},
+      )
+
+  def test_validate_blocked_against_baseline_matches(self) -> None:
+    out = validate_blocked_against_baseline(
+      spec_signatures={"owner()", "nonce(address)"},
+      migrated_signatures={"owner()"},
+      baseline={"expectedBlocked": {"nonce(address)": "pending migration"}},
+    )
+    self.assertEqual(out, {"nonce(address)": "pending migration"})
+
+  def test_validate_blocked_against_baseline_detects_unclassified(self) -> None:
+    with self.assertRaises(MigrationSliceError):
+      validate_blocked_against_baseline(
+        spec_signatures={"owner()", "nonce(address)"},
+        migrated_signatures={"owner()"},
+        baseline={"expectedBlocked": {}},
+      )
+
+  def test_validate_blocked_against_baseline_detects_overlap(self) -> None:
+    with self.assertRaises(MigrationSliceError):
+      validate_blocked_against_baseline(
+        spec_signatures={"owner()"},
+        migrated_signatures={"owner()"},
+        baseline={"expectedBlocked": {"owner()": "invalid"}},
       )
 
 
