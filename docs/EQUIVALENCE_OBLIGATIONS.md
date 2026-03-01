@@ -69,7 +69,7 @@ Morpho.f args                        -- pure Lean model (this repo)
   hand-rolled `interpretSpec` from the TCB.
 
 Once both links are established, each `*SemEq` hypothesis in
-`SolidityBridge.lean` becomes a provable lemma and the 46 bridge theorems
+`SolidityBridge.lean` becomes a provable lemma and the 67 bridge theorems
 hold unconditionally against formally verified EVM semantics.
 
 Machine-readable obligation status: [`config/semantic-bridge-obligations.json`](../config/semantic-bridge-obligations.json)
@@ -98,16 +98,19 @@ Known expected differences (not checked, handled by semantic bridge):
 
 The 13 unmigrated operations depend on upstream verity macro capabilities:
 
-| Blocker | Operations affected |
-|---------|-------------------|
-| Internal function calls (`Stmt.internalCall`) | supply, withdraw, borrow, repay, liquidate, setFee, accrueInterest, accrueInterestPublic |
-| ERC20 module (`ERC20.safeTransfer/From`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate, flashLoan |
-| External callbacks (`Callbacks.callback`) | supply, supplyCollateral, repay, liquidate, flashLoan |
-| External contract calls (`Calls.withReturn`) | accrueInterest, accrueInterestPublic, withdrawCollateral, borrow, liquidate |
-| 2D struct mapping (`structMember2`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate |
-| Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate |
-| Precompile access (`ecrecover`) | setAuthorizationWithSig |
-| Tuple destructuring | createMarket, setFee |
+| Blocker | Operations affected | Count |
+|---------|-------------------|:-----:|
+| Internal function calls (`Stmt.internalCall`) | supply, withdraw, borrow, repay, liquidate, setFee, accrueInterest, accrueInterestPublic | 8 |
+| ERC20 module (`ERC20.safeTransfer/From`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate, flashLoan | 8 |
+| 2D struct mapping read/write (`structMember2`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate | 7 |
+| External callbacks (`Callbacks.callback`) | supply, supplyCollateral, repay, liquidate, flashLoan | 5 |
+| External contract calls (`Calls.withReturn`) | accrueInterest, accrueInterestPublic, withdrawCollateral, borrow, liquidate | 5 |
+| 1D struct mapping write (`setStructMember`) | createMarket, setFee, accrueInterest, accrueInterestPublic | 4 |
+| Tuple destructuring (access elements of Tuple param) | createMarket, setFee | 2 |
+| Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate | 2 |
+| Axiomatic function calls (`keccakMarketParams`) | createMarket | 1 |
+| Precompile access (`ecrecover`) | setAuthorizationWithSig | 1 |
+| `blockTimestamp` access | createMarket | 1 |
 
 ## Planned Tracking Rules
 

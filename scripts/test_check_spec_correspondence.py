@@ -80,6 +80,11 @@ verity_contract MorphoViewSlice where
   function supply (marketParams : Tuple, assets : Uint256) : Unit := do
     let sender <- msgSender
     require (sender == sender) "supply noop"
+
+  function position (id : Bytes32, user : Address) : Tuple [Uint256, Uint256, Uint256] := do
+    let _ignoredId := id
+    let _ignoredUser := user
+    returnValues [0, 0, 0]
 """
 
 
@@ -136,6 +141,12 @@ class ExtractMacroFunctionsTests(unittest.TestCase):
         fns = extract_macro_functions(SAMPLE_MACRO)
         self.assertFalse(fns["setOwner"]["is_stub"])
         self.assertTrue(fns["supply"]["is_stub"])
+
+    def test_detects_hardcoded_return_stub(self) -> None:
+        """returnValues [0, 0, 0] should be detected as a stub."""
+        fns = extract_macro_functions(SAMPLE_MACRO)
+        self.assertIn("position", fns)
+        self.assertTrue(fns["position"]["is_stub"])
 
     def test_mutation_count(self) -> None:
         fns = extract_macro_functions(SAMPLE_MACRO)

@@ -175,8 +175,8 @@ verity_contract MorphoViewSlice where
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     let sender <- msgSender
-    let currentOwner <- getStorageAddr ownerSlot
-    require (sender == currentOwner) "not owner"
+    -- createMarket is permissionless (no ownership check);
+    -- it only requires IRM and LLTV to be enabled.
     let marketParams' := marketParams
     let _ignored := marketParams'
     require (sender == sender) "createMarket noop"

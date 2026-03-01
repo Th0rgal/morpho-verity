@@ -118,7 +118,7 @@
       "operation": "createMarket",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (tuple unpacking, multi-field struct init) + verity#998"
+      "blockedBy": "macro migration (tuple destructuring, setStructMember, keccakMarketParams axiomatic call, blockTimestamp) + verity#998"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",

@@ -33,6 +33,9 @@ MACRO_FN_RE = re.compile(r"^\s+function\s+(\w+)\s*\(", re.MULTILINE)
 # Detect stub functions by the noop tautology pattern: require (sender == sender)
 STUB_RE = re.compile(r'require\s*\(sender\s*==\s*sender\)\s*"(\w+)\s+noop"')
 
+# Detect hardcoded-return stubs like: returnValues [0, 0, 0]
+HARDCODED_RETURN_RE = re.compile(r"returnValues\s*\[\s*0(?:\s*,\s*0)*\s*\]")
+
 
 class ObligationError(RuntimeError):
     pass
@@ -62,8 +65,10 @@ def extract_macro_functions(macro_text: str) -> dict[str, bool]:
     for i in range(1, len(parts), 2):
         fn_name = parts[i]
         fn_body = parts[i + 1] if i + 1 < len(parts) else ""
-        # Look for the noop stub pattern in the body (up to next function)
-        is_stub = bool(STUB_RE.search(fn_body))
+        # Look for stub patterns in the body (up to next function):
+        # 1. noop tautology: require (sender == sender) "X noop"
+        # 2. hardcoded-return: returnValues [0, 0, 0] (pending upstream support)
+        is_stub = bool(STUB_RE.search(fn_body)) or bool(HARDCODED_RETURN_RE.search(fn_body))
         result[fn_name] = not is_stub
 
     return result

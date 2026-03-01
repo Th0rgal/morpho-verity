@@ -6,7 +6,7 @@ to connect morpho-verity's invariant proofs to formally verified EVM semantics.
 
 ## Current State
 
-`SolidityBridge.lean` proves 46 theorems that transfer Morpho invariants
+`SolidityBridge.lean` proves 67 theorems that transfer Morpho invariants
 (borrowLeSupply, alwaysCollateralized, irmMonotone, lltvMonotone) to any
 Solidity implementation satisfying semantic equivalence hypotheses.
 

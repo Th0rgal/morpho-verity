@@ -131,6 +131,9 @@ MACRO_SET_RE = re.compile(
 # Noop stub pattern
 STUB_RE = re.compile(r'require\s*\(sender\s*==\s*sender\)\s*"\w+\s+noop"')
 
+# Hardcoded-return stub pattern (e.g., returnValues [0, 0, 0])
+HARDCODED_RETURN_RE = re.compile(r"returnValues\s*\[\s*0(?:\s*,\s*0)*\s*\]")
+
 
 def split_macro_functions(text: str) -> dict[str, str]:
     """Split MacroSlice.lean into per-function text blocks."""
@@ -153,7 +156,7 @@ def extract_macro_functions(text: str) -> dict[str, dict[str, Any]]:
             continue
         param_text = m.group(2)
         params = MACRO_PARAM_RE.findall(param_text)
-        is_stub = bool(STUB_RE.search(block))
+        is_stub = bool(STUB_RE.search(block)) or bool(HARDCODED_RETURN_RE.search(block))
         requires = len(MACRO_REQUIRE_RE.findall(block))
         mutations = len(MACRO_SET_RE.findall(block))
         result[fn_name] = {

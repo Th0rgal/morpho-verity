@@ -46,6 +46,11 @@ verity_contract MorphoViewSlice where
     let _ignoredMarket := marketParams'
     let _ignoredAssets := assets
     require (sender == sender) "supply noop"
+
+  function position (id : Bytes32, user : Address) : Tuple [Uint256, Uint256, Uint256] := do
+    let _ignoredId := id
+    let _ignoredUser := user
+    returnValues [0, 0, 0]
 """
 
 
@@ -100,6 +105,12 @@ class ExtractMacroFunctionTests(unittest.TestCase):
     def test_detects_stub(self) -> None:
         fns = extract_macro_functions(SAMPLE_MACRO)
         self.assertFalse(fns["supply"])
+
+    def test_detects_hardcoded_return_stub(self) -> None:
+        """returnValues [0, 0, 0] should be detected as a stub."""
+        fns = extract_macro_functions(SAMPLE_MACRO)
+        self.assertIn("position", fns)
+        self.assertFalse(fns["position"])
 
     def test_empty_file(self) -> None:
         fns = extract_macro_functions("")
