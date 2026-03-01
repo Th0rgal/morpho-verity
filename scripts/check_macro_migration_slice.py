@@ -120,6 +120,29 @@ def validate_against_baseline(actual: set[str], baseline: dict[str, Any]) -> Non
     )
 
 
+def validate_baseline_metadata(
+  baseline: dict[str, Any],
+  macro_path: pathlib.Path,
+  contract_name: str,
+) -> None:
+  baseline_contract = baseline.get("contract")
+  if not isinstance(baseline_contract, str) or not baseline_contract.strip():
+    raise MigrationSliceError("baseline contract must be a non-empty string")
+  if baseline_contract != contract_name:
+    raise MigrationSliceError(
+      f"baseline contract mismatch: expected {contract_name!r}, got {baseline_contract!r}"
+    )
+
+  baseline_source = baseline.get("source")
+  if not isinstance(baseline_source, str) or not baseline_source.strip():
+    raise MigrationSliceError("baseline source must be a non-empty string")
+  expected_source = str(macro_path.relative_to(ROOT))
+  if baseline_source != expected_source:
+    raise MigrationSliceError(
+      f"baseline source mismatch: expected {expected_source!r}, got {baseline_source!r}"
+    )
+
+
 def validate_blocked_against_baseline(
   spec_signatures: set[str],
   migrated_signatures: set[str],
@@ -182,6 +205,11 @@ def run_check(
     )
 
   baseline = load_baseline(baseline_path)
+  validate_baseline_metadata(
+    baseline=baseline,
+    macro_path=macro_path,
+    contract_name=contract_name,
+  )
   validate_against_baseline(migrated_signatures, baseline)
   blocked_signatures = validate_blocked_against_baseline(
     spec_signatures=spec_signatures,

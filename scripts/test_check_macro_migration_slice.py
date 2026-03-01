@@ -12,6 +12,7 @@ from check_macro_migration_slice import (  # noqa: E402
   MigrationSliceError,
   ROOT,
   extract_macro_signatures,
+  validate_baseline_metadata,
   run_check,
   validate_blocked_against_baseline,
   validate_against_baseline,
@@ -85,6 +86,38 @@ class BaselineValidationTests(unittest.TestCase):
         spec_signatures={"owner()"},
         migrated_signatures={"owner()"},
         baseline={"expectedBlocked": {"owner()": "invalid"}},
+      )
+
+  def test_validate_baseline_metadata_matches(self) -> None:
+    validate_baseline_metadata(
+      baseline={
+        "contract": "MorphoViewSlice",
+        "source": "Morpho/Compiler/MacroSlice.lean",
+      },
+      macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
+      contract_name="MorphoViewSlice",
+    )
+
+  def test_validate_baseline_metadata_detects_contract_mismatch(self) -> None:
+    with self.assertRaises(MigrationSliceError):
+      validate_baseline_metadata(
+        baseline={
+          "contract": "OtherSlice",
+          "source": "Morpho/Compiler/MacroSlice.lean",
+        },
+        macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
+        contract_name="MorphoViewSlice",
+      )
+
+  def test_validate_baseline_metadata_detects_source_mismatch(self) -> None:
+    with self.assertRaises(MigrationSliceError):
+      validate_baseline_metadata(
+        baseline={
+          "contract": "MorphoViewSlice",
+          "source": "Morpho/Compiler/NotMacroSlice.lean",
+        },
+        macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
+        contract_name="MorphoViewSlice",
       )
 
   def test_validate_blocked_against_baseline_rejects_placeholder_reason(self) -> None:
