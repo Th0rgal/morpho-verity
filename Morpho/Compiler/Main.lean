@@ -6,7 +6,6 @@ import Compiler.Linker
 import Compiler.ParityPacks
 import Compiler.Lowering.FromEDSL
 import Compiler.ABI
-import Morpho.Compiler.Spec
 import Morpho.Compiler.Generated
 
 namespace Morpho.Compiler.Main

@@ -1,6 +1,6 @@
 import Compiler.CompilationModel
 import Compiler.Selector
-import Morpho.Compiler.Spec
+import Morpho.Compiler.MacroSlice
 
 namespace Morpho.Compiler.Generated
 
@@ -9,12 +9,12 @@ open Compiler.CompilationModel
 /--
 Canonical compiler input boundary for Morpho.
 
-Today this is backed by `Spec.morphoSpec` (manual model). Keeping this alias as
-the single import point lets us cut over to macro-generated artifacts without
-changing all call sites.
+Backed by the macro-generated `verity_contract` artifact so production compile
+path no longer depends on manual `Spec.morphoSpec` authoring.
 -/
 def morphoGeneratedSpec : CompilationModel :=
-  Morpho.Compiler.Spec.morphoSpec
+  { Morpho.Compiler.MacroSlice.MorphoViewSlice.spec with
+      name := "Morpho" }
 
 /--
 Canonical selector boundary derived from the generated spec.
