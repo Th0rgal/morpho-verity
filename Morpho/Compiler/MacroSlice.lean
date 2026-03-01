@@ -130,4 +130,27 @@ verity_contract MorphoViewSlice where
     let currentNonce <- getMapping nonceSlot sender
     setMapping nonceSlot sender (add currentNonce 1)
 
+  function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let marketParams' := marketParams
+    let _ignored := marketParams'
+    require (sender == sender) "createMarket noop"
+
+  function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let marketParams' := marketParams
+    let _ignored := marketParams'
+    let _ignoredFee := newFee
+    require (sender == sender) "setFee noop"
+
+  function accrueInterest (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignored := marketParams'
+    require (sender == sender) "accrueInterest noop"
+
 end Morpho.Compiler.MacroSlice

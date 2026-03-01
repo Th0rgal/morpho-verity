@@ -49,6 +49,20 @@ verity_contract MorphoViewSlice where
     with self.assertRaises(MigrationSliceError):
       extract_macro_signatures(text)
 
+  def test_extract_macro_signatures_tuple_params(self) -> None:
+    text = """
+verity_contract MorphoViewSlice where
+  storage
+    owner : Address := slot 0
+
+  function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
+    pure ()
+"""
+    self.assertEqual(
+      extract_macro_signatures(text),
+      {"setFee((address,address,address,address,uint256),uint256)"},
+    )
+
 
 class BaselineValidationTests(unittest.TestCase):
   def test_validate_against_baseline_matches(self) -> None:
