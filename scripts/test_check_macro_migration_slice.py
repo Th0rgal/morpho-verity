@@ -87,6 +87,18 @@ class BaselineValidationTests(unittest.TestCase):
         baseline={"expectedBlocked": {"owner()": "invalid"}},
       )
 
+  def test_validate_blocked_against_baseline_rejects_placeholder_reason(self) -> None:
+    with self.assertRaises(MigrationSliceError):
+      validate_blocked_against_baseline(
+        spec_signatures={"owner()", "nonce(address)"},
+        migrated_signatures={"owner()"},
+        baseline={
+          "expectedBlocked": {
+            "nonce(address)": "pending macro migration (tracked blocker)",
+          }
+        },
+      )
+
 
 class RepoCheckTests(unittest.TestCase):
   def test_current_repo_slice_matches(self) -> None:
