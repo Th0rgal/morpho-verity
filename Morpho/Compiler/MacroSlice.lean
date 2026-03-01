@@ -208,6 +208,56 @@ verity_contract MorphoViewSlice where
     let _ignoredReceiver := receiver
     require (sender == sender) "withdrawCollateral noop"
 
+  function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    let _ignoredShares := shares
+    let _ignoredOnBehalf := onBehalf
+    let _ignoredData := data
+    require (sender == sender) "supply noop"
+
+  function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    let _ignoredShares := shares
+    let _ignoredOnBehalf := onBehalf
+    let _ignoredReceiver := receiver
+    require (sender == sender) "withdraw noop"
+
+  function borrow (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    let _ignoredShares := shares
+    let _ignoredOnBehalf := onBehalf
+    let _ignoredReceiver := receiver
+    require (sender == sender) "borrow noop"
+
+  function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    let _ignoredShares := shares
+    let _ignoredOnBehalf := onBehalf
+    let _ignoredData := data
+    require (sender == sender) "repay noop"
+
+  function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredBorrower := borrower
+    let _ignoredSeizedAssets := seizedAssets
+    let _ignoredRepaidShares := repaidShares
+    let _ignoredData := data
+    require (sender == sender) "liquidate noop"
+
   function flashLoan (token : Address, assets : Uint256, data : Bytes) : Unit := do
     require (assets > 0) "zero assets"
     let sender <- msgSender
