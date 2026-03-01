@@ -1,7 +1,6 @@
 {
   "contract": "MorphoViewSlice",
   "expectedBlocked": {
-    "DOMAIN_SEPARATOR()": "mstore/keccak-based digest path is not yet modeled in macro migration slice",
     "accrueInterest((address,address,address,address,uint256))": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
     "borrow((address,address,address,address,uint256),uint256,uint256,address,address)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
     "createMarket((address,address,address,address,uint256))": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
@@ -20,6 +19,7 @@
     "withdrawCollateral((address,address,address,address,uint256),uint256,address,address)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions"
   },
   "expectedMigrated": [
+    "DOMAIN_SEPARATOR()",
     "enableIrm(address)",
     "enableLltv(uint256)",
     "fee(bytes32)",

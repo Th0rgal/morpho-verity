@@ -8,6 +8,10 @@ open Verity
 def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
 def and (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
+def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
+def keccak256 (offset size : Uint256) : Uint256 := add offset size
+def chainid : Uint256 := 0
+def contractAddress : Uint256 := 0
 
 -- Incremental macro-native Morpho slice for migration progress tracking.
 -- This intentionally models a selector-exact subset with supported constructs.
@@ -22,6 +26,13 @@ verity_contract MorphoViewSlice where
     isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
     nonceSlot : Address -> Uint256 := slot 7
+
+  function DOMAIN_SEPARATOR () : Uint256 := do
+    mstore 0 32523383700587834770323112271211932718128200013265661849047136999858837557784
+    mstore 32 chainid
+    mstore 64 contractAddress
+    let domainSeparator := keccak256 0 96
+    return domainSeparator
 
   function owner () : Address := do
     let currentOwner <- getStorageAddr ownerSlot
