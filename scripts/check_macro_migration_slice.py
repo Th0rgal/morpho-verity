@@ -135,6 +135,16 @@ def validate_blocked_against_baseline(
       "baseline expectedBlocked contains empty/invalid reason(s): "
       f"{sorted(invalid_reason)}"
     )
+  placeholder_reason = [
+    sig
+    for sig, reason in blocked.items()
+    if isinstance(reason, str) and reason.strip() == "pending macro migration (tracked blocker)"
+  ]
+  if placeholder_reason:
+    raise MigrationSliceError(
+      "baseline expectedBlocked contains placeholder reason(s); use explicit blocker categories: "
+      f"{sorted(placeholder_reason)}"
+    )
 
   expected_blocked = set(blocked)
   actual_blocked = spec_signatures - migrated_signatures
