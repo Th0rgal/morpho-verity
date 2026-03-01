@@ -20,6 +20,7 @@ Partially enforced:
 Not yet enforced:
 1. strict `yul-identity-check` (zero structural AST mismatch for supported fragment).
 2. machine-tracked `equivalence-obligations` status in CI output.
+3. `semantic-bridge-obligations` status in CI output (`config/semantic-bridge-obligations.json`). Once all 18 obligations are discharged via the verity semantic bridge (verity#998), Solidity equivalence status upgrades from "Conditional" to "Proved".
 
 ## Required Gates (Target State)
 

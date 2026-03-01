@@ -29,7 +29,7 @@ The Lean implementation targets logical equivalence with Morpho's Solidity, not 
 | Area | Current status | Gate/condition |
 |------|----------------|----------------|
 | Lean invariants/specs | Proved in this repo | `lake build` succeeds |
-| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged |
+| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged ([tracked](config/semantic-bridge-obligations.json)) |
 | Verity artifact parity | Empirical/differential today | Pinned parity target + Yul identity gate in CI |
 | External dependencies (oracle/token/signature env) | Assumed model inputs | Explicit trust assumptions and scenario matrix |
 
@@ -51,8 +51,10 @@ reimplementation. See [verity#1052](https://github.com/Th0rgal/verity/pull/1052)
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
+- [`config/semantic-bridge-obligations.json`](config/semantic-bridge-obligations.json)
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
+- [`scripts/check_semantic_bridge_obligations.py`](scripts/check_semantic_bridge_obligations.py)
 
 Some theorems are conditional on arithmetic side conditions (`h_no_overflow`) that model Solidity checked arithmetic.
 These are explicit theorem hypotheses today, not globally discharged reachability facts.
