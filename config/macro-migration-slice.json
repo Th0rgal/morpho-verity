@@ -2,7 +2,6 @@
   "contract": "MorphoViewSlice",
   "expectedBlocked": {
     "borrow((address,address,address,address,uint256),uint256,uint256,address,address)": "not yet ported into macro migration slice (complex market/accounting state transition)",
-    "flashLoan(address,uint256,bytes)": "raw external call + callback flow is not yet modeled in macro migration slice",
     "liquidate((address,address,address,address,uint256),address,uint256,uint256,bytes)": "not yet ported into macro migration slice (complex market/accounting state transition)",
     "repay((address,address,address,address,uint256),uint256,uint256,address,bytes)": "not yet ported into macro migration slice (complex market/accounting state transition)",
     "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))": "not yet ported into macro migration slice (EIP-712 signature validation flow)",
@@ -16,6 +15,7 @@
     "enableIrm(address)",
     "enableLltv(uint256)",
     "extSloads(bytes32[])",
+    "flashLoan(address,uint256,bytes)",
     "fee(bytes32)",
     "feeRecipient()",
     "idToMarketParams(bytes32)",
