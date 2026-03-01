@@ -52,18 +52,52 @@ def _sol_type(lean_ty: str) -> str:
   if ty.startswith("Array "):
     elem = ty[len("Array "):].strip()
     return f"{_sol_type(elem)}[]"
+  if ty.startswith("Tuple [") and ty.endswith("]"):
+    inner = ty[len("Tuple ["):-1]
+    elems = _split_top_level(inner)
+    if len(elems) < 2:
+      raise MigrationSliceError(f"tuple must have at least 2 elements: {ty!r}")
+    return "(" + ",".join(_sol_type(elem) for elem in elems) + ")"
   raise MigrationSliceError(f"unsupported parameter type in macro slice: {ty!r}")
 
 
-def _split_params(params_src: str) -> list[str]:
-  params_src = params_src.strip()
-  if not params_src:
+def _split_top_level(src: str) -> list[str]:
+  src = src.strip()
+  if not src:
     return []
   out: list[str] = []
-  for raw in params_src.split(","):
-    part = raw.strip()
-    if not part:
-      continue
+  current: list[str] = []
+  depth_paren = 0
+  depth_bracket = 0
+  for ch in src:
+    if ch == "(":
+      depth_paren += 1
+      current.append(ch)
+    elif ch == ")":
+      depth_paren -= 1
+      current.append(ch)
+    elif ch == "[":
+      depth_bracket += 1
+      current.append(ch)
+    elif ch == "]":
+      depth_bracket -= 1
+      current.append(ch)
+    elif ch == "," and depth_paren == 0 and depth_bracket == 0:
+      part = "".join(current).strip()
+      if part:
+        out.append(part)
+      current = []
+    else:
+      current.append(ch)
+  tail = "".join(current).strip()
+  if tail:
+    out.append(tail)
+  return out
+
+
+def _split_params(params_src: str) -> list[str]:
+  out: list[str] = []
+  for part in _split_top_level(params_src):
     m = PARAM_RE.match(part)
     if not m:
       raise MigrationSliceError(f"invalid parameter declaration: {part!r}")
