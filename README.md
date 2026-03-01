@@ -38,6 +38,16 @@ Groundwork docs for closing these gaps:
 - [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
 - [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
 
+### Upstream: Verity semantic bridge (verity#998)
+
+The Verity framework is working toward a single machine-checked theorem per
+contract function: `EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
+This will eliminate the hand-rolled `interpretSpec` interpreter from the TCB and
+enable auto-generated semantic preservation proofs in the `verity_contract` macro.
+Once landed, morpho-verity's Solidity equivalence obligations can be discharged
+against EVMYulLean's formally verified EVM semantics rather than a trusted
+reimplementation. See [verity#1052](https://github.com/Th0rgal/verity/pull/1052).
+
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
