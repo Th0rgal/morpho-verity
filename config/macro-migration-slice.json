@@ -1,21 +1,16 @@
 {
   "contract": "MorphoViewSlice",
   "expectedBlocked": {
-    "borrow((address,address,address,address,uint256),uint256,uint256,address,address)": "not yet ported into macro migration slice (complex market/accounting state transition)",
-    "liquidate((address,address,address,address,uint256),address,uint256,uint256,bytes)": "not yet ported into macro migration slice (complex market/accounting state transition)",
-    "repay((address,address,address,address,uint256),uint256,uint256,address,bytes)": "not yet ported into macro migration slice (complex market/accounting state transition)",
-    "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))": "not yet ported into macro migration slice (EIP-712 signature validation flow)",
-    "supply((address,address,address,address,uint256),uint256,uint256,address,bytes)": "not yet ported into macro migration slice (complex market/accounting state transition)",
-    "withdraw((address,address,address,address,uint256),uint256,uint256,address,address)": "not yet ported into macro migration slice (complex market/accounting state transition)"
+    "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))": "not yet ported into macro migration slice (EIP-712 signature validation flow with uint8 signature component)"
   },
   "expectedMigrated": [
     "DOMAIN_SEPARATOR()",
     "accrueInterest((address,address,address,address,uint256))",
+    "borrow((address,address,address,address,uint256),uint256,uint256,address,address)",
     "createMarket((address,address,address,address,uint256))",
     "enableIrm(address)",
     "enableLltv(uint256)",
     "extSloads(bytes32[])",
-    "flashLoan(address,uint256,bytes)",
     "fee(bytes32)",
     "feeRecipient()",
     "flashLoan(address,uint256,bytes)",
@@ -32,11 +27,15 @@
     "setFee((address,address,address,address,uint256),uint256)",
     "setFeeRecipient(address)",
     "setOwner(address)",
+    "supply((address,address,address,address,uint256),uint256,uint256,address,bytes)",
     "supplyCollateral((address,address,address,address,uint256),uint256,address,bytes)",
     "totalBorrowAssets(bytes32)",
     "totalBorrowShares(bytes32)",
     "totalSupplyAssets(bytes32)",
     "totalSupplyShares(bytes32)",
+    "repay((address,address,address,address,uint256),uint256,uint256,address,bytes)",
+    "liquidate((address,address,address,address,uint256),address,uint256,uint256,bytes)",
+    "withdraw((address,address,address,address,uint256),uint256,uint256,address,address)",
     "withdrawCollateral((address,address,address,address,uint256),uint256,address,address)"
   ],
   "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates; every non-migrated signature must stay explicitly classified with a blocker reason.",
