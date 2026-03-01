@@ -6,7 +6,10 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 
 ## Status
 
-Groundwork only. Tracking format is proposed; current bridge assumptions are still assumptions.
+5/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
+enableIrm, enableLltv, setAuthorization. The proofs are in
+`Morpho/Proofs/SemanticBridgeDischarge.lean`. Links 2+3 (EDSL ↔ compiled IR ↔ EVMYulLean)
+depend on upstream verity infrastructure.
 
 ## Scope
 
@@ -25,12 +28,12 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | | `assumed` |
 | `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | | `assumed` |
 | `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | | `assumed` |
-| `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | Y | `assumed` |
-| `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | Y | `assumed` |
-| `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | Y | `assumed` |
+| `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | Y | `link1_proven` |
+| `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | Y | `link1_proven` |
+| `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | Y | `link1_proven` |
 | `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | | `assumed` |
-| `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `assumed` |
-| `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `assumed` |
+| `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `link1_proven` |
+| `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
 | `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
 | `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
@@ -135,19 +138,25 @@ in the upstream verity semantic-bridge branch.
 ### Current status (verity `semantic-bridge` branch, 2026-03-01)
 
 **Proven PrimitiveBridge lemmas** (EDSL ↔ compiled Yul): `getStorage`, `setStorage`,
-`getStorageAddr`, `setStorageAddr` ([verity#1054](https://github.com/Th0rgal/verity/pull/1054)),
-`require` (eq/neq/lt/gt), `msgSender`, `if_then_else`, `uint256.add/sub/mul/div/mod`,
-`uint256.lt/gt/eq`, `calldataloadWord` (encoding/decoding)
+`getStorageAddr`, `setStorageAddr`, `require` (eq/neq/lt/gt), `msgSender`, `if_then_else`,
+`uint256.add/sub/mul/div/mod`, `uint256.lt/gt/eq`, `calldataloadWord` (encoding/decoding),
+`safeAdd`/`safeSub` (overflow/underflow), `getMapping_unfold`/`setMapping_unfold`
 
-**Proven semantic bridge theorems** (zero sorry, verity `semantic-bridge` at `8b3b482`):
+**Proven semantic bridge theorems** (zero sorry, verity `semantic-bridge` at `ed97777`):
 - SimpleStorage: `store`, `retrieve` — Uint256-typed storage
 - Counter: `increment`, `decrement`, `getCount` — arithmetic + Uint256 storage
 - Owned: `getOwner`, `transferOwnership` — **Address-typed storage + access control**
+- SafeCounter: `increment`, `decrement`, `getCount` — checked arithmetic, revert cases
+- OwnedCounter: mixed-type multi-slot encoding with access control
 
 The `owned_transferOwnership_semantic_bridge` theorem is the direct template for
 morpho-verity's `setOwner` discharge. It proves EDSL ≡ compiled IR for an ownership
 transfer pattern using `encodeStorageAddr`, direct `simp` unfolding, and
 `Nat.and_two_pow_sub_one_eq_mod` for address masking.
+
+The `ownedCounter` proofs demonstrate mixed Address+Uint256 slots via `encodeMixedStorage`
+and mapping operations via `getMapping_unfold`/`setMapping_unfold`, which are directly
+applicable to morpho-verity's enableIrm/enableLltv/setAuthorization operations.
 
 **Proven MappingAutomation lemmas** (EDSL-level, zero sorry): `getMapping`,
 `setMapping` (read-after-write, non-interference), `getMappingUint`, `setMappingUint`,
@@ -155,18 +164,17 @@ transfer pattern using `encodeStorageAddr`, direct `simp` unfolding, and
 These operate at the `ContractState` level; the EDSL-to-Yul bridge for mapping
 operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
-| Operation | Primitives used | All proven? | Blocking |
-|-----------|----------------|:-----------:|----------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | READY | — |
-| `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | READY | — |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | EDSL-READY | mapping bridge |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | EDSL-READY | mapping bridge |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | EDSL-READY | mapping bridge |
-| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | GAPS | MappingWord + externalCall |
+| Operation | Primitives used | Link 1 | Link 2+3 |
+|-----------|----------------|:------:|----------|
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | after verity pin bump |
+| `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | after verity pin bump |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | mapping bridge |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | mapping bridge |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | mapping bridge |
+| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | provable | MappingWord + externalCall |
 
-**Summary**: 2/6 migrated operations (setOwner, setFeeRecipient) are fully covered by
-proven primitive lemmas and have a proven upstream template (`owned_transferOwnership`).
-3/6 are EDSL-ready (mapping lemmas needed). 1/6 has additional gaps.
+**Summary**: 5/6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
+1/6 (createMarket) is provable but not yet proven.
 
 ### Discharge proof structure
 
@@ -174,11 +182,11 @@ proven primitive lemmas and have a proven upstream template (`owned_transferOwne
 first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has three links per obligation:
-1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient
+1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization
 2. **Link 2** (verity): `MorphoViewSlice.f ↔ compiled IR` — follows Owned template
 3. **Link 3** (verity): `compiled IR ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
-**Link 1 proof pattern** (for setOwner, setFeeRecipient):
+**Link 1 proof pattern** (for all 5 proven operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
 2. Run EDSL function on encoded state, decode result to `Option MorphoState`
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
@@ -197,7 +205,8 @@ Once verity#1052 merges and morpho-verity bumps the verity pin:
 1. **Link 1 proven, Link 2+3 after verity pin bump**: `setOwner`, `setFeeRecipient` —
    Link 1 (`*SemEq` for EDSL impl) proven in `SemanticBridgeDischarge.lean`.
    Link 2 follows `owned_transferOwnership_semantic_bridge` template (proven in verity).
-2. **After mapping bridge lemmas**: `enableIrm`, `enableLltv`, `setAuthorization` —
+2. **Link 1 proven, Link 2+3 after mapping bridge lemmas**: `enableIrm`, `enableLltv`,
+   `setAuthorization` — Link 1 proven in `SemanticBridgeDischarge.lean`.
    MappingAutomation.lean already provides EDSL-level correctness; need bridge-level
    lemmas connecting `getMapping`/`setMapping` to `sload(keccak256(key,slot))`/
    `sstore(keccak256(key,slot),value)` in compiled Yul. MappingSlot.lean has the

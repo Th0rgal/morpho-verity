@@ -68,25 +68,25 @@
       "id": "OBL-ENABLE-IRM-SEM-EQ",
       "hypothesis": "enableIrmSemEq",
       "operation": "enableIrm",
-      "status": "assumed",
+      "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "verity#998 semantic bridge composition"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.enableIrm_semEq); Links 2+3 need verity#998 mapping bridge"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
       "hypothesis": "enableLltvSemEq",
       "operation": "enableLltv",
-      "status": "assumed",
+      "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "verity#998 semantic bridge composition"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.enableLltv_semEq); Links 2+3 need verity#998 mapping bridge"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
       "hypothesis": "setAuthorizationSemEq",
       "operation": "setAuthorization",
-      "status": "assumed",
+      "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "verity#998 semantic bridge composition"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.setAuthorization_semEq); Links 2+3 need verity#998 mapping bridge"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
@@ -100,17 +100,17 @@
       "id": "OBL-SET-OWNER-SEM-EQ",
       "hypothesis": "setOwnerSemEq",
       "operation": "setOwner",
-      "status": "assumed",
+      "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "verity#998 semantic bridge composition"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.setOwner_semEq); Links 2+3 need verity#998 pin bump"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
       "hypothesis": "setFeeRecipientSemEq",
       "operation": "setFeeRecipient",
-      "status": "assumed",
+      "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "verity#998 semantic bridge composition"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge.setFeeRecipient_semEq); Links 2+3 need verity#998 pin bump"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",

@@ -49,12 +49,12 @@ against EVMYulLean's formally verified EVM semantics rather than a trusted
 reimplementation. See [verity#1052](https://github.com/Th0rgal/verity/pull/1052).
 
 The verity `semantic-bridge` branch already includes fully discharged (zero sorry)
-proofs for an `Owned` contract (`transferOwnership`, `getOwner`) which is structurally
-identical to morpho-verity's `setOwner`. This serves as the direct template for our
-Phase 1 discharge. See `Morpho/Proofs/SemanticBridgeDischarge.lean` for the proof skeleton.
+proofs for `Owned`, `SafeCounter`, and `OwnedCounter` contracts which serve as templates
+for morpho-verity's discharge.
 
-Upstream PRs from morpho-verity:
-- [verity#1054](https://github.com/Th0rgal/verity/pull/1054): `setStorageAddr_matches_sstore` bridge lemma
+**Link 1 proofs (Pure Lean ↔ EDSL) are now proven for 5/18 operations:**
+`setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`.
+See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
