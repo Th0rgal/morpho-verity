@@ -216,6 +216,7 @@ def main() -> None:
 
   macro_signatures = extract_macro_signatures(read_text(args.macro), contract_name=args.contract)
   if args.write:
+    spec_signatures = extract_spec_signatures(read_text(args.spec))
     blocked = sorted(spec_signatures - macro_signatures)
     baseline = {
       "source": str(args.macro.relative_to(ROOT)),
