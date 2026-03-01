@@ -1,5 +1,33 @@
 {
   "contract": "MorphoViewSlice",
+  "expectedBlocked": {
+    "DOMAIN_SEPARATOR()": "bytes32 return type is not yet supported by verity_contract macro functions",
+    "accrueInterest((address,address,address,address,uint256))": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "borrow((address,address,address,address,uint256),uint256,uint256,address,address)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "createMarket((address,address,address,address,uint256))": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "enableLltv(uint256)": "mappingUint get/set bind sources are not yet supported by verity_contract macro functions",
+    "extSloads(bytes32[])": "bytes32[] parameters are not yet supported by verity_contract macro functions",
+    "fee(bytes32)": "bytes32 parameters are not yet supported by verity_contract macro functions",
+    "flashLoan(address,uint256,bytes)": "raw external call + callback flow is not yet modeled in macro migration slice",
+    "idToMarketParams(bytes32)": "bytes32 parameters and multi-value tuple returns are not yet supported by verity_contract macro functions",
+    "isLltvEnabled(uint256)": "mappingUint get/set bind sources are not yet supported by verity_contract macro functions",
+    "lastUpdate(bytes32)": "bytes32 parameters are not yet supported by verity_contract macro functions",
+    "liquidate((address,address,address,address,uint256),address,uint256,uint256,bytes)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "market(bytes32)": "bytes32 parameters and multi-value tuple returns are not yet supported by verity_contract macro functions",
+    "position(bytes32,address)": "bytes32 parameters and multi-value tuple returns are not yet supported by verity_contract macro functions",
+    "repay((address,address,address,address,uint256),uint256,uint256,address,bytes)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "setAuthorization(address,bool)": "Bool parameters are not yet supported by verity_contract macro functions",
+    "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))": "tuple-typed arguments are not yet supported by verity_contract macro functions",
+    "setFee((address,address,address,address,uint256),uint256)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "supply((address,address,address,address,uint256),uint256,uint256,address,bytes)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "supplyCollateral((address,address,address,address,uint256),uint256,address,bytes)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "totalBorrowAssets(bytes32)": "bytes32 parameters are not yet supported by verity_contract macro functions",
+    "totalBorrowShares(bytes32)": "bytes32 parameters are not yet supported by verity_contract macro functions",
+    "totalSupplyAssets(bytes32)": "bytes32 parameters are not yet supported by verity_contract macro functions",
+    "totalSupplyShares(bytes32)": "bytes32 parameters are not yet supported by verity_contract macro functions",
+    "withdraw((address,address,address,address,uint256),uint256,uint256,address,address)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions",
+    "withdrawCollateral((address,address,address,address,uint256),uint256,address,address)": "tuple-typed MarketParams argument is not yet supported by verity_contract macro functions"
+  },
   "expectedMigrated": [
     "enableIrm(address)",
     "feeRecipient()",
@@ -10,6 +38,6 @@
     "setFeeRecipient(address)",
     "setOwner(address)"
   ],
-  "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates.",
+  "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates; every non-migrated signature must stay explicitly classified with a blocker reason.",
   "source": "Morpho/Compiler/MacroSlice.lean"
 }

@@ -120,6 +120,42 @@ def validate_against_baseline(actual: set[str], baseline: dict[str, Any]) -> Non
     )
 
 
+def validate_blocked_against_baseline(
+  spec_signatures: set[str],
+  migrated_signatures: set[str],
+  baseline: dict[str, Any],
+) -> dict[str, str]:
+  blocked = baseline.get("expectedBlocked")
+  if not isinstance(blocked, dict):
+    raise MigrationSliceError("baseline expectedBlocked must be a map of signature -> reason")
+
+  invalid_reason = [sig for sig, reason in blocked.items() if not isinstance(reason, str) or not reason.strip()]
+  if invalid_reason:
+    raise MigrationSliceError(
+      "baseline expectedBlocked contains empty/invalid reason(s): "
+      f"{sorted(invalid_reason)}"
+    )
+
+  expected_blocked = set(blocked)
+  actual_blocked = spec_signatures - migrated_signatures
+  overlap = expected_blocked & migrated_signatures
+  if overlap:
+    raise MigrationSliceError(
+      "baseline expectedBlocked overlaps migrated signatures: "
+      f"{sorted(overlap)}"
+    )
+
+  if expected_blocked != actual_blocked:
+    missing = sorted(actual_blocked - expected_blocked)
+    extra = sorted(expected_blocked - actual_blocked)
+    raise MigrationSliceError(
+      "macro blocked-signature set drift detected: "
+      f"missing={missing} extra={extra}"
+    )
+
+  return {sig: str(blocked[sig]).strip() for sig in sorted(expected_blocked)}
+
+
 def run_check(
   spec_path: pathlib.Path = SPEC_PATH,
   macro_path: pathlib.Path = MACRO_PATH,
@@ -137,6 +173,11 @@ def run_check(
 
   baseline = load_baseline(baseline_path)
   validate_against_baseline(migrated_signatures, baseline)
+  blocked_signatures = validate_blocked_against_baseline(
+    spec_signatures=spec_signatures,
+    migrated_signatures=migrated_signatures,
+    baseline=baseline,
+  )
 
   coverage = round(100.0 * len(migrated_signatures) / max(len(spec_signatures), 1), 2)
   return {
@@ -148,6 +189,8 @@ def run_check(
     "specSignatureCount": len(spec_signatures),
     "coveragePct": coverage,
     "migratedSignatures": sorted(migrated_signatures),
+    "blockedCount": len(blocked_signatures),
+    "blockedSignatures": blocked_signatures,
   }
 
 
@@ -173,13 +216,17 @@ def main() -> None:
 
   macro_signatures = extract_macro_signatures(read_text(args.macro), contract_name=args.contract)
   if args.write:
+    spec_signatures = extract_spec_signatures(read_text(args.spec))
+    blocked = sorted(spec_signatures - macro_signatures)
     baseline = {
       "source": str(args.macro.relative_to(ROOT)),
       "contract": args.contract,
       "expectedMigrated": sorted(macro_signatures),
+      "expectedBlocked": {sig: "pending macro migration (tracked blocker)" for sig in blocked},
       "notes": (
         "Fail-closed macro-native migration slice tracker. "
-        "Changes require explicit reviewed baseline updates."
+        "Changes require explicit reviewed baseline updates; "
+        "every non-migrated signature must stay explicitly classified with a blocker reason."
       ),
     }
     write_baseline(args.baseline, baseline)
