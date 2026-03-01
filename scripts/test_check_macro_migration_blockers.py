@@ -41,7 +41,7 @@ class BaselineValidationTests(unittest.TestCase):
 
     baseline = {
       "expectedUnsupported": {
-        "stmt": ["internalCall"],
+        "stmt": [],
         "expr": [],
       }
     }
@@ -53,7 +53,7 @@ class BaselineValidationTests(unittest.TestCase):
 
     baseline = {
       "expectedUnsupported": {
-        "stmt": [],
+        "stmt": ["internalCall"],
         "expr": [],
       }
     }
