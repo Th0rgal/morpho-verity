@@ -31,6 +31,7 @@ PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
 TYPE_MAP = {
   "Address": "address",
   "Uint256": "uint256",
+  "Uint8": "uint8",
   "Bool": "bool",
   "Bytes32": "bytes32",
   "Bytes": "bytes",

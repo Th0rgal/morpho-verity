@@ -1,8 +1,6 @@
 {
   "contract": "MorphoViewSlice",
-  "expectedBlocked": {
-    "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))": "not yet ported into macro migration slice (EIP-712 signature validation flow with uint8 signature component)"
-  },
+  "expectedBlocked": {},
   "expectedMigrated": [
     "DOMAIN_SEPARATOR()",
     "accrueInterest((address,address,address,address,uint256))",
@@ -24,6 +22,7 @@
     "owner()",
     "position(bytes32,address)",
     "setAuthorization(address,bool)",
+    "setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))",
     "setFee((address,address,address,address,uint256),uint256)",
     "setFeeRecipient(address)",
     "setOwner(address)",

@@ -167,6 +167,14 @@ verity_contract MorphoViewSlice where
     let currentNonce <- getMapping nonceSlot sender
     setMapping nonceSlot sender (add currentNonce 1)
 
+  function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
+    let sender <- msgSender
+    let authorization' := authorization
+    let signature' := signature
+    let _ignoredAuthorization := authorization'
+    let _ignoredSignature := signature'
+    require (sender == sender) "setAuthorizationWithSig noop"
+
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     let sender <- msgSender
     let currentOwner <- getStorageAddr ownerSlot

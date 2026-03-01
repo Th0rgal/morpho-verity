@@ -63,6 +63,20 @@ verity_contract MorphoViewSlice where
       {"setFee((address,address,address,address,uint256),uint256)"},
     )
 
+  def test_extract_macro_signatures_tuple_uint8_param(self) -> None:
+    text = """
+verity_contract MorphoViewSlice where
+  storage
+    owner : Address := slot 0
+
+  function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
+    pure ()
+"""
+    self.assertEqual(
+      extract_macro_signatures(text),
+      {"setAuthorizationWithSig((address,address,bool,uint256,uint256),(uint8,bytes32,bytes32))"},
+    )
+
 
 class BaselineValidationTests(unittest.TestCase):
   def test_validate_against_baseline_matches(self) -> None:
