@@ -50,4 +50,12 @@ verity_contract MorphoViewSlice where
     require (newFeeRecipient != currentFeeRecipient) "already set"
     setStorageAddr feeRecipientSlot newFeeRecipient
 
+  function enableIrm (irm : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let currentValue <- getMapping isIrmEnabledSlot irm
+    require (currentValue == 0) "already set"
+    setMapping isIrmEnabledSlot irm 1
+
 end Morpho.Compiler.MacroSlice

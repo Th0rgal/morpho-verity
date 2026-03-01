@@ -1,6 +1,7 @@
 {
   "contract": "MorphoViewSlice",
   "expectedMigrated": [
+    "enableIrm(address)",
     "feeRecipient()",
     "isAuthorized(address,address)",
     "isIrmEnabled(address)",
