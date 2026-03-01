@@ -164,17 +164,18 @@ applicable to morpho-verity's enableIrm/enableLltv/setAuthorization operations.
 These operate at the `ContractState` level; the EDSL-to-Yul bridge for mapping
 operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
-| Operation | Primitives used | Link 1 | Link 2+3 |
-|-----------|----------------|:------:|----------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | after verity pin bump |
-| `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | after verity pin bump |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | mapping bridge |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | mapping bridge |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | mapping bridge |
-| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | provable | MappingWord + externalCall |
+| Operation | Primitives used | Link 1 | Link 2 (SpecCorrectness) | Link 3 |
+|-----------|----------------|:------:|:------------------------:|--------|
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | pending | mapping bridge |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | pending | mapping bridge |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | pending | mapping bridge |
+| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
 **Summary**: 5/6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
-1/6 (createMarket) is provable but not yet proven.
+2/6 (setOwner, setFeeRecipient) also have Link 2 (EDSL ↔ CompilationModel) proven.
+1/6 (createMarket) Link 1 is provable but not yet proven.
 
 ### Discharge proof structure
 
@@ -183,8 +184,8 @@ first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has three links per obligation:
 1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization
-2. **Link 2** (verity): `MorphoViewSlice.f ↔ compiled IR` — follows Owned template
-3. **Link 3** (verity): `compiled IR ↔ EVMYulLean(Yul)` — EndToEnd theorem
+2. **Link 2** (this repo): `EDSL ↔ interpretSpec(CompilationModel)` — proven for setOwner, setFeeRecipient in `Morpho/Proofs/SpecCorrectness/`
+3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
 **Link 1 proof pattern** (for all 5 proven operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
@@ -192,11 +193,11 @@ The discharge has three links per obligation:
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
 
-**Link 2 proof template** (from verity `SemanticBridge.lean`, commit c1b2bbd):
-- `encodeStorageAddr` maps `ContractState.storageAddr` to IR `Nat → Nat`
-- `Nat.and_two_pow_sub_one_eq_mod` for address masking
-- Direct simp: unfold both EDSL and IR simultaneously
-- `by_cases` on slot index, `simp_all [beq_iff_eq]`
+**Link 2 proof pattern** (for setOwner, setFeeRecipient in `Morpho/Proofs/SpecCorrectness/`):
+1. Reduce 34-function `List.find?` via staged simp: unfold model defs → `simp (config := { decide := true })`
+2. Unfold `setOwner_modelBody` and execute `execStmts`/`execStmt`/`evalExpr`
+3. Use `addressToNat_mod_eq` for address masking, `addressToNat_beq_false_of_ne` for inequality
+4. Key: do NOT unfold `addressModulus` — leave symbolic so `addressToNat_mod_eq` can fire
 
 ### Discharge sequence
 
