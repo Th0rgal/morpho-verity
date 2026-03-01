@@ -9,6 +9,8 @@ def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
 def and (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
+def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
+    Contract Uint256 := Verity.pure 0
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
 def chainid : Uint256 := 0
 def contractAddress : Uint256 := 0
@@ -19,9 +21,7 @@ verity_contract MorphoViewSlice where
   storage
     ownerSlot : Address := slot 0
     feeRecipientSlot : Address := slot 1
-    marketWord0Slot : Uint256 -> Uint256 := slot 3
-    marketWord1Slot : Uint256 -> Uint256 := slot 9
-    marketWord2Slot : Uint256 -> Uint256 := slot 10
+    marketSlot : Uint256 -> Uint256 := slot 3
     isIrmEnabledSlot : Address -> Uint256 := slot 4
     isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
@@ -59,27 +59,27 @@ verity_contract MorphoViewSlice where
     return currentNonce
 
   function lastUpdate (id : Bytes32) : Uint256 := do
-    let word <- getMappingUint marketWord2Slot id
+    let word <- getMappingWord marketSlot id 2
     return (and word 340282366920938463463374607431768211455)
 
   function totalSupplyAssets (id : Bytes32) : Uint256 := do
-    let word <- getMappingUint marketWord0Slot id
+    let word <- getMappingWord marketSlot id 0
     return (and word 340282366920938463463374607431768211455)
 
   function totalSupplyShares (id : Bytes32) : Uint256 := do
-    let word <- getMappingUint marketWord0Slot id
+    let word <- getMappingWord marketSlot id 0
     return (and (shr 128 word) 340282366920938463463374607431768211455)
 
   function totalBorrowAssets (id : Bytes32) : Uint256 := do
-    let word <- getMappingUint marketWord1Slot id
+    let word <- getMappingWord marketSlot id 1
     return (and word 340282366920938463463374607431768211455)
 
   function totalBorrowShares (id : Bytes32) : Uint256 := do
-    let word <- getMappingUint marketWord1Slot id
+    let word <- getMappingWord marketSlot id 1
     return (and (shr 128 word) 340282366920938463463374607431768211455)
 
   function fee (id : Bytes32) : Uint256 := do
-    let word <- getMappingUint marketWord2Slot id
+    let word <- getMappingWord marketSlot id 2
     return (and (shr 128 word) 340282366920938463463374607431768211455)
 
   function setOwner (newOwner : Address) : Unit := do
