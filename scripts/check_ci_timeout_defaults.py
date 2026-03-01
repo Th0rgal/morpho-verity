@@ -16,6 +16,12 @@ IGNORED_VARS = {
   "MORPHO_TIMEOUT_KILL_AFTER_SEC",
 }
 
+# Inner wrapper timeout budgets must not exceed their enclosing job-step budgets.
+NESTED_TIMEOUT_INVARIANTS = {
+  "MORPHO_YUL_IDENTITY_TIMEOUT_SEC": {"MORPHO_VERITY_PREP_TIMEOUT_SEC"},
+  "MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC": {"MORPHO_VERITY_PREP_TIMEOUT_SEC"},
+}
+
 
 def fail(msg: str) -> None:
   print(f"ci-timeout-defaults check failed: {msg}", file=sys.stderr)
@@ -114,6 +120,24 @@ def main() -> int:
       )
   if inconsistent_env_literals:
     fail("; ".join(inconsistent_env_literals))
+
+  nested_invariant_failures: list[str] = []
+  for outer, inners in sorted(NESTED_TIMEOUT_INVARIANTS.items()):
+    outer_value = timeout_defaults.get(outer)
+    if outer_value is None:
+      nested_invariant_failures.append(f"{outer} missing from defaults file")
+      continue
+    for inner in sorted(inners):
+      inner_value = timeout_defaults.get(inner)
+      if inner_value is None:
+        nested_invariant_failures.append(f"{inner} missing from defaults file")
+        continue
+      if inner_value > outer_value:
+        nested_invariant_failures.append(
+          f"nested-timeout invariant violated: {inner}={inner_value} exceeds {outer}={outer_value}"
+        )
+  if nested_invariant_failures:
+    fail("; ".join(nested_invariant_failures))
 
   print(
     "ci-timeout-defaults: "
