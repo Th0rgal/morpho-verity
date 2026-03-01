@@ -135,7 +135,19 @@ in the upstream verity semantic-bridge branch.
 ### Current status (verity `semantic-bridge` branch, 2026-03-01)
 
 **Proven PrimitiveBridge lemmas** (EDSL ↔ compiled Yul): `getStorage`, `setStorage`,
-`require` (eq/neq/lt), `msgSender`, `if_then_else`, `uint256.add/sub/mul`
+`getStorageAddr`, `setStorageAddr` ([verity#1054](https://github.com/Th0rgal/verity/pull/1054)),
+`require` (eq/neq/lt/gt), `msgSender`, `if_then_else`, `uint256.add/sub/mul/div/mod`,
+`uint256.lt/gt/eq`, `calldataloadWord` (encoding/decoding)
+
+**Proven semantic bridge theorems** (zero sorry, verity `semantic-bridge` at `8b3b482`):
+- SimpleStorage: `store`, `retrieve` — Uint256-typed storage
+- Counter: `increment`, `decrement`, `getCount` — arithmetic + Uint256 storage
+- Owned: `getOwner`, `transferOwnership` — **Address-typed storage + access control**
+
+The `owned_transferOwnership_semantic_bridge` theorem is the direct template for
+morpho-verity's `setOwner` discharge. It proves EDSL ≡ compiled IR for an ownership
+transfer pattern using `encodeStorageAddr`, direct `simp` unfolding, and
+`Nat.and_two_pow_sub_one_eq_mod` for address masking.
 
 **Proven MappingAutomation lemmas** (EDSL-level, zero sorry): `getMapping`,
 `setMapping` (read-after-write, non-interference), `getMappingUint`, `setMappingUint`,
@@ -147,22 +159,36 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 |-----------|----------------|:-----------:|----------|
 | `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | READY | — |
 | `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | READY | — |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | GAPS | mapping lemmas |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | GAPS | mapping lemmas |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | GAPS | mapping lemmas |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | EDSL-READY | mapping bridge |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | EDSL-READY | mapping bridge |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | EDSL-READY | mapping bridge |
+| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | GAPS | MappingWord + externalCall |
 
-**Summary**: 2/5 migrated operations are fully covered by proven primitive lemmas and can
-be discharged end-to-end once the Layer 3 contract-level theorem
-(`yulBody_from_state_eq_yulBody`) is resolved. The remaining 3/5 are blocked only on
-mapping operation lemmas (keccak-based slot computation), which is a single upstream
-capability gap.
+**Summary**: 2/6 migrated operations (setOwner, setFeeRecipient) are fully covered by
+proven primitive lemmas and have a proven upstream template (`owned_transferOwnership`).
+3/6 are EDSL-ready (mapping lemmas needed). 1/6 has additional gaps.
+
+### Discharge proof structure
+
+For detailed proof skeletons, see `Morpho/Proofs/SemanticBridgeDischarge.lean`.
+
+The discharge follows the Owned template from verity's `SemanticBridge.lean`:
+1. **State encoding**: `encodeStorageAddr` maps `ContractState.storageAddr` to IR `Nat → Nat`
+2. **Address mask**: `Nat.and_two_pow_sub_one_eq_mod` proves `addr &&& addressMask = addr`
+3. **Direct simp**: Unfold both EDSL and IR execution simultaneously
+4. **Storage equality**: `by_cases` on slot index, `simp_all [beq_iff_eq]`
+
+Key insight: The proofs do NOT need `setStorageAddr_matches_sstore` — direct
+`simp` with `setStorageAddr` definition suffices. The proof bypasses the
+Layer 3 sorry by unfolding directly (valid for small functions).
 
 ### Discharge sequence
 
 Once verity#1052 merges and morpho-verity bumps the verity pin:
 
-1. **Immediate** (0 upstream work): `setOwner`, `setFeeRecipient` — compose
-   `_semantic_preservation` theorem with proven PrimitiveBridge lemmas
+1. **After verity pin bump**: `setOwner`, `setFeeRecipient` — extend
+   `owned_transferOwnership_semantic_bridge` pattern with idempotence check.
+   All required lemmas proven, template exists. See `SemanticBridgeDischarge.lean`.
 2. **After mapping bridge lemmas**: `enableIrm`, `enableLltv`, `setAuthorization` —
    MappingAutomation.lean already provides EDSL-level correctness; need bridge-level
    lemmas connecting `getMapping`/`setMapping` to `sload(keccak256(key,slot))`/

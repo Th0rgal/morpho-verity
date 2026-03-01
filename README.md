@@ -48,6 +48,14 @@ Once landed, morpho-verity's Solidity equivalence obligations can be discharged
 against EVMYulLean's formally verified EVM semantics rather than a trusted
 reimplementation. See [verity#1052](https://github.com/Th0rgal/verity/pull/1052).
 
+The verity `semantic-bridge` branch already includes fully discharged (zero sorry)
+proofs for an `Owned` contract (`transferOwnership`, `getOwner`) which is structurally
+identical to morpho-verity's `setOwner`. This serves as the direct template for our
+Phase 1 discharge. See `Morpho/Proofs/SemanticBridgeDischarge.lean` for the proof skeleton.
+
+Upstream PRs from morpho-verity:
+- [verity#1054](https://github.com/Th0rgal/verity/pull/1054): `setStorageAddr_matches_sstore` bridge lemma
+
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)

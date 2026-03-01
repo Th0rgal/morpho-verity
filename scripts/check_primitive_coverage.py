@@ -74,15 +74,16 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 #   "partial" = lemma exists but requires additional composition
 #   "missing" = no lemma yet (upstream work needed)
 #
-# Based on analysis of verity semantic-bridge branch at 10f6da3 (2026-03-01).
+# Based on analysis of verity semantic-bridge branch at 8b3b482 (2026-03-01).
 # PrimitiveBridge.lean: EDSL ↔ compiled Yul bridge lemmas
 # MappingAutomation.lean: EDSL-level read/write/non-interference lemmas (zero sorry)
 # MappingSlot.lean: keccak-based slot encoding infrastructure
+# SemanticBridge.lean: fully discharged proofs for Owned.transferOwnership (template for setOwner)
 PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     # Fully proven in PrimitiveBridge.lean (EDSL ↔ Yul bridge)
     "msgSender": "proven",           # msgSender_matches_caller
-    "getStorageAddr": "proven",      # getStorage_matches_sload
-    "setStorageAddr": "proven",      # setStorage_matches_sstore
+    "getStorageAddr": "proven",      # getStorageAddr_matches_sload
+    "setStorageAddr": "proven",      # setStorageAddr_matches_sstore (verity#1054)
     "require_eq": "proven",          # require_matches_iszero_revert
     "require_neq": "proven",         # require_matches_iszero_revert (negated)
     "require_lt": "proven",          # require_matches_iszero_revert (lt)
