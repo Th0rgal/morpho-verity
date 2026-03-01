@@ -153,4 +153,22 @@ verity_contract MorphoViewSlice where
     let _ignored := marketParams'
     require (sender == sender) "accrueInterest noop"
 
+  function supplyCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, data : Bytes) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    let _ignoredOnBehalf := onBehalf
+    let _ignoredData := data
+    require (sender == sender) "supplyCollateral noop"
+
+  function withdrawCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+    let sender <- msgSender
+    let marketParams' := marketParams
+    let _ignoredMarket := marketParams'
+    let _ignoredAssets := assets
+    let _ignoredOnBehalf := onBehalf
+    let _ignoredReceiver := receiver
+    require (sender == sender) "withdrawCollateral noop"
+
 end Morpho.Compiler.MacroSlice
