@@ -13,6 +13,8 @@ def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Ve
 def returnValues (_values : List Uint256) : Contract Unit := Verity.pure ()
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := Verity.pure 0
+def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
+    Contract Unit := Verity.pure ()
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
 def chainid : Uint256 := 0
 def contractAddress : Uint256 := 0
@@ -164,8 +166,6 @@ verity_contract MorphoViewSlice where
     else
       require (currentValue != 0) "already set"
       setMapping2 isAuthorizedSlot sender authorized 0
-    let currentNonce <- getMapping nonceSlot sender
-    setMapping nonceSlot sender (add currentNonce 1)
 
   function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
     let sender <- msgSender
@@ -176,12 +176,14 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    let sender <- msgSender
-    let currentOwner <- getStorageAddr ownerSlot
-    require (sender == currentOwner) "not owner"
+    -- STUB: Full implementation requires tuple destructuring (marketParams_0..4),
+    -- externalCall for keccak hash, and blockTimestamp as a value expression.
+    -- These constructs are not yet supported by the current verity pin (dccb984).
+    -- Full implementation preserved in git history (commit 82e5572).
+    -- Blocked on: tuple element access, externalCall primitive, blockTimestamp value.
     let marketParams' := marketParams
     let _ignored := marketParams'
-    require (sender == sender) "createMarket noop"
+    require (0 == 1) "createMarket stub"
 
   function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender

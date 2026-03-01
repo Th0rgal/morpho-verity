@@ -29,7 +29,7 @@ The Lean implementation targets logical equivalence with Morpho's Solidity, not 
 | Area | Current status | Gate/condition |
 |------|----------------|----------------|
 | Lean invariants/specs | Proved in this repo | `lake build` succeeds |
-| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged |
+| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged ([tracked](config/semantic-bridge-obligations.json)) |
 | Verity artifact parity | Empirical/differential today | Pinned parity target + Yul identity gate in CI |
 | External dependencies (oracle/token/signature env) | Assumed model inputs | Explicit trust assumptions and scenario matrix |
 
@@ -38,18 +38,40 @@ Groundwork docs for closing these gaps:
 - [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
 - [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
 
+### Upstream: Verity semantic bridge (verity#998)
+
+The Verity framework is working toward a single machine-checked theorem per
+contract function: `EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
+This will eliminate the hand-rolled `interpretSpec` interpreter from the TCB and
+enable auto-generated semantic preservation proofs in the `verity_contract` macro.
+Once landed, morpho-verity's Solidity equivalence obligations can be discharged
+against EVMYulLean's formally verified EVM semantics rather than a trusted
+reimplementation. See [verity#1052](https://github.com/Th0rgal/verity/pull/1052).
+
+The verity `semantic-bridge` branch already includes fully discharged (zero sorry)
+proofs for `Owned`, `SafeCounter`, and `OwnedCounter` contracts which serve as templates
+for morpho-verity's discharge.
+
+**Link 1 proofs (Pure Lean ↔ EDSL) are now proven for 5/18 operations:**
+`setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`.
+See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
+
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
+- [`config/semantic-bridge-obligations.json`](config/semantic-bridge-obligations.json)
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
+- [`scripts/check_semantic_bridge_obligations.py`](scripts/check_semantic_bridge_obligations.py)
+- [`scripts/check_spec_correspondence.py`](scripts/check_spec_correspondence.py)
+- [`scripts/check_primitive_coverage.py`](scripts/check_primitive_coverage.py)
 
 Some theorems are conditional on arithmetic side conditions (`h_no_overflow`) that model Solidity checked arithmetic.
 These are explicit theorem hypotheses today, not globally discharged reachability facts.
 
 ### Solidity Equivalence Bridge
 
-`Morpho/Proofs/SolidityBridge.lean` adds 46 proof-transfer theorems for core invariants.
+`Morpho/Proofs/SolidityBridge.lean` adds 67 proof-transfer theorems for core invariants.
 This file is a conditional transfer layer: it assumes operation-by-operation semantic equivalence hypotheses and then transports proved invariants.
 If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation
 (`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`, `enableIrm`, `enableLltv`, `setAuthorization`, `setAuthorizationWithSig`),
@@ -81,7 +103,7 @@ Morpho/
     Invariants.lean       # Invariant proofs (105 proven, 98 public + 7 helper lemmas)
     Rounding.lean         # Rounding proofs (4/4 proven)
     Authorization.lean    # Authorization proofs (13 proven, 11 public + 2 helper lemmas)
-    SolidityBridge.lean   # Solidity equivalence bridge proofs (46/46 proven)
+    SolidityBridge.lean   # Solidity equivalence bridge proofs (67/67 proven)
     ShareConsistency.lean # Share accounting proofs (36 proven, 34 public + 2 helper lemmas)
     NatListSum.lean       # List sum lemmas for share accounting (5/5 proven)
   Compiler/
@@ -254,12 +276,12 @@ Current status:
 
 ## Proof progress
 
-**209 theorems proven, 0 sorry remaining.**
+**230 theorems proven, 0 sorry remaining.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
 | Invariants | 105 | 105 | Done |
-| Solidity equivalence bridge | 46 | 46 | Done |
+| Solidity equivalence bridge | 67 | 67 | Done |
 | Share consistency | 36 | 36 | Done |
 | Authorization | 13 | 13 | Done |
 | List sum lemmas | 5 | 5 | Done |
@@ -284,11 +306,12 @@ Invariant theorems (105) include:
 - Flash loan rejects zero assets (1), accrueInterestPublic rejects uninitialized markets (1)
 - accrueInterestPublic preserves solvency and collateralization (2)
 
-Solidity equivalence bridge theorems (46) include:
-- borrowLeSupply preservation for 10 operations: supply/withdraw/borrow/repay/supplyCollateral/withdrawCollateral/liquidate/accrueInterest/enableIrm/enableLltv + setAuthorization/setAuthorizationWithSig (12)
-- alwaysCollateralized preservation for the same 12 operations (12)
-- irmMonotone preservation for 12 operations (12)
-- lltvMonotone preservation for 10 operations (10)
+Solidity equivalence bridge theorems (67) include:
+- borrowLeSupply preservation for all 17 state-mutating operations (17)
+- alwaysCollateralized preservation for the same 17 operations (17)
+- irmMonotone preservation for 16 operations (16)
+- lltvMonotone preservation for 16 operations (16)
+- flashLoan rejects zero assets (1)
 
 Authorization theorems (13) include:
 - Precondition style: unauthorized sender → withdraw/borrow/withdrawCollateral return none (3)
@@ -313,7 +336,7 @@ Share consistency theorems (36) include:
 - [x] Invariant proofs (105: solvency × 17, collateralization × 16, IRM/LLTV monotonicity × 14 each, market/position isolation × 24, timestamp × 3, exchange rate × 2, standalone checks, helper lemmas)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 - [x] Share consistency proofs (36: supplySharesConsistent and borrowSharesConsistent preserved by all 17 operations including liquidate bad-debt socialization, helper lemmas)
-- [x] Solidity equivalence bridge proofs (46: borrowLeSupply/alwaysCollateralized/irmMonotone/lltvMonotone preserved across 10-12 operations via semantic equivalence transfer)
+- [x] Solidity equivalence bridge proofs (67: borrowLeSupply/alwaysCollateralized preserved across 17 operations, irmMonotone/lltvMonotone across 16, flashLoan zero-asset rejection)
 
 ## License
 

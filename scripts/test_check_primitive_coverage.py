@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""Unit tests for primitive coverage analysis."""
+
+from __future__ import annotations
+
+import json
+import pathlib
+import sys
+import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from check_primitive_coverage import (  # noqa: E402
+    analyze_coverage,
+    build_report,
+    extract_primitives,
+    is_stub,
+    PRIMITIVE_BRIDGE_STATUS,
+)
+
+
+SAMPLE_READY_FN = """\
+  function setOwner (newOwner : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    require (newOwner != currentOwner) "already set"
+    setStorageAddr ownerSlot newOwner
+"""
+
+SAMPLE_GAPS_FN = """\
+  function enableIrm (irm : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let currentValue <- getMapping isIrmEnabledSlot irm
+    require (currentValue == 0) "already set"
+    setMapping isIrmEnabledSlot irm 1
+"""
+
+SAMPLE_STUB_FN = """\
+  function supply (marketParams : Tuple, assets : Uint256) : Unit := do
+    let sender <- msgSender
+    require (sender == sender) "supply noop"
+"""
+
+SAMPLE_MACRO = """\
+verity_contract MorphoViewSlice where
+  storage
+    ownerSlot : Address := slot 0
+
+  function setOwner (newOwner : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    require (newOwner != currentOwner) "already set"
+    setStorageAddr ownerSlot newOwner
+
+  function enableIrm (irm : Address) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let currentValue <- getMapping isIrmEnabledSlot irm
+    require (currentValue == 0) "already set"
+    setMapping isIrmEnabledSlot irm 1
+
+  function supply (marketParams : Tuple, assets : Uint256) : Unit := do
+    let sender <- msgSender
+    require (sender == sender) "supply noop"
+"""
+
+
+class ExtractPrimitivesTests(unittest.TestCase):
+    def test_extracts_ready_function(self) -> None:
+        prims = extract_primitives(SAMPLE_READY_FN)
+        self.assertIn("msgSender", prims)
+        self.assertIn("getStorageAddr", prims)
+        self.assertIn("setStorageAddr", prims)
+        self.assertIn("require_eq", prims)
+        self.assertIn("require_neq", prims)
+
+    def test_extracts_gap_function(self) -> None:
+        prims = extract_primitives(SAMPLE_GAPS_FN)
+        self.assertIn("getMapping", prims)
+        self.assertIn("setMapping", prims)
+
+    def test_no_false_positives_for_ready(self) -> None:
+        """setOwner should not have mapping primitives."""
+        prims = extract_primitives(SAMPLE_READY_FN)
+        self.assertNotIn("getMapping", prims)
+        self.assertNotIn("setMapping", prims)
+        self.assertNotIn("getMapping2", prims)
+
+    def test_empty_text(self) -> None:
+        prims = extract_primitives("")
+        self.assertEqual(prims, set())
+
+
+class IsStubTests(unittest.TestCase):
+    def test_detects_noop_stub(self) -> None:
+        self.assertTrue(is_stub(SAMPLE_STUB_FN))
+
+    def test_detects_non_stub(self) -> None:
+        self.assertFalse(is_stub(SAMPLE_READY_FN))
+
+    def test_detects_hardcoded_return(self) -> None:
+        block = '    returnValues [0, 0, 0]'
+        self.assertTrue(is_stub(block))
+
+
+class AnalyzeCoverageTests(unittest.TestCase):
+    def test_ready_operation(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
+        self.assertTrue(coverage["setOwner"]["fully_covered"])
+        self.assertEqual(coverage["setOwner"]["missing"], [])
+
+    def test_edsl_ready_operation(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"enableIrm"})
+        self.assertFalse(coverage["enableIrm"]["fully_covered"])
+        self.assertTrue(coverage["enableIrm"]["edsl_ready"])
+        self.assertIn("getMapping", coverage["enableIrm"]["edsl_proven"])
+        self.assertIn("setMapping", coverage["enableIrm"]["edsl_proven"])
+        self.assertEqual(coverage["enableIrm"]["missing"], [])
+
+    def test_stub_operation(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"supply"})
+        self.assertIn("error", coverage["supply"])
+
+    def test_missing_operation(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"nonexistent"})
+        self.assertIn("error", coverage["nonexistent"])
+
+    def test_mixed_operations(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner", "enableIrm"})
+        self.assertTrue(coverage["setOwner"]["fully_covered"])
+        self.assertFalse(coverage["enableIrm"]["fully_covered"])
+        self.assertTrue(coverage["enableIrm"]["edsl_ready"])
+
+
+class BuildReportTests(unittest.TestCase):
+    def test_report_counts(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner", "enableIrm"})
+        report = build_report(coverage)
+        self.assertEqual(report["total"], 2)
+        self.assertEqual(report["fully_covered"], 1)
+        self.assertEqual(report["edsl_ready"], 1)
+        self.assertEqual(report["gaps_remaining"], 0)
+
+    def test_report_json_serializable(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
+        report = build_report(coverage)
+        json.dumps(report)
+
+    def test_all_ready(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
+        report = build_report(coverage)
+        self.assertEqual(report["fully_covered"], 1)
+        self.assertEqual(report["edsl_ready"], 0)
+        self.assertEqual(report["gaps_remaining"], 0)
+
+
+class PrimitiveBridgeStatusTests(unittest.TestCase):
+    def test_core_proven_primitives(self) -> None:
+        """Core operations that should have proven status."""
+        for prim in ["msgSender", "getStorageAddr", "setStorageAddr",
+                      "require_eq", "require_neq", "if_then_else"]:
+            self.assertEqual(
+                PRIMITIVE_BRIDGE_STATUS[prim], "proven",
+                f"{prim} should be proven"
+            )
+
+    def test_mapping_edsl_proven(self) -> None:
+        """Mapping operations should be edsl_proven (EDSL-level lemmas exist)."""
+        for prim in ["getMapping", "setMapping", "getMapping2", "setMapping2",
+                      "getMappingUint", "setMappingUint"]:
+            self.assertEqual(
+                PRIMITIVE_BRIDGE_STATUS[prim], "edsl_proven",
+                f"{prim} should be edsl_proven"
+            )
+
+
+class IntegrationTests(unittest.TestCase):
+    def test_real_files(self) -> None:
+        """Run against actual repo files."""
+        root = pathlib.Path(__file__).resolve().parent.parent
+        macro_path = root / "Morpho" / "Compiler" / "MacroSlice.lean"
+        config_path = root / "config" / "semantic-bridge-obligations.json"
+
+        if not macro_path.exists() or not config_path.exists():
+            self.skipTest("repo files not available")
+
+        macro_text = macro_path.read_text(encoding="utf-8")
+        with config_path.open("r", encoding="utf-8") as f:
+            config = json.load(f)
+        migrated_ops = {
+            o["operation"]
+            for o in config["obligations"]
+            if o.get("macroMigrated")
+        }
+
+        coverage = analyze_coverage(macro_text, migrated_ops)
+        report = build_report(coverage)
+
+        # 6 migrated operations
+        self.assertEqual(report["total"], 6)
+
+        # setOwner and setFeeRecipient should be fully covered
+        self.assertTrue(coverage["setOwner"]["fully_covered"])
+        self.assertTrue(coverage["setFeeRecipient"]["fully_covered"])
+
+        # enableIrm, enableLltv, setAuthorization: EDSL-ready (bridge lemmas needed)
+        for op in ["enableIrm", "enableLltv", "setAuthorization"]:
+            self.assertFalse(coverage[op]["fully_covered"])
+            self.assertTrue(coverage[op]["edsl_ready"])
+
+        # createMarket: has gaps (externalCall, getMappingWord, setMappingWord missing)
+        self.assertFalse(coverage["createMarket"]["fully_covered"])
+        self.assertFalse(coverage["createMarket"].get("edsl_ready", False))
+
+        # At least 2 fully covered
+        self.assertGreaterEqual(report["fully_covered"], 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
