@@ -6,7 +6,7 @@
       "operation": "supply",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-WITHDRAW-SEM-EQ",
@@ -14,7 +14,7 @@
       "operation": "withdraw",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, ERC20, authorization, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (internal calls, ERC20, authorization, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-BORROW-SEM-EQ",
@@ -22,7 +22,7 @@
       "operation": "borrow",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, ERC20, oracle calls, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (internal calls, ERC20, oracle calls, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-REPAY-SEM-EQ",
@@ -30,7 +30,7 @@
       "operation": "repay",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-SUPPLY-COLLATERAL-SEM-EQ",
@@ -38,7 +38,7 @@
       "operation": "supplyCollateral",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (ERC20, callbacks, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (ERC20, callbacks, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-WITHDRAW-COLLATERAL-SEM-EQ",
@@ -46,7 +46,7 @@
       "operation": "withdrawCollateral",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (ERC20, oracle calls, authorization, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (ERC20, oracle calls, authorization, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-LIQUIDATE-SEM-EQ",
@@ -54,7 +54,7 @@
       "operation": "liquidate",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (ERC20, oracle calls, memory mgmt, 2D struct access) + verity#998"
+      "blockedBy": "macro migration (ERC20, oracle calls, memory mgmt, 2D struct access) + verity#1065"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-SEM-EQ",
@@ -62,7 +62,7 @@
       "operation": "accrueInterest",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, external contract calls) + verity#998"
+      "blockedBy": "macro migration (internal calls, external contract calls) + verity#1065"
     },
     {
       "id": "OBL-ENABLE-IRM-SEM-EQ",
@@ -94,7 +94,7 @@
       "operation": "setAuthorizationWithSig",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (ecrecover, memory management, EIP-712 hashing) + verity#998"
+      "blockedBy": "macro migration (ecrecover, memory management, EIP-712 hashing) + verity#1065"
     },
     {
       "id": "OBL-SET-OWNER-SEM-EQ",
@@ -118,7 +118,7 @@
       "operation": "createMarket",
       "status": "assumed",
       "macroMigrated": true,
-      "blockedBy": "verity#998 semantic bridge composition"
+      "blockedBy": "verity#1065 semantic bridge composition"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",
@@ -126,7 +126,7 @@
       "operation": "setFee",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, .mappingStruct) + verity#998"
+      "blockedBy": "macro migration (internal calls, .mappingStruct) + verity#1065"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ",
@@ -134,7 +134,7 @@
       "operation": "accrueInterestPublic",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (internal calls, external contract calls) + verity#998"
+      "blockedBy": "macro migration (internal calls, external contract calls) + verity#1065"
     },
     {
       "id": "OBL-FLASH-LOAN-SEM-EQ",
@@ -142,11 +142,11 @@
       "operation": "flashLoan",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (ERC20, callbacks) + verity#998"
+      "blockedBy": "macro migration (ERC20, callbacks) + verity#1065"
     }
   ],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean and is ready for end-to-end composition once verity#998 lands. Status transitions require explicit reviewed updates.",
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean and is ready for end-to-end composition once verity#1065 lands. Status transitions require explicit reviewed updates.",
   "source": "Morpho/Proofs/SolidityBridge.lean",
-  "upstreamIssue": "https://github.com/Th0rgal/verity/issues/998",
-  "upstreamPR": "https://github.com/Th0rgal/verity/pull/1052"
+  "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
+  "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"
 }

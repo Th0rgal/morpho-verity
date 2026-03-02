@@ -43,7 +43,7 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | | `assumed` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#998
+`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065
 lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
 
@@ -54,9 +54,9 @@ workaround for the `.mappingStruct` storage type gap — the same pattern used b
 
 ## Semantic Bridge Discharge Path
 
-The obligations above will be discharged via the Verity semantic bridge
-([verity#998](https://github.com/Th0rgal/verity/issues/998),
-[verity#1052](https://github.com/Th0rgal/verity/pull/1052)).
+The obligations above will be discharged via the Verity hybrid canonical-semantics migration
+([verity#1060](https://github.com/Th0rgal/verity/issues/1060),
+[verity#1065](https://github.com/Th0rgal/verity/pull/1065)).
 
 The discharge requires a three-layer correspondence for each operation:
 
@@ -106,7 +106,7 @@ Known expected differences (not checked, handled by semantic bridge):
 
 The 13 unmigrated operations depend on upstream verity macro capabilities.
 
-**Resolved blockers** (verity `semantic-bridge` as of 2026-03-01): tuple destructuring,
+**Resolved blockers** (verity roadmap branch as of 2026-03-01): tuple destructuring,
 `setStructMember`/`structMember` statement/expression primitives, `keccakMarketParams`
 (via `externalCall`), `blockTimestamp`, `mstore`/`mload`, `getMappingUint`/`setMappingUint`
 explicit translators, `Bytes32`/`Bool` type support.
@@ -136,16 +136,16 @@ word 1 = 0 (totalBorrowAssets|totalBorrowShares), word 2 = blockTimestamp (lastU
 
 For macro-migrated operations, `scripts/check_primitive_coverage.py` analyzes which EDSL
 primitives each function uses and cross-references against proven `PrimitiveBridge` lemmas
-in the upstream verity semantic-bridge branch.
+in the upstream verity roadmap branch.
 
-### Current status (verity `semantic-bridge` branch, 2026-03-01)
+### Current status (verity `roadmap/1060-hybrid-migration` branch, 2026-03-01)
 
 **Proven PrimitiveBridge lemmas** (EDSL ↔ compiled Yul): `getStorage`, `setStorage`,
 `getStorageAddr`, `setStorageAddr`, `require` (eq/neq/lt/gt), `msgSender`, `if_then_else`,
 `uint256.add/sub/mul/div/mod`, `uint256.lt/gt/eq`, `calldataloadWord` (encoding/decoding),
 `safeAdd`/`safeSub` (overflow/underflow), `getMapping_unfold`/`setMapping_unfold`
 
-**Proven semantic bridge theorems** (zero sorry, verity `semantic-bridge` at `ed97777`):
+**Proven semantic bridge theorems** (zero sorry, as tracked in verity roadmap snapshots):
 - SimpleStorage: `store`, `retrieve` — Uint256-typed storage
 - Counter: `increment`, `decrement`, `getCount` — arithmetic + Uint256 storage
 - Owned: `getOwner`, `transferOwnership` — **Address-typed storage + access control**
@@ -188,8 +188,11 @@ first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has three links per obligation:
 1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization
-2. **Link 2** (this repo): `EDSL ↔ interpretSpec(CompilationModel)` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/SpecCorrectness/`
+2. **Link 2** (this repo, current pin): `EDSL ↔ interpretSpec(CompilationModel)` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/SpecCorrectness/`
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
+
+After bumping to a post-`verity#1065` revision, Link 2 transitions from this
+legacy `interpretSpec` checkpoint to the typed-IR semantic bridge path.
 
 **Link 1 proof pattern** (for all 5 proven operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
@@ -207,17 +210,17 @@ The discharge has three links per obligation:
 
 ### Discharge sequence
 
-Once verity#1052 merges and morpho-verity bumps the verity pin:
+Once verity#1065 merges and morpho-verity bumps the verity pin:
 
 1. **Links 1+2 proven, Link 3 after verity pin bump**: `setOwner`, `setFeeRecipient`,
    `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 (Pure Lean ↔ EDSL) proven
    in `SemanticBridgeDischarge.lean`. Link 2 (EDSL ↔ CompilationModel) proven in
    `Morpho/Proofs/SpecCorrectness/`. Link 3 needs verity pin bump for the compiled
    IR ↔ EVMYulLean composition.
-3. **After mapping bridge + MappingWord lemmas**: `createMarket` — now macro-migrated
+2. **After mapping bridge + MappingWord lemmas**: `createMarket` — now macro-migrated
    using `setMappingWord`/`getMappingWord`; needs bridge-level lemmas for word-offset
    mapping access in addition to the mapping bridge lemmas from step 2
-4. **After remaining macro expansion**: 12 operations — requires internal calls, ERC20,
+3. **After remaining macro expansion**: 12 operations — requires internal calls, ERC20,
    callbacks, external contract calls
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`
@@ -228,4 +231,3 @@ Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json
 2. Status values: `assumed | in_progress | discharged`.
 3. CI must publish counts by status (`scripts/check_semantic_bridge_obligations.py`).
 4. README safety claims must reference this table.
-

@@ -13,7 +13,7 @@ Solidity implementation satisfying semantic equivalence hypotheses.
 Each hypothesis (`supplySemEq`, `withdrawSemEq`, …) is a universally
 quantified assumption — a function parameter, not a discharged proof.
 
-## Discharge Path (verity#998)
+## Discharge Path (verity#1060 / #1065)
 
 The Verity semantic bridge will provide, for each function `f` in a
 `verity_contract`:
@@ -69,7 +69,7 @@ structure SemanticBridgeObligation where
   /-- Whether the operation has a full (non-stub) `verity_contract` macro
       implementation in MacroSlice.lean. When true, the macro-generated
       CompilationModel is ready for end-to-end semantic bridge composition
-      once verity#998 lands. When false, macro migration must be completed
+      once verity#1065 lands. When false, macro migration must be completed
       before the obligation can be discharged. -/
   macroMigrated : Bool
   deriving Repr
@@ -191,7 +191,7 @@ theorem assumed_count :
 
 /-- 6 of 18 operations have full (non-stub) macro implementations.
     These are ready for end-to-end semantic bridge composition once
-    verity#998 lands: setOwner, setFeeRecipient, enableIrm, enableLltv,
+    verity#1065 lands: setOwner, setFeeRecipient, enableIrm, enableLltv,
     setAuthorization, createMarket. -/
 theorem macro_migrated_count :
     (obligations.filter (fun o => o.macroMigrated)).length = 6 := by

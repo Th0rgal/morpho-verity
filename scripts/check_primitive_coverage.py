@@ -74,7 +74,7 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 #   "partial" = lemma exists but requires additional composition
 #   "missing" = no lemma yet (upstream work needed)
 #
-# Based on analysis of verity semantic-bridge branch at 8b3b482 (2026-03-01).
+# Based on analysis of verity roadmap/1060-hybrid-migration snapshots (2026-03-01).
 # PrimitiveBridge.lean: EDSL ↔ compiled Yul bridge lemmas
 # MappingAutomation.lean: EDSL-level read/write/non-interference lemmas (zero sorry)
 # MappingSlot.lean: keccak-based slot encoding infrastructure

@@ -18,8 +18,8 @@ composition rather than through the parametric SolidityBridge layer.
 
 ## Links 2+3 gap documentation
 
-The current verity pin (`dccb984`) pre-dates the semantic bridge infrastructure.
-The verity `semantic-bridge` branch (commit `ee4f2cf`) contains:
+The current verity pin (`dccb984`) pre-dates the upstream hybrid migration work.
+The verity `roadmap/1060-hybrid-migration` branch (`verity#1065`) contains:
 - `owned_transferOwnership_semantic_bridge`: fully discharged (zero sorry) proof
   that Owned.transferOwnership's EDSL matches compiled IR, structurally identical
   to our setOwner
@@ -27,7 +27,7 @@ The verity `semantic-bridge` branch (commit `ee4f2cf`) contains:
 - `Verity.Proofs.Stdlib.PrimitiveBridge`: per-primitive EDSL ↔ IR lemmas
 
 To complete Links 2+3 for setOwner/setFeeRecipient:
-1. Bump verity pin from `dccb984` to `semantic-bridge` branch
+1. Bump verity pin from `dccb984` to a post-`verity#1065` revision
 2. Compile `MorphoViewSlice.spec` → IR → define `morphoIRContract`
 3. Prove by direct simp, following `owned_transferOwnership_semantic_bridge`
 4. Compose with Link 1 for the full chain: Pure Lean ↔ EDSL ↔ IR ↔ Yul
@@ -111,7 +111,7 @@ theorem edsl_enableIrm_irmMonotone
 
 /-! ## What the verity pin bump enables
 
-After bumping verity to `semantic-bridge` (commit `ee4f2cf` or later):
+After bumping verity to a post-`verity#1065` revision:
 
 ### For setOwner/setFeeRecipient (Address storage):
 
@@ -137,7 +137,7 @@ Proof follows `owned_transferOwnership_semantic_bridge` template (same primitive
 
 Requires mapping bridge lemmas connecting `getMapping`/`setMapping` to
 `sload(keccak256(key,slot))`/`sstore(keccak256(key,slot),value)` in compiled Yul.
-The verity `semantic-bridge` branch has `getMapping_unfold`/`setMapping_unfold`
+The upstream roadmap branch has `getMapping_unfold`/`setMapping_unfold`
 at the EDSL level; the IR→Yul bridge for these is in progress.
 
 ### createMarket:
