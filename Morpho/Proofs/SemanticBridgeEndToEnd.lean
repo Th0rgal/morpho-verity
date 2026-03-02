@@ -110,40 +110,40 @@ theorem edsl_enableIrm_irmMonotone
     rw [← enableIrm_link1]; exact h_ok
   exact enableIrm_monotone s irmCall irm h_morpho h_enabled
 
-/-! ## What the verity pin bump enables
+/-! ## Links 2+3: SupportedStmtFragment gap (verity#1066)
 
-After bumping verity to a post-`verity#1065` revision:
+The typed-IR framework requires proving each function body is a `SupportedStmtList`.
+However, the existing `SupportedStmtFragment` constructors do not cover the
+`letVar`-expanded patterns that the `verity_contract` macro generates.
 
-### For setOwner/setFeeRecipient (Address storage):
+### The structural mismatch
 
+The macro generates bodies like:
 ```
-theorem setOwner_edsl_matches_ir
-    (state : ContractState) (sender : Address) (newOwner : Address)
-    (hOwner : sender = state.storageAddr 0) :
-    let edslResult := Contract.run (MorphoViewSlice.setOwner newOwner)
-        { state with sender := sender }
-    let tx : IRTransaction := { sender := sender.val, functionSelector := ..., args := [newOwner.val] }
-    let irState : IRState := { vars := [], storage := encodeStorageAddr state, memory := fun _ => 0, ... }
-    match edslResult with
-    | .success _ s' =>
-        let irResult := interpretIR morphoIRContract tx irState
-        irResult.success = true ∧
-        ∀ slot, (s'.storageAddr slot).val = irResult.finalStorage slot
-    | .revert _ _ => True
+letVar "sender" Expr.caller
+letVar "currentOwner" (Expr.storage "ownerSlot")
+require (localVar "sender" == localVar "currentOwner") "not owner"
+...
 ```
 
-Proof follows `owned_transferOwnership_semantic_bridge` template (same primitives).
+But the existing guard clause framework (`RequireLiteralGuardFamilyClause`) only
+supports `Expr.literal` in require guards. There are no constructors for the
+`letVar + require(localVar == localVar)` patterns.
 
-### For mapping operations (enableIrm, enableLltv, setAuthorization):
+### Upstream issue: verity#1066
 
-Requires mapping bridge lemmas connecting `getMapping`/`setMapping` to
-`sload(keccak256(key,slot))`/`sstore(keccak256(key,slot),value)` in compiled Yul.
-The upstream roadmap branch has `getMapping_unfold`/`setMapping_unfold`
-at the EDSL level; the IR→Yul bridge for these is in progress.
+New `SupportedStmtFragment` constructors are needed for:
+1. **setOwner**: letCaller + letStorageAddr + reqEq + reqNeq + setStorageAddr(param) + stop
+2. **setFeeRecipient**: same but writes to different field
+3. **enableIrm**: owner check + letMapping + reqEqLiteral + setMapping(param, literal) + stop
+4. **enableLltv**: owner check + letMappingUint + reqEqLiteral + reqLt + setMappingUint + stop
+5. **setAuthorization**: letCaller + letMapping2 + ite(param, [req+setMapping2], [req+setMapping2]) + stop
+
+Tracked in https://github.com/Th0rgal/verity/issues/1066.
 
 ### createMarket:
 
-BLOCKED: `getMappingWord`/`setMappingWord` are stubs (`pure 0`/`pure ()`) in
+Still BLOCKED: `getMappingWord`/`setMappingWord` are stubs (`pure 0`/`pure ()`) in
 `MacroSlice.lean`. The EDSL implementation does not actually read/write market
 struct data. This must be resolved before Link 1 can be proven for createMarket.
 -/
