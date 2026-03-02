@@ -16,21 +16,22 @@ For setOwner, we compose:
 Result: the EDSL `setOwner` preserves all Morpho invariants, proven by direct
 composition rather than through the parametric SolidityBridge layer.
 
-## Links 2+3 gap documentation
+## Links 2+3 status (post-verity#1065 pin bump)
 
-The current verity pin (`dccb984`) pre-dates the upstream hybrid migration work.
-The verity `roadmap/1060-hybrid-migration` branch (`verity#1065`) contains:
-- `owned_transferOwnership_semantic_bridge`: fully discharged (zero sorry) proof
-  that Owned.transferOwnership's EDSL matches compiled IR, structurally identical
-  to our setOwner
-- `Compiler.Proofs.EndToEnd`: Layer 2+3 composition theorems
-- `Verity.Proofs.Stdlib.PrimitiveBridge`: per-primitive EDSL ↔ IR lemmas
+The verity pin has been bumped from `dccb984` to `fc661db2` (post-`verity#1065`).
+The new verity provides:
+- `TypedIRCompiler.lean` + `TypedIRCompilerCorrectness.lean`: generic typed-IR
+  compilation-correctness theorem — if a function body is a `SupportedStmtList`,
+  `execCompiledSupportedStmtFragments = execSourceSupportedStmtFragments` with no
+  per-function proof needed.
+- The old `SpecInterpreter` + manual `SpecCorrectness` proofs have been removed;
+  Links 2+3 are now obtained by proving function bodies are `SupportedStmtList`
+  (typically `by decide` or `by native_decide`).
 
-To complete Links 2+3 for setOwner/setFeeRecipient:
-1. Bump verity pin from `dccb984` to a post-`verity#1065` revision
-2. Compile `MorphoViewSlice.spec` → IR → define `morphoIRContract`
-3. Prove by direct simp, following `owned_transferOwnership_semantic_bridge`
-4. Compose with Link 1 for the full chain: Pure Lean ↔ EDSL ↔ IR ↔ Yul
+Next steps for Links 2+3:
+1. Prove each `verity_contract` function body is a `SupportedStmtList`
+2. The generic theorem then gives compilation correctness for free
+3. Compose with Link 1 for the full chain: Pure Lean ↔ EDSL ↔ IR ↔ Yul
 -/
 
 namespace Morpho.Proofs.SemanticBridgeEndToEnd
