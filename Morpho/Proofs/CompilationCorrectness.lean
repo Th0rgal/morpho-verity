@@ -16,8 +16,10 @@ compilation proofs (Links 2+3: EDSL ↔ IR ↔ Yul).
 4. **setAuthorization**: caller, mapping2 read, ite bool, require, setMapping2
 
 ## Not yet covered
-- **setFeeRecipient**: reads TWO different storage fields (ownerSlot for auth,
-  feeRecipientSlot for ≠ check) — needs a new fragment constructor in verity
+- **setFeeRecipient**: reads TWO different storage address fields (ownerSlot for auth,
+  feeRecipientSlot for ≠ check) — needs a new `SupportedStmtFragment` constructor
+  in verity that supports reading two distinct address storage fields.
+  As of verity pin 33a47e5d, only single-field-read patterns are supported.
 -/
 
 namespace Morpho.Proofs.CompilationCorrectness

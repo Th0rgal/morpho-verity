@@ -14,8 +14,8 @@ concurrency:
 jobs:
   verity-proofs:
     name: Lean proofs (Verity)
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+    runs-on: ubuntu-latest-4-cores
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -42,11 +42,22 @@ jobs:
       - name: Check Lean toolchain readiness
         run: ./scripts/check_toolchain_readiness.sh --require lean
 
+      - name: Clear stale Lake packages on verity pin change
+        run: |
+          if [ -d .lake/packages/verity ]; then
+            CACHED_REV=$(cd .lake/packages/verity && git rev-parse HEAD 2>/dev/null || echo "none")
+            WANTED_REV=$(jq -r '.packages[] | select(.name == "verity") | .rev' lake-manifest.json)
+            if [ "$CACHED_REV" != "$WANTED_REV" ]; then
+              echo "Verity pin changed ($CACHED_REV → $WANTED_REV), clearing stale Lake state"
+              rm -rf .lake/packages .lake/build
+            fi
+          fi
+
       - name: Build and check proofs
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 1500 "Build and check Lean proofs" -- lake build
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build and check Lean proofs" -- lake build
 
       - name: Build compiler executable (populate cache for downstream jobs)
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 4500 "Build morpho-verity-compiler executable" -- lake build morpho-verity-compiler
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 5400 "Build morpho-verity-compiler executable" -- lake build morpho-verity-compiler
 
       - name: Run Morpho compiler CLI regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_MAINTEST_TIMEOUT_SEC 300 "Run Morpho compiler CLI regression tests" -- lake build Morpho.Compiler.MainTest
@@ -183,7 +194,7 @@ jobs:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
     needs: [verity-proofs, parity-target, verity-compiled-tests]
-    timeout-minutes: 75
+    timeout-minutes: 110
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -248,10 +259,10 @@ jobs:
           path: out/parity-shared
 
       - name: Generate Yul identity report
-        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 5100 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 6000 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
         env:
           MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "4500"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "5400"
           MORPHO_VERITY_PREPARED_ARTIFACT_DIR: out/parity-shared
 
       - name: Upload Yul identity artifacts
@@ -366,7 +377,7 @@ jobs:
         run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Compile Morpho Verity artifact and enforce artifact gate
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 5100 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 6000 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
         env:
           MORPHO_VERITY_PARITY_OUT_DIR: out/parity-shared
 

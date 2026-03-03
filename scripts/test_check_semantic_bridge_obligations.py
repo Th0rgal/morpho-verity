@@ -51,6 +51,11 @@ verity_contract MorphoViewSlice where
     let _ignoredId := id
     let _ignoredUser := user
     returnValues [0, 0, 0]
+
+  function createMarket (marketParams : Tuple) : Unit := do
+    let marketParams' := marketParams
+    let _ignored := marketParams'
+    require (0 == 1) "createMarket stub"
 """
 
 
@@ -111,6 +116,12 @@ class ExtractMacroFunctionTests(unittest.TestCase):
         fns = extract_macro_functions(SAMPLE_MACRO)
         self.assertIn("position", fns)
         self.assertFalse(fns["position"])
+
+    def test_detects_hard_stub(self) -> None:
+        """require (0 == 1) 'X stub' should be detected as a stub."""
+        fns = extract_macro_functions(SAMPLE_MACRO)
+        self.assertIn("createMarket", fns)
+        self.assertFalse(fns["createMarket"])
 
     def test_empty_file(self) -> None:
         fns = extract_macro_functions("")
@@ -302,13 +313,13 @@ class IntegrationTests(unittest.TestCase):
             ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
-        # 6 should be macro-migrated
+        # 5 should be macro-migrated (createMarket is a hard stub, not migrated)
         migrated = [o for o in config["obligations"] if o.get("macroMigrated")]
-        self.assertEqual(len(migrated), 6)
+        self.assertEqual(len(migrated), 5)
         migrated_ops = sorted(o["operation"] for o in migrated)
         self.assertEqual(
             migrated_ops,
-            ["createMarket", "enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
+            ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
 

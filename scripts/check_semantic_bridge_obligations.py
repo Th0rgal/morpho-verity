@@ -36,6 +36,9 @@ STUB_RE = re.compile(r'require\s*\(sender\s*==\s*sender\)\s*"(\w+)\s+noop"')
 # Detect hardcoded-return stubs like: returnValues [0, 0, 0]
 HARDCODED_RETURN_RE = re.compile(r"returnValues\s*\[\s*0(?:\s*,\s*0)*\s*\]")
 
+# Detect hard stubs like: require (0 == 1) "createMarket stub"
+HARD_STUB_RE = re.compile(r'require\s*\(0\s*==\s*1\)\s*"(\w+)\s+stub"')
+
 
 class ObligationError(RuntimeError):
     pass
@@ -68,7 +71,12 @@ def extract_macro_functions(macro_text: str) -> dict[str, bool]:
         # Look for stub patterns in the body (up to next function):
         # 1. noop tautology: require (sender == sender) "X noop"
         # 2. hardcoded-return: returnValues [0, 0, 0] (pending upstream support)
-        is_stub = bool(STUB_RE.search(fn_body)) or bool(HARDCODED_RETURN_RE.search(fn_body))
+        # 3. hard stub: require (0 == 1) "X stub"
+        is_stub = (
+            bool(STUB_RE.search(fn_body))
+            or bool(HARDCODED_RETURN_RE.search(fn_body))
+            or bool(HARD_STUB_RE.search(fn_body))
+        )
         result[fn_name] = not is_stub
 
     return result
