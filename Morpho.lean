@@ -11,5 +11,9 @@ import Morpho.Proofs.Invariants
 import Morpho.Proofs.Authorization
 import Morpho.Proofs.Rounding
 import Morpho.Proofs.SolidityBridge
+import Morpho.Proofs.SemanticBridgeReadiness
+import Morpho.Proofs.SemanticBridgeDischarge
+import Morpho.Proofs.SemanticBridgeInstantiation
+import Morpho.Proofs.SemanticBridgeEndToEnd
 import Morpho.Proofs.NatListSum
 import Morpho.Proofs.ShareConsistency

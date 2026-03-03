@@ -1,0 +1,152 @@
+{
+  "obligations": [
+    {
+      "id": "OBL-SUPPLY-SEM-EQ",
+      "hypothesis": "supplySemEq",
+      "operation": "supply",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-WITHDRAW-SEM-EQ",
+      "hypothesis": "withdrawSemEq",
+      "operation": "withdraw",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, authorization, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-BORROW-SEM-EQ",
+      "hypothesis": "borrowSemEq",
+      "operation": "borrow",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, oracle calls, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-REPAY-SEM-EQ",
+      "hypothesis": "repaySemEq",
+      "operation": "repay",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-SUPPLY-COLLATERAL-SEM-EQ",
+      "hypothesis": "supplyCollateralSemEq",
+      "operation": "supplyCollateral",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-WITHDRAW-COLLATERAL-SEM-EQ",
+      "hypothesis": "withdrawCollateralSemEq",
+      "operation": "withdrawCollateral",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, oracle calls, authorization, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-LIQUIDATE-SEM-EQ",
+      "hypothesis": "liquidateSemEq",
+      "operation": "liquidate",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, oracle calls, memory mgmt, 2D struct access) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-ACCRUE-INTEREST-SEM-EQ",
+      "hypothesis": "accrueInterestSemEq",
+      "operation": "accrueInterest",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, external contract calls) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-ENABLE-IRM-SEM-EQ",
+      "hypothesis": "enableIrmSemEq",
+      "operation": "enableIrm",
+      "status": "in_progress",
+      "macroMigrated": true,
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin bumped to fc661db2)"
+    },
+    {
+      "id": "OBL-ENABLE-LLTV-SEM-EQ",
+      "hypothesis": "enableLltvSemEq",
+      "operation": "enableLltv",
+      "status": "in_progress",
+      "macroMigrated": true,
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin bumped to fc661db2)"
+    },
+    {
+      "id": "OBL-SET-AUTH-SEM-EQ",
+      "hypothesis": "setAuthorizationSemEq",
+      "operation": "setAuthorization",
+      "status": "in_progress",
+      "macroMigrated": true,
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin bumped to fc661db2)"
+    },
+    {
+      "id": "OBL-SET-AUTH-SIG-SEM-EQ",
+      "hypothesis": "setAuthorizationWithSigSemEq",
+      "operation": "setAuthorizationWithSig",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ecrecover, memory management, EIP-712 hashing) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-SET-OWNER-SEM-EQ",
+      "hypothesis": "setOwnerSemEq",
+      "operation": "setOwner",
+      "status": "in_progress",
+      "macroMigrated": true,
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin bumped to fc661db2)"
+    },
+    {
+      "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
+      "hypothesis": "setFeeRecipientSemEq",
+      "operation": "setFeeRecipient",
+      "status": "in_progress",
+      "macroMigrated": true,
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin bumped to fc661db2)"
+    },
+    {
+      "id": "OBL-CREATE-MARKET-SEM-EQ",
+      "hypothesis": "createMarketSemEq",
+      "operation": "createMarket",
+      "status": "assumed",
+      "macroMigrated": true,
+      "blockedBy": "macro stubs (mappingWord/structMember) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-SET-FEE-SEM-EQ",
+      "hypothesis": "setFeeSemEq",
+      "operation": "setFee",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, .mappingStruct) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ",
+      "hypothesis": "accrueInterestPublicSemEq",
+      "operation": "accrueInterestPublic",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (internal calls, external contract calls) + typed-IR SupportedStmtList proof"
+    },
+    {
+      "id": "OBL-FLASH-LOAN-SEM-EQ",
+      "hypothesis": "flashLoanSemEq",
+      "operation": "flashLoan",
+      "status": "assumed",
+      "macroMigrated": false,
+      "blockedBy": "macro migration (ERC20, callbacks) + typed-IR SupportedStmtList proof"
+    }
+  ],
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. verity#1065 merged (pin fc661db2); Links 2+3 now via typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
+  "source": "Morpho/Proofs/SolidityBridge.lean",
+  "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
+  "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"
+}
