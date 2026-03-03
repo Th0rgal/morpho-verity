@@ -16,22 +16,27 @@ For setOwner, we compose:
 Result: the EDSL `setOwner` preserves all Morpho invariants, proven by direct
 composition rather than through the parametric SolidityBridge layer.
 
-## Links 2+3 status (post-verity#1065 pin bump)
+## Links 2+3 status (post-verity#1085 pin bump)
 
-The verity pin has been bumped from `dccb984` to `fc661db2` (post-`verity#1065`).
-The new verity provides:
+The verity pin has been bumped to `2d5547bc` (post-`verity#1085`), which adds
+4 new `SupportedStmtFragment` constructors for Morpho admin function patterns.
+The typed-IR framework provides:
 - `TypedIRCompiler.lean` + `TypedIRCompilerCorrectness.lean`: generic typed-IR
   compilation-correctness theorem — if a function body is a `SupportedStmtList`,
   `execCompiledSupportedStmtFragments = execSourceSupportedStmtFragments` with no
   per-function proof needed.
-- The old `SpecInterpreter` + manual `SpecCorrectness` proofs have been removed;
-  Links 2+3 are now obtained by proving function bodies are `SupportedStmtList`
-  (typically `by decide` or `by native_decide`).
+- 4 new fragment constructors covering the `letVar`-expanded patterns that the
+  `verity_contract` macro generates for admin functions.
 
-Next steps for Links 2+3:
-1. Prove each `verity_contract` function body is a `SupportedStmtList`
-2. The generic theorem then gives compilation correctness for free
-3. Compose with Link 1 for the full chain: Pure Lean ↔ EDSL ↔ IR ↔ Yul
+### Covered admin functions (Links 2+3 via `CompilationCorrectness.lean`)
+1. **setOwner** — `letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop`
+2. **enableIrm** — `letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop`
+3. **enableLltv** — `letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop`
+4. **setAuthorization** — `letCallerLetMapping2IteParamReqSetMapping2Stop`
+
+### Remaining gap
+- **setFeeRecipient**: reads TWO different storage fields (ownerSlot for auth,
+  feeRecipientSlot for ≠ check) — needs a new fragment constructor in verity
 -/
 
 namespace Morpho.Proofs.SemanticBridgeEndToEnd
@@ -110,39 +115,14 @@ theorem edsl_enableIrm_irmMonotone
     rw [← enableIrm_link1]; exact h_ok
   exact enableIrm_monotone s irmCall irm h_morpho h_enabled
 
-/-! ## Links 2+3: SupportedStmtFragment gap (verity#1066)
+/-! ## Remaining Links 2+3 gaps
 
-The typed-IR framework requires proving each function body is a `SupportedStmtList`.
-However, the existing `SupportedStmtFragment` constructors do not cover the
-`letVar`-expanded patterns that the `verity_contract` macro generates.
+### setFeeRecipient
+Reads TWO different storage fields (ownerSlot for auth check, feeRecipientSlot
+for ≠ check). Needs a new `SupportedStmtFragment` constructor in verity that
+supports reading from two distinct storage address fields.
 
-### The structural mismatch
-
-The macro generates bodies like:
-```
-letVar "sender" Expr.caller
-letVar "currentOwner" (Expr.storage "ownerSlot")
-require (localVar "sender" == localVar "currentOwner") "not owner"
-...
-```
-
-But the existing guard clause framework (`RequireLiteralGuardFamilyClause`) only
-supports `Expr.literal` in require guards. There are no constructors for the
-`letVar + require(localVar == localVar)` patterns.
-
-### Upstream issue: verity#1066
-
-New `SupportedStmtFragment` constructors are needed for:
-1. **setOwner**: letCaller + letStorageAddr + reqEq + reqNeq + setStorageAddr(param) + stop
-2. **setFeeRecipient**: same but writes to different field
-3. **enableIrm**: owner check + letMapping + reqEqLiteral + setMapping(param, literal) + stop
-4. **enableLltv**: owner check + letMappingUint + reqEqLiteral + reqLt + setMappingUint + stop
-5. **setAuthorization**: letCaller + letMapping2 + ite(param, [req+setMapping2], [req+setMapping2]) + stop
-
-Tracked in https://github.com/Th0rgal/verity/issues/1066.
-
-### createMarket:
-
+### createMarket
 Still BLOCKED: `getMappingWord`/`setMappingWord` are stubs (`pure 0`/`pure ()`) in
 `MacroSlice.lean`. The EDSL implementation does not actually read/write market
 struct data. This must be resolved before Link 1 can be proven for createMarket.
