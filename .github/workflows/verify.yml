@@ -14,7 +14,7 @@ concurrency:
 jobs:
   verity-proofs:
     name: Lean proofs (Verity)
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - name: Checkout

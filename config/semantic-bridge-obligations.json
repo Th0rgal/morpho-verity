@@ -70,7 +70,7 @@
       "operation": "enableIrm",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 33a47e5d)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin d1e6b409)"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
@@ -78,7 +78,7 @@
       "operation": "enableLltv",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 33a47e5d)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin d1e6b409)"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
@@ -86,7 +86,7 @@
       "operation": "setAuthorization",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 33a47e5d)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin d1e6b409)"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
@@ -102,7 +102,7 @@
       "operation": "setOwner",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 33a47e5d)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin d1e6b409)"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
@@ -110,7 +110,7 @@
       "operation": "setFeeRecipient",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 33a47e5d)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin d1e6b409)"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",
@@ -145,7 +145,7 @@
       "blockedBy": "macro migration (ERC20, callbacks) + typed-IR SupportedStmtList proof"
     }
   ],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. verity#1065 merged (pin 33a47e5d); Links 2+3 now via typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. verity#1065 merged (pin d1e6b409); Links 2+3 now via typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
   "source": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"
