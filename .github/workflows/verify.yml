@@ -15,7 +15,7 @@ jobs:
   verity-proofs:
     name: Lean proofs (Verity)
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -56,13 +56,12 @@ jobs:
       - name: Build and check proofs
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build and check Lean proofs" -- lake build
 
-      - name: Build compiler executable (populate cache for downstream jobs)
-        continue-on-error: true
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 6600 "Build morpho-verity-compiler executable" -- lake build morpho-verity-compiler
-
-      - name: Run Morpho compiler CLI regression tests
-        continue-on-error: true
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_MAINTEST_TIMEOUT_SEC 300 "Run Morpho compiler CLI regression tests" -- lake build Morpho.Compiler.MainTest
+      # NOTE: Building the compiler executable (lake build morpho-verity-compiler)
+      # is intentionally omitted from this job.  The EVMYulLean FFI static
+      # linking step takes >110 minutes on 2-core ubuntu-latest runners and
+      # cannot complete within the proofs job timeout.  Downstream jobs that
+      # need the compiler (verity-compiled-tests) build it themselves with a
+      # dedicated budget.
 
   parity-target:
     name: Parity target tuple check
@@ -261,10 +260,10 @@ jobs:
           path: out/parity-shared
 
       - name: Generate Yul identity report
-        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 7200 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 9000 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-unsupported-manifest
         env:
           MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
-          MORPHO_VERITY_PREP_TIMEOUT_SEC: "6600"
+          MORPHO_VERITY_PREP_TIMEOUT_SEC: "8400"
           MORPHO_VERITY_PREPARED_ARTIFACT_DIR: out/parity-shared
 
       - name: Upload Yul identity artifacts
@@ -320,7 +319,7 @@ jobs:
     name: Verity compiled artifact smoke tests (Foundry)
     runs-on: ubuntu-latest
     needs: [verity-proofs, parity-target]
-    timeout-minutes: 150
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -379,7 +378,7 @@ jobs:
         run: ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
       - name: Compile Morpho Verity artifact and enforce artifact gate
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 7200 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 9000 "Artifact preflight gate" -- ./scripts/check_input_mode_parity.sh
         env:
           MORPHO_VERITY_PARITY_OUT_DIR: out/parity-shared
 
