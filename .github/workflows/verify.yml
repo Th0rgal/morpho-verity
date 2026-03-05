@@ -195,7 +195,7 @@ jobs:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
     needs: [verity-proofs, parity-target, verity-compiled-tests]
-    timeout-minutes: 150
+    timeout-minutes: 165
     continue-on-error: true
     steps:
       - name: Checkout
