@@ -226,26 +226,26 @@ Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho
 ```
 
 The artifact gate is fail-closed: all three artifacts must exist and be non-empty.
-Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `900`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
+Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `8400`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
 When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is set, the differential runner
 uses that verified bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
 still fails closed if any file is missing or empty.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
-- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `1500`)
+- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `2400`)
 - `MORPHO_VERITY_MAINTEST_TIMEOUT_SEC` (default `300`)
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC` (default `300`)
 - `MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC` (default `900`)
 - `MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC` (default `180`)
-- `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `4500`)
+- `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `8400`)
 - `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` (optional path; reuse verified EDSL artifacts)
 - `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC` (default `900`)
-- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `5100`)
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `9000`)
 - `MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC` (default `6900`)
 - `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`)
-- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `5100`)
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC` (default `9000`)
 - `MORPHO_SOLIDITY_TEST_TIMEOUT_SEC` (default `5100`)
 - `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)
 - `MORPHO_TIMEOUT_KILL_AFTER_SEC` (default `30`)
@@ -254,8 +254,8 @@ The shared timeout wrapper enforces hard fail-closed termination (`timeout --kil
 `MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
 The Yul identity report script wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics. When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is provided, the report reuses that verified bundle and still fails closed if `Morpho.yul` is missing.
 CI sets stricter non-conflicting outer budgets for nested timeout-wrapped stages:
-- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=5100` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=4500`
-- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=5100` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=4500`
+- `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=9000` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=8400`
+- `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=9000` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=8400`
 
 Compile using a specific Verity parity pack:
 

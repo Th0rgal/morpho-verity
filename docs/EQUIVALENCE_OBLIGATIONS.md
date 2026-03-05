@@ -10,9 +10,12 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 enableIrm, enableLltv, setAuthorization. The proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
-All 5 also have Link 2 (EDSL ↔ CompilationModel) proven in
-`Morpho/Proofs/SpecCorrectness/`. Link 3 (CompilationModel ↔ EVMYulLean)
-depends on upstream verity infrastructure (verity pin bump).
+4 of the 5 also have Link 2 (EDSL ↔ SupportedStmtList witness) proven in
+`Morpho/Proofs/CompilationCorrectness.lean` (setOwner, enableIrm, enableLltv,
+setAuthorization). setFeeRecipient is missing Link 2 because it reads two
+distinct storage address fields — requires a new `SupportedStmtFragment`
+constructor in verity. Link 3 (CompilationModel ↔ EVMYulLean) depends on
+upstream verity infrastructure.
 
 ## Scope
 
@@ -37,20 +40,20 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | | `assumed` |
 | `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `link1_proven` |
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
-| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
+| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
 | `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | | `assumed` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
 `MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065
-lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
+lands. 5/18 operations are macro-migrated; the remaining 13 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
-`createMarket` uses `setMappingWord`/`getMappingWord` with manual word-offset addressing as a
-workaround for the `.mappingStruct` storage type gap — the same pattern used by view functions.
+`createMarket` is a hard stub pending upstream verity EDSL support (tuple element access,
+`externalCall` primitive, `blockTimestamp` value expression).
 
 ## Semantic Bridge Discharge Path
 
@@ -124,13 +127,12 @@ explicit translators, `Bytes32`/`Bool` type support.
 | Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate | 2 |
 | Precompile access (`ecrecover`) | setAuthorizationWithSig | 1 |
 
-**Note on createMarket**: Now fully macro-migrated using `setMappingWord`/`getMappingWord`
-with manual word-offset addressing (the same pattern used by the view functions). All 4
-previously identified primitive blockers (tuple destructuring, `setStructMember`,
-`keccakMarketParams`, `blockTimestamp`) are resolved in the macro translator. The market
-struct initialization uses word-level writes: word 0 = 0 (totalSupplyAssets|totalSupplyShares),
-word 1 = 0 (totalBorrowAssets|totalBorrowShares), word 2 = blockTimestamp (lastUpdate in low
-128 bits, fee=0 in high 128 bits). The `idToMarketParams` fields are unpacked (one per word).
+**Note on createMarket**: Currently a hard stub (`require (0 == 1) "createMarket stub"`).
+A full implementation using `setMappingWord`/`getMappingWord` with manual word-offset
+addressing was attempted but reverted (preserved in git history, commit 82e5572).
+The remaining blockers are: tuple element access, `externalCall` primitive, and
+`blockTimestamp` as a value expression. These constructs are not yet supported by
+the current pinned verity revision (08d942a5).
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -167,19 +169,20 @@ applicable to morpho-verity's enableIrm/enableLltv/setAuthorization operations.
 These operate at the `ContractState` level; the EDSL-to-Yul bridge for mapping
 operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
-| Operation | Primitives used | Link 1 | Link 2 (SpecCorrectness) | Link 3 |
-|-----------|----------------|:------:|:------------------------:|--------|
+| Operation | Primitives used | Link 1 | Link 2 (CompilationCorrectness) | Link 3 |
+|-----------|----------------|:------:|:-------------------------------:|--------|
 | `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
-| `setFeeRecipient` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | GAP (2-field read) | needs verity support |
 | `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
 | `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
 | `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
-**Summary**: 5/6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
-5/6 (setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization) also have
-Link 2 (EDSL ↔ CompilationModel) proven in `Morpho/Proofs/SpecCorrectness/`.
-1/6 (createMarket) Link 1 is provable but not yet proven.
+**Summary**: All 5 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
+4/5 (setOwner, enableIrm, enableLltv, setAuthorization) also have
+Link 2 (EDSL ↔ SupportedStmtList) proven in `Morpho/Proofs/CompilationCorrectness.lean`.
+setFeeRecipient has Link 1 proven but Link 2 is blocked on verity multi-field-read support.
+createMarket is a hard stub (not macro-migrated) — Link 1 not yet provable.
 
 ### Discharge proof structure
 
@@ -188,7 +191,7 @@ first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has three links per obligation:
 1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization
-2. **Link 2** (this repo, current pin): `EDSL ↔ interpretSpec(CompilationModel)` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/SpecCorrectness/`
+2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`; missing for setFeeRecipient (requires verity multi-field-read support)
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
 After bumping to a post-`verity#1065` revision, Link 2 transitions from this
@@ -200,26 +203,25 @@ legacy `interpretSpec` checkpoint to the typed-IR semantic bridge path.
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
 
-**Link 2 proof pattern** (for all 5 in `Morpho/Proofs/SpecCorrectness/`):
-1. Reduce 34-function `List.find?` via staged simp: unfold model defs → `simp (config := { decide := true })`
-2. Unfold `*_modelBody` and execute `execStmts`/`execStmt`/`evalExpr`
-3. Use `addressToNat_mod_eq` for address masking, `addressToNat_beq_false_of_ne` for inequality
-4. For uint256 params: add `@[simp]` lemma `uint256_val_mod_eq` and literal mod reductions (WAD, 0, 1)
-5. For 2D mappings: include `SpecStorage.getMapping2`/`setMapping2` in simp set
-6. Key: do NOT unfold `addressModulus` — leave symbolic so `addressToNat_mod_eq` can fire
+**Link 2 proof pattern** (for 4 proven operations in `Morpho/Proofs/CompilationCorrectness.lean`):
+1. Define `morphoFields : List Field` matching the `verity_contract MorphoViewSlice` storage layout
+2. State theorem: `SupportedStmtList morphoFields <function_body_stmts>`
+3. Construct witness using the appropriate `SupportedStmtFragment` constructor
+4. Close obligations via `native_decide` (field resolution) and `decide` (literal checks)
+5. setFeeRecipient is excluded: reads two `getStorageAddr` fields (ownerSlot + feeRecipientSlot), which exceeds the single-field-read `SupportedStmtFragment` constructors available in verity 08d942a5
 
 ### Discharge sequence
 
 Once verity#1065 merges and morpho-verity bumps the verity pin:
 
-1. **Links 1+2 proven, Link 3 after verity pin bump**: `setOwner`, `setFeeRecipient`,
-   `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 (Pure Lean ↔ EDSL) proven
-   in `SemanticBridgeDischarge.lean`. Link 2 (EDSL ↔ CompilationModel) proven in
-   `Morpho/Proofs/SpecCorrectness/`. Link 3 needs verity pin bump for the compiled
-   IR ↔ EVMYulLean composition.
-2. **After mapping bridge + MappingWord lemmas**: `createMarket` — now macro-migrated
-   using `setMappingWord`/`getMappingWord`; needs bridge-level lemmas for word-offset
-   mapping access in addition to the mapping bridge lemmas from step 2
+1. **Links 1+2 proven (4 ops), Link 3 after verity pin bump**: `setOwner`,
+   `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 proven in
+   `SemanticBridgeDischarge.lean`, Link 2 proven in `CompilationCorrectness.lean`.
+   `setFeeRecipient` has Link 1 proven but Link 2 blocked on verity multi-field-read
+   support. Link 3 needs verity pin bump for compiled IR ↔ EVMYulLean composition.
+2. **After macro migration + mapping bridge**: `createMarket` — currently a hard stub;
+   once verity supports tuple access, externalCall, and blockTimestamp, the implementation
+   can be restored and will need bridge-level lemmas for word-offset mapping access
 3. **After remaining macro expansion**: 12 operations — requires internal calls, ERC20,
    callbacks, external contract calls
 
