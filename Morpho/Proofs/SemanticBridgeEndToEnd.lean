@@ -46,8 +46,8 @@ The remaining gap for the full pipeline (EDSL → Yul) is connecting `SupportedS
 to `compileFunctionToTBlock` → `interpretIR` → `interpretYulFromIR`, which requires
 verity infrastructure not yet available for external contracts.
 
-As of verity pin d1e6b409 (post evalBuiltinCall refactor, API surface tightening,
-dead code cleanup, and macro-example unification), the compilation proofs for
+As of verity pin 08d942a5 (witness theorems, simp_tir_eval tactic, event encoding,
+Layer-2 theorem spine, and proof deduplication), the compilation proofs for
 the 4 supported admin functions are fully compositional within the typed-IR domain.
 -/
 
