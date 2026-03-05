@@ -46,9 +46,9 @@ The remaining gap for the full pipeline (EDSL → Yul) is connecting `SupportedS
 to `compileFunctionToTBlock` → `interpretIR` → `interpretYulFromIR`, which requires
 verity infrastructure not yet available for external contracts.
 
-As of verity pin 33a47e5d (post evalBuiltinCall refactor, API surface tightening,
-and macro-example unification), the compilation proofs for the 4 supported admin
-functions are fully compositional within the typed-IR domain.
+As of verity pin d1e6b409 (post evalBuiltinCall refactor, API surface tightening,
+dead code cleanup, and macro-example unification), the compilation proofs for
+the 4 supported admin functions are fully compositional within the typed-IR domain.
 -/
 
 namespace Morpho.Proofs.SemanticBridgeEndToEnd

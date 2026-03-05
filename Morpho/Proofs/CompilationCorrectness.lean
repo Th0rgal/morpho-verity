@@ -19,7 +19,7 @@ compilation proofs (Links 2+3: EDSL ↔ IR ↔ Yul).
 - **setFeeRecipient**: reads TWO different storage address fields (ownerSlot for auth,
   feeRecipientSlot for ≠ check) — needs a new `SupportedStmtFragment` constructor
   in verity that supports reading two distinct address storage fields.
-  As of verity pin 33a47e5d, only single-field-read patterns are supported.
+  As of verity pin d1e6b409, only single-field-read patterns are supported.
 -/
 
 namespace Morpho.Proofs.CompilationCorrectness
