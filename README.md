@@ -10,11 +10,11 @@ The approach: translate Morpho's Solidity logic line-by-line into Verity's contr
 
 ### What this proves
 
-- **Solvency**: total borrows never exceed total supply, preserved by all 16 state-mutating operations (supply, withdraw, borrow, repay, liquidate, accrueInterest, supplyCollateral, withdrawCollateral, createMarket, setFee, and all admin functions)
+- **Solvency**: total borrows never exceed total supply, preserved by all 17 state-mutating operations (supply, withdraw, borrow, repay, liquidate, accrueInterest, accrueInterestPublic, supplyCollateral, withdrawCollateral, createMarket, setFee, and all admin functions)
 - **Rounding safety**: all share/asset conversions round against the user; round-trip supply-withdraw never returns more than deposited
 - **Authorization**: only authorized addresses can withdraw, borrow, or remove collateral; liquidation requires an unhealthy position; signature-based delegation requires valid nonce and unexpired deadline
 - **Fee bounds**: market fees stay within the 25% cap
-- **Collateralization**: positions with debt always have collateral, preserved by all 16 operations including borrow and withdrawCollateral (guarded by health checks; bad debt is socialized by liquidation)
+- **Collateralization**: positions with debt always have collateral, preserved by all 17 operations including borrow and withdrawCollateral (guarded by health checks; bad debt is socialized by liquidation)
 - **Monotonicity**: enabled IRMs/LLTVs cannot be disabled across all operations; market timestamps only increase through accrueInterest, setFee, and accrueInterestPublic
 - **Exchange rate safety**: supply share exchange rate never decreases after interest accrual (accrueInterest and accrueInterestPublic); existing shareholders' per-share value is protected
 - **Market isolation**: operations on one market never affect any other market's state, same-market user positions, or any position in other markets
@@ -296,8 +296,8 @@ Also proven in supporting libraries:
 - `u256_val` — simp lemma for Uint256 wrapping arithmetic
 
 Invariant theorems (105) include:
-- Solvency (borrowLeSupply) preserved by all 16 operations + accrueInterestPublic (17 public + 3 helper lemmas)
-- Collateralization preserved by all 16 operations (16 public + 3 helper lemmas)
+- Solvency (borrowLeSupply) preserved by all 17 operations (17 public + 3 helper lemmas)
+- Collateralization preserved by all 17 operations (17 public + 3 helper lemmas)
 - IRM monotonicity preserved by 14 operations including accrueInterestPublic (14)
 - LLTV monotonicity preserved by 14 operations including accrueInterestPublic (14)
 - Market isolation for 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
@@ -336,7 +336,7 @@ Share consistency theorems (36) include:
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
 - [x] Authorization proofs (13: withdraw/borrow/withdrawCollateral require auth, supply doesn't, postcondition specs, liquidation requires unhealthy, signature validation, helper lemmas)
-- [x] Invariant proofs (105: solvency × 17, collateralization × 16, IRM/LLTV monotonicity × 14 each, market/position isolation × 24, timestamp × 3, exchange rate × 2, standalone checks, helper lemmas)
+- [x] Invariant proofs (105: solvency × 17, collateralization × 17, IRM/LLTV monotonicity × 14 each, market/position isolation × 24, timestamp × 3, exchange rate × 2, standalone checks, helper lemmas)
 - [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
 - [x] Share consistency proofs (36: supplySharesConsistent and borrowSharesConsistent preserved by all 17 operations including liquidate bad-debt socialization, helper lemmas)
 - [x] Solidity equivalence bridge proofs (67: borrowLeSupply/alwaysCollateralized preserved across 17 operations, irmMonotone/lltvMonotone across 16, flashLoan zero-asset rejection)
