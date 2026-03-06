@@ -13,6 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import report_yul_identity_gap as report_module  # noqa: E402
+import check_prepared_verity_artifact_bundle as prepared_bundle_module  # noqa: E402
 from report_yul_identity_gap import (  # noqa: E402
   ROOT,
   build_exactness_summary,
@@ -46,8 +47,17 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       base = pathlib.Path(d)
       (base / "edsl").mkdir(parents=True, exist_ok=True)
       (base / "edsl" / "Morpho.yul").write_text("nested", encoding="utf-8")
+      (base / "edsl" / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
+      (base / "edsl" / "Morpho.artifact-manifest.env").write_text(
+        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=morpho-blue-0.8.28\n",
+        encoding="utf-8",
+      )
+      (base / "edsl" / "Morpho.stage-times.log").write_text("stage=rewrite-yul status=ok elapsed_sec=0\n", encoding="utf-8")
       os.environ["MORPHO_VERITY_PREPARED_ARTIFACT_DIR"] = str(base)
-      self.assertEqual(prepared_verity_artifact_dir(), base / "edsl")
+      with mock.patch.object(
+        prepared_bundle_module, "_required_parity_pack", return_value="morpho-blue-0.8.28"
+      ):
+        self.assertEqual(prepared_verity_artifact_dir(), base / "edsl")
     if old is None:
       os.environ.pop("MORPHO_VERITY_PREPARED_ARTIFACT_DIR", None)
     else:

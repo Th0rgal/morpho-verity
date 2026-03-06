@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_WITH_TIMEOUT="${ROOT_DIR}/scripts/run_with_timeout.sh"
+CHECK_PREPARED_ARTIFACT_BUNDLE="${ROOT_DIR}/scripts/check_prepared_verity_artifact_bundle.py"
 LOG_DIR="${ROOT_DIR}/out/parity"
 PARITY_OUT_DIR="$(mktemp -d)"
 SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
@@ -72,6 +73,7 @@ if [[ -n "${PREPARED_ARTIFACT_DIR}" ]]; then
   else
     artifact_source_dir="${PREPARED_ARTIFACT_DIR}"
   fi
+  python3 "${CHECK_PREPARED_ARTIFACT_BUNDLE}" --artifact-dir "${artifact_source_dir}"
   echo "Reusing prepared EDSL artifacts from ${artifact_source_dir}."
 elif [[ "${SKIP_PARITY_PREFLIGHT}" == "1" ]]; then
   if [[ "${CI:-}" != "true" && "${ALLOW_LOCAL_SKIP}" != "1" ]]; then

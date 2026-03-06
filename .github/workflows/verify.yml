@@ -230,6 +230,9 @@ jobs:
           name: verity-edsl-artifacts
           path: out/parity-shared
 
+      - name: Validate downloaded EDSL artifact bundle
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate downloaded EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
+
       - name: Generate Yul identity report
         run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 9000 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-configured-gate
         env:
@@ -356,6 +359,9 @@ jobs:
         env:
           MORPHO_VERITY_PARITY_OUT_DIR: out/parity-shared
 
+      - name: Validate prepared EDSL artifact bundle
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
+
       - name: Upload verified EDSL artifact bundle
         uses: actions/upload-artifact@v4
         with:
@@ -439,6 +445,9 @@ jobs:
         with:
           name: verity-edsl-artifacts
           path: out/parity-shared
+
+      - name: Validate downloaded EDSL artifact bundle
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate downloaded EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 
       - name: Run full Morpho Blue parity script
         run: ./scripts/run_with_timeout.sh MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC 6900 "Morpho Blue differential parity script" -- ./scripts/run_morpho_blue_parity.sh

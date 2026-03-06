@@ -53,6 +53,7 @@ This file is the single source of truth for that context.
 6. The rewrite pipeline runs before identity comparison, persists both raw and rewritten Verity Yul artifacts, and is defined by `config/yul-rewrite-pipeline.json`.
 7. `report.json` annotates rewrite-family entries with tracked rewrite/proof plans from `config/yul-rewrite-proof-obligations.json` and lists any untracked families.
 8. CI validates that every `proofRefs` entry in `config/yul-rewrite-proof-obligations.json` is backed by a placeholder declaration in `Morpho/Proofs/YulRewriteProofs.lean`, with matching proof-ref, rewrite-pass, and family metadata.
-9. Unsupported manifest checks also validate `parityTarget` equality with the active tuple.
-10. Macro migration blocker check fails on unreviewed constructor-surface drift between `Morpho/Compiler/Spec.lean` and current Verity macro support.
-11. Future strict identity checks must reference this tuple explicitly.
+9. Downloaded/reused prepared EDSL artifact bundles are validated against `Morpho.artifact-manifest.env`, `config/parity-target.json`, and rewrite-report metadata before downstream jobs trust them.
+10. Unsupported manifest checks also validate `parityTarget` equality with the active tuple.
+11. Macro migration blocker check fails on unreviewed constructor-surface drift between `Morpho/Compiler/Spec.lean` and current Verity macro support.
+12. Future strict identity checks must reference this tuple explicitly.
