@@ -35,16 +35,17 @@ require_nonempty_artifact() {
 
 require_morpho_impl_wiring() {
   local base_test="${ROOT_DIR}/morpho-blue/test/BaseTest.sol"
+  local selector_pattern='vm\.env(String|Or)[[:space:]]*\([^)]*"MORPHO_IMPL"'
   if [[ ! -f "${base_test}" ]]; then
     echo "ERROR: missing Morpho Blue harness file: ${base_test}"
     exit 2
   fi
 
-  if ! grep -Fq "MORPHO_IMPL" "${base_test}"; then
+  if ! grep -Eq "${selector_pattern}" "${base_test}"; then
     cat <<EOF
 ERROR: Morpho Blue harness does not consume MORPHO_IMPL.
 
-Expected ${base_test} to select the deployed implementation from MORPHO_IMPL=solidity|verity.
+Expected ${base_test} to read MORPHO_IMPL=solidity|verity via an explicit Foundry env lookup (for example vm.envString/vm.envOr).
 Current differential runs would be misleading, so parity execution stops here.
 EOF
     exit 2

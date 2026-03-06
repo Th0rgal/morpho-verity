@@ -86,8 +86,8 @@ EOF
   cat > "${fake_root}/morpho-blue/test/BaseTest.sol" <<'EOF'
 // fake harness for parity script tests
 contract BaseTest {
-    function deploy(string memory impl) internal pure returns (string memory) {
-        return impl; // MORPHO_IMPL
+    function deploy() internal view returns (string memory) {
+        return vm.envString("MORPHO_IMPL");
     }
 }
 EOF
@@ -646,6 +646,38 @@ EOF
   assert_contains "ERROR: Morpho Blue harness does not consume MORPHO_IMPL." "${output_file}"
 }
 
+test_fail_closed_when_harness_only_mentions_morpho_impl_in_comment() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  cat > "${fake_root}/morpho-blue/test/BaseTest.sol" <<'EOF'
+// fake harness with a misleading comment only
+contract BaseTest {
+    function deploy() internal pure returns (address) {
+        return address(0); // MORPHO_IMPL
+    }
+}
+EOF
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=0 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected comment-only MORPHO_IMPL mention to fail"
+    exit 1
+  fi
+  assert_contains "ERROR: Morpho Blue harness does not consume MORPHO_IMPL." "${output_file}"
+}
+
 test_fail_closed_when_test_bypasses_selector() {
   local fake_root output_file
   fake_root="$(mktemp -d)"
@@ -697,6 +729,7 @@ test_fail_closed_on_invalid_prep_timeout_value_in_skip_mode
 test_fail_closed_when_parity_preflight_missing_required_artifact
 test_fail_closed_when_skip_prep_missing_required_artifact
 test_fail_closed_when_harness_ignores_morpho_impl
+test_fail_closed_when_harness_only_mentions_morpho_impl_in_comment
 test_fail_closed_when_test_bypasses_selector
 test_fail_closed_when_prepared_artifacts_missing_required_file
 
