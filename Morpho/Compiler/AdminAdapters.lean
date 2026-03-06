@@ -8,12 +8,6 @@ open Verity
 open Morpho.Types
 open Morpho.Compiler.MacroSlice
 
-/-- Normalize a one-key boolean override into an `if` form. -/
-private theorem overrideBool_eq_if {α : Type} [DecidableEq α] (f : α → Bool) (key : α) :
-    (fun a => decide (a = key) || f a) = (fun a => if a = key then true else f a) := by
-  funext a
-  by_cases h : a = key <;> simp [h]
-
 /-- Normalize a two-key boolean override to `false` into an `if` form. -/
 private theorem overrideBool2False_eq_if {α β : Type} [DecidableEq α] [DecidableEq β]
     (f : α → β → Bool) (key1 : α) (key2 : β) :
