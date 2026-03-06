@@ -27,14 +27,21 @@ class CheckCiCheckCoverageTests(unittest.TestCase):
       scripts_dir.mkdir()
       (scripts_dir / "check_alpha.py").write_text("", encoding="utf-8")
       (scripts_dir / "check_beta.sh").write_text("", encoding="utf-8")
-      self.assertEqual(collect_repo_check_scripts(scripts_dir), {"check_alpha.py"})
+      self.assertEqual(
+        collect_repo_check_scripts(scripts_dir),
+        {"check_alpha.py", "check_beta.sh"},
+      )
 
   def test_collect_workflow_check_scripts(self) -> None:
     workflow = (
       "run: python3 scripts/check_alpha.py\n"
+      "run: ./scripts/check_beta.sh\n"
       "run: python3 scripts/test_alpha.py\n"
     )
-    self.assertEqual(collect_workflow_check_scripts(workflow), {"check_alpha.py"})
+    self.assertEqual(
+      collect_workflow_check_scripts(workflow),
+      {"check_alpha.py", "check_beta.sh"},
+    )
 
   def test_main_passes_when_repo_and_workflow_match(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -43,10 +50,10 @@ class CheckCiCheckCoverageTests(unittest.TestCase):
       scripts_dir = root / "scripts"
       scripts_dir.mkdir()
       (scripts_dir / "check_alpha.py").write_text("", encoding="utf-8")
-      (scripts_dir / "check_beta.py").write_text("", encoding="utf-8")
+      (scripts_dir / "check_beta.sh").write_text("", encoding="utf-8")
       workflow.write_text(
         "run: python3 scripts/check_alpha.py\n"
-        "run: python3 scripts/check_beta.py\n",
+        "run: ./scripts/check_beta.sh\n",
         encoding="utf-8",
       )
 
@@ -70,7 +77,7 @@ class CheckCiCheckCoverageTests(unittest.TestCase):
       scripts_dir = root / "scripts"
       scripts_dir.mkdir()
       (scripts_dir / "check_alpha.py").write_text("", encoding="utf-8")
-      (scripts_dir / "check_beta.py").write_text("", encoding="utf-8")
+      (scripts_dir / "check_beta.sh").write_text("", encoding="utf-8")
       workflow.write_text("run: python3 scripts/check_alpha.py\n", encoding="utf-8")
 
       old_argv = sys.argv
@@ -97,7 +104,7 @@ class CheckCiCheckCoverageTests(unittest.TestCase):
       (scripts_dir / "check_alpha.py").write_text("", encoding="utf-8")
       workflow.write_text(
         "run: python3 scripts/check_alpha.py\n"
-        "run: python3 scripts/check_beta.py\n",
+        "run: ./scripts/check_beta.sh\n",
         encoding="utf-8",
       )
 
