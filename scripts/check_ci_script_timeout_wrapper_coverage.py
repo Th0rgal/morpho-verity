@@ -16,6 +16,7 @@ RUN_WITH_TIMEOUT_TARGET_RE = re.compile(
   r"(?:(?:python3\s+)(?:\./)?scripts/|(?:\./)?scripts/)"
   r"([A-Za-z0-9_]+\.(?:py|sh))\b"
 )
+LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 SHELL_TEST_LOOP_RE = re.compile(
   r"for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+scripts/test_\*\.sh\s*;\s*do(?P<body>.*?)\bdone\b",
   re.DOTALL,
@@ -32,7 +33,8 @@ def collect_workflow_script_references(workflow_text: str) -> set[str]:
 
 
 def collect_wrapped_script_targets(workflow_text: str) -> set[str]:
-  return {match.group(1) for match in RUN_WITH_TIMEOUT_TARGET_RE.finditer(workflow_text)}
+  normalized = LINE_CONTINUATION_RE.sub(" ", workflow_text)
+  return {match.group(1) for match in RUN_WITH_TIMEOUT_TARGET_RE.finditer(normalized)}
 
 
 def collect_shell_test_loop_blocks(workflow_text: str) -> list[tuple[str, str]]:
