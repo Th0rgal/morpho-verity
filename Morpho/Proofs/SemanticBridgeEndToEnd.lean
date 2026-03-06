@@ -30,14 +30,14 @@ each Morpho invariant, plus 2 additional monotonicity theorems for enableIrm.
 
 ## Link 2+3 status
 
-4 of 5 admin functions have `SupportedStmtList` proofs (`CompilationCorrectness.lean`),
+All 5 admin functions have `SupportedStmtList` proofs (`CompilationCorrectness.lean`),
 which gives free compilation correctness via verity's typed-IR framework:
 - `compile_supported_stmt_list_direct_semantics`: `execCompiled = execSource`
 
 | Function         | Link 1 | SupportedStmtList | Link 3 (IR→Yul) |
 |------------------|--------|-------------------|-----------------|
 | setOwner         | proven | proven            | verity generic  |
-| setFeeRecipient  | proven | GAP (2-field-read)| —               |
+| setFeeRecipient  | proven | proven            | verity generic  |
 | enableIrm        | proven | proven            | verity generic  |
 | enableLltv       | proven | proven            | verity generic  |
 | setAuthorization | proven | proven            | verity generic  |
@@ -46,9 +46,9 @@ The remaining gap for the full pipeline (EDSL → Yul) is connecting `SupportedS
 to `compileFunctionToTBlock` → `interpretIR` → `interpretYulFromIR`, which requires
 verity infrastructure not yet available for external contracts.
 
-As of verity pin dab9a567 (witness theorems, simp_tir_eval tactic, event encoding,
-Layer-2 theorem spine, and proof deduplication), the compilation proofs for
-the 4 supported admin functions are fully compositional within the typed-IR domain.
+As of verity pin 9d9533b2 (including the two-storage-address witness used by
+`setFeeRecipient`), the compilation proofs for all 5 admin functions are fully
+compositional within the typed-IR domain.
 -/
 
 namespace Morpho.Proofs.SemanticBridgeEndToEnd
@@ -275,18 +275,17 @@ showing each EDSL function preserves each invariant:
 
 ### SupportedStmtList coverage (CompilationCorrectness.lean)
 
-4 of 5 admin functions have `SupportedStmtList` proofs, giving free
+All 5 admin functions have `SupportedStmtList` proofs, giving free
 compilation correctness via `compile_supported_stmt_list_direct_semantics`:
 
 - setOwner: `letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop`
+- setFeeRecipient: `letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop`
 - enableIrm: `letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop`
 - enableLltv: `letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop`
 - setAuthorization: `letCallerLetMapping2IteParamReqSetMapping2Stop`
 
 ### Remaining gaps
 
-- **setFeeRecipient SupportedStmtList**: reads two distinct storage address fields
-  (ownerSlot for auth, feeRecipientSlot for ≠ check) — needs a new fragment in verity
 - **EDSL → IR → Yul bridge**: verity's `compileFunctionToTBlock` + `interpretIR` +
   `layer3_contract_preserves_semantics` pipeline is not yet instantiated for external
   contracts. The `SupportedStmtList` proof gives source/compiled equivalence within

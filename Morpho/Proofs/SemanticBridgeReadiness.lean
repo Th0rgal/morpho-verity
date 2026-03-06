@@ -178,8 +178,8 @@ theorem obligation_count : obligations.length = 18 := by
 
 /-- 5 of 18 operations have Link 1 proven.
     Link 1 (Pure Lean ↔ EDSL) in `SemanticBridgeDischarge.lean`.
-    Link 2 (EDSL ↔ SupportedStmtList) proven for 4/5 in `CompilationCorrectness.lean`
-    (setFeeRecipient excluded — needs verity multi-field-read support).
+    Link 2 (EDSL ↔ SupportedStmtList) is also proven for those same 5 admin functions
+    in `CompilationCorrectness.lean`.
     Link 3 comes free from verity's typed-IR compilation-correctness framework.
     These are: setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization. -/
 theorem link1_proven_count :

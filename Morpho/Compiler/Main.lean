@@ -4,7 +4,6 @@ import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ParityPacks
-import Compiler.Lowering.FromEDSL
 import Compiler.ABI
 import Morpho.Compiler.Generated
 
@@ -162,10 +161,7 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
 private def lowerMorphoGeneratedSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
-  let lowered := _root_.Compiler.Lowering.lowerModelPath Morpho.Compiler.Generated.morphoGeneratedSpec
-  match lowered with
-  | .ok spec => pure spec
-  | .error err => throw (IO.userError err.message)
+  pure Morpho.Compiler.Generated.morphoGeneratedSpec
 
 private def resolveMorphoGeneratedSelectors : IO (List Nat) := do
   Morpho.Compiler.Generated.morphoGeneratedSelectors
