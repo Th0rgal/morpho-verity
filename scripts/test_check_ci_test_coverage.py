@@ -44,6 +44,14 @@ class CheckCiTestCoverageTests(unittest.TestCase):
     )
     self.assertEqual(collect_workflow_script_tests(workflow), {"test_alpha.py", "test_beta.sh"})
 
+  def test_collect_workflow_script_tests_ignores_non_run_references(self) -> None:
+    workflow = (
+      "# docs: scripts/test_from_comment.py\n"
+      "name: scripts/test_from_name.sh\n"
+      "run: python3 scripts/test_alpha.py\n"
+    )
+    self.assertEqual(collect_workflow_script_tests(workflow), {"test_alpha.py"})
+
   def test_detection_of_discovery_modes(self) -> None:
     workflow = (
       "run: python3 -m unittest discover -s scripts -p 'test_*.py'\n"
@@ -51,6 +59,15 @@ class CheckCiTestCoverageTests(unittest.TestCase):
     )
     self.assertTrue(has_workflow_python_discovery(workflow))
     self.assertTrue(has_workflow_shell_glob(workflow))
+
+  def test_detection_of_discovery_modes_ignores_non_run_references(self) -> None:
+    workflow = (
+      "# python3 -m unittest discover -s scripts -p 'test_*.py'\n"
+      "name: scripts/test_*.sh\n"
+      "run: echo check\n"
+    )
+    self.assertFalse(has_workflow_python_discovery(workflow))
+    self.assertFalse(has_workflow_shell_glob(workflow))
 
   def test_main_passes_when_repo_and_workflow_match(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:

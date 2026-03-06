@@ -43,6 +43,14 @@ class CheckCiCheckCoverageTests(unittest.TestCase):
       {"check_alpha.py", "check_beta.sh"},
     )
 
+  def test_collect_workflow_check_scripts_ignores_non_run_references(self) -> None:
+    workflow = (
+      "# docs: scripts/check_from_comment.py\n"
+      "name: scripts/check_from_name.sh\n"
+      "run: python3 scripts/check_alpha.py\n"
+    )
+    self.assertEqual(collect_workflow_check_scripts(workflow), {"check_alpha.py"})
+
   def test_main_passes_when_repo_and_workflow_match(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
       root = pathlib.Path(tmp_dir)

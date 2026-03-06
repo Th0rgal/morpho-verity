@@ -34,6 +34,16 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       {"check_alpha.py", "check_beta.py", "check_gamma.sh"},
     )
 
+  def test_collect_workflow_check_scripts_ignores_non_run_references(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "# docs: scripts/check_from_comment.py",
+        "name: scripts/check_from_name.sh",
+        "run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(collect_workflow_check_scripts(workflow_text), {"check_alpha.py"})
+
   def test_collect_wrapped_check_scripts(self) -> None:
     workflow_text = "\n".join(
       [
@@ -46,6 +56,15 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       collect_wrapped_check_scripts(workflow_text),
       {"check_alpha.py", "check_beta.py", "check_gamma.sh"},
     )
+
+  def test_collect_wrapped_check_scripts_does_not_cross_lines(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: ./scripts/run_with_timeout.sh M 1 desc -- python3 scripts/check_alpha.py",
+        "run: ./scripts/check_beta.sh --require solc",
+      ]
+    )
+    self.assertEqual(collect_wrapped_check_scripts(workflow_text), {"check_alpha.py"})
 
   def test_collect_wrapped_check_scripts_supports_line_continuation(self) -> None:
     workflow_text = "\n".join(
