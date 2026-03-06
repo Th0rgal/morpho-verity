@@ -176,6 +176,32 @@ end Morpho.Proofs.YulRewriteProofs
             },
         )
 
+    def test_section_scopes_do_not_pop_namespace_qualifiers(self) -> None:
+        lean = """\
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+section helper
+theorem helper : True := by
+  trivial
+end
+axiom second :
+  RewriteProofObligation "rewrite.checked_add.second" "pass" "checked_add"
+end checked_add
+end rewrite
+end Morpho.Proofs.YulRewriteProofs
+"""
+        self.assertEqual(
+            extract_declared_proof_obligations(lean),
+            {
+                "rewrite.checked_add.second": {
+                    "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.checked_add.second",
+                    "rewritePass": "pass",
+                    "family": "checked_add",
+                }
+            },
+        )
+
 
 class ValidateManifestAgainstProofsTests(unittest.TestCase):
     def test_matching_sets_pass(self) -> None:

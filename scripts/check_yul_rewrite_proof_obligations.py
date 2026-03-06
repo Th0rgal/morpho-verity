@@ -22,6 +22,7 @@ PROOF_PATH = ROOT / "Morpho" / "Proofs" / "YulRewriteProofs.lean"
 PROOF_NAMESPACE = "Morpho.Proofs.YulRewriteProofs."
 DECL_RE = re.compile(r"^\s*(?:axiom|theorem)\s+([A-Za-z0-9_']+)\b")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([A-Za-z0-9_.']+)\s*$")
+SECTION_RE = re.compile(r"^\s*section(?:\s+[A-Za-z0-9_.']+)?\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+[A-Za-z0-9_.']+)?\s*$")
 OBLIGATION_RE = re.compile(
     r'RewriteProofObligation\s*"([^"]+)"\s*"([^"]+)"\s*"([^"]+)"',
@@ -123,6 +124,7 @@ def _add_plan_refs(
 def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, str]]:
     obligations: dict[str, dict[str, str]] = {}
     namespace_stack: list[str] = []
+    scope_stack: list[bool] = []
     lines = lean_text.splitlines()
     i = 0
 
@@ -131,12 +133,19 @@ def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, st
         namespace_match = NAMESPACE_RE.match(line)
         if namespace_match:
             namespace_stack.append(namespace_match.group(1))
+            scope_stack.append(True)
+            i += 1
+            continue
+
+        if SECTION_RE.match(line):
+            scope_stack.append(False)
             i += 1
             continue
 
         if END_RE.match(line):
-            if namespace_stack:
-                namespace_stack.pop()
+            if scope_stack:
+                if scope_stack.pop():
+                    namespace_stack.pop()
             i += 1
             continue
 
