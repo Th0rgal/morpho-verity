@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import sys
 import unittest
 
@@ -64,6 +65,9 @@ def morphoSelectors : List Nat := [
     self.assertTrue(unchanged)
     self.assertEqual(rewritten, first)
 
+  @unittest.skipUnless((pathlib.Path(__file__).resolve().parent.parent / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol").exists(),
+                       "requires initialized morpho-blue submodule (IMorpho.sol)")
+  @unittest.skipUnless(shutil.which("solc"), "requires solc on PATH")
   def test_repo_selector_migration_surface_still_ok(self) -> None:
     # Integration smoke check tied to repository sources.
     report = run_check()
