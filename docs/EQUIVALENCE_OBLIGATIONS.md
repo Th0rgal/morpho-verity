@@ -7,7 +7,8 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 ## Status
 
 5/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
-enableIrm, enableLltv, setAuthorization. The proofs are in
+enableIrm, enableLltv, setAuthorization. The executable adapter wrappers live in
+`Morpho/EDSLAdapter.lean`, and the equivalence proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
 All 5 also have Link 2 (EDSL ↔ CompilationModel) proven in

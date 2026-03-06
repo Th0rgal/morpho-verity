@@ -57,7 +57,9 @@ for morpho-verity's discharge.
 
 **Link 1 proofs (Pure Lean ↔ EDSL) are now proven for 5/18 operations:**
 `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`.
-See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
+The executable adapter boundary for these transitions lives in
+`Morpho/EDSLAdapter.lean`; the equivalence proofs live in
+`Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
@@ -93,6 +95,7 @@ morpho-blue/              # Morpho Blue Solidity (git submodule)
 Morpho/
   Types.lean              # MarketParams, Position, Market, MorphoState, Authorization
   Morpho.lean             # Core logic: supply, withdraw, borrow, repay, liquidate, setAuthorizationWithSig
+  EDSLAdapter.lean        # Executable adapter for migrated admin ops via MacroSlice
   Libraries/
     MathLib.lean          # WAD arithmetic (mulDivDown/Up, wMulDown, wTaylorCompounded)
     SharesMathLib.lean    # Share/asset conversion with virtual offset

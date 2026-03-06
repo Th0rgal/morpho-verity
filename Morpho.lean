@@ -1,5 +1,6 @@
 import Morpho.Types
 import Morpho.Morpho
+import Morpho.EDSLAdapter
 import Morpho.Libraries.MathLib
 import Morpho.Libraries.SharesMathLib
 import Morpho.Libraries.UtilsLib

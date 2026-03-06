@@ -1,3 +1,4 @@
+import Morpho.EDSLAdapter
 import Morpho.Proofs.SemanticBridgeDischarge
 import Morpho.Proofs.Invariants
 import Morpho.Proofs.CompilationCorrectness
@@ -22,8 +23,8 @@ EVMYulLean (Yul execution)
 ## What this proves (no sorry)
 
 For all 5 admin functions with Link 1 proofs, we compose:
-- **Link 1** (`SemanticBridgeDischarge`): `edslF = Morpho.F`
-- **Pure invariants** (`Invariants`): `Morpho.F` preserves all 4 invariants
+- **Link 1** (`SemanticBridgeDischarge`): `Morpho.EDSLAdapter.f = Morpho.f`
+- **Pure invariants** (`Invariants`): `Morpho.f` preserves all 4 invariants
 
 Result: 20 direct composition theorems showing each EDSL function preserves
 each Morpho invariant, plus 2 additional monotonicity theorems for enableIrm.
@@ -51,16 +52,16 @@ namespace Morpho.Proofs.SemanticBridgeEndToEnd
 
 open Verity
 open Morpho.Types
+open Morpho.EDSLAdapter
 open Morpho.Proofs.SemanticBridgeDischarge
 open Morpho.Proofs.Invariants
 open Morpho.Specs.Invariants
 
 /-! ## setOwner: Link 1 + invariants (4 theorems) -/
-
 theorem edsl_setOwner_borrowLeSupply
     (s : MorphoState) (newOwner : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -69,7 +70,7 @@ theorem edsl_setOwner_borrowLeSupply
 theorem edsl_setOwner_alwaysCollateralized
     (s : MorphoState) (newOwner : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -78,7 +79,7 @@ theorem edsl_setOwner_alwaysCollateralized
 theorem edsl_setOwner_irmMonotone
     (s : MorphoState) (newOwner irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -87,7 +88,7 @@ theorem edsl_setOwner_irmMonotone
 theorem edsl_setOwner_lltvMonotone
     (s : MorphoState) (newOwner : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -98,7 +99,7 @@ theorem edsl_setOwner_lltvMonotone
 theorem edsl_setFeeRecipient_borrowLeSupply
     (s : MorphoState) (newFeeRecipient : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
     rw [← setFeeRecipient_link1]; exact h_ok
@@ -107,7 +108,7 @@ theorem edsl_setFeeRecipient_borrowLeSupply
 theorem edsl_setFeeRecipient_alwaysCollateralized
     (s : MorphoState) (newFeeRecipient : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
     rw [← setFeeRecipient_link1]; exact h_ok
@@ -116,7 +117,7 @@ theorem edsl_setFeeRecipient_alwaysCollateralized
 theorem edsl_setFeeRecipient_irmMonotone
     (s : MorphoState) (newFeeRecipient irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
     rw [← setFeeRecipient_link1]; exact h_ok
@@ -125,7 +126,7 @@ theorem edsl_setFeeRecipient_irmMonotone
 theorem edsl_setFeeRecipient_lltvMonotone
     (s : MorphoState) (newFeeRecipient : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
     rw [← setFeeRecipient_link1]; exact h_ok
@@ -136,7 +137,7 @@ theorem edsl_setFeeRecipient_lltvMonotone
 theorem edsl_enableIrm_borrowLeSupply
     (s : MorphoState) (irm : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslEnableIrm s irm = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irm = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
     rw [← enableIrm_link1]; exact h_ok
@@ -145,7 +146,7 @@ theorem edsl_enableIrm_borrowLeSupply
 theorem edsl_enableIrm_alwaysCollateralized
     (s : MorphoState) (irm : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslEnableIrm s irm = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irm = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
     rw [← enableIrm_link1]; exact h_ok
@@ -154,7 +155,7 @@ theorem edsl_enableIrm_alwaysCollateralized
 theorem edsl_enableIrm_irmMonotone
     (s : MorphoState) (irmCall irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslEnableIrm s irmCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irmCall = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.enableIrm s irmCall = some s' := by
     rw [← enableIrm_link1]; exact h_ok
@@ -163,7 +164,7 @@ theorem edsl_enableIrm_irmMonotone
 theorem edsl_enableIrm_lltvMonotone
     (s : MorphoState) (irm : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslEnableIrm s irm = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irm = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
     rw [← enableIrm_link1]; exact h_ok
@@ -176,7 +177,7 @@ theorem edsl_enableIrm_lltvMonotone
 theorem edsl_enableLltv_borrowLeSupply
     (s : MorphoState) (lltv : Uint256) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslEnableLltv s lltv = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltv = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.enableLltv s lltv = some s' := by
     rw [← enableLltv_link1]; exact h_ok
@@ -185,7 +186,7 @@ theorem edsl_enableLltv_borrowLeSupply
 theorem edsl_enableLltv_alwaysCollateralized
     (s : MorphoState) (lltv : Uint256) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslEnableLltv s lltv = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltv = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.enableLltv s lltv = some s' := by
     rw [← enableLltv_link1]; exact h_ok
@@ -194,7 +195,7 @@ theorem edsl_enableLltv_alwaysCollateralized
 theorem edsl_enableLltv_irmMonotone
     (s : MorphoState) (lltvCall : Uint256) (irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslEnableLltv s lltvCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltvCall = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.enableLltv s lltvCall = some s' := by
     rw [← enableLltv_link1]; exact h_ok
@@ -205,7 +206,7 @@ theorem edsl_enableLltv_irmMonotone
 theorem edsl_enableLltv_lltvMonotone
     (s : MorphoState) (lltvCall lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslEnableLltv s lltvCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltvCall = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.enableLltv s lltvCall = some s' := by
     rw [← enableLltv_link1]; exact h_ok
@@ -217,7 +218,7 @@ theorem edsl_setAuthorization_borrowLeSupply
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     rw [← setAuthorization_link1]; exact h_ok
@@ -227,7 +228,7 @@ theorem edsl_setAuthorization_alwaysCollateralized
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     rw [← setAuthorization_link1]; exact h_ok
@@ -238,7 +239,7 @@ theorem edsl_setAuthorization_irmMonotone
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     rw [← setAuthorization_link1]; exact h_ok
@@ -250,7 +251,7 @@ theorem edsl_setAuthorization_lltvMonotone
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     rw [← setAuthorization_link1]; exact h_ok
