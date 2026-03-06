@@ -113,9 +113,7 @@ theorem createMarket_preserves_supplySharesConsistent (s : MorphoState)
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.createMarket s params = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.createMarket at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.createMarket_success_iff s s' params).1 h_ok
   apply supplyConsistent_of_eq_market_position _ _ h_consistent
   · simp; split <;> simp_all
   · intro u; rfl
@@ -125,9 +123,7 @@ theorem createMarket_preserves_borrowSharesConsistent (s : MorphoState)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.createMarket s params = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.createMarket at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.createMarket_success_iff s s' params).1 h_ok
   apply borrowConsistent_of_eq_market_position _ _ h_consistent
   · simp; split <;> simp_all
   · intro u; rfl

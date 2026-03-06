@@ -170,6 +170,31 @@ def createMarket (s : MorphoState) (params : MarketParams) : Option MorphoState 
         else s.market id'
       idToParams := fun id' => if id' == id then some params else s.idToParams id' }
 
+theorem createMarket_success_iff (s s' : MorphoState) (params : MarketParams) :
+    createMarket s params = some s' ↔
+      let id := marketId params
+      s.isIrmEnabled params.irm ∧
+      s.isLltvEnabled params.lltv ∧
+      (s.market id).lastUpdate.val = 0 ∧
+      s' = { s with
+        market := fun id' => if id' == id
+          then { s.market id with lastUpdate := s.blockTimestamp }
+          else s.market id'
+        idToParams := fun id' => if id' == id then some params else s.idToParams id' } := by
+  constructor
+  · intro h
+    unfold createMarket at h
+    by_cases hIrm : s.isIrmEnabled params.irm
+    · simp [hIrm] at h
+      rcases h with ⟨hLltv, hLast, rfl⟩
+      simp [hIrm, hLltv, hLast]
+    · simp [hIrm] at h
+  · intro h
+    dsimp at h
+    rcases h with ⟨hIrm, hLltv, hLast, rfl⟩
+    unfold createMarket
+    simp [hIrm, hLltv, hLast]
+
 /-! ## Authorization -/
 
 /-- Authorize or deauthorize another address. Matches `setAuthorization` (Morpho.sol:436). -/
