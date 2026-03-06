@@ -273,6 +273,58 @@ object "M" {
     self.assertEqual(manifest["defaults"]["renameOnly"]["status"], "planned")
     self.assertEqual(manifest["families"][0]["family"], "checked_add")
 
+  def test_load_rewrite_proof_manifest_rejects_unknown_default_kind(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "rewrite-proof.json"
+      path.write_text(
+        """{
+  "version": "rewrite-proof-v1",
+  "defaults": {
+    "hashMismatch": {
+      "rewritePass": "bad-default",
+      "proofObligation": "bad",
+      "status": "planned",
+      "proofRefs": []
+    }
+  },
+  "families": []
+}
+""",
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(RuntimeError, "default kind `hashMismatch` is unsupported"):
+        load_rewrite_proof_manifest(path)
+
+  def test_load_rewrite_proof_manifest_rejects_duplicate_family_entries(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "rewrite-proof.json"
+      path.write_text(
+        """{
+  "version": "rewrite-proof-v1",
+  "defaults": {},
+  "families": [
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment",
+      "proofObligation": "width normalization",
+      "status": "planned",
+      "proofRefs": []
+    },
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment-v2",
+      "proofObligation": "width normalization v2",
+      "status": "planned",
+      "proofRefs": []
+    }
+  ]
+}
+""",
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(RuntimeError, "defines duplicate family `checked_add`"):
+        load_rewrite_proof_manifest(path)
+
   def test_build_rewrite_family_summary_attaches_rewrite_proof_manifest(self) -> None:
     manifest = {
       "version": "rewrite-proof-v1",

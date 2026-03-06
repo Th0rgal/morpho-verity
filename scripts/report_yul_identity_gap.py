@@ -27,6 +27,7 @@ RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
 DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
 DEFAULT_REWRITE_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+REWRITE_PLAN_DEFAULT_KINDS = frozenset({"renameOnly", "renameAmbiguous"})
 
 
 @dataclass(frozen=True)
@@ -537,16 +538,25 @@ def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
   for kind, plan in defaults.items():
     if not isinstance(kind, str) or not kind.strip():
       raise RuntimeError(f"Rewrite proof manifest has invalid default kind key: {path}")
+    if kind not in REWRITE_PLAN_DEFAULT_KINDS:
+      allowed = ", ".join(sorted(REWRITE_PLAN_DEFAULT_KINDS))
+      raise RuntimeError(
+        f"Rewrite proof manifest default kind `{kind}` is unsupported; expected one of {allowed}: {path}"
+      )
     normalized_defaults[kind] = validate_plan(plan, where=f"defaults.{kind}", require_family=False)
 
   families = data.get("families", [])
   if not isinstance(families, list):
     raise RuntimeError(f"Rewrite proof manifest key `families` must be a list: {path}")
   normalized_families: list[dict[str, Any]] = []
+  seen_families: set[str] = set()
   for i, entry in enumerate(families):
-    normalized_families.append(
-      validate_plan(entry, where=f"families[{i}]", require_family=True)
-    )
+    normalized_entry = validate_plan(entry, where=f"families[{i}]", require_family=True)
+    family = normalized_entry["family"]
+    if family in seen_families:
+      raise RuntimeError(f"Rewrite proof manifest defines duplicate family `{family}`: {path}")
+    seen_families.add(family)
+    normalized_families.append(normalized_entry)
 
   return {
     "version": version,
