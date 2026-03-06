@@ -171,7 +171,7 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-FLASH-LOAN-SEM-EQ"
     hypothesis := "flashLoanSemEq"
     operation := "flashLoan"
-    status := .assumed
+    status := .inProgress
     macroMigrated := true }  -- macro body migrated; state-level model still omits ERC20/callback I/O
 ]
 
@@ -179,19 +179,20 @@ def obligations : List SemanticBridgeObligation := [
 theorem obligation_count : obligations.length = 18 := by
   native_decide
 
-/-- 5 of 18 operations have Link 1 proven.
+/-- 6 of 18 operations have Link 1 proven.
     Link 1 (Pure Lean ↔ EDSL) in `SemanticBridgeDischarge.lean`.
     Link 2 (EDSL ↔ SupportedStmtList) is also proven for those same 5 admin functions
     in `CompilationCorrectness.lean`.
     Link 3 comes free from verity's typed-IR compilation-correctness framework.
-    These are: setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization. -/
+    These are: setOwner, setFeeRecipient, enableIrm, enableLltv,
+    setAuthorization, flashLoan. -/
 theorem link1_proven_count :
-    (obligations.filter (fun o => o.status == .inProgress)).length = 5 := by
+    (obligations.filter (fun o => o.status == .inProgress)).length = 6 := by
   native_decide
 
-/-- 13 operations still have assumed status (Link 1 not yet proven). -/
+/-- 12 operations still have assumed status (Link 1 not yet proven). -/
 theorem assumed_count :
-    (obligations.filter (fun o => o.status == .assumed)).length = 13 := by
+    (obligations.filter (fun o => o.status == .assumed)).length = 12 := by
   native_decide
 
 /-- 6 of 18 operations have full (non-stub) macro implementations.

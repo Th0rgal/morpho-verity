@@ -140,9 +140,9 @@
       "id": "OBL-FLASH-LOAN-SEM-EQ",
       "hypothesis": "flashLoanSemEq",
       "operation": "flashLoan",
-      "status": "assumed",
+      "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "macro body migrated at the repo's state-model level; remaining gap is external ERC20/callback proof surface plus typed-IR SupportedStmtList proof"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); remaining gap is external ERC20/callback proof surface plus typed-IR SupportedStmtList proof for the mstore/rawLog event path"
     }
   ],
   "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 9d9533b2; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",

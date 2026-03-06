@@ -25,8 +25,9 @@ For all 5 admin functions with Link 1 proofs, we compose:
 - **Link 1** (`SemanticBridgeDischarge`): `edslF = ContractSemantics.F`
 - **Canonical invariants** (`Invariants`): `ContractSemantics.F` preserves all 4 invariants
 
-Result: 20 direct composition theorems showing each EDSL function preserves
-each Morpho invariant, plus 2 additional monotonicity theorems for enableIrm.
+Result: 20 direct composition theorems for the admin cluster, plus 2
+additional monotonicity theorems for enableIrm, and a direct flash-loan
+composition theorem for the canonical zero-assets rejection property.
 
 ## Link 2+3 status
 
@@ -220,9 +221,16 @@ theorem edsl_setAuthorization_lltvMonotone
     (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
+/-! ## flashLoan: Link 1 + canonical rejection theorem -/
+
+theorem edsl_flashLoan_rejects_zero_assets
+    (s : MorphoState) :
+    edslFlashLoan s 0 = none := by
+  simpa [flashLoan_link1] using flashLoan_rejects_zero_assets s
+
 /-! ## Summary
 
-### Link 1 + Invariants: 22 theorems, zero sorry
+### Link 1 + Invariants: 23 theorems, zero sorry
 
 For all 5 admin functions with Link 1 proofs, we have direct composition
 showing each EDSL function preserves each invariant:
@@ -235,6 +243,10 @@ showing each EDSL function preserves each invariant:
 | enableLltv       | proven | proven | proven | proven |
 | setAuthorization | proven | proven | proven | proven |
 
+In addition, `flashLoan` now has Link 1 discharged onto the canonical
+contract-semantics surface and inherits the repo's direct zero-assets rejection
+theorem.
+
 ### SupportedStmtList coverage (CompilationCorrectness.lean)
 
 All 5 admin functions have `SupportedStmtList` proofs, giving free
@@ -245,6 +257,10 @@ compilation correctness via `compile_supported_stmt_list_direct_semantics`:
 - enableIrm: `letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop`
 - enableLltv: `letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop`
 - setAuthorization: `letCallerLetMapping2IteParamReqSetMapping2Stop`
+
+`flashLoan` does not yet have the analogous witness because its body uses
+`mstore` and `rawLog`, which are outside the current witness set tracked in
+`CompilationCorrectness.lean`.
 
 ### Remaining gaps
 

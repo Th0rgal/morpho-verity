@@ -23,7 +23,7 @@ The full discharge chain for an obligation like `setOwnerSemEq` has three links:
 ```
 
 This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
-`enableLltv`, and `setAuthorization`.
+`enableLltv`, `setAuthorization`, and `flashLoan`.
 Links 2+3 depend on upstream verity infrastructure (verity#1060 / #1065).
 Verity pin: 9d9533b2 (including the two-storage-address witness needed by `setFeeRecipient`).
 
@@ -123,9 +123,23 @@ theorem setAuthorization_semEq :
     SolidityBridge.setAuthorizationSemEq edslSetAuthorization :=
   setAuthorization_link1
 
+noncomputable abbrev edslFlashLoan := Morpho.Compiler.AdminAdapters.flashLoan
+
+/-- **Link 1 for flashLoan**: The EDSL `flashLoan` matches the canonical state model. -/
+theorem flashLoan_link1 :
+    ∀ s assets,
+      edslFlashLoan s assets = Morpho.Specs.ContractSemantics.flashLoan s assets := by
+  intro s assets
+  rfl
+
+/-- The EDSL `flashLoan` satisfies the semantic equivalence obligation. -/
+theorem flashLoan_semEq :
+    SolidityBridge.flashLoanSemEq edslFlashLoan :=
+  flashLoan_link1
+
 /-! ## Discharge Status
 
-With Link 1 proven for 5 operations, the `*SemEq` obligations can be instantiated
+With Link 1 proven for 6 operations, the `*SemEq` obligations can be instantiated
 using the EDSL-based wrappers. The remaining gap (Links 2+3) connects the EDSL
 execution to the compiled IR and then to EVMYulLean.
 
@@ -133,8 +147,9 @@ execution to the compiled IR and then to EVMYulLean.
 |-------|-----------|--------|-----------|
 | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `9d9533b2` |
 | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `9d9533b2` |
-| 3 | createMarket | provable | needs MappingWord bridge |
-| 4 | 12 remaining ops | blocked on macro | blocked |
+| 3 | flashLoan | **proven** | pending `SupportedStmtList`/primitive bridge coverage for `mstore` + `rawLog` |
+| 4 | createMarket | provable | needs MappingWord bridge |
+| 5 | 11 remaining ops | blocked on macro | blocked |
 -/
 
 end Morpho.Proofs.SemanticBridgeDischarge
