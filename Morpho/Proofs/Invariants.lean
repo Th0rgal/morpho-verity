@@ -1069,8 +1069,14 @@ theorem liquidate_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
 
 /-- Flash loans reject zero assets. -/
 theorem flashLoan_rejects_zero_assets (s : MorphoState) :
-    Morpho.flashLoan s 0 = none := by
-  unfold Morpho.flashLoan; simp
+    Morpho.Specs.ContractSemantics.flashLoan s 0 = none := by
+  cases h : Morpho.Specs.ContractSemantics.flashLoan s 0 with
+  | none => rfl
+  | some result =>
+      cases result
+      have hz : (0 : Uint256) ≠ 0 :=
+        (Morpho.Specs.ContractSemantics.flashLoan_success_iff s 0).1 h
+      simp at hz
 
 /-! ## Public accrueInterest
 

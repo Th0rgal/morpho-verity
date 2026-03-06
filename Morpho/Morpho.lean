@@ -499,8 +499,11 @@ def liquidate (s : MorphoState) (id : Id) (borrower : Address)
 /-- Flash loan. Matches `flashLoan` (Morpho.sol:421).
     The actual token transfer and callback are external I/O — here we only
     verify that `assets != 0`. The state is unchanged (flash loans are atomic). -/
-def flashLoan (_s : MorphoState) (assets : Uint256) : Option Unit :=
-  if assets.val == 0 then none  -- ZERO_ASSETS (Morpho.sol:422)
-  else some ()
+noncomputable abbrev flashLoan : MorphoState → Uint256 → Option Unit :=
+  Morpho.Specs.ContractSemantics.flashLoan
+
+theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
+    flashLoan s assets = some () ↔ assets ≠ 0 :=
+  Morpho.Specs.ContractSemantics.flashLoan_success_iff s assets
 
 end Morpho
