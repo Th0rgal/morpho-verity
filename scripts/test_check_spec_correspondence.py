@@ -56,6 +56,31 @@ def morphoSpec : CompilationModel := {
 }
 """
 
+SAMPLE_SPEC_WITH_BODY_REF = """\
+private def flashLoanBody : List Stmt := [
+  Stmt.require (Expr.gt (Expr.param "assets") (Expr.literal 0)) "zero assets",
+  Stmt.rawLog [Expr.literal 1, Expr.caller, Expr.param "token"] (Expr.literal 0) (Expr.literal 32),
+  Stmt.stop
+]
+
+def morphoSpec : CompilationModel := {
+  name := "Morpho"
+  fields := []
+  functions := [
+    {
+      name := "flashLoan"
+      params := [
+        { name := "token", ty := .address },
+        { name := "assets", ty := .uint256 },
+        { name := "data", ty := .tuple [ .bytes ] }
+      ]
+      returnType := none
+      body := flashLoanBody
+    }
+  ]
+}
+"""
+
 SAMPLE_MACRO = """\
 verity_contract MorphoViewSlice where
   storage
@@ -112,6 +137,16 @@ class ExtractSpecFunctionsTests(unittest.TestCase):
     def test_empty_text(self) -> None:
         fns = extract_spec_functions("")
         self.assertEqual(fns, {})
+
+    def test_tuple_typed_params_are_counted(self) -> None:
+        fns = extract_spec_functions(SAMPLE_SPEC_WITH_BODY_REF)
+        self.assertEqual(fns["flashLoan"]["param_count"], 3)
+        self.assertEqual(fns["flashLoan"]["params"], ["token", "assets", "data"])
+
+    def test_body_reference_counts_requires_and_mutations(self) -> None:
+        fns = extract_spec_functions(SAMPLE_SPEC_WITH_BODY_REF)
+        self.assertEqual(fns["flashLoan"]["require_count"], 1)
+        self.assertEqual(fns["flashLoan"]["mutation_count"], 0)
 
 
 class ExtractSpecFieldsTests(unittest.TestCase):
