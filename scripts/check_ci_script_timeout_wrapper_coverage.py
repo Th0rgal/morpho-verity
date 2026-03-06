@@ -8,6 +8,8 @@ import pathlib
 import re
 import sys
 
+from workflow_run_parser import extract_workflow_run_text
+
 WORKFLOW_SCRIPT_REF_RE = re.compile(
   r"\b(?:python3\s+)?(?:\./)?scripts/([A-Za-z0-9_]+\.(?:py|sh))\b"
 )
@@ -17,8 +19,6 @@ RUN_WITH_TIMEOUT_TARGET_RE = re.compile(
   r"([A-Za-z0-9_]+\.(?:py|sh))\b"
 )
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
-RUN_STEP_RE = re.compile(r"^(\s*)run:\s*(.*)$")
-RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>][-+]?$")
 SHELL_TEST_LOOP_RE = re.compile(
   r"for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+scripts/test_\*\.sh\s*;\s*do(?P<body>.*?)\bdone\b",
   re.DOTALL,
@@ -28,52 +28,6 @@ SHELL_TEST_LOOP_RE = re.compile(
 def fail(msg: str) -> None:
   print(f"ci-script-timeout-wrapper-coverage check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
-
-
-def extract_workflow_run_text(workflow_text: str) -> str:
-  commands: list[str] = []
-  lines = workflow_text.splitlines()
-  i = 0
-  while i < len(lines):
-    line = lines[i]
-    match = RUN_STEP_RE.match(line)
-    if match is None:
-      i += 1
-      continue
-
-    run_indent = len(match.group(1))
-    tail = match.group(2).strip()
-    if tail and not RUN_BLOCK_SCALAR_RE.fullmatch(tail):
-      line_parts = [tail]
-      i += 1
-      while i < len(lines):
-        candidate = lines[i]
-        stripped = candidate.lstrip(" ")
-        if not stripped:
-          break
-        indent = len(candidate) - len(stripped)
-        if indent <= run_indent:
-          break
-        line_parts.append(stripped)
-        i += 1
-      commands.append("\n".join(line_parts))
-      continue
-
-    i += 1
-    block_lines: list[str] = []
-    while i < len(lines):
-      candidate = lines[i]
-      stripped = candidate.lstrip(" ")
-      if stripped:
-        indent = len(candidate) - len(stripped)
-        if indent <= run_indent:
-          break
-        block_lines.append(stripped)
-      else:
-        block_lines.append("")
-      i += 1
-    commands.append("\n".join(block_lines))
-  return "\n".join(commands)
 
 
 def collect_workflow_script_references(workflow_text: str) -> set[str]:
