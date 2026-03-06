@@ -7,7 +7,7 @@ SCRIPT_UNDER_TEST="${ROOT_DIR}/scripts/run_with_timeout.sh"
 assert_contains() {
   local needle="$1"
   local haystack_file="$2"
-  if ! grep -Fq "${needle}" "${haystack_file}"; then
+  if ! grep -Fq -- "${needle}" "${haystack_file}"; then
     echo "ASSERTION FAILED: expected to find '${needle}' in ${haystack_file}"
     exit 1
   fi
@@ -192,6 +192,88 @@ test_timeout_kills_term_ignoring_processes() {
   assert_contains "ERROR: remediate by increasing MORPHO_TEST_TIMEOUT_SEC or reducing work in this stage" "${output_file}"
 }
 
+test_timeout_kills_descendant_process_group() {
+  local temp_dir output_file child_script marker
+  temp_dir="$(mktemp -d)"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-descendant-$$"
+  child_script="${temp_dir}/spawn-descendant.sh"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${temp_dir}" "${output_file}"' RETURN
+
+  cat > "${child_script}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+trap '' TERM
+exec -a "${marker}" bash -lc 'trap "" TERM; while true; do sleep 5; done' &
+while true; do sleep 5; done
+EOF
+  chmod +x "${child_script}"
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="1" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "descendant command" -- \
+      "${child_script}" >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 137 ]]; then
+    echo "ASSERTION FAILED: expected descendant timeout exit code 137, got ${status}"
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected descendant process group to be terminated"
+    exit 1
+  fi
+  assert_contains "ERROR: descendant command timed out after 1s" "${output_file}"
+}
+
+test_kill_after_tracks_session_group_when_parent_exits_on_term() {
+  local temp_dir output_file child_script marker
+  temp_dir="$(mktemp -d)"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-parent-exits-$$"
+  child_script="${temp_dir}/spawn-term-ignoring-descendant.sh"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${temp_dir}" "${output_file}"' RETURN
+
+  cat > "${child_script}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+child_pid=""
+cleanup() {
+  if [[ -n "\${child_pid}" ]]; then
+    wait "\${child_pid}" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+trap 'exit 0' TERM
+exec -a "${marker}" bash -lc 'trap "" TERM; while true; do sleep 5; done' &
+child_pid=\$!
+while true; do sleep 5; done
+EOF
+  chmod +x "${child_script}"
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="1" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "parent-exits-on-term command" -- \
+      "${child_script}" >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 137 ]]; then
+    echo "ASSERTION FAILED: expected parent-exits-on-term timeout exit code 137, got ${status}"
+    cat "${output_file}" || true
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected surviving descendant process group to be hard-killed"
+    exit 1
+  fi
+  assert_contains "ERROR: parent-exits-on-term command timed out after 1s" "${output_file}"
+  assert_contains "ERROR: timeout env=MORPHO_TEST_TIMEOUT_SEC kill-after=1s" "${output_file}"
+}
+
 test_non_timeout_failure_preserves_exit_code() {
   set +e
   MORPHO_TEST_TIMEOUT_SEC="5" \
@@ -218,7 +300,7 @@ test_zero_timeout_disables_timeout_and_preserves_exit_code() {
   fi
 }
 
-test_timeout_command_missing_fails_closed() {
+test_setsid_command_missing_fails_closed() {
   local fake_root fake_bin output_file
   fake_root="$(mktemp -d)"
   fake_bin="${fake_root}/bin"
@@ -231,15 +313,216 @@ test_timeout_command_missing_fails_closed() {
   set +e
   PATH="${fake_bin}" \
     MORPHO_TEST_TIMEOUT_SEC="1" \
-    bash "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "missing-timeout command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+    bash "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "missing-setsid command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
   status=$?
   set -e
 
   if [[ "${status}" -ne 2 ]]; then
-    echo "ASSERTION FAILED: expected exit code 2 when timeout command is missing, got ${status}"
+    echo "ASSERTION FAILED: expected exit code 2 when setsid command is missing, got ${status}"
     exit 1
   fi
-  assert_contains "ERROR: timeout command is required when MORPHO_TEST_TIMEOUT_SEC is greater than zero" "${output_file}"
+  assert_contains "ERROR: setsid command is required when MORPHO_TEST_TIMEOUT_SEC is greater than zero" "${output_file}"
+}
+
+test_setsid_waits_for_command_exit() {
+  local fake_root fake_bin output_file args_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  args_file="${fake_root}/setsid-args"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  cat > "${fake_bin}/setsid" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "\$@" > "${args_file}"
+if [[ "\${1:-}" != "--wait" ]]; then
+  echo "expected --wait" >&2
+  exit 99
+fi
+shift
+exec "\$@"
+EOF
+  chmod +x "${fake_bin}/setsid"
+
+  set +e
+  PATH="${fake_bin}:$PATH" \
+    MORPHO_TEST_TIMEOUT_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "setsid wait command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 0 ]]; then
+    echo "ASSERTION FAILED: expected wrapped command to succeed with fake setsid, got ${status}"
+    exit 1
+  fi
+  assert_contains "--wait" "${args_file}"
+}
+
+test_setsid_fork_path_targets_session_leader_process_group() {
+  local fake_root fake_bin output_file marker runner_status
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-forked-$$"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  cat > "${fake_bin}/setsid" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" != "--wait" ]]; then
+  echo "expected --wait" >&2
+  exit 99
+fi
+shift
+exec /usr/bin/setsid --fork --wait "\$@"
+EOF
+  chmod +x "${fake_bin}/setsid"
+
+  set +e
+  PATH="${fake_bin}:$PATH" python3 - <<'PY' "${SCRIPT_UNDER_TEST}" "${output_file}" "${marker}"
+import os
+import subprocess
+import sys
+
+script, output_file, marker = sys.argv[1:]
+env = os.environ.copy()
+env["MORPHO_TEST_TIMEOUT_SEC"] = "1"
+env["MORPHO_TIMEOUT_KILL_AFTER_SEC"] = "1"
+cmd = [
+    script,
+    "MORPHO_TEST_TIMEOUT_SEC",
+    "5",
+    "forked-setsid command",
+    "--",
+    "bash",
+    "-lc",
+    f'trap "" TERM; exec -a "{marker}" bash -lc \'trap "" TERM; while true; do sleep 5; done\'',
+]
+with open(output_file, "w", encoding="utf-8") as out:
+    try:
+        proc = subprocess.run(cmd, stdout=out, stderr=subprocess.STDOUT, env=env, timeout=8)
+    except subprocess.TimeoutExpired:
+        sys.exit(124)
+sys.exit(proc.returncode)
+PY
+  runner_status=$?
+  set -e
+
+  if [[ "${runner_status}" -ne 137 ]]; then
+    echo "ASSERTION FAILED: expected forked setsid path to return 137, got ${runner_status}"
+    cat "${output_file}" || true
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected forked setsid session leader process group to be terminated"
+    exit 1
+  fi
+  assert_contains "ERROR: forked-setsid command timed out after 1s" "${output_file}"
+}
+
+test_timeout_pipeline_does_not_leave_tee_waiting_on_watchdog_sleep() {
+  local output_file runner_status
+  output_file="$(mktemp)"
+  trap 'rm -f "${output_file}"' RETURN
+
+  set +e
+  python3 - <<'PY' "${SCRIPT_UNDER_TEST}" "${output_file}"
+import os
+import subprocess
+import sys
+
+script, output_file = sys.argv[1:]
+cmd = (
+    'set -o pipefail; '
+    'MORPHO_TEST_TIMEOUT_SEC=1 '
+    f'"{script}" MORPHO_TEST_TIMEOUT_SEC 5 pipeline-timeout -- '
+    'bash -lc "sleep 2" | tee /tmp/morpho-timeout-pipeline.log'
+)
+env = os.environ.copy()
+with open(output_file, "w", encoding="utf-8") as out:
+    try:
+        proc = subprocess.run(
+            ["bash", "-lc", cmd],
+            stdout=out,
+            stderr=subprocess.STDOUT,
+            env=env,
+            timeout=8,
+        )
+    except subprocess.TimeoutExpired:
+        sys.exit(124)
+sys.exit(proc.returncode)
+PY
+  runner_status=$?
+  set -e
+
+  rm -f /tmp/morpho-timeout-pipeline.log
+
+  if [[ "${runner_status}" -ne 124 ]]; then
+    echo "ASSERTION FAILED: expected piped timeout to return 124, got ${runner_status}"
+    cat "${output_file}" || true
+    exit 1
+  fi
+  assert_contains "ERROR: pipeline-timeout timed out after 1s" "${output_file}"
+}
+
+test_wrapper_signal_cleanup_terminates_running_command_tree() {
+  local temp_dir output_file child_script marker wrapper_pid wait_status
+  temp_dir="$(mktemp -d)"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-signal-$$"
+  child_script="${temp_dir}/spawn-descendant.sh"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${temp_dir}" "${output_file}"' RETURN
+
+  cat > "${child_script}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+trap '' TERM
+exec -a "${marker}" bash -lc 'trap "" TERM; while true; do sleep 5; done' &
+while true; do sleep 5; done
+EOF
+  chmod +x "${child_script}"
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="30" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 60 "signaled wrapper command" -- \
+      "${child_script}" >"${output_file}" 2>&1 &
+  wrapper_pid=$!
+  set -e
+
+  for _ in $(seq 1 50); do
+    if pgrep -f "${marker}" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+
+  if ! pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected descendant marker process to start before signaling wrapper"
+    cat "${output_file}" || true
+    kill "${wrapper_pid}" >/dev/null 2>&1 || true
+    wait "${wrapper_pid}" >/dev/null 2>&1 || true
+    exit 1
+  fi
+
+  kill -TERM "${wrapper_pid}"
+  set +e
+  wait "${wrapper_pid}"
+  wait_status=$?
+  set -e
+
+  if [[ "${wait_status}" -ne 143 ]]; then
+    echo "ASSERTION FAILED: expected signaled wrapper to exit with 143, got ${wait_status}"
+    cat "${output_file}" || true
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected signaled wrapper to terminate descendant process group"
+    exit 1
+  fi
 }
 
 test_success_passthrough() {
@@ -256,9 +539,15 @@ test_invalid_kill_after_value_fails_closed
 test_zero_kill_after_value_fails_closed
 test_timeout_failure_reports_diagnostic
 test_timeout_kills_term_ignoring_processes
+test_timeout_kills_descendant_process_group
+test_kill_after_tracks_session_group_when_parent_exits_on_term
 test_non_timeout_failure_preserves_exit_code
 test_zero_timeout_disables_timeout_and_preserves_exit_code
-test_timeout_command_missing_fails_closed
+test_setsid_command_missing_fails_closed
+test_setsid_waits_for_command_exit
+test_setsid_fork_path_targets_session_leader_process_group
+test_timeout_pipeline_does_not_leave_tee_waiting_on_watchdog_sleep
+test_wrapper_signal_cleanup_terminates_running_command_tree
 test_success_passthrough
 
 echo "run_with_timeout.sh tests passed"
