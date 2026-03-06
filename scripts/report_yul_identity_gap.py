@@ -550,7 +550,7 @@ def build_exactness_summary(report: dict[str, Any]) -> dict[str, bool]:
     "normalized": normalized_exact,
     "ast": ast_exact,
     "functionLevel": function_exact,
-    "fullyExact": raw_exact and normalized_exact and ast_exact and function_exact,
+    "fullyExact": ast_exact and function_exact,
   }
 
 
@@ -762,7 +762,7 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--exact",
     action="store_true",
-    help="Exit non-zero unless the rewritten Verity Yul matches Solidity exactly at AST/function level.",
+    help="Exit non-zero unless the rewritten Verity Yul matches Solidity exactly at structural AST/function level.",
   )
   parser.add_argument(
     "--unsupported-manifest",

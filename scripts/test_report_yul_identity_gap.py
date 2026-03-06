@@ -226,6 +226,23 @@ object "M" {
       },
     )
 
+  def test_build_exactness_summary_tolerates_formatting_only_differences(self) -> None:
+    report, _ = build_report(
+      'object "M" {\n  code {\n    function f() { leave }\n  }\n}\n',
+      'object "M"{code{function f(){leave}}}\n',
+      max_diff_lines=50,
+    )
+    self.assertEqual(
+      build_exactness_summary(report),
+      {
+        "raw": False,
+        "normalized": False,
+        "ast": True,
+        "functionLevel": True,
+        "fullyExact": True,
+      },
+    )
+
   def test_build_parity_metadata_extracts_pack_id(self) -> None:
     self.assertEqual(
       build_parity_metadata(
