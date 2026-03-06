@@ -8,7 +8,7 @@ import pathlib
 import re
 import sys
 
-WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.py)\b")
+WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b")
 
 
 def fail(msg: str) -> None:
@@ -18,9 +18,10 @@ def fail(msg: str) -> None:
 
 def collect_repo_check_scripts(scripts_dir: pathlib.Path) -> set[str]:
   checks: set[str] = set()
-  for path in scripts_dir.glob("check_*.py"):
-    if path.is_file():
-      checks.add(path.name)
+  for pattern in ("check_*.py", "check_*.sh"):
+    for path in scripts_dir.glob(pattern):
+      if path.is_file():
+        checks.add(path.name)
   return checks
 
 
