@@ -67,7 +67,7 @@ theorem edsl_setOwner_borrowLeSupply
     (h_ok : edslSetOwner s newOwner = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
-    rw [← setOwner_link1]; exact h_ok
+    simpa [Morpho.setOwner, Morpho.Specs.ContractSemantics.setOwner] using h_ok
   exact setOwner_preserves_borrowLeSupply s newOwner id h_solvent h_morpho
 
 theorem edsl_setOwner_alwaysCollateralized
@@ -76,7 +76,7 @@ theorem edsl_setOwner_alwaysCollateralized
     (h_ok : edslSetOwner s newOwner = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
-    rw [← setOwner_link1]; exact h_ok
+    simpa [Morpho.setOwner, Morpho.Specs.ContractSemantics.setOwner] using h_ok
   exact setOwner_preserves_alwaysCollateralized s newOwner id user h_collat h_morpho
 
 theorem edsl_setOwner_irmMonotone
@@ -85,7 +85,7 @@ theorem edsl_setOwner_irmMonotone
     (h_ok : edslSetOwner s newOwner = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
-    rw [← setOwner_link1]; exact h_ok
+    simpa [Morpho.setOwner, Morpho.Specs.ContractSemantics.setOwner] using h_ok
   exact setOwner_preserves_irmMonotone s newOwner irm h_enabled h_morpho
 
 theorem edsl_setOwner_lltvMonotone
@@ -94,7 +94,7 @@ theorem edsl_setOwner_lltvMonotone
     (h_ok : edslSetOwner s newOwner = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
-    rw [← setOwner_link1]; exact h_ok
+    simpa [Morpho.setOwner, Morpho.Specs.ContractSemantics.setOwner] using h_ok
   exact setOwner_preserves_lltvMonotone s newOwner lltv h_enabled h_morpho
 
 /-! ## setFeeRecipient: Link 1 + invariants (4 theorems) -/
@@ -105,7 +105,7 @@ theorem edsl_setFeeRecipient_borrowLeSupply
     (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    rw [← setFeeRecipient_link1]; exact h_ok
+    simpa [Morpho.setFeeRecipient, Morpho.Specs.ContractSemantics.setFeeRecipient] using h_ok
   exact setFeeRecipient_preserves_borrowLeSupply s newFeeRecipient id h_solvent h_morpho
 
 theorem edsl_setFeeRecipient_alwaysCollateralized
@@ -114,7 +114,7 @@ theorem edsl_setFeeRecipient_alwaysCollateralized
     (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    rw [← setFeeRecipient_link1]; exact h_ok
+    simpa [Morpho.setFeeRecipient, Morpho.Specs.ContractSemantics.setFeeRecipient] using h_ok
   exact setFeeRecipient_preserves_alwaysCollateralized s newFeeRecipient id user h_collat h_morpho
 
 theorem edsl_setFeeRecipient_irmMonotone
@@ -123,7 +123,7 @@ theorem edsl_setFeeRecipient_irmMonotone
     (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    rw [← setFeeRecipient_link1]; exact h_ok
+    simpa [Morpho.setFeeRecipient, Morpho.Specs.ContractSemantics.setFeeRecipient] using h_ok
   exact setFeeRecipient_preserves_irmMonotone s newFeeRecipient irm h_enabled h_morpho
 
 theorem edsl_setFeeRecipient_lltvMonotone
@@ -132,7 +132,7 @@ theorem edsl_setFeeRecipient_lltvMonotone
     (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    rw [← setFeeRecipient_link1]; exact h_ok
+    simpa [Morpho.setFeeRecipient, Morpho.Specs.ContractSemantics.setFeeRecipient] using h_ok
   exact setFeeRecipient_preserves_lltvMonotone s newFeeRecipient lltv h_enabled h_morpho
 
 /-! ## enableIrm: Link 1 + invariants (4 theorems + enableIrm_monotone) -/
@@ -143,7 +143,7 @@ theorem edsl_enableIrm_borrowLeSupply
     (h_ok : edslEnableIrm s irm = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
-    rw [← enableIrm_link1]; exact h_ok
+    simpa [Morpho.enableIrm, Morpho.Specs.ContractSemantics.enableIrm] using h_ok
   exact enableIrm_preserves_borrowLeSupply s irm id h_solvent h_morpho
 
 theorem edsl_enableIrm_alwaysCollateralized
@@ -152,7 +152,7 @@ theorem edsl_enableIrm_alwaysCollateralized
     (h_ok : edslEnableIrm s irm = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
-    rw [← enableIrm_link1]; exact h_ok
+    simpa [Morpho.enableIrm, Morpho.Specs.ContractSemantics.enableIrm] using h_ok
   exact enableIrm_preserves_alwaysCollateralized s irm id user h_collat h_morpho
 
 theorem edsl_enableIrm_irmMonotone
@@ -161,7 +161,7 @@ theorem edsl_enableIrm_irmMonotone
     (h_ok : edslEnableIrm s irmCall = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.enableIrm s irmCall = some s' := by
-    rw [← enableIrm_link1]; exact h_ok
+    simpa [Morpho.enableIrm, Morpho.Specs.ContractSemantics.enableIrm] using h_ok
   exact enableIrm_monotone s irmCall irm h_morpho h_enabled
 
 theorem edsl_enableIrm_lltvMonotone
@@ -170,7 +170,7 @@ theorem edsl_enableIrm_lltvMonotone
     (h_ok : edslEnableIrm s irm = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
-    rw [← enableIrm_link1]; exact h_ok
+    simpa [Morpho.enableIrm, Morpho.Specs.ContractSemantics.enableIrm] using h_ok
   obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_morpho
   exact h_enabled
 
@@ -182,7 +182,7 @@ theorem edsl_enableLltv_borrowLeSupply
     (h_ok : edslEnableLltv s lltv = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.enableLltv s lltv = some s' := by
-    rw [← enableLltv_link1]; exact h_ok
+    simpa [Morpho.enableLltv, Morpho.Specs.ContractSemantics.enableLltv] using h_ok
   exact enableLltv_preserves_borrowLeSupply s lltv id h_solvent h_morpho
 
 theorem edsl_enableLltv_alwaysCollateralized
@@ -191,7 +191,7 @@ theorem edsl_enableLltv_alwaysCollateralized
     (h_ok : edslEnableLltv s lltv = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.enableLltv s lltv = some s' := by
-    rw [← enableLltv_link1]; exact h_ok
+    simpa [Morpho.enableLltv, Morpho.Specs.ContractSemantics.enableLltv] using h_ok
   exact enableLltv_preserves_alwaysCollateralized s lltv id user h_collat h_morpho
 
 theorem edsl_enableLltv_irmMonotone
@@ -200,7 +200,7 @@ theorem edsl_enableLltv_irmMonotone
     (h_ok : edslEnableLltv s lltvCall = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.enableLltv s lltvCall = some s' := by
-    rw [← enableLltv_link1]; exact h_ok
+    simpa [Morpho.enableLltv, Morpho.Specs.ContractSemantics.enableLltv] using h_ok
   obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltvCall).1 h_morpho
   exact h_enabled
 
@@ -210,7 +210,7 @@ theorem edsl_enableLltv_lltvMonotone
     (h_ok : edslEnableLltv s lltvCall = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.enableLltv s lltvCall = some s' := by
-    rw [← enableLltv_link1]; exact h_ok
+    simpa [Morpho.enableLltv, Morpho.Specs.ContractSemantics.enableLltv] using h_ok
   exact enableLltv_monotone s lltvCall lltv h_morpho h_enabled
 
 /-! ## setAuthorization: Link 1 + invariants (4 theorems) -/
@@ -222,7 +222,7 @@ theorem edsl_setAuthorization_borrowLeSupply
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    rw [← setAuthorization_link1]; exact h_ok
+    simpa [Morpho.setAuthorization, Morpho.Specs.ContractSemantics.setAuthorization] using h_ok
   exact setAuthorization_preserves_borrowLeSupply s authorized newIsAuthorized id h_solvent h_morpho
 
 theorem edsl_setAuthorization_alwaysCollateralized
@@ -232,7 +232,7 @@ theorem edsl_setAuthorization_alwaysCollateralized
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    rw [← setAuthorization_link1]; exact h_ok
+    simpa [Morpho.setAuthorization, Morpho.Specs.ContractSemantics.setAuthorization] using h_ok
   exact setAuthorization_preserves_alwaysCollateralized s authorized newIsAuthorized id user
     h_collat h_morpho
 
@@ -243,7 +243,7 @@ theorem edsl_setAuthorization_irmMonotone
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    rw [← setAuthorization_link1]; exact h_ok
+    simpa [Morpho.setAuthorization, Morpho.Specs.ContractSemantics.setAuthorization] using h_ok
   obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_morpho
   exact h_enabled
 
@@ -254,7 +254,7 @@ theorem edsl_setAuthorization_lltvMonotone
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    rw [← setAuthorization_link1]; exact h_ok
+    simpa [Morpho.setAuthorization, Morpho.Specs.ContractSemantics.setAuthorization] using h_ok
   obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_morpho
   exact h_enabled
 

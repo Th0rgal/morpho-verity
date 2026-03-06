@@ -1,5 +1,6 @@
 import Morpho.Compiler.MacroSlice
 import Morpho.Compiler.AdminAdapters
+import Morpho.Specs.ContractSemantics
 import Morpho.Proofs.SolidityBridge
 
 /-!
@@ -52,16 +53,17 @@ open Morpho.Compiler.AdminAdapters
 
 /-! ## Canonical State Encoding
 
-`Morpho.Compiler.AdminAdapters` now owns the canonical encoding from
-`MorphoState` to the contract-state layout consumed by `MacroSlice`. Link 1
-theorems below are phrased against that adapter surface, which is also what
-`Morpho.Morpho` now re-exports for the already-migrated admin operations. -/
+`Morpho.Specs.ContractSemantics` now owns the canonical spec-facing execution
+surface for the already-migrated admin operations. That module points directly
+at `Compiler.AdminAdapters`, while `Morpho.Morpho` merely re-exports the same
+definitions for backwards compatibility. -/
 
 noncomputable abbrev edslSetOwner := Morpho.Compiler.AdminAdapters.setOwner
 
 /-- **Link 1 for setOwner**: The EDSL `setOwner` matches the pure Lean model. -/
 theorem setOwner_link1 :
-    ∀ s newOwner, edslSetOwner s newOwner = Morpho.setOwner s newOwner := by
+    ∀ s newOwner,
+      edslSetOwner s newOwner = Morpho.Specs.ContractSemantics.setOwner s newOwner := by
   intro s newOwner
   rfl
 
@@ -75,7 +77,8 @@ noncomputable abbrev edslSetFeeRecipient := Morpho.Compiler.AdminAdapters.setFee
 /-- **Link 1 for setFeeRecipient**: EDSL matches the pure Lean model. -/
 theorem setFeeRecipient_link1 :
     ∀ s newFeeRecipient,
-      edslSetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient := by
+      edslSetFeeRecipient s newFeeRecipient =
+        Morpho.Specs.ContractSemantics.setFeeRecipient s newFeeRecipient := by
   intro s newFeeRecipient
   rfl
 
@@ -88,7 +91,7 @@ noncomputable abbrev edslEnableIrm := Morpho.Compiler.AdminAdapters.enableIrm
 
 /-- **Link 1 for enableIrm**: The EDSL `enableIrm` matches the pure Lean model. -/
 theorem enableIrm_link1 :
-    ∀ s irm, edslEnableIrm s irm = Morpho.enableIrm s irm := by
+    ∀ s irm, edslEnableIrm s irm = Morpho.Specs.ContractSemantics.enableIrm s irm := by
   intro s irm
   rfl
 
@@ -101,7 +104,7 @@ noncomputable abbrev edslEnableLltv := Morpho.Compiler.AdminAdapters.enableLltv
 
 /-- **Link 1 for enableLltv**: The EDSL `enableLltv` matches the pure Lean model. -/
 theorem enableLltv_link1 :
-    ∀ s lltv, edslEnableLltv s lltv = Morpho.enableLltv s lltv := by
+    ∀ s lltv, edslEnableLltv s lltv = Morpho.Specs.ContractSemantics.enableLltv s lltv := by
   intro s lltv
   rfl
 
@@ -116,7 +119,7 @@ noncomputable abbrev edslSetAuthorization := Morpho.Compiler.AdminAdapters.setAu
 theorem setAuthorization_link1 :
     ∀ s authorized newIsAuthorized,
       edslSetAuthorization s authorized newIsAuthorized =
-        Morpho.setAuthorization s authorized newIsAuthorized := by
+        Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuthorized := by
   intro s authorized newIsAuthorized
   rfl
 

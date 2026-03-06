@@ -1,4 +1,5 @@
 import Morpho.Proofs.Invariants
+import Morpho.Specs.ContractSemantics
 
 namespace Morpho.Proofs.SolidityBridge
 
@@ -110,16 +111,16 @@ def accrueInterestSemEq (solidityAccrue : AccrueInterestSem) : Prop :=
 
 def enableIrmSemEq (solidityEnableIrm : EnableIrmSem) : Prop :=
   ∀ s irm,
-    solidityEnableIrm s irm = Morpho.enableIrm s irm
+    solidityEnableIrm s irm = Morpho.Specs.ContractSemantics.enableIrm s irm
 
 def enableLltvSemEq (solidityEnableLltv : EnableLltvSem) : Prop :=
   ∀ s lltv,
-    solidityEnableLltv s lltv = Morpho.enableLltv s lltv
+    solidityEnableLltv s lltv = Morpho.Specs.ContractSemantics.enableLltv s lltv
 
 def setAuthorizationSemEq (soliditySetAuthorization : SetAuthorizationSem) : Prop :=
   ∀ s authorized newIsAuthorized,
     soliditySetAuthorization s authorized newIsAuthorized =
-      Morpho.setAuthorization s authorized newIsAuthorized
+      Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuthorized
 
 def setAuthorizationWithSigSemEq (soliditySetAuthorizationWithSig : SetAuthorizationWithSigSem) : Prop :=
   ∀ s auth signatureValid,
@@ -127,11 +128,12 @@ def setAuthorizationWithSigSemEq (soliditySetAuthorizationWithSig : SetAuthoriza
 
 def setOwnerSemEq (soliditySetOwner : SetOwnerSem) : Prop :=
   ∀ s newOwner,
-    soliditySetOwner s newOwner = Morpho.setOwner s newOwner
+    soliditySetOwner s newOwner = Morpho.Specs.ContractSemantics.setOwner s newOwner
 
 def setFeeRecipientSemEq (soliditySetFeeRecipient : SetFeeRecipientSem) : Prop :=
   ∀ s newFeeRecipient,
-    soliditySetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient
+    soliditySetFeeRecipient s newFeeRecipient =
+      Morpho.Specs.ContractSemantics.setFeeRecipient s newFeeRecipient
 
 def createMarketSemEq (solidityCreateMarket : CreateMarketSem) : Prop :=
   ∀ s params,
@@ -280,7 +282,8 @@ theorem solidity_enableIrm_preserves_borrowLeSupply
     (h_ok : solidityEnableIrm s irm = some s') :
     borrowLeSupply s' id := by
   have h_ok_morpho : Morpho.enableIrm s irm = some s' := by
-    simpa [enableIrmSemEq] using (h_eq s irm).symm.trans h_ok
+    simpa [enableIrmSemEq, Morpho.Specs.ContractSemantics.enableIrm] using
+      (h_eq s irm).symm.trans h_ok
   exact enableIrm_preserves_borrowLeSupply s irm id h_solvent h_ok_morpho
 
 theorem solidity_enableIrm_preserves_alwaysCollateralized
@@ -291,7 +294,8 @@ theorem solidity_enableIrm_preserves_alwaysCollateralized
     (h_ok : solidityEnableIrm s irm = some s') :
     alwaysCollateralized s' id user := by
   have h_ok_morpho : Morpho.enableIrm s irm = some s' := by
-    simpa [enableIrmSemEq] using (h_eq s irm).symm.trans h_ok
+    simpa [enableIrmSemEq, Morpho.Specs.ContractSemantics.enableIrm] using
+      (h_eq s irm).symm.trans h_ok
   exact enableIrm_preserves_alwaysCollateralized s irm id user h_collat h_ok_morpho
 
 theorem solidity_enableIrm_preserves_irmMonotone
@@ -302,7 +306,8 @@ theorem solidity_enableIrm_preserves_irmMonotone
     (h_ok : solidityEnableIrm s irmCall = some s') :
     s'.isIrmEnabled irm := by
   have h_ok_morpho : Morpho.enableIrm s irmCall = some s' := by
-    simpa [enableIrmSemEq] using (h_eq s irmCall).symm.trans h_ok
+    simpa [enableIrmSemEq, Morpho.Specs.ContractSemantics.enableIrm] using
+      (h_eq s irmCall).symm.trans h_ok
   exact enableIrm_monotone s irmCall irm h_ok_morpho h_enabled
 
 theorem solidity_enableIrm_preserves_lltvMonotone
@@ -313,7 +318,8 @@ theorem solidity_enableIrm_preserves_lltvMonotone
     (h_ok : solidityEnableIrm s irmCall = some s') :
     s'.isLltvEnabled lltv := by
   have h_ok_morpho : Morpho.enableIrm s irmCall = some s' := by
-    simpa [enableIrmSemEq] using (h_eq s irmCall).symm.trans h_ok
+    simpa [enableIrmSemEq, Morpho.Specs.ContractSemantics.enableIrm] using
+      (h_eq s irmCall).symm.trans h_ok
   obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irmCall).1 h_ok_morpho
   simpa using h_enabled
 
@@ -325,7 +331,8 @@ theorem solidity_enableLltv_preserves_borrowLeSupply
     (h_ok : solidityEnableLltv s lltv = some s') :
     borrowLeSupply s' id := by
   have h_ok_morpho : Morpho.enableLltv s lltv = some s' := by
-    simpa [enableLltvSemEq] using (h_eq s lltv).symm.trans h_ok
+    simpa [enableLltvSemEq, Morpho.Specs.ContractSemantics.enableLltv] using
+      (h_eq s lltv).symm.trans h_ok
   exact enableLltv_preserves_borrowLeSupply s lltv id h_solvent h_ok_morpho
 
 theorem solidity_enableLltv_preserves_alwaysCollateralized
@@ -336,7 +343,8 @@ theorem solidity_enableLltv_preserves_alwaysCollateralized
     (h_ok : solidityEnableLltv s lltv = some s') :
     alwaysCollateralized s' id user := by
   have h_ok_morpho : Morpho.enableLltv s lltv = some s' := by
-    simpa [enableLltvSemEq] using (h_eq s lltv).symm.trans h_ok
+    simpa [enableLltvSemEq, Morpho.Specs.ContractSemantics.enableLltv] using
+      (h_eq s lltv).symm.trans h_ok
   exact enableLltv_preserves_alwaysCollateralized s lltv id user h_collat h_ok_morpho
 
 theorem solidity_enableLltv_preserves_irmMonotone
@@ -347,7 +355,8 @@ theorem solidity_enableLltv_preserves_irmMonotone
     (h_ok : solidityEnableLltv s lltvCall = some s') :
     s'.isIrmEnabled irm := by
   have h_ok_morpho : Morpho.enableLltv s lltvCall = some s' := by
-    simpa [enableLltvSemEq] using (h_eq s lltvCall).symm.trans h_ok
+    simpa [enableLltvSemEq, Morpho.Specs.ContractSemantics.enableLltv] using
+      (h_eq s lltvCall).symm.trans h_ok
   obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltvCall).1 h_ok_morpho
   simpa using h_enabled
 
@@ -359,7 +368,8 @@ theorem solidity_enableLltv_preserves_lltvMonotone
     (h_ok : solidityEnableLltv s lltvCall = some s') :
     s'.isLltvEnabled lltv := by
   have h_ok_morpho : Morpho.enableLltv s lltvCall = some s' := by
-    simpa [enableLltvSemEq] using (h_eq s lltvCall).symm.trans h_ok
+    simpa [enableLltvSemEq, Morpho.Specs.ContractSemantics.enableLltv] using
+      (h_eq s lltvCall).symm.trans h_ok
   exact enableLltv_monotone s lltvCall lltv h_ok_morpho h_enabled
 
 theorem solidity_supply_preserves_alwaysCollateralized
@@ -727,7 +737,8 @@ theorem solidity_setAuthorization_preserves_borrowLeSupply
     (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
     borrowLeSupply s' id := by
   have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+    simpa [setAuthorizationSemEq, Morpho.Specs.ContractSemantics.setAuthorization] using
+      (h_eq s authorized newIsAuthorized).symm.trans h_ok
   exact setAuthorization_preserves_borrowLeSupply s authorized newIsAuthorized id h_solvent h_ok_morpho
 
 theorem solidity_setAuthorization_preserves_alwaysCollateralized
@@ -739,7 +750,8 @@ theorem solidity_setAuthorization_preserves_alwaysCollateralized
     (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
     alwaysCollateralized s' id user := by
   have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+    simpa [setAuthorizationSemEq, Morpho.Specs.ContractSemantics.setAuthorization] using
+      (h_eq s authorized newIsAuthorized).symm.trans h_ok
   exact setAuthorization_preserves_alwaysCollateralized
     s authorized newIsAuthorized id user h_collat h_ok_morpho
 
@@ -752,7 +764,8 @@ theorem solidity_setAuthorization_preserves_irmMonotone
     (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
   have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+    simpa [setAuthorizationSemEq, Morpho.Specs.ContractSemantics.setAuthorization] using
+      (h_eq s authorized newIsAuthorized).symm.trans h_ok
   exact setAuthorization_preserves_irmMonotone s authorized newIsAuthorized irm h_enabled h_ok_morpho
 
 theorem solidity_setAuthorization_preserves_lltvMonotone
@@ -764,7 +777,8 @@ theorem solidity_setAuthorization_preserves_lltvMonotone
     (h_ok : soliditySetAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
   have h_ok_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
-    simpa [setAuthorizationSemEq] using (h_eq s authorized newIsAuthorized).symm.trans h_ok
+    simpa [setAuthorizationSemEq, Morpho.Specs.ContractSemantics.setAuthorization] using
+      (h_eq s authorized newIsAuthorized).symm.trans h_ok
   exact setAuthorization_preserves_lltvMonotone s authorized newIsAuthorized lltv h_enabled h_ok_morpho
 
 theorem solidity_setOwner_preserves_borrowLeSupply
@@ -775,7 +789,8 @@ theorem solidity_setOwner_preserves_borrowLeSupply
     (h_ok : soliditySetOwner s newOwner = some s') :
     borrowLeSupply s' id := by
   have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
-    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+    simpa [setOwnerSemEq, Morpho.Specs.ContractSemantics.setOwner] using
+      (h_eq s newOwner).symm.trans h_ok
   exact setOwner_preserves_borrowLeSupply s newOwner id h_solvent h_ok_morpho
 
 theorem solidity_setOwner_preserves_alwaysCollateralized
@@ -786,7 +801,8 @@ theorem solidity_setOwner_preserves_alwaysCollateralized
     (h_ok : soliditySetOwner s newOwner = some s') :
     alwaysCollateralized s' id user := by
   have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
-    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+    simpa [setOwnerSemEq, Morpho.Specs.ContractSemantics.setOwner] using
+      (h_eq s newOwner).symm.trans h_ok
   exact setOwner_preserves_alwaysCollateralized s newOwner id user h_collat h_ok_morpho
 
 theorem solidity_setOwner_preserves_irmMonotone
@@ -797,7 +813,8 @@ theorem solidity_setOwner_preserves_irmMonotone
     (h_ok : soliditySetOwner s newOwner = some s') :
     s'.isIrmEnabled irm := by
   have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
-    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+    simpa [setOwnerSemEq, Morpho.Specs.ContractSemantics.setOwner] using
+      (h_eq s newOwner).symm.trans h_ok
   exact setOwner_preserves_irmMonotone s newOwner irm h_enabled h_ok_morpho
 
 theorem solidity_setOwner_preserves_lltvMonotone
@@ -808,7 +825,8 @@ theorem solidity_setOwner_preserves_lltvMonotone
     (h_ok : soliditySetOwner s newOwner = some s') :
     s'.isLltvEnabled lltv := by
   have h_ok_morpho : Morpho.setOwner s newOwner = some s' := by
-    simpa [setOwnerSemEq] using (h_eq s newOwner).symm.trans h_ok
+    simpa [setOwnerSemEq, Morpho.Specs.ContractSemantics.setOwner] using
+      (h_eq s newOwner).symm.trans h_ok
   exact setOwner_preserves_lltvMonotone s newOwner lltv h_enabled h_ok_morpho
 
 theorem solidity_setFeeRecipient_preserves_borrowLeSupply
@@ -819,7 +837,8 @@ theorem solidity_setFeeRecipient_preserves_borrowLeSupply
     (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
     borrowLeSupply s' id := by
   have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+    simpa [setFeeRecipientSemEq, Morpho.Specs.ContractSemantics.setFeeRecipient] using
+      (h_eq s newFeeRecipient).symm.trans h_ok
   exact setFeeRecipient_preserves_borrowLeSupply s newFeeRecipient id h_solvent h_ok_morpho
 
 theorem solidity_setFeeRecipient_preserves_alwaysCollateralized
@@ -830,7 +849,8 @@ theorem solidity_setFeeRecipient_preserves_alwaysCollateralized
     (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
     alwaysCollateralized s' id user := by
   have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+    simpa [setFeeRecipientSemEq, Morpho.Specs.ContractSemantics.setFeeRecipient] using
+      (h_eq s newFeeRecipient).symm.trans h_ok
   exact setFeeRecipient_preserves_alwaysCollateralized s newFeeRecipient id user h_collat h_ok_morpho
 
 theorem solidity_setFeeRecipient_preserves_irmMonotone
@@ -841,7 +861,8 @@ theorem solidity_setFeeRecipient_preserves_irmMonotone
     (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
     s'.isIrmEnabled irm := by
   have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+    simpa [setFeeRecipientSemEq, Morpho.Specs.ContractSemantics.setFeeRecipient] using
+      (h_eq s newFeeRecipient).symm.trans h_ok
   exact setFeeRecipient_preserves_irmMonotone s newFeeRecipient irm h_enabled h_ok_morpho
 
 theorem solidity_setFeeRecipient_preserves_lltvMonotone
@@ -852,7 +873,8 @@ theorem solidity_setFeeRecipient_preserves_lltvMonotone
     (h_ok : soliditySetFeeRecipient s newFeeRecipient = some s') :
     s'.isLltvEnabled lltv := by
   have h_ok_morpho : Morpho.setFeeRecipient s newFeeRecipient = some s' := by
-    simpa [setFeeRecipientSemEq] using (h_eq s newFeeRecipient).symm.trans h_ok
+    simpa [setFeeRecipientSemEq, Morpho.Specs.ContractSemantics.setFeeRecipient] using
+      (h_eq s newFeeRecipient).symm.trans h_ok
   exact setFeeRecipient_preserves_lltvMonotone s newFeeRecipient lltv h_enabled h_ok_morpho
 
 theorem solidity_createMarket_preserves_borrowLeSupply
