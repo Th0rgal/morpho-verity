@@ -501,6 +501,30 @@ def _record_rename_family(
   entry["count"] += 1
 
 
+def _record_ambiguous_rename_family(
+    entries: list[dict[str, Any]],
+    family: str,
+    sol_keys: list[str],
+    ver_keys: list[str],
+) -> None:
+  entry = _family_entry_index(entries, family, "renameAmbiguous")
+  entry.setdefault("groups", []).append(
+    {
+      "solidityKeys": sol_keys,
+      "verityKeys": ver_keys,
+    }
+  )
+  entry["count"] += 1
+
+
+def _rename_family_label(sol_keys: list[str], ver_keys: list[str]) -> str:
+  sol_families = sorted({function_family_for_key(key) for key in sol_keys})
+  ver_families = sorted({function_family_for_key(key) for key in ver_keys})
+  if len(sol_families) == 1 and sol_families == ver_families:
+    return sol_families[0]
+  return f"{'|'.join(sol_families)}->{'|'.join(ver_families)}"
+
+
 def build_rewrite_family_summary(
     deltas: dict[str, list[str]],
     name_insensitive_pairs: dict[str, Any],
@@ -526,13 +550,18 @@ def build_rewrite_family_summary(
     _record_key_family(entries, family, "onlyInVerity", key)
     bump_priority(family)
 
-  for pair in name_insensitive_pairs["pairs"]:
+  for pair in name_insensitive_pairs.get("pairs", []):
     sol_key = pair["solidity"]["key"]
     ver_key = pair["verity"]["key"]
-    sol_family = function_family_for_key(sol_key)
-    ver_family = function_family_for_key(ver_key)
-    family = sol_family if sol_family == ver_family else f"{sol_family}->{ver_family}"
+    family = _rename_family_label([sol_key], [ver_key])
     _record_rename_family(entries, family, sol_key, ver_key)
+    bump_priority(family)
+
+  for group in name_insensitive_pairs.get("ambiguousGroups", []):
+    sol_keys = sorted(entry["key"] for entry in group["solidity"])
+    ver_keys = sorted(entry["key"] for entry in group["verity"])
+    family = _rename_family_label(sol_keys, ver_keys)
+    _record_ambiguous_rename_family(entries, family, sol_keys, ver_keys)
     bump_priority(family)
 
   entries.sort(key=lambda item: (-item["count"], item["family"], item["kind"]))

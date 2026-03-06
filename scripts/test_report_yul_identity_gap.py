@@ -183,6 +183,41 @@ object "M" {
     self.assertEqual(rename_entry["pairs"][0]["solidityKey"], "copy_literal_to_memory_a#0")
     self.assertEqual(summary["priorityFamilies"][0], {"family": "checked_add", "count": 3})
 
+  def test_build_rewrite_family_summary_includes_ambiguous_rename_groups(self) -> None:
+    summary = build_rewrite_family_summary(
+      {
+        "hashMismatch": [],
+        "onlyInSolidity": ["checked_add_uint128#0", "checked_add_uint256#0"],
+        "onlyInVerity": ["checked_add_uint64#0", "checked_add_uint32#0"],
+      },
+      {
+        "pairs": [],
+        "ambiguousGroups": [
+          {
+            "solidity": [
+              {"key": "checked_add_uint128#0"},
+              {"key": "checked_add_uint256#0"},
+            ],
+            "verity": [
+              {"key": "checked_add_uint32#0"},
+              {"key": "checked_add_uint64#0"},
+            ],
+          }
+        ],
+      },
+    )
+    ambiguous_entry = next(entry for entry in summary["entries"] if entry["kind"] == "renameAmbiguous")
+    self.assertEqual(ambiguous_entry["family"], "checked_add")
+    self.assertEqual(ambiguous_entry["count"], 1)
+    self.assertEqual(
+      ambiguous_entry["groups"][0],
+      {
+        "solidityKeys": ["checked_add_uint128#0", "checked_add_uint256#0"],
+        "verityKeys": ["checked_add_uint32#0", "checked_add_uint64#0"],
+      },
+    )
+    self.assertIn({"family": "checked_add", "count": 5}, summary["priorityFamilies"])
+
   def test_tokenizer_keeps_strings_and_compound_tokens(self) -> None:
     tokens = tokenize_normalized_yul('let x := add("a b", 0x10) -> y')
     self.assertEqual(tokens, ["let", "x", ":=", "add", "(", '"a b"', ",", "0x10", ")", "->", "y"])
@@ -249,6 +284,24 @@ object "M" {
     )
     rename_entry = next(entry for entry in summary["entries"] if entry["kind"] == "renameOnly")
     self.assertEqual(rename_entry["family"], "helper_renamed->helper")
+
+  def test_build_report_rewrite_family_summary_keeps_ambiguous_groups(self) -> None:
+    report, _ = build_report(
+      normalize_yul(
+        'object "M" { code { function checked_add_uint128() { leave } function checked_add_uint256() { leave } } }'
+      ),
+      normalize_yul(
+        'object "M" { code { function checked_add_uint32() { leave } function checked_add_uint64() { leave } } }'
+      ),
+      max_diff_lines=50,
+    )
+    ambiguous_entry = next(
+      entry
+      for entry in report["functionBlocks"]["rewriteFamilies"]["entries"]
+      if entry["kind"] == "renameAmbiguous"
+    )
+    self.assertEqual(ambiguous_entry["family"], "checked_add")
+    self.assertEqual(len(ambiguous_entry["groups"][0]["solidityKeys"]), 2)
 
   def test_build_exactness_summary_requires_ast_and_function_match(self) -> None:
     report, _ = build_report(
