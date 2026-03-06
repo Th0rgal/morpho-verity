@@ -24,6 +24,7 @@ SOLIDITY_ARTIFACT = ROOT / "morpho-blue" / "out" / "Morpho.sol" / "Morpho.json"
 RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
 DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
+ALLOWED_YUL_IDENTITY_GATE_MODES = {"unsupported-manifest", "exact"}
 
 
 @dataclass(frozen=True)
@@ -560,10 +561,26 @@ def build_parity_metadata(target: dict[str, Any]) -> dict[str, Any]:
     raw_pack = verity_cfg.get("parityPackId")
     if isinstance(raw_pack, str) and raw_pack.strip():
       parity_pack_id = raw_pack
+  gate_mode = yul_identity_gate_mode(target)
   return {
     "id": target["id"],
     "verityParityPackId": parity_pack_id,
+    "yulIdentityGateMode": gate_mode,
   }
+
+
+def yul_identity_gate_mode(target: dict[str, Any]) -> str:
+  yul_identity = target.get("yulIdentity")
+  if not isinstance(yul_identity, dict):
+    raise RuntimeError("Missing required config `yulIdentity.gateMode` in config/parity-target.json.")
+  gate_mode = yul_identity.get("gateMode")
+  if not isinstance(gate_mode, str) or gate_mode not in ALLOWED_YUL_IDENTITY_GATE_MODES:
+    allowed = ", ".join(sorted(ALLOWED_YUL_IDENTITY_GATE_MODES))
+    raise RuntimeError(
+      "Invalid config `yulIdentity.gateMode` in config/parity-target.json "
+      f"(expected one of: {allowed})."
+    )
+  return gate_mode
 
 
 def extract_solidity_ir_optimized() -> str:
@@ -761,6 +778,11 @@ def parse_args() -> argparse.Namespace:
     help="Exit non-zero when function-level mismatches diverge from the unsupported manifest.",
   )
   parser.add_argument(
+    "--enforce-configured-gate",
+    action="store_true",
+    help="Exit non-zero according to config/parity-target.json yulIdentity.gateMode.",
+  )
+  parser.add_argument(
     "--skip-build",
     action="store_true",
     help="Do not rebuild Solidity/Verity artifacts before generating the report.",
@@ -779,6 +801,7 @@ def main() -> int:
   verity_dir.mkdir(parents=True, exist_ok=True)
 
   target = read_json(PARITY_TARGET)
+  gate_mode = yul_identity_gate_mode(target)
   if not args.skip_build:
     prepared_dir = prepared_verity_artifact_dir()
     if prepared_dir is not None:
@@ -825,6 +848,7 @@ def main() -> int:
   print(f"fullyExact: {report['exactness']['fullyExact']}")
   if report["parityConfig"]["verityParityPackId"] is not None:
     print(f"verityParityPackId: {report['parityConfig']['verityParityPackId']}")
+  print(f"yulIdentityGateMode: {report['parityConfig']['yulIdentityGateMode']}")
   print(f"report: {display_path(out_dir / 'report.json')}")
   print(f"diff: {display_path(out_dir / 'normalized.diff')}")
   if report["unsupportedManifest"]["found"]:
@@ -840,6 +864,17 @@ def main() -> int:
   if args.exact and not report["exactness"]["fullyExact"]:
     print("yul-identity check failed: exact Yul parity not reached", file=sys.stderr)
     return 1
+  if args.enforce_configured_gate:
+    if gate_mode == "exact" and not report["exactness"]["fullyExact"]:
+      print("yul-identity check failed: configured exact Yul parity gate not reached", file=sys.stderr)
+      return 1
+    if gate_mode == "unsupported-manifest":
+      if not report["unsupportedManifest"]["found"]:
+        print("yul-identity check failed: unsupported manifest file is missing", file=sys.stderr)
+        return 1
+      if not report["unsupportedManifest"]["check"]["ok"]:
+        print("yul-identity check failed: unsupported manifest drift detected", file=sys.stderr)
+        return 1
   if args.enforce_unsupported_manifest:
     if not report["unsupportedManifest"]["found"]:
       print("yul-identity check failed: unsupported manifest file is missing", file=sys.stderr)

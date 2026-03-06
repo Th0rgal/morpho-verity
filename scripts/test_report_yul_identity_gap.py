@@ -26,6 +26,7 @@ from report_yul_identity_gap import (  # noqa: E402
   normalize_yul,
   prepared_verity_artifact_dir,
   tokenize_normalized_yul,
+  yul_identity_gate_mode,
 )
 
 
@@ -231,22 +232,38 @@ object "M" {
         {
           "id": "target-id",
           "verity": {"parityPackId": "solc-pack"},
+          "yulIdentity": {"gateMode": "unsupported-manifest"},
         }
       ),
       {
         "id": "target-id",
         "verityParityPackId": "solc-pack",
+        "yulIdentityGateMode": "unsupported-manifest",
       },
     )
 
   def test_build_parity_metadata_handles_missing_pack_id(self) -> None:
     self.assertEqual(
-      build_parity_metadata({"id": "target-id", "verity": {}}),
+      build_parity_metadata({"id": "target-id", "verity": {}, "yulIdentity": {"gateMode": "exact"}}),
       {
         "id": "target-id",
         "verityParityPackId": None,
+        "yulIdentityGateMode": "exact",
       },
     )
+
+  def test_yul_identity_gate_mode_reads_supported_values(self) -> None:
+    self.assertEqual(
+      yul_identity_gate_mode({"yulIdentity": {"gateMode": "unsupported-manifest"}}),
+      "unsupported-manifest",
+    )
+    self.assertEqual(yul_identity_gate_mode({"yulIdentity": {"gateMode": "exact"}}), "exact")
+
+  def test_yul_identity_gate_mode_rejects_missing_or_unknown_values(self) -> None:
+    with self.assertRaisesRegex(RuntimeError, "Missing required config `yulIdentity.gateMode`"):
+      yul_identity_gate_mode({})
+    with self.assertRaisesRegex(RuntimeError, "Invalid config `yulIdentity.gateMode`"):
+      yul_identity_gate_mode({"yulIdentity": {"gateMode": "strict"}})
 
   def test_build_report_top_level_mismatch_includes_token_coordinates(self) -> None:
     report, _ = build_report(

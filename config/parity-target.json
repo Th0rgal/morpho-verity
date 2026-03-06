@@ -14,5 +14,8 @@
   "verity": {
     "parityPackId": "solc-0.8.28-o999999-viair-true-evm-paris"
   },
+  "yulIdentity": {
+    "gateMode": "unsupported-manifest"
+  },
   "notes": "Pinned tuple validated against morpho-blue/foundry.toml and CI solc toolchain."
 }

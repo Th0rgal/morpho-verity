@@ -14,6 +14,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET_PATH = ROOT / "config" / "parity-target.json"
 FOUNDRY_PATH = ROOT / "morpho-blue" / "foundry.toml"
+ALLOWED_YUL_IDENTITY_GATE_MODES = {"unsupported-manifest", "exact"}
 
 
 def load_json(path: pathlib.Path) -> dict[str, Any]:
@@ -77,6 +78,20 @@ def fail(msg: str) -> None:
   sys.exit(1)
 
 
+def parse_yul_identity_gate_mode(target: dict[str, Any]) -> str:
+  yul_identity = target.get("yulIdentity")
+  if not isinstance(yul_identity, dict):
+    raise RuntimeError("missing required config `yulIdentity.gateMode` in config/parity-target.json")
+  gate_mode = yul_identity.get("gateMode")
+  if not isinstance(gate_mode, str) or gate_mode not in ALLOWED_YUL_IDENTITY_GATE_MODES:
+    allowed = ", ".join(sorted(ALLOWED_YUL_IDENTITY_GATE_MODES))
+    raise RuntimeError(
+      "invalid config `yulIdentity.gateMode` in config/parity-target.json "
+      f"(expected one of: {allowed})"
+    )
+  return gate_mode
+
+
 def main() -> None:
   target = load_json(TARGET_PATH)
   foundry = parse_foundry_default(read_text(FOUNDRY_PATH))
@@ -97,10 +112,15 @@ def main() -> None:
   verity_pack = target.get("verity", {}).get("parityPackId")
   if not isinstance(verity_pack, str) or not verity_pack:
     fail("missing required config `verity.parityPackId` in config/parity-target.json")
+  try:
+    yul_gate_mode = parse_yul_identity_gate_mode(target)
+  except RuntimeError as exc:
+    fail(str(exc))
 
   print(f"parity-target id: {target['id']}")
   print(f"solc: {version}+commit.{commit}")
   print(f"verity parity-pack: {verity_pack}")
+  print(f"yul identity gate: {yul_gate_mode}")
   print(
     "foundry.default: "
     f"optimizer={foundry['optimizer']} "
