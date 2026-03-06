@@ -166,6 +166,9 @@ jobs:
       - name: Run primitive coverage unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Primitive coverage unit tests" -- python3 scripts/test_check_primitive_coverage.py
 
+      - name: Run keccak selector helper forwarder unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Keccak selector helper forwarder unit tests" -- python3 scripts/test_keccak256.py
+
       - name: Run artifact-gate script unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh
 
