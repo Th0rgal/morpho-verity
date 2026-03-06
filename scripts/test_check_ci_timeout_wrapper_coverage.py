@@ -50,11 +50,19 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
         "run: ./scripts/run_with_timeout.sh M 1 desc -- python3 scripts/check_alpha.py",
         "run: ./scripts/run_with_timeout.sh M 1 desc -- python3 scripts/check_beta.py --strict",
         "run: ./scripts/run_with_timeout.sh M 1 desc -- ./scripts/check_gamma.sh --require lean",
+        "run: ./scripts/run_with_timeout.sh M 1 desc -- bash scripts/check_delta.sh",
+        "run: ./scripts/run_with_timeout.sh M 1 desc -- env sh scripts/check_epsilon.sh",
       ]
     )
     self.assertEqual(
       collect_wrapped_check_scripts(workflow_text),
-      {"check_alpha.py", "check_beta.py", "check_gamma.sh"},
+      {
+        "check_alpha.py",
+        "check_beta.py",
+        "check_gamma.sh",
+        "check_delta.sh",
+        "check_epsilon.sh",
+      },
     )
 
   def test_collect_wrapped_check_scripts_does_not_cross_lines(self) -> None:
@@ -98,7 +106,7 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
     workflow_text = "\n".join(
       [
         "run: ./scripts/run_with_timeout.sh M 1 check -- python3 scripts/check_alpha.py",
-        "run: ./scripts/check_beta.sh --require solc",
+        "run: bash scripts/check_beta.sh --require solc",
       ]
     )
     with tempfile.TemporaryDirectory() as tmp_dir:
