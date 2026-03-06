@@ -11,7 +11,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from patch_morpho_blue_harness import patch_repo  # noqa: E402
+from patch_morpho_blue_harness import patch_repo, validate_repo  # noqa: E402
 
 
 BASE_TEST = """// fake BaseTest
@@ -33,6 +33,17 @@ contract OnlyOwnerIntegrationTest is BaseTest {
 
     function testDeployEmitOwner() public {
         new Morpho(OWNER);
+    }
+}
+"""
+
+BASE_TEST_DRIFTED = """// fake BaseTest
+contract BaseTest {
+    IMorpho internal morpho;
+    address internal OWNER;
+
+    function setUp() public virtual {
+        morpho = IMorpho( address(new Morpho(OWNER)) );
     }
 }
 """
@@ -78,6 +89,20 @@ class PatchMorphoBlueHarnessTests(unittest.TestCase):
 
             self.assertTrue(patch_repo(root))
             self.assertEqual(patch_repo(root), [])
+
+    def test_validate_repo_reports_unpatched_constructor_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(tmpdir)
+            base_test = root / "morpho-blue" / "test" / "BaseTest.sol"
+            only_owner = root / "morpho-blue" / "test" / "integration" / "OnlyOwnerIntegrationTest.sol"
+            only_owner.parent.mkdir(parents=True)
+            base_test.write_text(BASE_TEST_DRIFTED, encoding="utf-8")
+            only_owner.write_text(ONLY_OWNER, encoding="utf-8")
+
+            patch_repo(root)
+            errors = validate_repo(root)
+
+            self.assertIn("BaseTest.sol does not route setUp() through _deployMorpho(OWNER).", errors)
 
 
 if __name__ == "__main__":

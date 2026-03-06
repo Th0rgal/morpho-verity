@@ -700,7 +700,8 @@ EOF
     echo "ASSERTION FAILED: expected missing MORPHO_IMPL harness wiring to fail"
     exit 1
   fi
-  assert_contains "ERROR: Morpho Blue harness does not consume MORPHO_IMPL." "${output_file}"
+  assert_contains "Morpho Blue harness patch failed validation:" "${output_file}"
+  assert_contains "BaseTest.sol is missing the _deployMorpho helper." "${output_file}"
 }
 
 test_fail_closed_when_harness_only_mentions_morpho_impl_in_comment() {
@@ -732,7 +733,8 @@ EOF
     echo "ASSERTION FAILED: expected comment-only MORPHO_IMPL mention to fail"
     exit 1
   fi
-  assert_contains "ERROR: Morpho Blue harness does not consume MORPHO_IMPL." "${output_file}"
+  assert_contains "Morpho Blue harness patch failed validation:" "${output_file}"
+  assert_contains "BaseTest.sol is missing the _deployMorpho helper." "${output_file}"
 }
 
 test_fail_closed_when_test_bypasses_selector() {
@@ -785,6 +787,42 @@ test_auto_patches_morpho_blue_harness() {
   assert_contains '_deployMorpho(OWNER);' "${fake_root}/morpho-blue/test/integration/OnlyOwnerIntegrationTest.sol"
 }
 
+test_fail_closed_when_harness_patch_does_not_replace_constructor() {
+  local fake_root output_file
+  fake_root="$(mktemp -d)"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  cat > "${fake_root}/morpho-blue/test/BaseTest.sol" <<'EOF'
+// fake harness with formatting drift in the deployment line
+contract BaseTest {
+    IMorpho internal morpho;
+    address internal OWNER;
+
+    function setUp() public virtual {
+        morpho = IMorpho( address(new Morpho(OWNER)) );
+    }
+}
+EOF
+
+  set +e
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=0 \
+      ./scripts/run_morpho_blue_parity.sh
+  ) >"${output_file}" 2>&1
+  local status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "ASSERTION FAILED: expected constructor drift to fail closed"
+    exit 1
+  fi
+  assert_contains "Morpho Blue harness patch failed validation:" "${output_file}"
+  assert_contains "BaseTest.sol does not route setUp() through _deployMorpho(OWNER)." "${output_file}"
+}
+
 test_skip_refused_outside_ci
 test_fail_closed_on_invalid_skip_toggle
 test_fail_closed_on_invalid_local_skip_override_toggle
@@ -807,6 +845,7 @@ test_fail_closed_when_harness_ignores_morpho_impl
 test_fail_closed_when_harness_only_mentions_morpho_impl_in_comment
 test_fail_closed_when_test_bypasses_selector
 test_auto_patches_morpho_blue_harness
+test_fail_closed_when_harness_patch_does_not_replace_constructor
 test_fail_closed_when_prepared_artifacts_missing_required_file
 test_clears_stale_rewritten_artifact_when_prepared_bundle_omits_it
 
