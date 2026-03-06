@@ -1,5 +1,6 @@
 import Morpho.Proofs.SemanticBridgeDischarge
 import Morpho.Proofs.SolidityBridge
+import Morpho.EDSLAdapter
 
 /-!
 # Semantic Bridge Instantiation: Concrete Invariant Proofs for EDSL Implementations
@@ -33,6 +34,7 @@ namespace Morpho.Proofs.SemanticBridgeInstantiation
 open Verity
 open Morpho.Types
 open Morpho.Specs.Invariants
+open Morpho.EDSLAdapter
 open Morpho.Proofs.SemanticBridgeDischarge
 open SolidityBridge
 
@@ -42,36 +44,36 @@ open SolidityBridge
 theorem edsl_setOwner_preserves_borrowLeSupply
     (s : MorphoState) (newOwner : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     borrowLeSupply s' id :=
-  solidity_setOwner_preserves_borrowLeSupply edslSetOwner setOwner_semEq s newOwner id s'
+  solidity_setOwner_preserves_borrowLeSupply Morpho.EDSLAdapter.setOwner setOwner_semEq s newOwner id s'
     h_solvent h_ok
 
 /-- The EDSL `setOwner` preserves the always-collateralized invariant. -/
 theorem edsl_setOwner_preserves_alwaysCollateralized
     (s : MorphoState) (newOwner : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     alwaysCollateralized s' id user :=
-  solidity_setOwner_preserves_alwaysCollateralized edslSetOwner setOwner_semEq s newOwner id user s'
+  solidity_setOwner_preserves_alwaysCollateralized Morpho.EDSLAdapter.setOwner setOwner_semEq s newOwner id user s'
     h_collat h_ok
 
 /-- The EDSL `setOwner` preserves IRM monotonicity. -/
 theorem edsl_setOwner_preserves_irmMonotone
     (s : MorphoState) (newOwner irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     s'.isIrmEnabled irm :=
-  solidity_setOwner_preserves_irmMonotone edslSetOwner setOwner_semEq s newOwner irm s'
+  solidity_setOwner_preserves_irmMonotone Morpho.EDSLAdapter.setOwner setOwner_semEq s newOwner irm s'
     h_enabled h_ok
 
 /-- The EDSL `setOwner` preserves LLTV monotonicity. -/
 theorem edsl_setOwner_preserves_lltvMonotone
     (s : MorphoState) (newOwner : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     s'.isLltvEnabled lltv :=
-  solidity_setOwner_preserves_lltvMonotone edslSetOwner setOwner_semEq s newOwner lltv s'
+  solidity_setOwner_preserves_lltvMonotone Morpho.EDSLAdapter.setOwner setOwner_semEq s newOwner lltv s'
     h_enabled h_ok
 
 /-! ## setFeeRecipient: EDSL preserves all invariants -/
@@ -79,33 +81,33 @@ theorem edsl_setOwner_preserves_lltvMonotone
 theorem edsl_setFeeRecipient_preserves_borrowLeSupply
     (s : MorphoState) (newFeeRecipient : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     borrowLeSupply s' id :=
-  solidity_setFeeRecipient_preserves_borrowLeSupply edslSetFeeRecipient setFeeRecipient_semEq
+  solidity_setFeeRecipient_preserves_borrowLeSupply Morpho.EDSLAdapter.setFeeRecipient setFeeRecipient_semEq
     s newFeeRecipient id s' h_solvent h_ok
 
 theorem edsl_setFeeRecipient_preserves_alwaysCollateralized
     (s : MorphoState) (newFeeRecipient : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     alwaysCollateralized s' id user :=
-  solidity_setFeeRecipient_preserves_alwaysCollateralized edslSetFeeRecipient setFeeRecipient_semEq
+  solidity_setFeeRecipient_preserves_alwaysCollateralized Morpho.EDSLAdapter.setFeeRecipient setFeeRecipient_semEq
     s newFeeRecipient id user s' h_collat h_ok
 
 theorem edsl_setFeeRecipient_preserves_irmMonotone
     (s : MorphoState) (newFeeRecipient irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     s'.isIrmEnabled irm :=
-  solidity_setFeeRecipient_preserves_irmMonotone edslSetFeeRecipient setFeeRecipient_semEq
+  solidity_setFeeRecipient_preserves_irmMonotone Morpho.EDSLAdapter.setFeeRecipient setFeeRecipient_semEq
     s newFeeRecipient irm s' h_enabled h_ok
 
 theorem edsl_setFeeRecipient_preserves_lltvMonotone
     (s : MorphoState) (newFeeRecipient : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetFeeRecipient s newFeeRecipient = some s') :
+    (h_ok : Morpho.EDSLAdapter.setFeeRecipient s newFeeRecipient = some s') :
     s'.isLltvEnabled lltv :=
-  solidity_setFeeRecipient_preserves_lltvMonotone edslSetFeeRecipient setFeeRecipient_semEq
+  solidity_setFeeRecipient_preserves_lltvMonotone Morpho.EDSLAdapter.setFeeRecipient setFeeRecipient_semEq
     s newFeeRecipient lltv s' h_enabled h_ok
 
 /-! ## enableIrm: EDSL preserves all invariants -/
@@ -113,33 +115,33 @@ theorem edsl_setFeeRecipient_preserves_lltvMonotone
 theorem edsl_enableIrm_preserves_borrowLeSupply
     (s : MorphoState) (irm : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslEnableIrm s irm = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irm = some s') :
     borrowLeSupply s' id :=
-  solidity_enableIrm_preserves_borrowLeSupply edslEnableIrm enableIrm_semEq
+  solidity_enableIrm_preserves_borrowLeSupply Morpho.EDSLAdapter.enableIrm enableIrm_semEq
     s irm id s' h_solvent h_ok
 
 theorem edsl_enableIrm_preserves_alwaysCollateralized
     (s : MorphoState) (irm : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslEnableIrm s irm = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irm = some s') :
     alwaysCollateralized s' id user :=
-  solidity_enableIrm_preserves_alwaysCollateralized edslEnableIrm enableIrm_semEq
+  solidity_enableIrm_preserves_alwaysCollateralized Morpho.EDSLAdapter.enableIrm enableIrm_semEq
     s irm id user s' h_collat h_ok
 
 theorem edsl_enableIrm_preserves_irmMonotone
     (s : MorphoState) (irmCall irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslEnableIrm s irmCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irmCall = some s') :
     s'.isIrmEnabled irm :=
-  solidity_enableIrm_preserves_irmMonotone edslEnableIrm enableIrm_semEq
+  solidity_enableIrm_preserves_irmMonotone Morpho.EDSLAdapter.enableIrm enableIrm_semEq
     s irmCall irm s' h_enabled h_ok
 
 theorem edsl_enableIrm_preserves_lltvMonotone
     (s : MorphoState) (irmCall : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslEnableIrm s irmCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irmCall = some s') :
     s'.isLltvEnabled lltv :=
-  solidity_enableIrm_preserves_lltvMonotone edslEnableIrm enableIrm_semEq
+  solidity_enableIrm_preserves_lltvMonotone Morpho.EDSLAdapter.enableIrm enableIrm_semEq
     s irmCall lltv s' h_enabled h_ok
 
 /-! ## enableLltv: EDSL preserves all invariants -/
@@ -147,33 +149,33 @@ theorem edsl_enableIrm_preserves_lltvMonotone
 theorem edsl_enableLltv_preserves_borrowLeSupply
     (s : MorphoState) (lltv : Uint256) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslEnableLltv s lltv = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltv = some s') :
     borrowLeSupply s' id :=
-  solidity_enableLltv_preserves_borrowLeSupply edslEnableLltv enableLltv_semEq
+  solidity_enableLltv_preserves_borrowLeSupply Morpho.EDSLAdapter.enableLltv enableLltv_semEq
     s lltv id s' h_solvent h_ok
 
 theorem edsl_enableLltv_preserves_alwaysCollateralized
     (s : MorphoState) (lltv : Uint256) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslEnableLltv s lltv = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltv = some s') :
     alwaysCollateralized s' id user :=
-  solidity_enableLltv_preserves_alwaysCollateralized edslEnableLltv enableLltv_semEq
+  solidity_enableLltv_preserves_alwaysCollateralized Morpho.EDSLAdapter.enableLltv enableLltv_semEq
     s lltv id user s' h_collat h_ok
 
 theorem edsl_enableLltv_preserves_irmMonotone
     (s : MorphoState) (lltvCall : Uint256) (irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslEnableLltv s lltvCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltvCall = some s') :
     s'.isIrmEnabled irm :=
-  solidity_enableLltv_preserves_irmMonotone edslEnableLltv enableLltv_semEq
+  solidity_enableLltv_preserves_irmMonotone Morpho.EDSLAdapter.enableLltv enableLltv_semEq
     s lltvCall irm s' h_enabled h_ok
 
 theorem edsl_enableLltv_preserves_lltvMonotone
     (s : MorphoState) (lltvCall lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslEnableLltv s lltvCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableLltv s lltvCall = some s') :
     s'.isLltvEnabled lltv :=
-  solidity_enableLltv_preserves_lltvMonotone edslEnableLltv enableLltv_semEq
+  solidity_enableLltv_preserves_lltvMonotone Morpho.EDSLAdapter.enableLltv enableLltv_semEq
     s lltvCall lltv s' h_enabled h_ok
 
 /-! ## setAuthorization: EDSL preserves all invariants -/
@@ -182,36 +184,36 @@ theorem edsl_setAuthorization_preserves_borrowLeSupply
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     borrowLeSupply s' id :=
-  solidity_setAuthorization_preserves_borrowLeSupply edslSetAuthorization setAuthorization_semEq
+  solidity_setAuthorization_preserves_borrowLeSupply Morpho.EDSLAdapter.setAuthorization setAuthorization_semEq
     s authorized newIsAuthorized id s' h_solvent h_ok
 
 theorem edsl_setAuthorization_preserves_alwaysCollateralized
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     alwaysCollateralized s' id user :=
-  solidity_setAuthorization_preserves_alwaysCollateralized edslSetAuthorization
+  solidity_setAuthorization_preserves_alwaysCollateralized Morpho.EDSLAdapter.setAuthorization
     setAuthorization_semEq s authorized newIsAuthorized id user s' h_collat h_ok
 
 theorem edsl_setAuthorization_preserves_irmMonotone
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm :=
-  solidity_setAuthorization_preserves_irmMonotone edslSetAuthorization setAuthorization_semEq
+  solidity_setAuthorization_preserves_irmMonotone Morpho.EDSLAdapter.setAuthorization setAuthorization_semEq
     s authorized newIsAuthorized irm s' h_enabled h_ok
 
 theorem edsl_setAuthorization_preserves_lltvMonotone
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
     (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.EDSLAdapter.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv :=
-  solidity_setAuthorization_preserves_lltvMonotone edslSetAuthorization setAuthorization_semEq
+  solidity_setAuthorization_preserves_lltvMonotone Morpho.EDSLAdapter.setAuthorization setAuthorization_semEq
     s authorized newIsAuthorized lltv s' h_enabled h_ok
 
 /-! ## Summary
@@ -236,8 +238,8 @@ The full semantic bridge additionally requires:
   (proven in verity `Compiler/Proofs/EndToEnd.lean`)
 
 Once Links 2+3 are composed, these 20 theorems extend to the compiled
-EVM bytecode automatically: if `edslSetOwner` preserves `borrowLeSupply`,
-and the compiled bytecode behaves identically to `edslSetOwner`, then the
+EVM bytecode automatically: if `Morpho.EDSLAdapter.setOwner` preserves `borrowLeSupply`,
+and the compiled bytecode behaves identically to `Morpho.EDSLAdapter.setOwner`, then the
 compiled bytecode also preserves `borrowLeSupply`.
 -/
 

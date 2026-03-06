@@ -1,3 +1,4 @@
+import Morpho.EDSLAdapter
 import Morpho.Proofs.SemanticBridgeDischarge
 import Morpho.Proofs.Invariants
 
@@ -10,7 +11,7 @@ theorems, and documents the precise gap for Links 2+3 (EDSL ↔ compiled IR ↔ 
 ## What this proves (no sorry)
 
 For setOwner, we compose:
-- Link 1 (SemanticBridgeDischarge): `edslSetOwner = Morpho.setOwner`
+- Link 1 (SemanticBridgeDischarge): `Morpho.EDSLAdapter.setOwner = Morpho.setOwner`
 - Pure invariant (Invariants): `Morpho.setOwner` preserves `borrowLeSupply` etc.
 
 Result: the EDSL `setOwner` preserves all Morpho invariants, proven by direct
@@ -37,13 +38,14 @@ namespace Morpho.Proofs.SemanticBridgeEndToEnd
 
 open Verity
 open Morpho.Types
+open Morpho.EDSLAdapter
 open Morpho.Proofs.SemanticBridgeDischarge
 open Morpho.Proofs.Invariants
 open Morpho.Specs.Invariants
 
 /-! ## Direct Link 1 + Invariants composition
 
-These theorems compose Link 1 (`edslSetOwner = Morpho.setOwner`) directly
+These theorems compose Link 1 (`Morpho.EDSLAdapter.setOwner = Morpho.setOwner`) directly
 with the pure invariant theorems, bypassing the parametric SolidityBridge layer.
 This is the most direct proof that the EDSL implementation preserves invariants.
 -/
@@ -53,7 +55,7 @@ This is the most direct proof that the EDSL implementation preserves invariants.
 theorem edsl_setOwner_borrowLeSupply
     (s : MorphoState) (newOwner : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -63,7 +65,7 @@ theorem edsl_setOwner_borrowLeSupply
 theorem edsl_setOwner_alwaysCollateralized
     (s : MorphoState) (newOwner : Address) (id : Id) (user : Address) (s' : MorphoState)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     alwaysCollateralized s' id user := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -73,7 +75,7 @@ theorem edsl_setOwner_alwaysCollateralized
 theorem edsl_setOwner_irmMonotone
     (s : MorphoState) (newOwner irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -83,7 +85,7 @@ theorem edsl_setOwner_irmMonotone
 theorem edsl_setOwner_lltvMonotone
     (s : MorphoState) (newOwner : Address) (lltv : Uint256) (s' : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : edslSetOwner s newOwner = some s') :
+    (h_ok : Morpho.EDSLAdapter.setOwner s newOwner = some s') :
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setOwner s newOwner = some s' := by
     rw [← setOwner_link1]; exact h_ok
@@ -94,7 +96,7 @@ theorem edsl_setOwner_lltvMonotone
 theorem edsl_enableIrm_borrowLeSupply
     (s : MorphoState) (irm : Address) (id : Id) (s' : MorphoState)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : edslEnableIrm s irm = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irm = some s') :
     borrowLeSupply s' id := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
     rw [← enableIrm_link1]; exact h_ok
@@ -103,7 +105,7 @@ theorem edsl_enableIrm_borrowLeSupply
 theorem edsl_enableIrm_irmMonotone
     (s : MorphoState) (irmCall irm : Address) (s' : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : edslEnableIrm s irmCall = some s') :
+    (h_ok : Morpho.EDSLAdapter.enableIrm s irmCall = some s') :
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.enableIrm s irmCall = some s' := by
     rw [← enableIrm_link1]; exact h_ok

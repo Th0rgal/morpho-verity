@@ -2,6 +2,7 @@ import Compiler.Specs
 import Compiler.DiffTestTypes
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Proofs.Stdlib.Automation
+import Morpho.EDSLAdapter
 import Morpho.Compiler.MacroSlice
 import Morpho.Compiler.Generated
 import Morpho.Proofs.SemanticBridgeDischarge

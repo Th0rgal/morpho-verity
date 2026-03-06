@@ -7,7 +7,8 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 ## Status
 
 5/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
-enableIrm, enableLltv, setAuthorization. The proofs are in
+enableIrm, enableLltv, setAuthorization. The executable adapter wrappers live in
+`Morpho/EDSLAdapter.lean`, and the equivalence proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
 All 5 also have Link 2 (EDSL ↔ CompilationModel) proven in
@@ -228,4 +229,3 @@ Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json
 2. Status values: `assumed | in_progress | discharged`.
 3. CI must publish counts by status (`scripts/check_semantic_bridge_obligations.py`).
 4. README safety claims must reference this table.
-
