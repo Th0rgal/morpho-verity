@@ -19,7 +19,10 @@ compilation proofs (Links 2+3: EDSL ↔ IR ↔ Yul).
 - **setFeeRecipient**: reads TWO different storage address fields (ownerSlot for auth,
   feeRecipientSlot for ≠ check) — needs a new `SupportedStmtFragment` constructor
   in verity that supports reading two distinct address storage fields.
-  As of verity pin 08d942a5, only single-field-read patterns are supported.
+  As of verity pin dab9a567, only single-field-read patterns are supported.
+  Note: verity now ships
+  `witness_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_feeRecipient_supported`,
+  but it models sender == feeRecipient (tracked upstream in verity#1189).
 -/
 
 namespace Morpho.Proofs.CompilationCorrectness
@@ -54,6 +57,67 @@ def morphoFields : List Field :=
   ]
 
 /-! ## SupportedStmtList witnesses -/
+
+/-! Upstream canonical witnesses (verity pin dab9a567) for Morpho admin patterns.
+These are reference pattern theorems over verity-owned field layouts.
+The morpho-specific proofs below keep our 8-field `morphoFields` layout. -/
+
+theorem setOwner_supported_upstream :
+    SupportedStmtList adminPatternFields
+      [ Stmt.letVar "sender" Expr.caller
+      , Stmt.letVar "ownerVar" (Expr.storage "owner")
+      , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
+      , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param "newOwner") (Expr.localVar "ownerVar")))
+          "already owner"
+      , Stmt.setStorage "owner" (Expr.param "newOwner")
+      , Stmt.stop ] := by
+  simpa using
+    witness_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_owner_supported
+
+theorem enableIrm_supported_upstream :
+    SupportedStmtList morphoEnableIrmFields
+      [ Stmt.letVar "sender" Expr.caller
+      , Stmt.letVar "ownerVar" (Expr.storage "owner")
+      , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
+      , Stmt.letVar "isEnabled" (Expr.mapping "isIrmEnabled" (Expr.param "irm"))
+      , Stmt.require (Expr.eq (Expr.localVar "isEnabled") (Expr.literal 0)) "already enabled"
+      , Stmt.setMapping "isIrmEnabled" (Expr.param "irm") (Expr.literal 1)
+      , Stmt.stop ] := by
+  simpa using
+    witness_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_enableIrm_supported
+
+theorem enableLltv_supported_upstream :
+    SupportedStmtList morphoEnableLltvFields
+      [ Stmt.letVar "sender" Expr.caller
+      , Stmt.letVar "ownerVar" (Expr.storage "owner")
+      , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
+      , Stmt.letVar "isEnabled" (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv"))
+      , Stmt.require (Expr.eq (Expr.localVar "isEnabled") (Expr.literal 0)) "already enabled"
+      , Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal 1000000000000000000))
+          "lltv too high"
+      , Stmt.setMappingUint "isLltvEnabled" (Expr.param "lltv") (Expr.literal 1)
+      , Stmt.stop ] := by
+  simpa using
+    witness_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_enableLltv_supported
+
+theorem setAuthorization_supported_upstream :
+    SupportedStmtList morphoSetAuthorizationFields
+      [ Stmt.letVar "sender" Expr.caller
+      , Stmt.letVar "isAuthorizedNow"
+          (Expr.mapping2 "isAuthorized" (Expr.localVar "sender") (Expr.param "authorized"))
+      , Stmt.ite (Expr.param "newIsAuthorized")
+          [ Stmt.require (Expr.eq (Expr.localVar "isAuthorizedNow") (Expr.literal 0))
+              "already authorized"
+          , Stmt.setMapping2 "isAuthorized" (Expr.localVar "sender") (Expr.param "authorized")
+              (Expr.literal 1) ]
+          [ Stmt.require
+              (Expr.logicalNot (Expr.eq (Expr.localVar "isAuthorizedNow") (Expr.literal 0)))
+              "already not authorized"
+          , Stmt.setMapping2 "isAuthorized" (Expr.localVar "sender") (Expr.param "authorized")
+              (Expr.literal 0) ]
+      , Stmt.stop ] := by
+  simpa using
+    witness_letCallerLetMapping2IteParamReqSetMapping2Stop_setAuthorization_supported
 
 /-- The `setOwner` function body is a `SupportedStmtList`. -/
 theorem setOwner_supported :
