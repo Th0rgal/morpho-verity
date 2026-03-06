@@ -228,6 +228,52 @@ EOF
   assert_contains "ERROR: descendant command timed out after 1s" "${output_file}"
 }
 
+test_kill_after_tracks_session_group_when_parent_exits_on_term() {
+  local temp_dir output_file child_script marker
+  temp_dir="$(mktemp -d)"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-parent-exits-$$"
+  child_script="${temp_dir}/spawn-term-ignoring-descendant.sh"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${temp_dir}" "${output_file}"' RETURN
+
+  cat > "${child_script}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+child_pid=""
+cleanup() {
+  if [[ -n "\${child_pid}" ]]; then
+    wait "\${child_pid}" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+trap 'exit 0' TERM
+exec -a "${marker}" bash -lc 'trap "" TERM; while true; do sleep 5; done' &
+child_pid=\$!
+while true; do sleep 5; done
+EOF
+  chmod +x "${child_script}"
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="1" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "parent-exits-on-term command" -- \
+      "${child_script}" >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 137 ]]; then
+    echo "ASSERTION FAILED: expected parent-exits-on-term timeout exit code 137, got ${status}"
+    cat "${output_file}" || true
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected surviving descendant process group to be hard-killed"
+    exit 1
+  fi
+  assert_contains "ERROR: parent-exits-on-term command timed out after 1s" "${output_file}"
+  assert_contains "ERROR: timeout env=MORPHO_TEST_TIMEOUT_SEC kill-after=1s" "${output_file}"
+}
+
 test_non_timeout_failure_preserves_exit_code() {
   set +e
   MORPHO_TEST_TIMEOUT_SEC="5" \
@@ -495,6 +541,7 @@ test_zero_kill_after_value_fails_closed
 test_timeout_failure_reports_diagnostic
 test_timeout_kills_term_ignoring_processes
 test_timeout_kills_descendant_process_group
+test_kill_after_tracks_session_group_when_parent_exits_on_term
 test_non_timeout_failure_preserves_exit_code
 test_zero_timeout_disables_timeout_and_preserves_exit_code
 test_setsid_command_missing_fails_closed

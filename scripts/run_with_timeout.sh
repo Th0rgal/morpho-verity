@@ -74,6 +74,14 @@ stop_watchdog() {
   fi
 }
 
+signal_target_is_alive() {
+  if [[ -n "${session_pid}" ]]; then
+    kill -0 "-${signal_pid}" >/dev/null 2>&1
+  else
+    kill -0 "${signal_pid}" >/dev/null 2>&1
+  fi
+}
+
 terminate_running_command() {
   local reason="${1:-}"
   local target_pid=""
@@ -198,7 +206,7 @@ watchdog() {
   wait "${sleep_pid}" >/dev/null 2>&1 || true
   sleep_pid=""
 
-  if kill -0 "${command_pid}" >/dev/null 2>&1; then
+  if signal_target_is_alive; then
     printf 'timeout\n' > "${status_file}"
     kill -TERM "-${signal_pid}" >/dev/null 2>&1 || true
 
@@ -207,7 +215,7 @@ watchdog() {
     wait "${sleep_pid}" >/dev/null 2>&1 || true
     sleep_pid=""
 
-    if kill -0 "${command_pid}" >/dev/null 2>&1; then
+    if signal_target_is_alive; then
       printf 'kill-after\n' > "${status_file}"
       kill -KILL "-${signal_pid}" >/dev/null 2>&1 || true
     fi
