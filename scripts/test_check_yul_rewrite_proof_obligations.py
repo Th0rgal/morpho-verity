@@ -11,6 +11,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_yul_rewrite_proof_obligations import (  # noqa: E402
     RewriteProofError,
     build_report,
+    extract_declared_proof_obligations,
+    extract_manifest_proof_plans,
     extract_declared_proof_refs,
     extract_manifest_proof_refs,
     validate_manifest_against_proofs,
@@ -26,7 +28,7 @@ axiom width_alignment : RewriteProofObligation "rewrite.checked_add.width_alignm
 end checked_add
 
 namespace rename_only
-theorem alpha_equiv : True := by
+theorem alpha_equiv : RewriteProofObligation "rewrite.rename_only.alpha_equiv" "rename-pass" "renameOnly" := by
   trivial
 end rename_only
 end rewrite
@@ -40,12 +42,14 @@ class ExtractManifestProofRefsTests(unittest.TestCase):
         manifest = {
             "defaults": {
                 "renameOnly": {
+                    "rewritePass": "rename-pass",
                     "proofRefs": ["rewrite.rename_only.alpha_equiv"],
                 }
             },
             "families": [
                 {
                     "family": "checked_add",
+                    "rewritePass": "pass",
                     "proofRefs": ["rewrite.checked_add.width_alignment"],
                 }
             ],
@@ -61,7 +65,7 @@ class ExtractManifestProofRefsTests(unittest.TestCase):
     def test_rejects_empty_plan_proof_refs(self) -> None:
         manifest = {
             "defaults": {},
-            "families": [{"family": "checked_add", "proofRefs": []}],
+            "families": [{"family": "checked_add", "rewritePass": "pass", "proofRefs": []}],
         }
         with self.assertRaisesRegex(RewriteProofError, "must list at least one proof ref"):
             extract_manifest_proof_refs(manifest)
@@ -70,6 +74,7 @@ class ExtractManifestProofRefsTests(unittest.TestCase):
         manifest = {
             "defaults": {
                 "renameOnly": {
+                    "rewritePass": "rename-pass",
                     "proofRefs": [""],
                 }
             },
@@ -77,6 +82,25 @@ class ExtractManifestProofRefsTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(RewriteProofError, "non-empty strings"):
             extract_manifest_proof_refs(manifest)
+
+    def test_rejects_duplicate_proof_refs_across_manifest_entries(self) -> None:
+        manifest = {
+            "defaults": {
+                "renameOnly": {
+                    "rewritePass": "rename-pass",
+                    "proofRefs": ["rewrite.checked_add.width_alignment"],
+                }
+            },
+            "families": [
+                {
+                    "family": "checked_add",
+                    "rewritePass": "pass",
+                    "proofRefs": ["rewrite.checked_add.width_alignment"],
+                }
+            ],
+        }
+        with self.assertRaisesRegex(RewriteProofError, "duplicated across entries"):
+            extract_manifest_proof_plans(manifest)
 
 
 class ExtractDeclaredProofRefsTests(unittest.TestCase):
@@ -89,6 +113,23 @@ class ExtractDeclaredProofRefsTests(unittest.TestCase):
             ],
         )
 
+    def test_extracts_declared_obligation_metadata(self) -> None:
+        self.assertEqual(
+            extract_declared_proof_obligations(SAMPLE_LEAN),
+            {
+                "rewrite.checked_add.width_alignment": {
+                    "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.checked_add.width_alignment",
+                    "rewritePass": "pass",
+                    "family": "checked_add",
+                },
+                "rewrite.rename_only.alpha_equiv": {
+                    "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.rename_only.alpha_equiv",
+                    "rewritePass": "rename-pass",
+                    "family": "renameOnly",
+                },
+            },
+        )
+
     def test_ignores_other_namespaces(self) -> None:
         lean = """\
 namespace Other.Namespace
@@ -97,26 +138,80 @@ end Other.Namespace
 """
         self.assertEqual(extract_declared_proof_refs(lean), [])
 
+    def test_rejects_declared_ref_mismatch(self) -> None:
+        lean = """\
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+axiom width_alignment :
+  RewriteProofObligation "rewrite.checked_add.other_name" "pass" "checked_add"
+end checked_add
+end rewrite
+end Morpho.Proofs.YulRewriteProofs
+"""
+        with self.assertRaisesRegex(RewriteProofError, "must reference proof ref"):
+            extract_declared_proof_obligations(lean)
+
 
 class ValidateManifestAgainstProofsTests(unittest.TestCase):
     def test_matching_sets_pass(self) -> None:
         validate_manifest_against_proofs(
-            ["rewrite.checked_add.width_alignment"],
-            ["rewrite.checked_add.width_alignment"],
+            {
+                "rewrite.checked_add.width_alignment": {
+                    "rewritePass": "pass",
+                    "family": "checked_add",
+                }
+            },
+            {
+                "rewrite.checked_add.width_alignment": {
+                    "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.checked_add.width_alignment",
+                    "rewritePass": "pass",
+                    "family": "checked_add",
+                }
+            },
         )
 
     def test_missing_proof_placeholder_fails(self) -> None:
         with self.assertRaisesRegex(RewriteProofError, "not declared"):
             validate_manifest_against_proofs(
-                ["rewrite.checked_add.width_alignment"],
-                [],
+                {
+                    "rewrite.checked_add.width_alignment": {
+                        "rewritePass": "pass",
+                        "family": "checked_add",
+                    }
+                },
+                {},
             )
 
     def test_extra_proof_placeholder_fails(self) -> None:
         with self.assertRaisesRegex(RewriteProofError, "not tracked by manifest"):
             validate_manifest_against_proofs(
-                [],
-                ["rewrite.checked_add.width_alignment"],
+                {},
+                {
+                    "rewrite.checked_add.width_alignment": {
+                        "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.checked_add.width_alignment",
+                        "rewritePass": "pass",
+                        "family": "checked_add",
+                    }
+                },
+            )
+
+    def test_metadata_mismatch_fails(self) -> None:
+        with self.assertRaisesRegex(RewriteProofError, "metadata mismatch"):
+            validate_manifest_against_proofs(
+                {
+                    "rewrite.checked_add.width_alignment": {
+                        "rewritePass": "pass",
+                        "family": "checked_add",
+                    }
+                },
+                {
+                    "rewrite.checked_add.width_alignment": {
+                        "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.checked_add.width_alignment",
+                        "rewritePass": "other-pass",
+                        "family": "checked_add",
+                    }
+                },
             )
 
 
