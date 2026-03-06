@@ -470,6 +470,83 @@ def build_function_family_summary(deltas: dict[str, list[str]]) -> dict[str, Any
   }
 
 
+def _family_entry_index(entries: list[dict[str, Any]], family: str, kind: str) -> dict[str, Any]:
+  for entry in entries:
+    if entry["family"] == family and entry["kind"] == kind:
+      return entry
+  entry = {"family": family, "kind": kind, "count": 0}
+  entries.append(entry)
+  return entry
+
+
+def _record_key_family(entries: list[dict[str, Any]], family: str, kind: str, key: str) -> None:
+  entry = _family_entry_index(entries, family, kind)
+  entry.setdefault("keys", []).append(key)
+  entry["count"] += 1
+
+
+def _record_rename_family(
+    entries: list[dict[str, Any]],
+    family: str,
+    sol_key: str,
+    ver_key: str,
+) -> None:
+  entry = _family_entry_index(entries, family, "renameOnly")
+  entry.setdefault("pairs", []).append(
+    {
+      "solidityKey": sol_key,
+      "verityKey": ver_key,
+    }
+  )
+  entry["count"] += 1
+
+
+def build_rewrite_family_summary(
+    deltas: dict[str, list[str]],
+    name_insensitive_pairs: dict[str, Any],
+) -> dict[str, Any]:
+  entries: list[dict[str, Any]] = []
+  priority_counts: dict[str, int] = {}
+
+  def bump_priority(family: str, count: int = 1) -> None:
+    priority_counts[family] = priority_counts.get(family, 0) + count
+
+  for key in sorted(deltas["hashMismatch"]):
+    family = function_family_for_key(key)
+    _record_key_family(entries, family, "hashMismatch", key)
+    bump_priority(family)
+
+  for key in sorted(deltas["onlyInSolidity"]):
+    family = function_family_for_key(key)
+    _record_key_family(entries, family, "onlyInSolidity", key)
+    bump_priority(family)
+
+  for key in sorted(deltas["onlyInVerity"]):
+    family = function_family_for_key(key)
+    _record_key_family(entries, family, "onlyInVerity", key)
+    bump_priority(family)
+
+  for pair in name_insensitive_pairs["pairs"]:
+    sol_key = pair["solidity"]["key"]
+    ver_key = pair["verity"]["key"]
+    sol_family = function_family_for_key(sol_key)
+    ver_family = function_family_for_key(ver_key)
+    family = sol_family if sol_family == ver_family else f"{sol_family}->{ver_family}"
+    _record_rename_family(entries, family, sol_key, ver_key)
+    bump_priority(family)
+
+  entries.sort(key=lambda item: (-item["count"], item["family"], item["kind"]))
+  priority = [
+    {"family": family, "count": count}
+    for family, count in sorted(priority_counts.items(), key=lambda item: (-item[1], item[0]))
+  ]
+  return {
+    "version": "rewrite-family-v1",
+    "entries": entries,
+    "priorityFamilies": priority,
+  }
+
+
 def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
@@ -653,6 +730,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
     solidity_function_digests, verity_function_digests, function_deltas
   )
   family_summary = build_function_family_summary(function_deltas)
+  rewrite_families = build_rewrite_family_summary(function_deltas, name_insensitive_pairs)
 
   solidity_tokens = tokenize_normalized_yul_with_spans(normalized_solc)
   verity_tokens = tokenize_normalized_yul_with_spans(normalized_verity)
@@ -726,6 +804,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
       "mismatchDetails": mismatch_details,
       "nameInsensitivePairs": name_insensitive_pairs,
       "familySummary": family_summary,
+      "rewriteFamilies": rewrite_families,
     },
     "diff": {"lineCount": len(diff_lines), "truncated": len(diff_lines) > max_diff_lines},
   }

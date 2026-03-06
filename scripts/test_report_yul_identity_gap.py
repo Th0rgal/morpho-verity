@@ -15,6 +15,7 @@ from report_yul_identity_gap import (  # noqa: E402
   build_exactness_summary,
   build_function_family_summary,
   build_parity_metadata,
+  build_rewrite_family_summary,
   build_name_insensitive_pairs,
   build_report,
   copy_prepared_verity_yul,
@@ -153,6 +154,35 @@ object "M" {
       summary["priorityOnlyInSolidityFamilies"][0], {"family": "checked_add", "count": 2}
     )
 
+  def test_build_rewrite_family_summary_groups_kinds_and_priority(self) -> None:
+    summary = build_rewrite_family_summary(
+      {
+        "hashMismatch": ["checked_add_uint256#0"],
+        "onlyInSolidity": ["checked_add_uint128#0", "mappingSlot#0"],
+        "onlyInVerity": ["checked_add_uint64#0"],
+      },
+      {
+        "pairs": [
+          {
+            "solidity": {"key": "copy_literal_to_memory_a#0"},
+            "verity": {"key": "copy_literal_to_memory_b#0"},
+          }
+        ]
+      },
+    )
+    self.assertEqual(summary["version"], "rewrite-family-v1")
+    self.assertEqual(summary["entries"][0]["family"], "checked_add")
+    self.assertEqual(summary["entries"][0]["count"], 1)
+    self.assertEqual(summary["entries"][0]["kind"], "hashMismatch")
+    checked_add_kinds = {(entry["family"], entry["kind"], entry["count"]) for entry in summary["entries"]}
+    self.assertIn(("checked_add", "hashMismatch", 1), checked_add_kinds)
+    self.assertIn(("checked_add", "onlyInSolidity", 1), checked_add_kinds)
+    self.assertIn(("checked_add", "onlyInVerity", 1), checked_add_kinds)
+    rename_entry = next(entry for entry in summary["entries"] if entry["kind"] == "renameOnly")
+    self.assertEqual(rename_entry["family"], "copy_literal_to_memory")
+    self.assertEqual(rename_entry["pairs"][0]["solidityKey"], "copy_literal_to_memory_a#0")
+    self.assertEqual(summary["priorityFamilies"][0], {"family": "checked_add", "count": 3})
+
   def test_tokenizer_keeps_strings_and_compound_tokens(self) -> None:
     tokens = tokenize_normalized_yul('let x := add("a b", 0x10) -> y')
     self.assertEqual(tokens, ["let", "x", ":=", "add", "(", '"a b"', ",", "0x10", ")", "->", "y"])
@@ -195,6 +225,30 @@ object "M" {
     self.assertEqual(summary["onlyInSolidity"][0]["family"], "checked_add")
     self.assertEqual(summary["onlyInVerity"][0]["family"], "checked_add")
     self.assertIn("mappingSlot", [entry["family"] for entry in summary["onlyInVerity"]])
+
+  def test_build_report_includes_rewrite_family_summary(self) -> None:
+    report, _ = build_report(
+      normalize_yul(
+        'object "M" { code { function checked_add_uint128() { pop(1) } function helper() { mstore(0, 7) } } }'
+      ),
+      normalize_yul(
+        'object "M" { code { function checked_add_uint256() { pop(2) } function helper_renamed() { mstore(0, 7) } } }'
+      ),
+      max_diff_lines=50,
+    )
+    summary = report["functionBlocks"]["rewriteFamilies"]
+    self.assertEqual(summary["version"], "rewrite-family-v1")
+    self.assertEqual(summary["priorityFamilies"][0], {"family": "checked_add", "count": 2})
+    self.assertIn(
+      ("checked_add", "onlyInSolidity"),
+      {(entry["family"], entry["kind"]) for entry in summary["entries"]},
+    )
+    self.assertIn(
+      ("checked_add", "onlyInVerity"),
+      {(entry["family"], entry["kind"]) for entry in summary["entries"]},
+    )
+    rename_entry = next(entry for entry in summary["entries"] if entry["kind"] == "renameOnly")
+    self.assertEqual(rename_entry["family"], "helper_renamed->helper")
 
   def test_build_exactness_summary_requires_ast_and_function_match(self) -> None:
     report, _ = build_report(
