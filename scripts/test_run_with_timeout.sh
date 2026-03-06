@@ -192,6 +192,42 @@ test_timeout_kills_term_ignoring_processes() {
   assert_contains "ERROR: remediate by increasing MORPHO_TEST_TIMEOUT_SEC or reducing work in this stage" "${output_file}"
 }
 
+test_timeout_kills_descendant_process_group() {
+  local temp_dir output_file child_script marker
+  temp_dir="$(mktemp -d)"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-descendant-$$"
+  child_script="${temp_dir}/spawn-descendant.sh"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${temp_dir}" "${output_file}"' RETURN
+
+  cat > "${child_script}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+trap '' TERM
+exec -a "${marker}" bash -lc 'trap "" TERM; while true; do sleep 5; done' &
+while true; do sleep 5; done
+EOF
+  chmod +x "${child_script}"
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="1" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "descendant command" -- \
+      "${child_script}" >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 137 ]]; then
+    echo "ASSERTION FAILED: expected descendant timeout exit code 137, got ${status}"
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected descendant process group to be terminated"
+    exit 1
+  fi
+  assert_contains "ERROR: descendant command timed out after 1s" "${output_file}"
+}
+
 test_non_timeout_failure_preserves_exit_code() {
   set +e
   MORPHO_TEST_TIMEOUT_SEC="5" \
@@ -218,7 +254,7 @@ test_zero_timeout_disables_timeout_and_preserves_exit_code() {
   fi
 }
 
-test_timeout_command_missing_fails_closed() {
+test_setsid_command_missing_fails_closed() {
   local fake_root fake_bin output_file
   fake_root="$(mktemp -d)"
   fake_bin="${fake_root}/bin"
@@ -231,15 +267,15 @@ test_timeout_command_missing_fails_closed() {
   set +e
   PATH="${fake_bin}" \
     MORPHO_TEST_TIMEOUT_SEC="1" \
-    bash "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "missing-timeout command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+    bash "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "missing-setsid command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
   status=$?
   set -e
 
   if [[ "${status}" -ne 2 ]]; then
-    echo "ASSERTION FAILED: expected exit code 2 when timeout command is missing, got ${status}"
+    echo "ASSERTION FAILED: expected exit code 2 when setsid command is missing, got ${status}"
     exit 1
   fi
-  assert_contains "ERROR: timeout command is required when MORPHO_TEST_TIMEOUT_SEC is greater than zero" "${output_file}"
+  assert_contains "ERROR: setsid command is required when MORPHO_TEST_TIMEOUT_SEC is greater than zero" "${output_file}"
 }
 
 test_success_passthrough() {
@@ -256,9 +292,10 @@ test_invalid_kill_after_value_fails_closed
 test_zero_kill_after_value_fails_closed
 test_timeout_failure_reports_diagnostic
 test_timeout_kills_term_ignoring_processes
+test_timeout_kills_descendant_process_group
 test_non_timeout_failure_preserves_exit_code
 test_zero_timeout_disables_timeout_and_preserves_exit_code
-test_timeout_command_missing_fails_closed
+test_setsid_command_missing_fails_closed
 test_success_passthrough
 
 echo "run_with_timeout.sh tests passed"

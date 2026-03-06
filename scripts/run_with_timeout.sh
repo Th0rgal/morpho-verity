@@ -53,19 +53,70 @@ if [[ "${timeout_sec}" -eq 0 ]]; then
   exit $?
 fi
 
-if ! command -v timeout >/dev/null 2>&1; then
-  echo "ERROR: timeout command is required when ${timeout_env_var} is greater than zero" >&2
+if ! command -v setsid >/dev/null 2>&1; then
+  echo "ERROR: setsid command is required when ${timeout_env_var} is greater than zero" >&2
   exit 2
 fi
 
+tmp_dir="$(mktemp -d)"
+status_file="${tmp_dir}/timeout-status"
+command_pid=""
+watchdog_pid=""
+
+cleanup() {
+  if [[ -n "${watchdog_pid}" ]]; then
+    kill "${watchdog_pid}" >/dev/null 2>&1 || true
+    wait "${watchdog_pid}" >/dev/null 2>&1 || true
+  fi
+  rm -rf "${tmp_dir}"
+}
+
+trap cleanup EXIT
+
 start_epoch="$(date +%s)"
-if timeout --kill-after="${kill_after_sec}s" "${timeout_sec}" "$@"; then
-  exit 0
-else
-  status=$?
+setsid "$@" &
+command_pid=$!
+
+(
+  sleep "${timeout_sec}"
+  if kill -0 "${command_pid}" >/dev/null 2>&1; then
+    printf 'timeout\n' > "${status_file}"
+    kill -TERM "-${command_pid}" >/dev/null 2>&1 || true
+    sleep "${kill_after_sec}"
+    if kill -0 "${command_pid}" >/dev/null 2>&1; then
+      printf 'kill-after\n' > "${status_file}"
+      kill -KILL "-${command_pid}" >/dev/null 2>&1 || true
+    fi
+  fi
+) &
+watchdog_pid=$!
+
+set +e
+wait "${command_pid}"
+status=$?
+set -e
+
+kill "${watchdog_pid}" >/dev/null 2>&1 || true
+wait "${watchdog_pid}" >/dev/null 2>&1 || true
+
+if kill -0 "-${command_pid}" >/dev/null 2>&1; then
+  echo "WARNING: ${description} left descendant processes running; terminating process group ${command_pid}" >&2
+  kill -TERM "-${command_pid}" >/dev/null 2>&1 || true
+  sleep 1
+  if kill -0 "-${command_pid}" >/dev/null 2>&1; then
+    kill -KILL "-${command_pid}" >/dev/null 2>&1 || true
+  fi
 fi
+
 end_epoch="$(date +%s)"
 elapsed_sec="$((end_epoch - start_epoch))"
+
+if [[ -f "${status_file}" ]]; then
+  case "$(cat "${status_file}")" in
+    timeout) status=124 ;;
+    kill-after) status=137 ;;
+  esac
+fi
 
 if [[ "${status}" -eq 124 || "${status}" -eq 137 ]]; then
   echo "ERROR: ${description} timed out after ${timeout_sec}s" >&2
