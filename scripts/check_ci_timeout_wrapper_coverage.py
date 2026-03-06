@@ -8,9 +8,9 @@ import pathlib
 import re
 import sys
 
-WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.py)\b")
+WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b")
 RUN_WITH_TIMEOUT_STEP_RE = re.compile(
-  r"run_with_timeout\.sh[^\n]*\s(?:--\s+)?python3\s+scripts/(check_[A-Za-z0-9_]+\.py)\b"
+  r"run_with_timeout\.sh[^\n]*\s(?:--\s+)?(?:python3\s+)?(?:\./)?scripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b"
 )
 
 
@@ -41,7 +41,7 @@ def main() -> int:
     "--allow-unwrapped",
     action="append",
     default=[],
-    help="check_*.py script name allowed to be referenced without run_with_timeout.sh",
+    help="check_*.{py,sh} script name allowed to be referenced without run_with_timeout.sh",
   )
   args = parser.parse_args()
 

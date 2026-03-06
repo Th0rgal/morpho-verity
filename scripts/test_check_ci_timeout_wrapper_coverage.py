@@ -26,11 +26,12 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       [
         "run: python3 scripts/check_alpha.py",
         "run: python3 scripts/check_beta.py --strict",
+        "run: ./scripts/check_gamma.sh --require lean",
       ]
     )
     self.assertEqual(
       collect_workflow_check_scripts(workflow_text),
-      {"check_alpha.py", "check_beta.py"},
+      {"check_alpha.py", "check_beta.py", "check_gamma.sh"},
     )
 
   def test_collect_wrapped_check_scripts(self) -> None:
@@ -38,11 +39,12 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       [
         "run: ./scripts/run_with_timeout.sh M 1 desc -- python3 scripts/check_alpha.py",
         "run: ./scripts/run_with_timeout.sh M 1 desc -- python3 scripts/check_beta.py --strict",
+        "run: ./scripts/run_with_timeout.sh M 1 desc -- ./scripts/check_gamma.sh --require lean",
       ]
     )
     self.assertEqual(
       collect_wrapped_check_scripts(workflow_text),
-      {"check_alpha.py", "check_beta.py"},
+      {"check_alpha.py", "check_beta.py", "check_gamma.sh"},
     )
 
   def test_main_passes_when_all_check_scripts_are_wrapped(self) -> None:
@@ -51,6 +53,8 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       '"check" -- python3 scripts/check_alpha.py\n'
       "run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "
       '"check" -- python3 scripts/check_beta.py --json-out out/x.json\n'
+      "run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "
+      '"check" -- ./scripts/check_gamma.sh --require lean\n'
     )
     with tempfile.TemporaryDirectory() as tmp_dir:
       workflow = pathlib.Path(tmp_dir) / "verify.yml"
@@ -66,7 +70,7 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
     workflow_text = "\n".join(
       [
         "run: ./scripts/run_with_timeout.sh M 1 check -- python3 scripts/check_alpha.py",
-        "run: python3 scripts/check_beta.py",
+        "run: ./scripts/check_beta.sh --require solc",
       ]
     )
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -85,7 +89,7 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
     workflow_text = "\n".join(
       [
         "run: ./scripts/run_with_timeout.sh M 1 check -- python3 scripts/check_alpha.py",
-        "run: python3 scripts/check_beta.py",
+        "run: ./scripts/check_beta.sh --require solc",
       ]
     )
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -98,7 +102,7 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
           "--workflow",
           str(workflow),
           "--allow-unwrapped",
-          "check_beta.py",
+          "check_beta.sh",
         ]
         self.assertEqual(main(), 0)
       finally:
