@@ -470,6 +470,110 @@ def build_function_family_summary(deltas: dict[str, list[str]]) -> dict[str, Any
   }
 
 
+def _family_entry_index(entries: list[dict[str, Any]], family: str, kind: str) -> dict[str, Any]:
+  for entry in entries:
+    if entry["family"] == family and entry["kind"] == kind:
+      return entry
+  entry = {"family": family, "kind": kind, "count": 0}
+  entries.append(entry)
+  return entry
+
+
+def _record_key_family(entries: list[dict[str, Any]], family: str, kind: str, key: str) -> None:
+  entry = _family_entry_index(entries, family, kind)
+  entry.setdefault("keys", []).append(key)
+  entry["count"] += 1
+
+
+def _record_rename_family(
+    entries: list[dict[str, Any]],
+    family: str,
+    sol_key: str,
+    ver_key: str,
+) -> None:
+  entry = _family_entry_index(entries, family, "renameOnly")
+  entry.setdefault("pairs", []).append(
+    {
+      "solidityKey": sol_key,
+      "verityKey": ver_key,
+    }
+  )
+  entry["count"] += 1
+
+
+def _record_ambiguous_rename_family(
+    entries: list[dict[str, Any]],
+    family: str,
+    sol_keys: list[str],
+    ver_keys: list[str],
+) -> None:
+  entry = _family_entry_index(entries, family, "renameAmbiguous")
+  entry.setdefault("groups", []).append(
+    {
+      "solidityKeys": sol_keys,
+      "verityKeys": ver_keys,
+    }
+  )
+  entry["count"] += 1
+
+
+def _rename_family_label(sol_keys: list[str], ver_keys: list[str]) -> str:
+  sol_families = sorted({function_family_for_key(key) for key in sol_keys})
+  ver_families = sorted({function_family_for_key(key) for key in ver_keys})
+  if len(sol_families) == 1 and sol_families == ver_families:
+    return sol_families[0]
+  return f"{'|'.join(sol_families)}->{'|'.join(ver_families)}"
+
+
+def build_rewrite_family_summary(
+    deltas: dict[str, list[str]],
+    name_insensitive_pairs: dict[str, Any],
+) -> dict[str, Any]:
+  entries: list[dict[str, Any]] = []
+  priority_counts: dict[str, int] = {}
+
+  def bump_priority(family: str, count: int = 1) -> None:
+    priority_counts[family] = priority_counts.get(family, 0) + count
+
+  for key in sorted(deltas["hashMismatch"]):
+    family = function_family_for_key(key)
+    _record_key_family(entries, family, "hashMismatch", key)
+    bump_priority(family)
+
+  for key in sorted(deltas["onlyInSolidity"]):
+    family = function_family_for_key(key)
+    _record_key_family(entries, family, "onlyInSolidity", key)
+    bump_priority(family)
+
+  for key in sorted(deltas["onlyInVerity"]):
+    family = function_family_for_key(key)
+    _record_key_family(entries, family, "onlyInVerity", key)
+    bump_priority(family)
+
+  for pair in name_insensitive_pairs.get("pairs", []):
+    sol_key = pair["solidity"]["key"]
+    ver_key = pair["verity"]["key"]
+    family = _rename_family_label([sol_key], [ver_key])
+    _record_rename_family(entries, family, sol_key, ver_key)
+
+  for group in name_insensitive_pairs.get("ambiguousGroups", []):
+    sol_keys = sorted(entry["key"] for entry in group["solidity"])
+    ver_keys = sorted(entry["key"] for entry in group["verity"])
+    family = _rename_family_label(sol_keys, ver_keys)
+    _record_ambiguous_rename_family(entries, family, sol_keys, ver_keys)
+
+  entries.sort(key=lambda item: (-item["count"], item["family"], item["kind"]))
+  priority = [
+    {"family": family, "count": count}
+    for family, count in sorted(priority_counts.items(), key=lambda item: (-item[1], item[0]))
+  ]
+  return {
+    "version": "rewrite-family-v1",
+    "entries": entries,
+    "priorityFamilies": priority,
+  }
+
+
 def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
@@ -653,6 +757,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
     solidity_function_digests, verity_function_digests, function_deltas
   )
   family_summary = build_function_family_summary(function_deltas)
+  rewrite_families = build_rewrite_family_summary(function_deltas, name_insensitive_pairs)
 
   solidity_tokens = tokenize_normalized_yul_with_spans(normalized_solc)
   verity_tokens = tokenize_normalized_yul_with_spans(normalized_verity)
@@ -726,6 +831,7 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
       "mismatchDetails": mismatch_details,
       "nameInsensitivePairs": name_insensitive_pairs,
       "familySummary": family_summary,
+      "rewriteFamilies": rewrite_families,
     },
     "diff": {"lineCount": len(diff_lines), "truncated": len(diff_lines) > max_diff_lines},
   }
