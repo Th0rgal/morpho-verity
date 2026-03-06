@@ -6,15 +6,16 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 
 ## Status
 
-5/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
-enableIrm, enableLltv, setAuthorization. The proofs are in
+6/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
+enableIrm, enableLltv, setAuthorization, flashLoan. The proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
-4 of the 5 also have Link 2 (EDSL ↔ SupportedStmtList witness) proven in
-`Morpho/Proofs/CompilationCorrectness.lean` (setOwner, enableIrm, enableLltv,
-setAuthorization). setFeeRecipient is missing Link 2 because it reads two
-distinct storage address fields — requires a new `SupportedStmtFragment`
-constructor in verity. Link 3 (CompilationModel ↔ EVMYulLean) depends on
+5 of the 6 also have Link 2 (EDSL ↔ SupportedStmtList witness) proven in
+`Morpho/Proofs/CompilationCorrectness.lean` (setOwner, setFeeRecipient,
+enableIrm, enableLltv, setAuthorization). `flashLoan` is now in the same
+state as a Link 1-proven operation, but still lacks Link 2 because its
+event-emission body uses
+`mstore`/`rawLog`, which are not yet covered by the current witness set. Link 3 (CompilationModel ↔ EVMYulLean) depends on
 upstream verity infrastructure.
 
 ## Scope
@@ -43,11 +44,11 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
 | `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
-| `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | | `assumed` |
+| `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
 `MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065
-lands. 5/18 operations are macro-migrated; the remaining 13 are blocked on upstream macro
+lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
@@ -107,7 +108,7 @@ Known expected differences (not checked, handled by semantic bridge):
 
 ## Macro Migration Blockers
 
-The 13 unmigrated operations depend on upstream verity macro capabilities.
+The 12 unmigrated operations depend on upstream verity macro capabilities.
 
 **Resolved blockers** (verity roadmap branch as of 2026-03-01): tuple destructuring,
 `setStructMember`/`structMember` statement/expression primitives, `keccakMarketParams`
@@ -176,9 +177,10 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 | `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 9d9533b2 |
 | `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 9d9533b2 |
 | `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 9d9533b2 |
+| `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | event/log witness + primitive bridge coverage |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
-**Summary**: All 5 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
+**Summary**: All 6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
 All 5 also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
 `Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
 the upstream two-storage-address witness added in verity.
@@ -190,7 +192,7 @@ createMarket is a hard stub (not macro-migrated) — Link 1 not yet provable.
 first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has three links per obligation:
-1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization
+1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization, flashLoan
 2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 

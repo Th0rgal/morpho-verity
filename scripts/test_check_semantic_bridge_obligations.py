@@ -302,15 +302,15 @@ class IntegrationTests(unittest.TestCase):
         # Should not raise
         validate_config(config, bridge_hyps, macro_fns)
 
-        # 5 with Link 1 proofs should be in_progress, rest assumed
+        # 6 with Link 1 proofs should be in_progress, rest assumed
         in_progress = [o for o in config["obligations"] if o["status"] == "in_progress"]
         assumed = [o for o in config["obligations"] if o["status"] == "assumed"]
-        self.assertEqual(len(in_progress), 5)
-        self.assertEqual(len(assumed), 13)
+        self.assertEqual(len(in_progress), 6)
+        self.assertEqual(len(assumed), 12)
         in_progress_ops = sorted(o["operation"] for o in in_progress)
         self.assertEqual(
             in_progress_ops,
-            ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
+            ["enableIrm", "enableLltv", "flashLoan", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
         # 6 should be macro-migrated (admin cluster + flashLoan)
