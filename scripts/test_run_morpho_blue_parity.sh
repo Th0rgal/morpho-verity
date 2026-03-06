@@ -7,7 +7,7 @@ SCRIPT_UNDER_TEST="${ROOT_DIR}/scripts/run_morpho_blue_parity.sh"
 assert_contains() {
   local needle="$1"
   local haystack_file="$2"
-  if ! grep -Fq "${needle}" "${haystack_file}"; then
+  if ! grep -Fq -- "${needle}" "${haystack_file}"; then
     echo "ASSERTION FAILED: expected to find '${needle}' in ${haystack_file}"
     exit 1
   fi
@@ -411,8 +411,8 @@ test_fail_closed_when_prepared_artifacts_missing_required_file() {
 }
 
 test_suite_timeout_fails_closed() {
-  if ! command -v timeout >/dev/null 2>&1; then
-    echo "Skipping timeout regression: 'timeout' command is unavailable."
+  if ! command -v setsid >/dev/null 2>&1; then
+    echo "Skipping timeout regression: 'setsid' command is unavailable."
     return
   fi
 
@@ -443,8 +443,8 @@ test_suite_timeout_fails_closed() {
 }
 
 test_suite_timeout_force_kill_fails_closed() {
-  if ! command -v timeout >/dev/null 2>&1; then
-    echo "Skipping force-kill timeout regression: 'timeout' command is unavailable."
+  if ! command -v setsid >/dev/null 2>&1; then
+    echo "Skipping force-kill timeout regression: 'setsid' command is unavailable."
     return
   fi
 
@@ -459,6 +459,7 @@ test_suite_timeout_force_kill_fails_closed() {
     cd "${fake_root}"
     PATH="${fake_root}/bin:${PATH}" \
     MORPHO_TEST_FAKE_FORGE_IGNORE_TERM=1 \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC=1 \
     MORPHO_BLUE_SUITE_TIMEOUT_SEC=1 \
       ./scripts/run_morpho_blue_parity.sh
   ) >"${output_file}" 2>&1
@@ -475,8 +476,8 @@ test_suite_timeout_force_kill_fails_closed() {
 }
 
 test_skip_mode_prep_timeout_fails_closed() {
-  if ! command -v timeout >/dev/null 2>&1; then
-    echo "Skipping prep-timeout regression: 'timeout' command is unavailable."
+  if ! command -v setsid >/dev/null 2>&1; then
+    echo "Skipping prep-timeout regression: 'setsid' command is unavailable."
     return
   fi
 
@@ -507,8 +508,8 @@ test_skip_mode_prep_timeout_fails_closed() {
 }
 
 test_parity_preflight_timeout_fails_closed() {
-  if ! command -v timeout >/dev/null 2>&1; then
-    echo "Skipping parity-preflight timeout regression: 'timeout' command is unavailable."
+  if ! command -v setsid >/dev/null 2>&1; then
+    echo "Skipping parity-preflight timeout regression: 'setsid' command is unavailable."
     return
   fi
 
