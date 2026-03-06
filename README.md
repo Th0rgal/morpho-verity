@@ -191,6 +191,12 @@ Validate that current function-level Yul gaps match the tracked unsupported mani
 python3 scripts/report_yul_identity_gap.py --enforce-unsupported-manifest
 ```
 
+Fail closed once rewritten Verity Yul reaches exact Solidity parity:
+
+```bash
+python3 scripts/report_yul_identity_gap.py --exact
+```
+
 Build the Morpho Verity artifact:
 
 ```bash

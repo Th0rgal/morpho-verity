@@ -12,7 +12,9 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from report_yul_identity_gap import (  # noqa: E402
   ROOT,
+  build_exactness_summary,
   build_function_family_summary,
+  build_parity_metadata,
   build_name_insensitive_pairs,
   build_report,
   copy_prepared_verity_yul,
@@ -192,6 +194,59 @@ object "M" {
     self.assertEqual(summary["onlyInSolidity"][0]["family"], "checked_add")
     self.assertEqual(summary["onlyInVerity"][0]["family"], "checked_add")
     self.assertIn("mappingSlot", [entry["family"] for entry in summary["onlyInVerity"]])
+
+  def test_build_exactness_summary_requires_ast_and_function_match(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function f() { leave } } }'),
+      normalize_yul('object "M" { code { function g() { leave } } }'),
+      max_diff_lines=50,
+    )
+    exactness = build_exactness_summary(report)
+    self.assertFalse(exactness["raw"])
+    self.assertFalse(exactness["normalized"])
+    self.assertFalse(exactness["ast"])
+    self.assertFalse(exactness["functionLevel"])
+    self.assertFalse(exactness["fullyExact"])
+
+  def test_build_exactness_summary_marks_exact_match(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function f() { leave } } }'),
+      normalize_yul('object "M" { code { function f() { leave } } }'),
+      max_diff_lines=50,
+    )
+    self.assertEqual(
+      build_exactness_summary(report),
+      {
+        "raw": True,
+        "normalized": True,
+        "ast": True,
+        "functionLevel": True,
+        "fullyExact": True,
+      },
+    )
+
+  def test_build_parity_metadata_extracts_pack_id(self) -> None:
+    self.assertEqual(
+      build_parity_metadata(
+        {
+          "id": "target-id",
+          "verity": {"parityPackId": "solc-pack"},
+        }
+      ),
+      {
+        "id": "target-id",
+        "verityParityPackId": "solc-pack",
+      },
+    )
+
+  def test_build_parity_metadata_handles_missing_pack_id(self) -> None:
+    self.assertEqual(
+      build_parity_metadata({"id": "target-id", "verity": {}}),
+      {
+        "id": "target-id",
+        "verityParityPackId": None,
+      },
+    )
 
   def test_build_report_top_level_mismatch_includes_token_coordinates(self) -> None:
     report, _ = build_report(

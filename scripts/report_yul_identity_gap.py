@@ -535,6 +535,37 @@ def evaluate_unsupported_manifest(
   }
 
 
+def function_level_exact(deltas: dict[str, list[str]]) -> bool:
+  return not (deltas["hashMismatch"] or deltas["onlyInSolidity"] or deltas["onlyInVerity"])
+
+
+def build_exactness_summary(report: dict[str, Any]) -> dict[str, bool]:
+  function_exact = function_level_exact(report["functionBlocks"])
+  raw_exact = bool(report["rawEqual"])
+  normalized_exact = bool(report["normalizedEqual"])
+  ast_exact = bool(report["astEqual"])
+  return {
+    "raw": raw_exact,
+    "normalized": normalized_exact,
+    "ast": ast_exact,
+    "functionLevel": function_exact,
+    "fullyExact": raw_exact and normalized_exact and ast_exact and function_exact,
+  }
+
+
+def build_parity_metadata(target: dict[str, Any]) -> dict[str, Any]:
+  verity_cfg = target.get("verity")
+  parity_pack_id = None
+  if isinstance(verity_cfg, dict):
+    raw_pack = verity_cfg.get("parityPackId")
+    if isinstance(raw_pack, str) and raw_pack.strip():
+      parity_pack_id = raw_pack
+  return {
+    "id": target["id"],
+    "verityParityPackId": parity_pack_id,
+  }
+
+
 def extract_solidity_ir_optimized() -> str:
   data = read_json(SOLIDITY_ARTIFACT)
   ir = data.get("irOptimized")
@@ -712,6 +743,11 @@ def parse_args() -> argparse.Namespace:
     help="Exit non-zero when structural AST outputs differ.",
   )
   parser.add_argument(
+    "--exact",
+    action="store_true",
+    help="Exit non-zero unless the rewritten Verity Yul matches Solidity exactly at AST/function level.",
+  )
+  parser.add_argument(
     "--unsupported-manifest",
     default=str(DEFAULT_UNSUPPORTED_MANIFEST),
     help=(
@@ -761,6 +797,8 @@ def main() -> int:
 
   report, diff_text = build_report(verity_yul, solc_ir, args.max_diff_lines)
   report["parityTarget"] = target["id"]
+  report["parityConfig"] = build_parity_metadata(target)
+  report["exactness"] = build_exactness_summary(report)
   report["unsupportedManifest"] = {"path": display_path(unsupported_manifest_path), "found": False, "check": None}
   if unsupported_manifest_path.exists():
     manifest = load_unsupported_manifest(unsupported_manifest_path)
@@ -783,6 +821,10 @@ def main() -> int:
   print(f"rawEqual: {report['rawEqual']}")
   print(f"normalizedEqual: {report['normalizedEqual']}")
   print(f"astEqual: {report['astEqual']}")
+  print(f"functionLevelExact: {report['exactness']['functionLevel']}")
+  print(f"fullyExact: {report['exactness']['fullyExact']}")
+  if report["parityConfig"]["verityParityPackId"] is not None:
+    print(f"verityParityPackId: {report['parityConfig']['verityParityPackId']}")
   print(f"report: {display_path(out_dir / 'report.json')}")
   print(f"diff: {display_path(out_dir / 'normalized.diff')}")
   if report["unsupportedManifest"]["found"]:
@@ -794,6 +836,9 @@ def main() -> int:
 
   if args.strict and not report["astEqual"]:
     print("yul-identity check failed in strict mode", file=sys.stderr)
+    return 1
+  if args.exact and not report["exactness"]["fullyExact"]:
+    print("yul-identity check failed: exact Yul parity not reached", file=sys.stderr)
     return 1
   if args.enforce_unsupported_manifest:
     if not report["unsupportedManifest"]["found"]:
