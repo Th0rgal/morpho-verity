@@ -13,7 +13,7 @@ Solidity implementation satisfying semantic equivalence hypotheses.
 Each hypothesis (`supplySemEq`, `withdrawSemEq`, …) is a universally
 quantified assumption — a function parameter, not a discharged proof.
 
-## Discharge Path (verity#998)
+## Discharge Path (verity#1060 / #1065)
 
 The Verity semantic bridge will provide, for each function `f` in a
 `verity_contract`:
@@ -69,7 +69,7 @@ structure SemanticBridgeObligation where
   /-- Whether the operation has a full (non-stub) `verity_contract` macro
       implementation in MacroSlice.lean. When true, the macro-generated
       CompilationModel is ready for end-to-end semantic bridge composition
-      once verity#998 lands. When false, macro migration must be completed
+      once verity#1065 lands. When false, macro migration must be completed
       before the obligation can be discharged. -/
   macroMigrated : Bool
   deriving Repr
@@ -123,17 +123,17 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-ENABLE-IRM-SEM-EQ"
     hypothesis := "enableIrmSemEq"
     operation := "enableIrm"
-    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/EnableIrm)
+    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge); Link 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-ENABLE-LLTV-SEM-EQ"
     hypothesis := "enableLltvSemEq"
     operation := "enableLltv"
-    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/EnableLltv)
+    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge); Link 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-SET-AUTH-SEM-EQ"
     hypothesis := "setAuthorizationSemEq"
     operation := "setAuthorization"
-    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetAuthorization)
+    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge); Link 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-SET-AUTH-SIG-SEM-EQ"
     hypothesis := "setAuthorizationWithSigSemEq"
@@ -143,12 +143,12 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-SET-OWNER-SEM-EQ"
     hypothesis := "setOwnerSemEq"
     operation := "setOwner"
-    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetOwner)
+    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge); Link 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-SET-FEE-RECIPIENT-SEM-EQ"
     hypothesis := "setFeeRecipientSemEq"
     operation := "setFeeRecipient"
-    status := .inProgress  -- Links 1+2 proven (SemanticBridgeDischarge + SpecCorrectness/SetFeeRecipient)
+    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge); Link 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-CREATE-MARKET-SEM-EQ"
     hypothesis := "createMarketSemEq"
@@ -176,9 +176,10 @@ def obligations : List SemanticBridgeObligation := [
 theorem obligation_count : obligations.length = 18 := by
   native_decide
 
-/-- 5 of 18 operations have Links 1+2 proven.
+/-- 5 of 18 operations have Link 1 proven.
     Link 1 (Pure Lean ↔ EDSL) in `SemanticBridgeDischarge.lean`.
-    Link 2 (EDSL ↔ CompilationModel) in `Morpho/Proofs/SpecCorrectness/`.
+    Links 2+3 now come free from verity's typed-IR compilation-correctness framework
+    (post-verity#1065 pin bump). Old manual SpecCorrectness proofs removed.
     These are: setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization. -/
 theorem link1_proven_count :
     (obligations.filter (fun o => o.status == .inProgress)).length = 5 := by
@@ -191,7 +192,7 @@ theorem assumed_count :
 
 /-- 6 of 18 operations have full (non-stub) macro implementations.
     These are ready for end-to-end semantic bridge composition once
-    verity#998 lands: setOwner, setFeeRecipient, enableIrm, enableLltv,
+    verity#1065 lands: setOwner, setFeeRecipient, enableIrm, enableLltv,
     setAuthorization, createMarket. -/
 theorem macro_migrated_count :
     (obligations.filter (fun o => o.macroMigrated)).length = 6 := by

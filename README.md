@@ -38,18 +38,21 @@ Groundwork docs for closing these gaps:
 - [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
 - [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
 
-### Upstream: Verity semantic bridge (verity#998)
+### Upstream: Verity hybrid canonical-semantics migration (verity#1060 / #1065)
 
 The Verity framework is working toward a single machine-checked theorem per
 contract function: `EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
 This will eliminate the hand-rolled `interpretSpec` interpreter from the TCB and
 enable auto-generated semantic preservation proofs in the `verity_contract` macro.
-Once landed, morpho-verity's Solidity equivalence obligations can be discharged
+Once `verity#1065` lands and this repo bumps to that revision, morpho-verity's
+Solidity equivalence obligations can be discharged
 against EVMYulLean's formally verified EVM semantics rather than a trusted
-reimplementation. See [verity#1052](https://github.com/Th0rgal/verity/pull/1052).
+reimplementation. Track upstream delivery in
+[verity#1060](https://github.com/Th0rgal/verity/issues/1060) and
+[verity#1065](https://github.com/Th0rgal/verity/pull/1065).
 
-The verity `semantic-bridge` branch already includes fully discharged (zero sorry)
-proofs for `Owned`, `SafeCounter`, and `OwnedCounter` contracts which serve as templates
+The upstream typed-IR + bridge roadmap includes fully discharged (zero sorry)
+proof patterns for `Owned`, `SafeCounter`, and `OwnedCounter` contracts which serve as templates
 for morpho-verity's discharge.
 
 **Link 1 proofs (Pure Lean ↔ EDSL) are now proven for 5/18 operations:**

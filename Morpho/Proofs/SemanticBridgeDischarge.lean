@@ -24,7 +24,7 @@ The full discharge chain for an obligation like `setOwnerSemEq` has three links:
 
 This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
 `enableLltv`, and `setAuthorization`.
-Links 2+3 depend on upstream verity infrastructure (verity#998, #1052).
+Links 2+3 depend on upstream verity infrastructure (verity#1060 / #1065).
 
 ## Proof Strategy
 

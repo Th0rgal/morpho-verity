@@ -233,7 +233,7 @@ These theorems prove that the EDSL execution preserves Morpho invariants.
 The full semantic bridge additionally requires:
 
 - **Link 2**: EDSL ≡ compiled CompilationModel IR
-  (needs verity pin bump from `dccb984` to `semantic-bridge` branch)
+  (needs verity pin bump from `dccb984` to a post-`verity#1065` revision)
 - **Link 3**: compiled IR ≡ EVMYulLean(Yul)
   (proven in verity `Compiler/Proofs/EndToEnd.lean`)
 
