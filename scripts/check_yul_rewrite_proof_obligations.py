@@ -163,9 +163,7 @@ def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, st
 
         obligation_match = OBLIGATION_RE.search("\n".join(block_lines))
         if not obligation_match:
-            raise RewriteProofError(
-                f"proof declaration `{full_name}` must use RewriteProofObligation"
-            )
+            continue
 
         proof_ref, rewrite_pass, family = obligation_match.groups()
         if proof_ref != declared_ref:

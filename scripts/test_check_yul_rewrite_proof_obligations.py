@@ -152,6 +152,30 @@ end Morpho.Proofs.YulRewriteProofs
         with self.assertRaisesRegex(RewriteProofError, "must reference proof ref"):
             extract_declared_proof_obligations(lean)
 
+    def test_ignores_non_obligation_helper_theorems(self) -> None:
+        lean = """\
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+theorem helper : True := by
+  trivial
+axiom width_alignment :
+  RewriteProofObligation "rewrite.checked_add.width_alignment" "pass" "checked_add"
+end checked_add
+end rewrite
+end Morpho.Proofs.YulRewriteProofs
+"""
+        self.assertEqual(
+            extract_declared_proof_obligations(lean),
+            {
+                "rewrite.checked_add.width_alignment": {
+                    "declaration": "Morpho.Proofs.YulRewriteProofs.rewrite.checked_add.width_alignment",
+                    "rewritePass": "pass",
+                    "family": "checked_add",
+                }
+            },
+        )
+
 
 class ValidateManifestAgainstProofsTests(unittest.TestCase):
     def test_matching_sets_pass(self) -> None:
