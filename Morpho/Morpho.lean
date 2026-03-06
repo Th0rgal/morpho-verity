@@ -502,4 +502,8 @@ def liquidate (s : MorphoState) (id : Id) (borrower : Address)
 noncomputable abbrev flashLoan : MorphoState → Uint256 → Option Unit :=
   Morpho.Specs.ContractSemantics.flashLoan
 
+theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
+    flashLoan s assets = some () ↔ assets ≠ 0 :=
+  Morpho.Specs.ContractSemantics.flashLoan_success_iff s assets
+
 end Morpho
