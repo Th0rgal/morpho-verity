@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import pathlib
 import sys
 import tempfile
@@ -46,12 +47,27 @@ def write_bundle(
   if include_bin:
     (bundle / "Morpho.bin").write_text("6000\n", encoding="utf-8")
   if include_rewrite:
+    pipeline_manifest_sha256 = None
+    pipeline_manifest_path = pathlib.Path(pipeline_manifest)
+    if pipeline_manifest_path.exists():
+      pipeline_manifest_sha256 = hashlib.sha256(
+        pipeline_manifest_path.read_text(encoding="utf-8").encode("utf-8")
+      ).hexdigest()
+    proof_manifest_sha256 = None
+    if proof_manifest is not None:
+      proof_manifest_path = pathlib.Path(proof_manifest)
+      if proof_manifest_path.exists():
+        proof_manifest_sha256 = hashlib.sha256(
+          proof_manifest_path.read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest()
     (bundle / "Morpho.rewritten.yul").write_text("rewritten-yul\n", encoding="utf-8")
     (bundle / "Morpho.rewrite-report.json").write_text(
       json.dumps(
         {
           "pipelineManifest": pipeline_manifest,
+          "pipelineManifestSha256": pipeline_manifest_sha256,
           "proofManifest": proof_manifest,
+          "proofManifestSha256": proof_manifest_sha256,
           "stageCount": 1,
           "implementedStageCount": 1,
           "changedStageCount": 1,
@@ -70,9 +86,9 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       parity_target = root / "parity-target.json"
       parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
       pipeline_manifest = root / "pipeline.json"
-      pipeline_manifest.write_text("{}\n", encoding="utf-8")
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
       proof_manifest = root / "proof.json"
-      proof_manifest.write_text("{}\n", encoding="utf-8")
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
       write_bundle(
         root,
         pipeline_manifest=str(pipeline_manifest.resolve()),
@@ -96,9 +112,9 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       parity_target = root / "parity-target.json"
       parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
       pipeline_manifest = root / "pipeline.json"
-      pipeline_manifest.write_text("{}\n", encoding="utf-8")
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
       proof_manifest = root / "proof.json"
-      proof_manifest.write_text("{}\n", encoding="utf-8")
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
       write_bundle(
         root,
         parity_pack="wrong-pack",
@@ -122,9 +138,9 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       parity_target = root / "parity-target.json"
       parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
       pipeline_manifest = root / "pipeline.json"
-      pipeline_manifest.write_text("{}\n", encoding="utf-8")
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
       proof_manifest = root / "proof.json"
-      proof_manifest.write_text("{}\n", encoding="utf-8")
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
       write_bundle(
         root,
         include_bin=False,
@@ -149,9 +165,9 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       parity_target = root / "parity-target.json"
       parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
       pipeline_manifest = root / "pipeline.json"
-      pipeline_manifest.write_text("{}\n", encoding="utf-8")
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
       proof_manifest = root / "proof.json"
-      proof_manifest.write_text("{}\n", encoding="utf-8")
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
       write_bundle(
         root,
         pipeline_manifest="config/other.json",
@@ -168,15 +184,67 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
           proof_manifest_path=proof_manifest,
         )
 
+  def test_rejects_rewrite_manifest_digest_mismatch(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      pipeline_manifest.write_text('{"version":"v2"}\n', encoding="utf-8")
+
+      with self.assertRaisesRegex(RuntimeError, "pipeline manifest digest mismatch"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=True,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_rewrite_proof_manifest_digest_mismatch(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      proof_manifest.write_text('{"families":[{"family":"renameOnly"}]}\n', encoding="utf-8")
+
+      with self.assertRaisesRegex(RuntimeError, "proof manifest digest mismatch"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=True,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
   def test_rejects_rewritten_yul_without_report(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
       parity_target = root / "parity-target.json"
       parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
       pipeline_manifest = root / "pipeline.json"
-      pipeline_manifest.write_text("{}\n", encoding="utf-8")
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
       proof_manifest = root / "proof.json"
-      proof_manifest.write_text("{}\n", encoding="utf-8")
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
       bundle = write_bundle(
         root,
         include_rewrite=False,
