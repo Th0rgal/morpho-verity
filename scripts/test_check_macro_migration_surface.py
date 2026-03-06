@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import sys
 import unittest
 
@@ -67,6 +68,9 @@ def morphoSelectors : List Nat := [
     self.assertEqual(entries[0], ("DOMAIN_SEPARATOR()", 0x3644E515))
     self.assertEqual(entries[1], ("owner()", 0x8DA5CB5B))
 
+  @unittest.skipUnless((ROOT / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol").exists(),
+                       "requires initialized morpho-blue submodule (IMorpho.sol)")
+  @unittest.skipUnless(shutil.which("solc"), "requires solc on PATH")
   def test_current_repo_surface_matches(self) -> None:
     report = run_check()
     self.assertEqual(report["status"], "ok")
