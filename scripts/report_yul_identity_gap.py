@@ -21,6 +21,7 @@ from apply_yul_rewrite_pipeline import (
   DEFAULT_PROOF_MANIFEST as DEFAULT_REWRITE_PROOF_MANIFEST,
   apply_rewrite_pipeline_to_file,
 )
+from check_prepared_verity_artifact_bundle import validate_prepared_verity_artifact_bundle
 from parity_target_config import parse_yul_identity_gate_mode as parse_parity_target_yul_identity_gate_mode
 
 
@@ -885,11 +886,11 @@ def prepared_verity_artifact_dir() -> pathlib.Path | None:
   raw = os.environ.get("MORPHO_VERITY_PREPARED_ARTIFACT_DIR", "").strip()
   if not raw:
     return None
-  base = pathlib.Path(raw)
-  edsl = base / "edsl"
-  if (edsl / "Morpho.yul").is_file():
-    return edsl
-  return base
+  return validate_prepared_verity_artifact_bundle(
+    pathlib.Path(raw).resolve(),
+    require_bin=False,
+    require_rewrite=False,
+  )
 
 
 def copy_prepared_verity_artifact(

@@ -26,8 +26,10 @@ make_fake_repo() {
   mkdir -p "${fake_root}/scripts" "${fake_root}/artifacts/yul" "${fake_root}/morpho-blue/test/integration"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/run_morpho_blue_parity.sh"
   cp "${ROOT_DIR}/scripts/run_with_timeout.sh" "${fake_root}/scripts/run_with_timeout.sh"
+  cp "${ROOT_DIR}/scripts/check_prepared_verity_artifact_bundle.py" "${fake_root}/scripts/check_prepared_verity_artifact_bundle.py"
   chmod +x "${fake_root}/scripts/run_morpho_blue_parity.sh"
   chmod +x "${fake_root}/scripts/run_with_timeout.sh"
+  chmod +x "${fake_root}/scripts/check_prepared_verity_artifact_bundle.py"
 
 cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -97,6 +99,11 @@ EOF
 contract OnlyOwnerIntegrationTest {}
 EOF
 
+  mkdir -p "${fake_root}/config"
+  cat > "${fake_root}/config/parity-target.json" <<'EOF'
+{"verity":{"parityPackId":"test-pack"}}
+EOF
+
   mkdir -p "${fake_root}/bin"
   cat > "${fake_root}/bin/forge" <<'EOF'
 #!/usr/bin/env bash
@@ -115,6 +122,21 @@ echo "Ran 1 tests for test/Fake.t.sol:FakeTest"
 echo "Ran 1 tests (1 total tests)"
 EOF
   chmod +x "${fake_root}/bin/forge"
+}
+
+write_prepared_bundle() {
+  local prepared_root="$1"
+  mkdir -p "${prepared_root}/edsl"
+  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
+  printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
+  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+  printf '%s\n' "stage=reuse-artifact status=ok elapsed_sec=0" > "${prepared_root}/edsl/Morpho.stage-times.log"
+  cat > "${prepared_root}/edsl/Morpho.artifact-manifest.env" <<'EOF'
+input_digest=test
+artifact_mode=edsl
+skip_solc=0
+parity_pack=test-pack
+EOF
 }
 
 test_fail_closed_when_timeout_wrapper_dependency_missing_but_enabled() {
@@ -361,10 +383,7 @@ test_reuse_prepared_artifacts_skips_parity_preflight() {
   trap 'rm -rf "${fake_root}" "${sentinel}" "${prepared_root}"' RETURN
   make_fake_repo "${fake_root}"
 
-  mkdir -p "${prepared_root}/edsl"
-  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
-  printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
-  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+  write_prepared_bundle "${prepared_root}"
 
   (
     cd "${fake_root}"
@@ -388,9 +407,8 @@ test_fail_closed_when_prepared_artifacts_missing_required_file() {
   trap 'rm -rf "${fake_root}" "${output_file}" "${prepared_root}"' RETURN
   make_fake_repo "${fake_root}"
 
-  mkdir -p "${prepared_root}/edsl"
-  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
-  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+  write_prepared_bundle "${prepared_root}"
+  rm -f "${prepared_root}/edsl/Morpho.bin"
 
   set +e
   (
@@ -406,7 +424,7 @@ test_fail_closed_when_prepared_artifacts_missing_required_file() {
     echo "ASSERTION FAILED: expected missing prepared artifact to fail"
     exit 1
   fi
-  assert_contains "ERROR: expected non-empty parity artifact:" "${output_file}"
+  assert_contains "Missing required non-empty artifact:" "${output_file}"
   assert_contains "Morpho.bin" "${output_file}"
 }
 
@@ -417,10 +435,8 @@ test_clears_stale_rewritten_artifact_when_prepared_bundle_omits_it() {
   trap 'rm -rf "${fake_root}" "${prepared_root}"' RETURN
   make_fake_repo "${fake_root}"
 
-  mkdir -p "${prepared_root}/edsl" "${fake_root}/artifacts/yul"
-  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
-  printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
-  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+  mkdir -p "${fake_root}/artifacts/yul"
+  write_prepared_bundle "${prepared_root}"
   stale_rewritten="${fake_root}/artifacts/yul/Morpho.rewritten.yul"
   printf '%s\n' "stale rewritten artifact" > "${stale_rewritten}"
 

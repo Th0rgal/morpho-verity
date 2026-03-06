@@ -166,6 +166,10 @@ artifact bundle via `MORPHO_VERITY_PREPARED_ARTIFACT_DIR`.
 `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP`, and
 `MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP` are fail-closed toggles and must be
 set to `0` or `1`.
+Prepared bundle reuse is also fail-closed behind
+`python3 scripts/check_prepared_verity_artifact_bundle.py`, which validates the
+bundle manifest, parity-pack pin, and rewrite metadata before downstream jobs
+trust it.
 Even in skip mode, artifact preparation stays fail-closed behind the shared
 timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
 When parity preflight is enabled, the full preflight command is also bounded by
@@ -241,6 +245,12 @@ Override artifact output directory when needed:
 
 ```bash
 MORPHO_VERITY_OUT_DIR=/tmp/morpho-artifact ./scripts/prepare_verity_morpho_artifact.sh
+```
+
+Validate a prepared artifact bundle before reusing it:
+
+```bash
+python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 ```
 
 Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`):
