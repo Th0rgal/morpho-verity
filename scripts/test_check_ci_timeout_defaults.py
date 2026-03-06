@@ -14,6 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_timeout_defaults import (  # noqa: E402
+  collect_script_timeout_refs,
   collect_run_timeout_defaults,
   collect_timeout_env_literals,
   main,
@@ -43,6 +44,27 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
       "  B_TIMEOUT_SEC: \"20\"\n"
     )
     self.assertEqual(collect_timeout_env_literals(workflow), {"A_TIMEOUT": {10}, "B_TIMEOUT_SEC": {20}})
+
+  def test_collect_script_timeout_refs(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      scripts_dir = pathlib.Path(tmp_dir) / "scripts"
+      scripts_dir.mkdir()
+      (scripts_dir / "run_alpha.sh").write_text(
+        "echo ${ALPHA_TIMEOUT_SEC:-30}\n",
+        encoding="utf-8",
+      )
+      (scripts_dir / "check_beta.py").write_text(
+        "value = \"BETA_TIMEOUT_SEC\"\n",
+        encoding="utf-8",
+      )
+      (scripts_dir / "test_ignore.sh").write_text(
+        "echo ${SHOULD_NOT_COUNT_TIMEOUT_SEC:-0}\n",
+        encoding="utf-8",
+      )
+      self.assertEqual(
+        collect_script_timeout_refs(scripts_dir),
+        {"ALPHA_TIMEOUT_SEC", "BETA_TIMEOUT_SEC"},
+      )
 
   def test_repo_files_are_in_sync(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -136,6 +158,39 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
           str(defaults),
         ]
         self.assertEqual(main(), 0)
+      finally:
+        sys.argv = old_argv
+
+  def test_stale_defaults_fail(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      defaults = pathlib.Path(tmp_dir) / "defaults.env"
+      scripts_dir = pathlib.Path(tmp_dir) / "scripts"
+      scripts_dir.mkdir()
+      workflow.write_text(
+        "run: ./scripts/run_with_timeout.sh MORPHO_ACTIVE_TIMEOUT_SEC 10 \"active\" -- cmd\n",
+        encoding="utf-8",
+      )
+      defaults.write_text(
+        "MORPHO_ACTIVE_TIMEOUT_SEC=10\n"
+        "MORPHO_STALE_TIMEOUT_SEC=42\n",
+        encoding="utf-8",
+      )
+
+      old_argv = sys.argv
+      try:
+        sys.argv = [
+          "check_ci_timeout_defaults.py",
+          "--workflow",
+          str(workflow),
+          "--defaults",
+          str(defaults),
+          "--scripts-dir",
+          str(scripts_dir),
+        ]
+        with self.assertRaises(SystemExit) as ctx:
+          main()
+        self.assertEqual(ctx.exception.code, 1)
       finally:
         sys.argv = old_argv
 
