@@ -132,7 +132,7 @@ A full implementation using `setMappingWord`/`getMappingWord` with manual word-o
 addressing was attempted but reverted (preserved in git history, commit 82e5572).
 The remaining blockers are: tuple element access, `externalCall` primitive, and
 `blockTimestamp` as a value expression. These constructs are not yet supported by
-the current pinned verity revision (08d942a5).
+the current pinned verity revision (dab9a567).
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -171,11 +171,11 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
 | Operation | Primitives used | Link 1 | Link 2 (CompilationCorrectness) | Link 3 |
 |-----------|----------------|:------:|:-------------------------------:|--------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin dab9a567 |
 | `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | GAP (2-field read) | needs verity support |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | after verity pin bump |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin dab9a567 |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin dab9a567 |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin dab9a567 |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
 **Summary**: All 5 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
@@ -194,8 +194,8 @@ The discharge has three links per obligation:
 2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`; missing for setFeeRecipient (requires verity multi-field-read support)
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
-After bumping to a post-`verity#1065` revision, Link 2 transitions from this
-legacy `interpretSpec` checkpoint to the typed-IR semantic bridge path.
+At verity pin `dab9a567`, Link 2 is tracked on the typed-IR semantic bridge path
+with concrete upstream witness theorems for Morpho admin patterns.
 
 **Link 1 proof pattern** (for all 5 proven operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
@@ -208,17 +208,15 @@ legacy `interpretSpec` checkpoint to the typed-IR semantic bridge path.
 2. State theorem: `SupportedStmtList morphoFields <function_body_stmts>`
 3. Construct witness using the appropriate `SupportedStmtFragment` constructor
 4. Close obligations via `native_decide` (field resolution) and `decide` (literal checks)
-5. setFeeRecipient is excluded: reads two `getStorageAddr` fields (ownerSlot + feeRecipientSlot), which exceeds the single-field-read `SupportedStmtFragment` constructors available in verity 08d942a5
+5. setFeeRecipient is excluded: reads two `getStorageAddr` fields (ownerSlot + feeRecipientSlot), which exceeds the single-field-read `SupportedStmtFragment` constructors available in verity dab9a567
 
-### Discharge sequence
+### Discharge sequence (current pin: `dab9a567`)
 
-Once verity#1065 merges and morpho-verity bumps the verity pin:
-
-1. **Links 1+2 proven (4 ops), Link 3 after verity pin bump**: `setOwner`,
+1. **Links 1+2 proven (4 ops), Link 3 via verity EndToEnd composition**: `setOwner`,
    `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 proven in
    `SemanticBridgeDischarge.lean`, Link 2 proven in `CompilationCorrectness.lean`.
    `setFeeRecipient` has Link 1 proven but Link 2 blocked on verity multi-field-read
-   support. Link 3 needs verity pin bump for compiled IR ↔ EVMYulLean composition.
+   support (`verity#1189`).
 2. **After macro migration + mapping bridge**: `createMarket` — currently a hard stub;
    once verity supports tuple access, externalCall, and blockTimestamp, the implementation
    can be restored and will need bridge-level lemmas for word-offset mapping access
