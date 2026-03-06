@@ -67,15 +67,73 @@ command_pid=""
 session_pid=""
 watchdog_pid=""
 
-cleanup() {
+stop_watchdog() {
   if [[ -n "${watchdog_pid}" ]]; then
     kill "${watchdog_pid}" >/dev/null 2>&1 || true
     wait "${watchdog_pid}" >/dev/null 2>&1 || true
   fi
+}
+
+terminate_running_command() {
+  local reason="${1:-}"
+  local target_pid=""
+  local target_mode=""
+
+  if [[ -n "${session_pid}" ]] && kill -0 "-${session_pid}" >/dev/null 2>&1; then
+    target_pid="${session_pid}"
+    target_mode="group"
+  elif [[ -n "${command_pid}" ]] && kill -0 "${command_pid}" >/dev/null 2>&1; then
+    target_pid="${command_pid}"
+    target_mode="pid"
+  else
+    return 1
+  fi
+
+  if [[ -n "${reason}" ]]; then
+    echo "WARNING: ${description} interrupted by ${reason}; terminating ${target_mode} ${target_pid}" >&2
+  fi
+
+  if [[ "${target_mode}" == "group" ]]; then
+    kill -TERM "-${target_pid}" >/dev/null 2>&1 || true
+  else
+    kill -TERM "${target_pid}" >/dev/null 2>&1 || true
+  fi
+  sleep 1
+
+  if [[ "${target_mode}" == "group" ]]; then
+    if kill -0 "-${target_pid}" >/dev/null 2>&1; then
+      kill -KILL "-${target_pid}" >/dev/null 2>&1 || true
+    fi
+  else
+    if kill -0 "${target_pid}" >/dev/null 2>&1; then
+      kill -KILL "${target_pid}" >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
+cleanup() {
+  stop_watchdog
+  terminate_running_command >/dev/null 2>&1 || true
   rm -rf "${tmp_dir}"
 }
 
 trap cleanup EXIT
+
+handle_signal() {
+  local sig="$1"
+  local signal_number
+  signal_number="$(kill -l "${sig}")"
+
+  trap - EXIT TERM INT HUP
+  stop_watchdog
+  terminate_running_command "signal ${sig}" || true
+  rm -rf "${tmp_dir}"
+  exit $((128 + signal_number))
+}
+
+trap 'handle_signal TERM' TERM
+trap 'handle_signal INT' INT
+trap 'handle_signal HUP' HUP
 
 cat > "${launcher_script}" <<'EOF'
 #!/usr/bin/env bash
@@ -180,8 +238,7 @@ else
   wait "${command_pid}" >/dev/null 2>&1 || true
 fi
 
-kill "${watchdog_pid}" >/dev/null 2>&1 || true
-wait "${watchdog_pid}" >/dev/null 2>&1 || true
+stop_watchdog
 
 if kill -0 "-${signal_pid}" >/dev/null 2>&1; then
   echo "WARNING: ${description} left descendant processes running; terminating process group ${signal_pid}" >&2

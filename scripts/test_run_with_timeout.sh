@@ -422,6 +422,64 @@ PY
   assert_contains "ERROR: pipeline-timeout timed out after 1s" "${output_file}"
 }
 
+test_wrapper_signal_cleanup_terminates_running_command_tree() {
+  local temp_dir output_file child_script marker wrapper_pid wait_status
+  temp_dir="$(mktemp -d)"
+  output_file="$(mktemp)"
+  marker="morpho-timeout-signal-$$"
+  child_script="${temp_dir}/spawn-descendant.sh"
+  trap 'pkill -f "${marker}" >/dev/null 2>&1 || true; rm -rf "${temp_dir}" "${output_file}"' RETURN
+
+  cat > "${child_script}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+trap '' TERM
+exec -a "${marker}" bash -lc 'trap "" TERM; while true; do sleep 5; done' &
+while true; do sleep 5; done
+EOF
+  chmod +x "${child_script}"
+
+  set +e
+  MORPHO_TEST_TIMEOUT_SEC="30" \
+    MORPHO_TIMEOUT_KILL_AFTER_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 60 "signaled wrapper command" -- \
+      "${child_script}" >"${output_file}" 2>&1 &
+  wrapper_pid=$!
+  set -e
+
+  for _ in $(seq 1 50); do
+    if pgrep -f "${marker}" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+
+  if ! pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected descendant marker process to start before signaling wrapper"
+    cat "${output_file}" || true
+    kill "${wrapper_pid}" >/dev/null 2>&1 || true
+    wait "${wrapper_pid}" >/dev/null 2>&1 || true
+    exit 1
+  fi
+
+  kill -TERM "${wrapper_pid}"
+  set +e
+  wait "${wrapper_pid}"
+  wait_status=$?
+  set -e
+
+  if [[ "${wait_status}" -ne 143 ]]; then
+    echo "ASSERTION FAILED: expected signaled wrapper to exit with 143, got ${wait_status}"
+    cat "${output_file}" || true
+    exit 1
+  fi
+  if pgrep -f "${marker}" >/dev/null 2>&1; then
+    echo "ASSERTION FAILED: expected signaled wrapper to terminate descendant process group"
+    exit 1
+  fi
+  assert_contains "WARNING: signaled wrapper command interrupted by signal TERM; terminating group" "${output_file}"
+}
+
 test_success_passthrough() {
   "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "success command" -- bash -lc 'exit 0'
 }
@@ -443,6 +501,7 @@ test_setsid_command_missing_fails_closed
 test_setsid_waits_for_command_exit
 test_setsid_fork_path_targets_session_leader_process_group
 test_timeout_pipeline_does_not_leave_tee_waiting_on_watchdog_sleep
+test_wrapper_signal_cleanup_terminates_running_command_tree
 test_success_passthrough
 
 echo "run_with_timeout.sh tests passed"
