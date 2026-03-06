@@ -118,6 +118,9 @@ jobs:
       - name: Validate CI check-script coverage sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI check-script coverage sync" -- python3 scripts/check_ci_check_coverage.py
 
+      - name: Validate script-test pairing
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate script-test pairing" -- python3 scripts/check_script_test_pairs.py
+
       - name: Validate parity EDSL-only naming
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate parity EDSL-only naming" -- python3 scripts/check_parity_edsl_naming.py
 
@@ -162,6 +165,9 @@ jobs:
 
       - name: Run CI check-script coverage unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "CI check-script coverage unit tests" -- python3 scripts/test_check_ci_check_coverage.py
+
+      - name: Run script-test pairing unit tests
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Script-test pairing unit tests" -- python3 scripts/test_check_script_test_pairs.py
 
       - name: Run parity EDSL-only naming unit tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity EDSL-only naming unit tests" -- python3 scripts/test_check_parity_edsl_naming.py
