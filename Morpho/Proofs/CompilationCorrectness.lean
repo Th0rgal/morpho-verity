@@ -138,8 +138,9 @@ theorem setFeeRecipient_supported :
       , Stmt.stop ] :=
   ⟨[.letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
     "ownerSlot" "feeRecipientSlot" "sender" "currentOwner" "currentFeeRecipient" "newFeeRecipient"
-    0 1 "not owner" "already set"
-    (by native_decide) (by native_decide) (by decide) (by decide) (by decide) (by decide)], rfl⟩
+    "not owner" "already set" 0 1
+    (by native_decide) (by native_decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)], rfl⟩
 
 /-- The `enableIrm` function body is a `SupportedStmtList`. -/
 theorem enableIrm_supported :
