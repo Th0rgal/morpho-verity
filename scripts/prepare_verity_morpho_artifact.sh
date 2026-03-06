@@ -57,7 +57,10 @@ run_stage() {
 }
 
 artifacts_ready() {
-  if [[ ! -s "${MORPHO_YUL}" || ! -s "${MORPHO_ABI}" ]]; then
+  if [[ ! -s "${MORPHO_YUL}" || ! -s "${MORPHO_REWRITTEN_YUL}" || ! -s "${MORPHO_ABI}" ]]; then
+    return 1
+  fi
+  if [[ ! -s "${REWRITE_REPORT}" ]]; then
     return 1
   fi
   if [[ "${SKIP_SOLC}" != "1" && ! -s "${MORPHO_BIN}" ]]; then

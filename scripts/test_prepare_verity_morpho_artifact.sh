@@ -517,6 +517,51 @@ test_reuses_existing_artifact_when_manifest_matches() {
   assert_contains "stage=reuse-artifact status=ok" "${out_dir}/Morpho.stage-times.log"
 }
 
+test_rebuilds_when_rewrite_outputs_are_missing() {
+  local fake_root fake_bin output_file out_dir lake_log
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  out_dir="${fake_root}/out"
+  lake_log="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${lake_log}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  rm -f "${out_dir}/Morpho.rewritten.yul" "${out_dir}/Morpho.rewrite-report.json"
+  : > "${lake_log}"
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  if [[ ! -s "${lake_log}" ]]; then
+    echo "ASSERTION FAILED: expected missing rewrite outputs to invalidate manifest reuse"
+    exit 1
+  fi
+  if [[ ! -s "${out_dir}/Morpho.rewritten.yul" ]]; then
+    echo "ASSERTION FAILED: expected Morpho.rewritten.yul to be regenerated"
+    exit 1
+  fi
+  if [[ ! -s "${out_dir}/Morpho.rewrite-report.json" ]]; then
+    echo "ASSERTION FAILED: expected Morpho.rewrite-report.json to be regenerated"
+    exit 1
+  fi
+}
+
 test_rebuilds_when_top_level_lean_entrypoint_changes() {
   local fake_root fake_bin output_file out_dir lake_log
   fake_root="$(mktemp -d)"
@@ -569,6 +614,7 @@ test_success_when_solc_is_skipped
 test_legacy_input_mode_alias_remains_compatible
 test_fail_closed_on_non_edsl_artifact_mode
 test_reuses_existing_artifact_when_manifest_matches
+test_rebuilds_when_rewrite_outputs_are_missing
 test_rebuilds_when_top_level_lean_entrypoint_changes
 
 echo "prepare_verity_morpho_artifact.sh tests passed"
