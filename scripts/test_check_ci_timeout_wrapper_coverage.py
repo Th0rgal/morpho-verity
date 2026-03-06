@@ -47,6 +47,15 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       {"check_alpha.py", "check_beta.py", "check_gamma.sh"},
     )
 
+  def test_collect_wrapped_check_scripts_supports_line_continuation(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: ./scripts/run_with_timeout.sh M 1 check \\",
+        "  -- python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(collect_wrapped_check_scripts(workflow_text), {"check_alpha.py"})
+
   def test_main_passes_when_all_check_scripts_are_wrapped(self) -> None:
     workflow_text = (
       "run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "

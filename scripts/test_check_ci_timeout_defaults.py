@@ -37,6 +37,13 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_run_timeout_defaults(workflow), {"A_TIMEOUT": {10}, "B_TIMEOUT": {20}})
 
+  def test_collect_run_timeout_defaults_supports_line_continuation(self) -> None:
+    workflow = (
+      "run: ./scripts/run_with_timeout.sh \\\n"
+      "  A_TIMEOUT 10 \"A\" -- cmd\n"
+    )
+    self.assertEqual(collect_run_timeout_defaults(workflow), {"A_TIMEOUT": {10}})
+
   def test_collect_timeout_env_literals(self) -> None:
     workflow = (
       "env:\n"

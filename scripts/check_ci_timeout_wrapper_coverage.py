@@ -12,6 +12,7 @@ WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\
 RUN_WITH_TIMEOUT_STEP_RE = re.compile(
   r"run_with_timeout\.sh[^\n]*\s(?:--\s+)?(?:python3\s+)?(?:\./)?scripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b"
 )
+LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 
 
 def fail(msg: str) -> None:
@@ -24,7 +25,8 @@ def collect_workflow_check_scripts(workflow_text: str) -> set[str]:
 
 
 def collect_wrapped_check_scripts(workflow_text: str) -> set[str]:
-  return {match.group(1) for match in RUN_WITH_TIMEOUT_STEP_RE.finditer(workflow_text)}
+  normalized = LINE_CONTINUATION_RE.sub(" ", workflow_text)
+  return {match.group(1) for match in RUN_WITH_TIMEOUT_STEP_RE.finditer(normalized)}
 
 
 def main() -> int:

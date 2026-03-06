@@ -49,6 +49,15 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
       {"check_alpha.py", "install_solc.sh", "install_lean.sh"},
     )
 
+  def test_collect_wrapped_script_targets_supports_line_continuation(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: ./scripts/run_with_timeout.sh M 1 d \\",
+        "  -- ./scripts/install_solc.sh 0.8.28",
+      ]
+    )
+    self.assertEqual(collect_wrapped_script_targets(workflow_text), {"install_solc.sh"})
+
   def test_collect_shell_test_loop_blocks(self) -> None:
     workflow_text = "\n".join(
       [

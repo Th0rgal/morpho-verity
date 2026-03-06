@@ -11,6 +11,7 @@ import sys
 RUN_WITH_TIMEOUT_RE = re.compile(r"run_with_timeout\.sh\s+([A-Z0-9_]+)\s+([0-9]+)\b")
 ENV_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\s*:\s*\"([0-9]+)\"")
 SCRIPT_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\b")
+LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 
 IGNORED_VARS = {
   # This timeout is intentionally overridden in timeout-wrapper tests.
@@ -51,8 +52,9 @@ def parse_timeout_env_file(path: pathlib.Path) -> dict[str, int]:
 
 
 def collect_run_timeout_defaults(workflow_text: str) -> dict[str, set[int]]:
+  normalized = LINE_CONTINUATION_RE.sub(" ", workflow_text)
   seen: dict[str, set[int]] = {}
-  for var, default in RUN_WITH_TIMEOUT_RE.findall(workflow_text):
+  for var, default in RUN_WITH_TIMEOUT_RE.findall(normalized):
     seen.setdefault(var, set()).add(int(default))
   return seen
 
