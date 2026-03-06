@@ -216,7 +216,29 @@ object "M" {
         "verityKeys": ["checked_add_uint32#0", "checked_add_uint64#0"],
       },
     )
-    self.assertIn({"family": "checked_add", "count": 5}, summary["priorityFamilies"])
+    self.assertIn({"family": "checked_add", "count": 4}, summary["priorityFamilies"])
+
+  def test_build_rewrite_family_summary_does_not_double_count_rename_pairs_in_priority(self) -> None:
+    summary = build_rewrite_family_summary(
+      {
+        "hashMismatch": [],
+        "onlyInSolidity": ["copy_literal_to_memory_a#0"],
+        "onlyInVerity": ["copy_literal_to_memory_b#0"],
+      },
+      {
+        "pairs": [
+          {
+            "solidity": {"key": "copy_literal_to_memory_a#0"},
+            "verity": {"key": "copy_literal_to_memory_b#0"},
+          }
+        ],
+        "ambiguousGroups": [],
+      },
+    )
+    self.assertEqual(
+      summary["priorityFamilies"],
+      [{"family": "copy_literal_to_memory", "count": 2}],
+    )
 
   def test_tokenizer_keeps_strings_and_compound_tokens(self) -> None:
     tokens = tokenize_normalized_yul('let x := add("a b", 0x10) -> y')

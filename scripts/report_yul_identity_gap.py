@@ -555,14 +555,12 @@ def build_rewrite_family_summary(
     ver_key = pair["verity"]["key"]
     family = _rename_family_label([sol_key], [ver_key])
     _record_rename_family(entries, family, sol_key, ver_key)
-    bump_priority(family)
 
   for group in name_insensitive_pairs.get("ambiguousGroups", []):
     sol_keys = sorted(entry["key"] for entry in group["solidity"])
     ver_keys = sorted(entry["key"] for entry in group["verity"])
     family = _rename_family_label(sol_keys, ver_keys)
     _record_ambiguous_rename_family(entries, family, sol_keys, ver_keys)
-    bump_priority(family)
 
   entries.sort(key=lambda item: (-item["count"], item["family"], item["kind"]))
   priority = [
