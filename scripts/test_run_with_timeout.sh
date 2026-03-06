@@ -7,7 +7,7 @@ SCRIPT_UNDER_TEST="${ROOT_DIR}/scripts/run_with_timeout.sh"
 assert_contains() {
   local needle="$1"
   local haystack_file="$2"
-  if ! grep -Fq "${needle}" "${haystack_file}"; then
+  if ! grep -Fq -- "${needle}" "${haystack_file}"; then
     echo "ASSERTION FAILED: expected to find '${needle}' in ${haystack_file}"
     exit 1
   fi
@@ -278,6 +278,42 @@ test_setsid_command_missing_fails_closed() {
   assert_contains "ERROR: setsid command is required when MORPHO_TEST_TIMEOUT_SEC is greater than zero" "${output_file}"
 }
 
+test_setsid_waits_for_command_exit() {
+  local fake_root fake_bin output_file args_file
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  args_file="${fake_root}/setsid-args"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  cat > "${fake_bin}/setsid" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "\$@" > "${args_file}"
+if [[ "\${1:-}" != "--wait" ]]; then
+  echo "expected --wait" >&2
+  exit 99
+fi
+shift
+exec "\$@"
+EOF
+  chmod +x "${fake_bin}/setsid"
+
+  set +e
+  PATH="${fake_bin}:$PATH" \
+    MORPHO_TEST_TIMEOUT_SEC="1" \
+    "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "setsid wait command" -- bash -lc 'exit 0' >"${output_file}" 2>&1
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 0 ]]; then
+    echo "ASSERTION FAILED: expected wrapped command to succeed with fake setsid, got ${status}"
+    exit 1
+  fi
+  assert_contains "--wait" "${args_file}"
+}
+
 test_success_passthrough() {
   "${SCRIPT_UNDER_TEST}" MORPHO_TEST_TIMEOUT_SEC 5 "success command" -- bash -lc 'exit 0'
 }
@@ -296,6 +332,7 @@ test_timeout_kills_descendant_process_group
 test_non_timeout_failure_preserves_exit_code
 test_zero_timeout_disables_timeout_and_preserves_exit_code
 test_setsid_command_missing_fails_closed
+test_setsid_waits_for_command_exit
 test_success_passthrough
 
 echo "run_with_timeout.sh tests passed"

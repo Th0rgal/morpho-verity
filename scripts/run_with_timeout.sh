@@ -74,7 +74,7 @@ cleanup() {
 trap cleanup EXIT
 
 start_epoch="$(date +%s)"
-setsid "$@" &
+setsid --wait "$@" &
 command_pid=$!
 
 (
