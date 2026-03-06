@@ -32,6 +32,9 @@ private theorem overrideBool2True_eq_if {α β : Type} [DecidableEq α] [Decidab
   funext b
   by_cases h1 : a = key1 <;> by_cases h2 : b = key2 <;> simp [h1, h2]
 
+private theorem eq_comm_iff {α : Type} (a b : α) : (a = b ↔ b = a) := by
+  constructor <;> intro h <;> simpa using h.symm
+
 /-- Encode `MorphoState` into the contract-state view expected by `MacroSlice`. -/
 def encodeMorphoState (s : MorphoState) : ContractState :=
   ContractState.mk
@@ -102,21 +105,42 @@ noncomputable def setAuthorization (s : MorphoState) (authorized : Address)
 theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
     setOwner s newOwner = some s' ↔
       s.sender = s.owner ∧ newOwner ≠ s.owner ∧ s' = { s with owner := newOwner } := by
-  sorry
+  simp only [setOwner, encodeMorphoState, MorphoViewSlice.setOwner, MorphoViewSlice.ownerSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.setStorageAddr, Verity.require]
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : newOwner = s.owner <;>
+    simp_all
+  exact eq_comm_iff _ _
 
 theorem setFeeRecipient_success_iff (s s' : MorphoState) (newFeeRecipient : Address) :
     setFeeRecipient s newFeeRecipient = some s' ↔
       s.sender = s.owner ∧
       newFeeRecipient ≠ s.feeRecipient ∧
       s' = { s with feeRecipient := newFeeRecipient } := by
-  sorry
+  simp only [setFeeRecipient, encodeMorphoState, MorphoViewSlice.setFeeRecipient,
+    MorphoViewSlice.ownerSlot, MorphoViewSlice.feeRecipientSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.setStorageAddr, Verity.require]
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : newFeeRecipient = s.feeRecipient <;>
+    simp_all
+  exact eq_comm_iff _ _
 
 theorem enableIrm_success_iff (s s' : MorphoState) (irm : Address) :
     enableIrm s irm = some s' ↔
       s.sender = s.owner ∧
       ¬s.isIrmEnabled irm ∧
       s' = { s with isIrmEnabled := fun a => if a == irm then true else s.isIrmEnabled a } := by
-  sorry
+  have h01 : (1 : Uint256) ≠ 0 := by decide
+  simp only [enableIrm, encodeMorphoState, MorphoViewSlice.enableIrm,
+    MorphoViewSlice.ownerSlot, MorphoViewSlice.isIrmEnabledSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.getMapping, Verity.setMapping, Verity.require]
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : s.isIrmEnabled irm <;>
+    simp_all
+  exact eq_comm_iff _ _
 
 theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
     enableLltv s lltv = some s' ↔
@@ -124,7 +148,21 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
       ¬s.isLltvEnabled lltv ∧
       lltv.val < Morpho.Libraries.MathLib.WAD ∧
       s' = { s with isLltvEnabled := fun l => if l == lltv then true else s.isLltvEnabled l } := by
-  sorry
+  have h01 : (1 : Uint256) ≠ 0 := by decide
+  simp only [enableLltv, encodeMorphoState, MorphoViewSlice.enableLltv,
+    MorphoViewSlice.ownerSlot, MorphoViewSlice.isLltvEnabledSlot]
+  simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
+    Verity.getMappingUint, Verity.setMappingUint, Verity.require]
+  simp only [Morpho.Libraries.MathLib.WAD]
+  have hWadVal : Verity.Core.Uint256.val (1000000000000000000 : Uint256) = 1000000000000000000 := by
+    native_decide
+  by_cases h1 : s.sender = s.owner <;>
+    by_cases h2 : s.isLltvEnabled lltv <;>
+    simp_all <;>
+    (by_cases h3 : lltv.val < (1000000000000000000 : Nat)
+     · simp [h3]
+       exact eq_comm_iff _ _
+     · simp [h3])
 
 theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) :
@@ -134,6 +172,16 @@ theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
         isAuthorized := fun authorizer auth =>
           if authorizer == s.sender && auth == authorized then newIsAuthorized
           else s.isAuthorized authorizer auth } := by
-  sorry
+  have h01 : (1 : Uint256) ≠ 0 := by decide
+  cases newIsAuthorized <;>
+    by_cases h : s.isAuthorized s.sender authorized <;>
+    simp [setAuthorization, encodeMorphoState, MorphoViewSlice.setAuthorization,
+      MorphoViewSlice.isAuthorizedSlot, Bind.bind, Verity.bind, Verity.msgSender,
+      Verity.getMapping2, Verity.require, Verity.setMapping2, h,
+      overrideBool2False_eq_if, overrideBool2True_eq_if, h01]
+  all_goals
+    first
+    | exact eq_comm_iff _ _
+    | assumption
 
 end Morpho.Compiler.AdminAdapters
