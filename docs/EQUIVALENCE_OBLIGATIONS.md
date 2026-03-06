@@ -181,9 +181,10 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
 **Summary**: All 6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
-All 5 also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
+The 5 admin operations also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
 `Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
-the upstream two-storage-address witness added in verity.
+the upstream two-storage-address witness added in verity. `flashLoan` remains
+blocked at Link 2 on the `mstore`/`rawLog` event path.
 createMarket is a hard stub (not macro-migrated) — Link 1 not yet provable.
 
 ### Discharge proof structure
@@ -199,7 +200,7 @@ The discharge has three links per obligation:
 At verity pin `9d9533b2`, Link 2 is tracked on the typed-IR semantic bridge path
 with concrete upstream witness theorems for Morpho admin patterns.
 
-**Link 1 proof pattern** (for all 5 proven operations):
+**Link 1 proof pattern** (for the 5 admin operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
 2. Run EDSL function on encoded state, decode result to `Option MorphoState`
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
