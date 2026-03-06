@@ -21,7 +21,7 @@ EVMYulLean (Yul execution)
 
 ## What this proves (no sorry)
 
-For all 5 admin functions with Link 1 proofs, we compose:
+For the 5 admin functions with Link 1 proofs, we compose:
 - **Link 1** (`SemanticBridgeDischarge`): `edslF = ContractSemantics.F`
 - **Canonical invariants** (`Invariants`): `ContractSemantics.F` preserves all 4 invariants
 
@@ -232,7 +232,7 @@ theorem edsl_flashLoan_rejects_zero_assets
 
 ### Link 1 + Invariants: 23 theorems, zero sorry
 
-For all 5 admin functions with Link 1 proofs, we have direct composition
+For the 5 admin functions with Link 1 proofs, we have direct composition
 showing each EDSL function preserves each invariant:
 
 | Function         | borrowLeSupply | alwaysCollat | irmMono | lltvMono |
