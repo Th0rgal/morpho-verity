@@ -139,78 +139,15 @@ jobs:
       - name: Run parity-target parser regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py
 
-      - name: Run Yul identity report unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Yul identity report unit tests" -- python3 scripts/test_report_yul_identity_gap.py
+      - name: Run Python script unit tests (discovery)
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Python script unit tests (discovery)" -- python3 -m unittest discover -s scripts -p 'test_*.py'
 
-      - name: Run macro migration selector-surface unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Macro migration selector-surface unit tests" -- python3 scripts/test_check_macro_migration_surface.py
-
-      - name: Run morpho selector sync unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho selector sync unit tests" -- python3 scripts/test_check_morpho_selectors_sync.py
-
-      - name: Run macro migration blockers unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Macro migration blockers unit tests" -- python3 scripts/test_check_macro_migration_blockers.py
-
-      - name: Run macro migration selector-slice unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Macro migration selector-slice unit tests" -- python3 scripts/test_check_macro_migration_slice.py
-
-      - name: Run morpho generated boundary unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho generated boundary unit tests" -- python3 scripts/test_check_morpho_generated_boundary.py
-
-      - name: Run CI timeout defaults unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "CI timeout defaults unit tests" -- python3 scripts/test_check_ci_timeout_defaults.py
-
-      - name: Run CI script-test coverage unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "CI script-test coverage unit tests" -- python3 scripts/test_check_ci_test_coverage.py
-
-      - name: Run CI check-script coverage unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "CI check-script coverage unit tests" -- python3 scripts/test_check_ci_check_coverage.py
-
-      - name: Run script-test pairing unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Script-test pairing unit tests" -- python3 scripts/test_check_script_test_pairs.py
-
-      - name: Run parity EDSL-only naming unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity EDSL-only naming unit tests" -- python3 scripts/test_check_parity_edsl_naming.py
-
-      - name: Run artifact layout boundary unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact layout boundary unit tests" -- python3 scripts/test_check_artifact_layout_boundary.py
-
-      - name: Run semantic bridge obligation unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Semantic bridge obligation unit tests" -- python3 scripts/test_check_semantic_bridge_obligations.py
-
-      - name: Run spec correspondence unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Spec correspondence unit tests" -- python3 scripts/test_check_spec_correspondence.py
-
-      - name: Run primitive coverage unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Primitive coverage unit tests" -- python3 scripts/test_check_primitive_coverage.py
-
-      - name: Run keccak selector helper forwarder unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Keccak selector helper forwarder unit tests" -- python3 scripts/test_keccak256.py
-
-      - name: Run artifact-gate script unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-gate script unit tests" -- ./scripts/test_check_input_mode_parity.sh
-
-      - name: Run artifact-prep script unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Artifact-prep script unit tests" -- ./scripts/test_prepare_verity_morpho_artifact.sh
-
-      - name: Run Morpho Blue parity script unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Morpho Blue parity script unit tests" -- ./scripts/test_run_morpho_blue_parity.sh
-
-      - name: Run Foundry installer unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Foundry installer unit tests" -- ./scripts/test_install_foundry.sh
-      - name: Run toolchain readiness unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Toolchain readiness unit tests" -- ./scripts/test_check_toolchain_readiness.sh
-
-      - name: Run Lean installer unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Lean installer unit tests" -- ./scripts/test_install_lean.sh
-
-      - name: Run solc installer unit tests
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "solc installer unit tests" -- ./scripts/test_install_solc.sh
-
-      - name: Run timeout wrapper unit tests
-        env:
-          MORPHO_TIMEOUT_KILL_AFTER_SEC: "1"
-        run: ./scripts/run_with_timeout.sh MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC 180 "Timeout wrapper unit tests" -- ./scripts/test_run_with_timeout.sh
+      - name: Run shell script unit tests (glob)
+        run: |
+          set -euo pipefail
+          for t in scripts/test_*.sh; do
+            ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Shell script unit test: ${t}" -- "./${t}"
+          done
 
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
