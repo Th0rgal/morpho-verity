@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 import unittest
 
@@ -162,6 +163,20 @@ class BaselineValidationTests(unittest.TestCase):
 
 
 class RepoCheckTests(unittest.TestCase):
+  def test_flash_loan_event_topic_matches_spec(self) -> None:
+    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
+    spec_text = (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text()
+    spec_match = re.search(
+      r"flashLoanEventTopic\s*:\s*Nat\s*:=\s*(0x[0-9a-f]+)",
+      spec_text,
+    )
+    self.assertIsNotNone(spec_match)
+    expected_topic = str(int(spec_match.group(1), 16))
+    self.assertIn(
+      f"rawLog [{expected_topic}, sender, token] 0 32",
+      macro_text,
+    )
+
   def test_current_repo_slice_matches(self) -> None:
     report = run_check()
     self.assertEqual(report["status"], "ok")

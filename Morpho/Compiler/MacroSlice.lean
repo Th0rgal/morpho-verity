@@ -274,6 +274,6 @@ verity_contract MorphoViewSlice where
     let sender <- msgSender
     let _ignoredData := data
     mstore 0 assets
-    rawLog [90216828628415846644414305094369944366677922027371789219264514140688308735890, sender, token] 0 32
+    rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
 
 end Morpho.Compiler.MacroSlice
