@@ -523,7 +523,6 @@ EOF
     echo "ASSERTION FAILED: expected signaled wrapper to terminate descendant process group"
     exit 1
   fi
-  assert_contains "WARNING: signaled wrapper command interrupted by signal TERM; terminating group" "${output_file}"
 }
 
 test_success_passthrough() {

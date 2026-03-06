@@ -66,6 +66,61 @@ launcher_script="${tmp_dir}/launch-command.sh"
 command_pid=""
 session_pid=""
 watchdog_pid=""
+signal_pid=""
+signal_target_mode=""
+
+load_session_pid() {
+  local loaded_session_pid=""
+
+  if [[ -n "${session_pid}" || ! -s "${session_pid_file}" ]]; then
+    return 0
+  fi
+
+  loaded_session_pid="$(tr -d '[:space:]' < "${session_pid_file}")"
+  if [[ -z "${loaded_session_pid}" ]]; then
+    return 0
+  fi
+  if [[ ! "${loaded_session_pid}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: invalid session leader pid captured for ${description}: ${loaded_session_pid}" >&2
+    return 1
+  fi
+
+  session_pid="${loaded_session_pid}"
+  signal_pid="${session_pid}"
+  signal_target_mode="group"
+}
+
+refresh_signal_target() {
+  load_session_pid || return 1
+
+  if [[ -n "${session_pid}" ]]; then
+    signal_pid="${session_pid}"
+    signal_target_mode="group"
+  elif [[ -n "${command_pid}" ]]; then
+    signal_pid="${command_pid}"
+    signal_target_mode="pid"
+  else
+    signal_pid=""
+    signal_target_mode=""
+  fi
+}
+
+wait_for_session_target() {
+  local attempts="${1:-20}"
+
+  for _ in $(seq 1 "${attempts}"); do
+    load_session_pid || return 1
+    if [[ -n "${session_pid}" ]]; then
+      return 0
+    fi
+    if [[ -z "${command_pid}" ]] || ! kill -0 "${command_pid}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.05
+  done
+
+  load_session_pid
+}
 
 stop_watchdog() {
   if [[ -n "${watchdog_pid}" ]]; then
@@ -75,10 +130,29 @@ stop_watchdog() {
 }
 
 signal_target_is_alive() {
-  if [[ -n "${session_pid}" ]]; then
+  refresh_signal_target || return 1
+  if [[ -z "${signal_pid}" ]]; then
+    return 1
+  fi
+  if [[ "${signal_target_mode}" == "group" ]]; then
     kill -0 "-${signal_pid}" >/dev/null 2>&1
   else
     kill -0 "${signal_pid}" >/dev/null 2>&1
+  fi
+}
+
+send_signal_to_target() {
+  local sig="$1"
+
+  refresh_signal_target || return 1
+  if [[ -z "${signal_pid}" ]]; then
+    return 1
+  fi
+
+  if [[ "${signal_target_mode}" == "group" ]]; then
+    kill "-${sig}" "-${signal_pid}" >/dev/null 2>&1 || true
+  else
+    kill "-${sig}" "${signal_pid}" >/dev/null 2>&1 || true
   fi
 }
 
@@ -87,35 +161,25 @@ terminate_running_command() {
   local target_pid=""
   local target_mode=""
 
-  if [[ -n "${session_pid}" ]] && kill -0 "-${session_pid}" >/dev/null 2>&1; then
-    target_pid="${session_pid}"
-    target_mode="group"
-  elif [[ -n "${command_pid}" ]] && kill -0 "${command_pid}" >/dev/null 2>&1; then
-    target_pid="${command_pid}"
-    target_mode="pid"
-  else
+  refresh_signal_target || return 1
+  if [[ -z "${signal_pid}" ]]; then
     return 1
   fi
+  if ! signal_target_is_alive; then
+    return 1
+  fi
+  target_pid="${signal_pid}"
+  target_mode="${signal_target_mode}"
 
   if [[ -n "${reason}" ]]; then
     echo "WARNING: ${description} interrupted by ${reason}; terminating ${target_mode} ${target_pid}" >&2
   fi
 
-  if [[ "${target_mode}" == "group" ]]; then
-    kill -TERM "-${target_pid}" >/dev/null 2>&1 || true
-  else
-    kill -TERM "${target_pid}" >/dev/null 2>&1 || true
-  fi
+  send_signal_to_target TERM
   sleep 1
 
-  if [[ "${target_mode}" == "group" ]]; then
-    if kill -0 "-${target_pid}" >/dev/null 2>&1; then
-      kill -KILL "-${target_pid}" >/dev/null 2>&1 || true
-    fi
-  else
-    if kill -0 "${target_pid}" >/dev/null 2>&1; then
-      kill -KILL "${target_pid}" >/dev/null 2>&1 || true
-    fi
+  if signal_target_is_alive; then
+    send_signal_to_target KILL
   fi
 }
 
@@ -134,7 +198,11 @@ handle_signal() {
 
   trap - EXIT TERM INT HUP
   stop_watchdog
+  wait_for_session_target || true
   terminate_running_command "signal ${sig}" || true
+  if [[ -n "${command_pid}" ]]; then
+    wait "${command_pid}" >/dev/null 2>&1 || true
+  fi
   rm -rf "${tmp_dir}"
   exit $((128 + signal_number))
 }
@@ -172,7 +240,7 @@ command_pid=$!
 
 for _ in $(seq 1 50); do
   if [[ -s "${session_pid_file}" ]]; then
-    session_pid="$(tr -d '[:space:]' < "${session_pid_file}")"
+    load_session_pid || exit 1
     break
   fi
   if ! kill -0 "${command_pid}" >/dev/null 2>&1; then
@@ -181,12 +249,7 @@ for _ in $(seq 1 50); do
   sleep 0.1
 done
 
-if [[ -n "${session_pid}" && ! "${session_pid}" =~ ^[0-9]+$ ]]; then
-  echo "ERROR: invalid session leader pid captured for ${description}: ${session_pid}" >&2
-  exit 1
-fi
-
-signal_pid="${session_pid:-${command_pid}}"
+load_session_pid || exit 1
 
 watchdog() {
   local sleep_pid=""
@@ -208,7 +271,7 @@ watchdog() {
 
   if signal_target_is_alive; then
     printf 'timeout\n' > "${status_file}"
-    kill -TERM "-${signal_pid}" >/dev/null 2>&1 || true
+    send_signal_to_target TERM
 
     sleep "${kill_after_sec}" &
     sleep_pid=$!
@@ -217,7 +280,7 @@ watchdog() {
 
     if signal_target_is_alive; then
       printf 'kill-after\n' > "${status_file}"
-      kill -KILL "-${signal_pid}" >/dev/null 2>&1 || true
+      send_signal_to_target KILL
     fi
   fi
 }
@@ -248,12 +311,12 @@ fi
 
 stop_watchdog
 
-if kill -0 "-${signal_pid}" >/dev/null 2>&1; then
-  echo "WARNING: ${description} left descendant processes running; terminating process group ${signal_pid}" >&2
-  kill -TERM "-${signal_pid}" >/dev/null 2>&1 || true
+if signal_target_is_alive; then
+  echo "WARNING: ${description} left descendant processes running; terminating ${signal_target_mode} ${signal_pid}" >&2
+  send_signal_to_target TERM
   sleep 1
-  if kill -0 "-${signal_pid}" >/dev/null 2>&1; then
-    kill -KILL "-${signal_pid}" >/dev/null 2>&1 || true
+  if signal_target_is_alive; then
+    send_signal_to_target KILL
   fi
 fi
 
