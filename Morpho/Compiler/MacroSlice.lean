@@ -11,6 +11,7 @@ def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
 def returnValues (_values : List Uint256) : Contract Unit := Verity.pure ()
+def rawLog (_topics : List Uint256) (_dataOffset _dataSize : Uint256) : Contract Unit := Verity.pure ()
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := Verity.pure 0
 def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
@@ -271,8 +272,8 @@ verity_contract MorphoViewSlice where
   function flashLoan (token : Address, assets : Uint256, data : Bytes) : Unit := do
     require (assets > 0) "zero assets"
     let sender <- msgSender
-    let _ignoredToken := token
     let _ignoredData := data
-    require (sender == sender) "flashLoan noop"
+    mstore 0 assets
+    rawLog [90216828628415846644414305094369944366677922027371789219264514140688308735890, sender, token] 0 32
 
 end Morpho.Compiler.MacroSlice

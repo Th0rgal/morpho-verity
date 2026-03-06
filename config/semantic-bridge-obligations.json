@@ -94,7 +94,7 @@
       "operation": "setAuthorizationWithSig",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "macro migration (ecrecover, memory management, EIP-712 hashing) + typed-IR SupportedStmtList proof"
+      "blockedBy": "macro migration blocked on tuple-param destructuring in verity_contract, plus signature-validity/spec abstraction and typed-IR SupportedStmtList proof"
     },
     {
       "id": "OBL-SET-OWNER-SEM-EQ",
@@ -141,8 +141,8 @@
       "hypothesis": "flashLoanSemEq",
       "operation": "flashLoan",
       "status": "assumed",
-      "macroMigrated": false,
-      "blockedBy": "macro migration (ERC20, callbacks) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "blockedBy": "macro body migrated at the repo's state-model level; remaining gap is external ERC20/callback proof surface plus typed-IR SupportedStmtList proof"
     }
   ],
   "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 9d9533b2; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",

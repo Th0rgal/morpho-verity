@@ -200,8 +200,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage)
 
-        # 5 migrated operations (createMarket is a hard stub, not migrated)
-        self.assertEqual(report["total"], 5)
+        # 6 migrated operations (admin cluster + flashLoan)
+        self.assertEqual(report["total"], 6)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])
@@ -214,6 +214,10 @@ class IntegrationTests(unittest.TestCase):
 
         # createMarket is no longer in migrated set (hard stub)
         self.assertNotIn("createMarket", coverage)
+
+        # Newly migrated flash-loan flow should be present in the coverage set
+        self.assertIn("flashLoan", coverage)
+        self.assertNotIn("setAuthorizationWithSig", coverage)
 
         # At least 2 fully covered
         self.assertGreaterEqual(report["fully_covered"], 2)

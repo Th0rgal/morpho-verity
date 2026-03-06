@@ -38,9 +38,9 @@ def read_text(path: pathlib.Path) -> str:
 # Spec.lean extraction
 # ---------------------------------------------------------------------------
 
-# Matches param entries like: { name := "newOwner", ty := .address }
-# Also matches variable type refs like: { name := "marketParams", ty := marketParamsTy }
-SPEC_PARAM_RE = re.compile(r'\{\s*name\s*:=\s*"(\w+)",\s*ty\s*:=\s*\.?(\w+)\s*\}')
+# Matches param entries starting with: { name := "newOwner", ty := ...
+# Keep this permissive because tuple-typed params include nested commas/brackets.
+SPEC_PARAM_RE = re.compile(r'\{\s*name\s*:=\s*"(\w+)",\s*ty\s*:=')
 
 # Matches Stmt.require lines
 SPEC_REQUIRE_RE = re.compile(r"Stmt\.require\b")
@@ -48,6 +48,15 @@ SPEC_REQUIRE_RE = re.compile(r"Stmt\.require\b")
 # Matches state mutations
 SPEC_SET_RE = re.compile(
     r"Stmt\.(setStorage|setMapping2?|setMappingUint|setMappingWord|setStructMember2?)\b"
+)
+
+# Matches body references like: body := setAuthorizationWithSigBody
+SPEC_BODY_REF_RE = re.compile(r"body\s*:=\s*(\w+)")
+
+# Matches private body definitions like: private def flashLoanBody : List Stmt := [ ... ]
+SPEC_BODY_DEF_RE = re.compile(
+    r"private\s+def\s+(\w+)\s*:\s*List\s+Stmt\s*:=\s*\[(.*?)^\s*\]",
+    re.MULTILINE | re.DOTALL,
 )
 
 
@@ -85,9 +94,15 @@ def extract_spec_function_blocks(text: str) -> list[str]:
     return blocks
 
 
+def extract_spec_body_defs(text: str) -> dict[str, str]:
+    """Extract named List Stmt bodies from Spec.lean."""
+    return {m.group(1): m.group(2) for m in SPEC_BODY_DEF_RE.finditer(text)}
+
+
 def extract_spec_functions(text: str) -> dict[str, dict[str, Any]]:
     """Extract function metadata from Spec.lean."""
     result: dict[str, dict[str, Any]] = {}
+    body_defs = extract_spec_body_defs(text)
 
     for block in extract_spec_function_blocks(text):
         m = re.search(r'name\s*:=\s*"(\w+)"', block)
@@ -95,10 +110,12 @@ def extract_spec_functions(text: str) -> dict[str, dict[str, Any]]:
             continue
         fn_name = m.group(1)
         params = SPEC_PARAM_RE.findall(block)
-        requires = len(SPEC_REQUIRE_RE.findall(block))
-        mutations = len(SPEC_SET_RE.findall(block))
+        body_ref = SPEC_BODY_REF_RE.search(block)
+        body_text = body_defs.get(body_ref.group(1), block) if body_ref else block
+        requires = len(SPEC_REQUIRE_RE.findall(body_text))
+        mutations = len(SPEC_SET_RE.findall(body_text))
         result[fn_name] = {
-            "params": [(name, ty) for name, ty in params],
+            "params": list(params),
             "param_count": len(params),
             "require_count": requires,
             "mutation_count": mutations,

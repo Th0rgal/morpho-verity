@@ -313,13 +313,13 @@ class IntegrationTests(unittest.TestCase):
             ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
-        # 5 should be macro-migrated (createMarket is a hard stub, not migrated)
+        # 6 should be macro-migrated (admin cluster + flashLoan)
         migrated = [o for o in config["obligations"] if o.get("macroMigrated")]
-        self.assertEqual(len(migrated), 5)
+        self.assertEqual(len(migrated), 6)
         migrated_ops = sorted(o["operation"] for o in migrated)
         self.assertEqual(
             migrated_ops,
-            ["enableIrm", "enableLltv", "setAuthorization", "setFeeRecipient", "setOwner"],
+            ["enableIrm", "enableLltv", "flashLoan", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
 
