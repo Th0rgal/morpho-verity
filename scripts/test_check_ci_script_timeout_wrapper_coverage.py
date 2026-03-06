@@ -28,12 +28,20 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
       [
         "run: ./scripts/install_lean.sh",
         "run: python3 scripts/check_alpha.py",
+        "run: bash scripts/install_foundry.sh",
+        "run: env sh scripts/install_solc.sh",
         "run: ./scripts/run_with_timeout.sh M 1 d -- ./scripts/install_solc.sh 0.8.28",
       ]
     )
     self.assertEqual(
       collect_workflow_script_references(workflow_text),
-      {"install_lean.sh", "check_alpha.py", "run_with_timeout.sh", "install_solc.sh"},
+      {
+        "install_lean.sh",
+        "check_alpha.py",
+        "install_foundry.sh",
+        "install_solc.sh",
+        "run_with_timeout.sh",
+      },
     )
 
   def test_collect_workflow_script_references_ignores_non_run_references(self) -> None:
@@ -52,11 +60,13 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
         "run: ./scripts/run_with_timeout.sh M 1 d -- python3 scripts/check_alpha.py",
         "run: ./scripts/run_with_timeout.sh M 1 d -- ./scripts/install_solc.sh 0.8.28",
         "run: ../scripts/run_with_timeout.sh M 1 d -- ./scripts/install_lean.sh",
+        "run: ./scripts/run_with_timeout.sh M 1 d -- bash scripts/install_foundry.sh",
+        "run: ./scripts/run_with_timeout.sh M 1 d -- env sh scripts/install_solc.sh",
       ]
     )
     self.assertEqual(
       collect_wrapped_script_targets(workflow_text),
-      {"check_alpha.py", "install_solc.sh", "install_lean.sh"},
+      {"check_alpha.py", "install_solc.sh", "install_lean.sh", "install_foundry.sh"},
     )
 
   def test_collect_wrapped_script_targets_does_not_cross_lines(self) -> None:
@@ -126,7 +136,7 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
   def test_main_fails_on_unwrapped_script(self) -> None:
     workflow_text = "\n".join(
       [
-        "run: ./scripts/install_lean.sh",
+        "run: bash scripts/install_lean.sh",
         "run: ./scripts/run_with_timeout.sh M 1 d -- python3 scripts/check_alpha.py",
       ]
     )
