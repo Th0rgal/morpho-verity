@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import pathlib
 import tempfile
 import sys
@@ -171,6 +172,14 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
       self.assertTrue(json_out.is_file())
       json_report = json.loads(json_out.read_text(encoding="utf-8"))
       self.assertEqual(json_report["output"], str(output_path))
+      self.assertEqual(
+        json_report["pipelineManifestSha256"],
+        hashlib.sha256(pipeline_path.read_text(encoding="utf-8").encode("utf-8")).hexdigest(),
+      )
+      self.assertEqual(
+        json_report["proofManifestSha256"],
+        hashlib.sha256(proof_path.read_text(encoding="utf-8").encode("utf-8")).hexdigest(),
+      )
 
   def test_apply_rewrite_pipeline_to_file_allows_missing_proof_manifest(self) -> None:
     with tempfile.TemporaryDirectory() as d:
@@ -206,6 +215,7 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
 
       self.assertEqual(output_path.read_text(encoding="utf-8"), input_path.read_text(encoding="utf-8"))
       self.assertIsNone(report["proofManifest"])
+      self.assertIsNone(report["proofManifestSha256"])
 
 
 if __name__ == "__main__":

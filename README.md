@@ -253,6 +253,8 @@ Validate a prepared artifact bundle before reusing it:
 python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 ```
 
+Prepared rewrite bundles are validated fail-closed against both manifest paths and manifest content digests. If `config/yul-rewrite-pipeline.json` or `config/yul-rewrite-proof-obligations.json` changes in place, an older `Morpho.rewrite-report.json` will no longer be accepted for reuse.
+
 Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`):
 
 ```bash

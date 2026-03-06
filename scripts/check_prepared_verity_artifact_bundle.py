@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import pathlib
 from typing import Any
@@ -35,6 +36,14 @@ def _read_json(path: pathlib.Path) -> dict[str, Any]:
   if not isinstance(data, dict):
     raise RuntimeError(f"Expected JSON object in {_display_path(path)}")
   return data
+
+
+def _sha256_text(text: str) -> str:
+  return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _sha256_file(path: pathlib.Path) -> str:
+  return _sha256_text(path.read_text(encoding="utf-8"))
 
 
 def _require_nonempty_file(path: pathlib.Path, *, label: str) -> None:
@@ -71,6 +80,12 @@ def _expected_proof_manifest(proof_manifest_path: pathlib.Path) -> str | None:
   if not proof_manifest_path.exists():
     return None
   return _display_path(proof_manifest_path)
+
+
+def _expected_manifest_sha256(path: pathlib.Path) -> str | None:
+  if not path.exists():
+    return None
+  return _sha256_file(path)
 
 
 def validate_prepared_verity_artifact_bundle(
@@ -146,11 +161,23 @@ def validate_prepared_verity_artifact_bundle(
         "Prepared rewrite report pipeline manifest mismatch: expected "
         f"{expected_pipeline_manifest}, got {report.get('pipelineManifest')!r}"
       )
+    expected_pipeline_sha256 = _expected_manifest_sha256(pipeline_manifest_path)
+    if report.get("pipelineManifestSha256") != expected_pipeline_sha256:
+      raise RuntimeError(
+        "Prepared rewrite report pipeline manifest digest mismatch: expected "
+        f"{expected_pipeline_sha256!r}, got {report.get('pipelineManifestSha256')!r}"
+      )
     expected_proof_manifest = _expected_proof_manifest(proof_manifest_path)
     if report.get("proofManifest") != expected_proof_manifest:
       raise RuntimeError(
         "Prepared rewrite report proof manifest mismatch: expected "
         f"{expected_proof_manifest!r}, got {report.get('proofManifest')!r}"
+      )
+    expected_proof_sha256 = _expected_manifest_sha256(proof_manifest_path)
+    if report.get("proofManifestSha256") != expected_proof_sha256:
+      raise RuntimeError(
+        "Prepared rewrite report proof manifest digest mismatch: expected "
+        f"{expected_proof_sha256!r}, got {report.get('proofManifestSha256')!r}"
       )
     if rewritten_path.exists() and rewritten_path.stat().st_size <= 0:
       raise RuntimeError(f"Prepared rewritten artifact is empty: {_display_path(rewritten_path)}")

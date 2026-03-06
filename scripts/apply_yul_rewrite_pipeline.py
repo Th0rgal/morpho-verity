@@ -42,6 +42,10 @@ def sha256_text(text: str) -> str:
   return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def sha256_file(path: pathlib.Path) -> str:
+  return sha256_text(read_text(path))
+
+
 def display_path(path: pathlib.Path) -> str:
   try:
     return str(path.relative_to(ROOT))
@@ -248,7 +252,9 @@ def apply_rewrite_pipeline_to_file(
 
   full_report = {
     "pipelineManifest": display_path(pipeline_manifest_path),
+    "pipelineManifestSha256": sha256_file(pipeline_manifest_path),
     "proofManifest": display_path(proof_manifest_path) if proof_manifest_path is not None else None,
+    "proofManifestSha256": sha256_file(proof_manifest_path) if proof_manifest_path is not None else None,
     "input": display_path(input_path),
     "output": display_path(output_path),
     "inputSha256": sha256_text(input_text),
