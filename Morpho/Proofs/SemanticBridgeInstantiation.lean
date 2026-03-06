@@ -10,11 +10,15 @@ concrete EDSL implementations proven equivalent to the pure Lean model in
 
 ## What this proves
 
-For each of the 5 Link 1-discharged operations (setOwner, setFeeRecipient,
-enableIrm, enableLltv, setAuthorization), we instantiate all 4 invariant
-preservation theorems (borrowLeSupply, alwaysCollateralized, irmMonotone,
-lltvMonotone), producing **20 concrete, sorry-free theorems** that the EDSL
-implementation preserves every Morpho invariant.
+For each of the 5 admin operations with Link 1 discharged (setOwner,
+setFeeRecipient, enableIrm, enableLltv, setAuthorization), we instantiate all
+4 invariant preservation theorems (borrowLeSupply, alwaysCollateralized,
+irmMonotone, lltvMonotone), producing **20 concrete, sorry-free theorems** that
+the EDSL implementation preserves every Morpho invariant.
+
+For `flashLoan`, whose canonical contract-semantics surface returns `Option Unit`
+rather than a successor state, we instantiate the corresponding bridge theorem
+for zero-assets rejection.
 
 ## What this validates
 
@@ -214,16 +218,27 @@ theorem edsl_setAuthorization_preserves_lltvMonotone
   solidity_setAuthorization_preserves_lltvMonotone edslSetAuthorization setAuthorization_semEq
     s authorized newIsAuthorized lltv s' h_enabled h_ok
 
+/-! ## flashLoan: EDSL satisfies the bridge rejection theorem -/
+
+/-- The EDSL `flashLoan` rejects zero-asset calls. -/
+theorem edsl_flashLoan_rejects_zero_assets
+    (s : MorphoState) :
+    edslFlashLoan s 0 = none :=
+  solidity_flashLoan_rejects_zero_assets edslFlashLoan flashLoan_semEq s
+
 /-! ## Summary
 
-20 concrete invariant preservation theorems, zero sorry.
+21 concrete bridge instantiation theorems, zero sorry.
 
-For each of the 5 Link 1-discharged operations, we have proven that the EDSL
+For the 5 admin operations with Link 1 discharged, we have proven that the EDSL
 implementation preserves:
 - `borrowLeSupply`: total borrow assets ≤ total supply assets per market
 - `alwaysCollateralized`: every borrower's position is adequately collateralized
 - `irmMonotone`: once an IRM is enabled, it stays enabled
 - `lltvMonotone`: once an LLTV is enabled, it stays enabled
+
+For `flashLoan`, we also instantiate the direct semantic-bridge theorem that
+the EDSL rejects zero-asset calls.
 
 ### Remaining gap: Links 2+3
 
@@ -235,7 +250,7 @@ The full semantic bridge additionally requires:
 - **Link 3**: compiled IR ≡ EVMYulLean(Yul)
   (proven in verity `Compiler/Proofs/EndToEnd.lean`)
 
-Once Links 2+3 are composed, these 20 theorems extend to the compiled
+Once Links 2+3 are composed, these 21 theorems extend to the compiled
 EVM bytecode automatically: if `edslSetOwner` preserves `borrowLeSupply`,
 and the compiled bytecode behaves identically to `edslSetOwner`, then the
 compiled bytecode also preserves `borrowLeSupply`.
