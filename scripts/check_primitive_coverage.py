@@ -50,6 +50,7 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("return", re.compile(r"\breturn\s+\w+")),
     ("returnValues", re.compile(r"\breturnValues\b")),
     ("mstore", re.compile(r"\bmstore\b")),
+    ("rawLog", re.compile(r"\brawLog\b")),
     ("keccak256", re.compile(r"\bkeccak256\b")),
     ("chainid", re.compile(r"\bchainid\b")),
     ("contractAddress", re.compile(r"\bcontractAddress\b")),
@@ -112,6 +113,7 @@ PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     # Other missing primitives
     "returnValues": "missing",       # tuple return encoding
     "mstore": "missing",            # memory management
+    "rawLog": "missing",            # event emission / log encoding
     "keccak256": "missing",         # hash computation
     "chainid": "missing",           # environment access
     "contractAddress": "missing",   # environment access

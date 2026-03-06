@@ -142,7 +142,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "setAuthorizationWithSigSemEq"
     operation := "setAuthorizationWithSig"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := false },  -- still blocked on tuple-param destructuring in the macro frontend
   { id := "OBL-SET-OWNER-SEM-EQ"
     hypothesis := "setOwnerSemEq"
     operation := "setOwner"
@@ -172,7 +172,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "flashLoanSemEq"
     operation := "flashLoan"
     status := .assumed
-    macroMigrated := false }
+    macroMigrated := true }  -- macro body migrated; state-level model still omits ERC20/callback I/O
 ]
 
 /-- There are exactly 18 semantic equivalence obligations. -/
@@ -194,17 +194,17 @@ theorem assumed_count :
     (obligations.filter (fun o => o.status == .assumed)).length = 13 := by
   native_decide
 
-/-- 5 of 18 operations have full (non-stub) macro implementations.
-    These are ready for end-to-end semantic bridge composition once
-    verity#1065 lands: setOwner, setFeeRecipient, enableIrm, enableLltv,
-    setAuthorization. -/
+/-- 6 of 18 operations have full (non-stub) macro implementations.
+    The admin cluster has Link 1 proofs today, and `flashLoan` now has a
+    state-level macro body as well. `setAuthorizationWithSig` remains blocked
+    on tuple-param destructuring in the macro frontend. -/
 theorem macro_migrated_count :
-    (obligations.filter (fun o => o.macroMigrated)).length = 5 := by
+    (obligations.filter (fun o => o.macroMigrated)).length = 6 := by
   native_decide
 
-/-- 13 operations still need macro migration before discharge. -/
+/-- 12 operations still need macro migration before discharge. -/
 theorem macro_pending_count :
-    (obligations.filter (fun o => !o.macroMigrated)).length = 13 := by
+    (obligations.filter (fun o => !o.macroMigrated)).length = 12 := by
   native_decide
 
 end Morpho.Proofs.SemanticBridgeReadiness

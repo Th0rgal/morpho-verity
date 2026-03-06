@@ -37,6 +37,15 @@ SAMPLE_GAPS_FN = """\
     setMapping isIrmEnabledSlot irm 1
 """
 
+SAMPLE_FLASH_LOAN_FN = """\
+  function flashLoan (token : Address, assets : Uint256, data : Bytes) : Unit := do
+    require (assets > 0) "zero assets"
+    let sender <- msgSender
+    let _ignoredData := data
+    mstore 0 assets
+    rawLog [1, sender, token] 0 32
+"""
+
 SAMPLE_STUB_FN = """\
   function supply (marketParams : Tuple, assets : Uint256) : Unit := do
     let sender <- msgSender
@@ -93,6 +102,13 @@ class ExtractPrimitivesTests(unittest.TestCase):
     def test_empty_text(self) -> None:
         prims = extract_primitives("")
         self.assertEqual(prims, set())
+
+    def test_extracts_flash_loan_gaps(self) -> None:
+        prims = extract_primitives(SAMPLE_FLASH_LOAN_FN)
+        self.assertIn("msgSender", prims)
+        self.assertIn("require_gt", prims)
+        self.assertIn("mstore", prims)
+        self.assertIn("rawLog", prims)
 
 
 class IsStubTests(unittest.TestCase):
@@ -177,6 +193,13 @@ class PrimitiveBridgeStatusTests(unittest.TestCase):
                 f"{prim} should be edsl_proven"
             )
 
+    def test_event_memory_primitives_marked_missing(self) -> None:
+        for prim in ["mstore", "rawLog"]:
+            self.assertEqual(
+                PRIMITIVE_BRIDGE_STATUS[prim], "missing",
+                f"{prim} should be missing"
+            )
+
 
 class IntegrationTests(unittest.TestCase):
     def test_real_files(self) -> None:
@@ -200,8 +223,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage)
 
-        # 5 migrated operations (createMarket is a hard stub, not migrated)
-        self.assertEqual(report["total"], 5)
+        # 6 migrated operations (admin cluster + flashLoan)
+        self.assertEqual(report["total"], 6)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])
@@ -214,6 +237,12 @@ class IntegrationTests(unittest.TestCase):
 
         # createMarket is no longer in migrated set (hard stub)
         self.assertNotIn("createMarket", coverage)
+
+        # Newly migrated flash-loan flow should be present in the coverage set
+        self.assertIn("flashLoan", coverage)
+        self.assertNotIn("setAuthorizationWithSig", coverage)
+        self.assertIn("mstore", coverage["flashLoan"]["missing"])
+        self.assertIn("rawLog", coverage["flashLoan"]["missing"])
 
         # At least 2 fully covered
         self.assertGreaterEqual(report["fully_covered"], 2)
