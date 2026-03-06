@@ -207,6 +207,10 @@ Artifact preparation is fail-closed for invalid toggle values and missing requir
 - `lake` is required for compiler build/exec.
 - `solc` and `awk` are required unless `MORPHO_VERITY_SKIP_SOLC=1`.
 
+The artifact builder also emits:
+- `Morpho.stage-times.log` with stage-level timing diagnostics (`lake-build`, `lake-exe`, `solc-bin`, or manifest reuse)
+- `Morpho.artifact-manifest.env` so unchanged input sets can reuse an already-prepared artifact directory without rerunning the compiler
+
 Generate only Yul + ABI (skip `solc` bytecode generation):
 
 ```bash

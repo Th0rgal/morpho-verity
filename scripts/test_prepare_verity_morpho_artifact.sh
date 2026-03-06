@@ -26,6 +26,8 @@ setup_fake_repo() {
   local fake_root="$1"
   local target_json_content="${2:-{\"verity\":{\"parityPackId\":\"test-pack\"}}}"
   mkdir -p "${fake_root}/scripts" "${fake_root}/config" "${fake_root}/artifacts/inputs"
+  printf '%s\n' 'import Morpho.Morpho' > "${fake_root}/Morpho.lean"
+  printf '%s\n' 'import Morpho.Compiler.Main' > "${fake_root}/MorphoCompiler.lean"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
@@ -40,6 +42,9 @@ install_fake_lake() {
   local fake_bin="$1"
   make_exe "${fake_bin}/lake" '#!/usr/bin/env bash
 set -euo pipefail
+if [[ -n "${FAKE_LAKE_LOG:-}" ]]; then
+  printf "%s\n" "$*" >> "${FAKE_LAKE_LOG}"
+fi
 if [[ "${1:-}" == "build" ]]; then
   exit 0
 fi
@@ -351,7 +356,12 @@ test_fail_closed_when_awk_missing_and_not_skipped() {
   mkdir -p "${fake_bin}"
   ln -s /bin/bash "${fake_bin}/bash"
   ln -s "$(command -v dirname)" "${fake_bin}/dirname"
+  ln -s "$(command -v date)" "${fake_bin}/date"
+  ln -s "$(command -v find)" "${fake_bin}/find"
   ln -s "$(command -v mkdir)" "${fake_bin}/mkdir"
+  ln -s "$(command -v sha256sum)" "${fake_bin}/sha256sum"
+  ln -s "$(command -v sort)" "${fake_bin}/sort"
+  ln -s "$(command -v tee)" "${fake_bin}/tee"
   setup_fake_repo "${fake_root}"
   install_fake_python3 "${fake_bin}"
   install_fake_lake "${fake_bin}"
@@ -400,7 +410,16 @@ test_success_when_solc_is_skipped() {
     echo "ASSERTION FAILED: expected Morpho.abi.json output"
     exit 1
   fi
+  if [[ ! -s "${out_dir}/Morpho.artifact-manifest.env" ]]; then
+    echo "ASSERTION FAILED: expected Morpho.artifact-manifest.env output"
+    exit 1
+  fi
+  if [[ ! -s "${out_dir}/Morpho.stage-times.log" ]]; then
+    echo "ASSERTION FAILED: expected Morpho.stage-times.log output"
+    exit 1
+  fi
   assert_contains "Skipped bytecode generation (MORPHO_VERITY_SKIP_SOLC=1)" "${output_file}"
+  assert_contains "stage=lake-exe status=ok" "${out_dir}/Morpho.stage-times.log"
 }
 
 test_legacy_input_mode_alias_remains_compatible() {
@@ -455,6 +474,82 @@ test_fail_closed_on_non_edsl_artifact_mode() {
   assert_contains "ERROR: MORPHO_VERITY_ARTIFACT_MODE only supports 'edsl' (got: model)" "${output_file}"
 }
 
+test_reuses_existing_artifact_when_manifest_matches() {
+  local fake_root fake_bin output_file out_dir lake_log
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  out_dir="${fake_root}/out"
+  lake_log="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${lake_log}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  : > "${lake_log}"
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  if [[ -s "${lake_log}" ]]; then
+    echo "ASSERTION FAILED: expected manifest reuse to skip lake invocations"
+    exit 1
+  fi
+  assert_contains "Reusing existing Verity artifact from ${out_dir} (manifest matched)." "${output_file}"
+  assert_contains "stage=reuse-artifact status=ok" "${out_dir}/Morpho.stage-times.log"
+}
+
+test_rebuilds_when_top_level_lean_entrypoint_changes() {
+  local fake_root fake_bin output_file out_dir lake_log
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  out_dir="${fake_root}/out"
+  lake_log="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${lake_log}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  : > "${lake_log}"
+  printf '%s\n' 'import Morpho.Compiler.Generated' > "${fake_root}/MorphoCompiler.lean"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  if [[ ! -s "${lake_log}" ]]; then
+    echo "ASSERTION FAILED: expected top-level Lean entrypoint changes to invalidate manifest reuse"
+    exit 1
+  fi
+}
+
 test_fail_closed_on_invalid_skip_build_toggle
 test_fail_closed_on_invalid_skip_solc_toggle
 test_fail_closed_on_invalid_artifact_mode
@@ -468,5 +563,7 @@ test_fail_closed_when_awk_missing_and_not_skipped
 test_success_when_solc_is_skipped
 test_legacy_input_mode_alias_remains_compatible
 test_fail_closed_on_non_edsl_artifact_mode
+test_reuses_existing_artifact_when_manifest_matches
+test_rebuilds_when_top_level_lean_entrypoint_changes
 
 echo "prepare_verity_morpho_artifact.sh tests passed"
