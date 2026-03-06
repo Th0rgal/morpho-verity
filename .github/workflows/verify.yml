@@ -118,6 +118,9 @@ jobs:
       - name: Validate CI check-script coverage sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI check-script coverage sync" -- python3 scripts/check_ci_check_coverage.py
 
+      - name: Validate CI timeout-wrapper coverage sync
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout-wrapper coverage sync" -- python3 scripts/check_ci_timeout_wrapper_coverage.py
+
       - name: Validate script-test pairing
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate script-test pairing" -- python3 scripts/check_script_test_pairs.py
 
