@@ -33,6 +33,37 @@ require_nonempty_artifact() {
   fi
 }
 
+require_morpho_impl_wiring() {
+  local base_test="${ROOT_DIR}/morpho-blue/test/BaseTest.sol"
+  local selector_pattern='vm\.env(String|Or)[[:space:]]*\([^)]*"MORPHO_IMPL"'
+  if [[ ! -f "${base_test}" ]]; then
+    echo "ERROR: missing Morpho Blue harness file: ${base_test}"
+    exit 2
+  fi
+
+  if ! grep -Eq "${selector_pattern}" "${base_test}"; then
+    cat <<EOF
+ERROR: Morpho Blue harness does not consume MORPHO_IMPL.
+
+Expected ${base_test} to read MORPHO_IMPL=solidity|verity via an explicit Foundry env lookup (for example vm.envString/vm.envOr).
+Current differential runs would be misleading, so parity execution stops here.
+EOF
+    exit 2
+  fi
+
+  local bypassing_deploys
+  bypassing_deploys="$(grep -RFn "new Morpho(" "${ROOT_DIR}/morpho-blue/test" | grep -Fv "/BaseTest.sol:" || true)"
+  if [[ -n "${bypassing_deploys}" ]]; then
+    cat <<EOF
+ERROR: found Morpho Blue tests that bypass the MORPHO_IMPL deployment selector:
+${bypassing_deploys}
+
+Route test deployments through the shared harness before claiming Solidity/Verity parity.
+EOF
+    exit 2
+  fi
+}
+
 artifact_source_dir="${PARITY_OUT_DIR}/edsl"
 if [[ -n "${PREPARED_ARTIFACT_DIR}" ]]; then
   # Allow either direct artifact directory or parent directory containing `edsl/`.
@@ -75,6 +106,8 @@ if [[ "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}" == "1" ]]; then
   echo "Exiting after artifact preparation (MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1)."
   exit 0
 fi
+
+require_morpho_impl_wiring
 
 run_suite() {
   local impl="$1"
