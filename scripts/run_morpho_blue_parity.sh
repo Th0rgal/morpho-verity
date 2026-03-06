@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_WITH_TIMEOUT="${ROOT_DIR}/scripts/run_with_timeout.sh"
 CHECK_PREPARED_ARTIFACT_BUNDLE="${ROOT_DIR}/scripts/check_prepared_verity_artifact_bundle.py"
+PATCH_MORPHO_BLUE_HARNESS="${ROOT_DIR}/scripts/patch_morpho_blue_harness.py"
 LOG_DIR="${ROOT_DIR}/out/parity"
 PARITY_OUT_DIR="$(mktemp -d)"
 SKIP_PARITY_PREFLIGHT="${MORPHO_VERITY_SKIP_PARITY_PREFLIGHT:-0}"
@@ -37,6 +38,7 @@ require_nonempty_artifact() {
 require_morpho_impl_wiring() {
   local base_test="${ROOT_DIR}/morpho-blue/test/BaseTest.sol"
   local selector_pattern='vm\.env(String|Or)[[:space:]]*\([^)]*"MORPHO_IMPL"'
+  python3 "${PATCH_MORPHO_BLUE_HARNESS}"
   if [[ ! -f "${base_test}" ]]; then
     echo "ERROR: missing Morpho Blue harness file: ${base_test}"
     exit 2

@@ -16,7 +16,7 @@ assert_contains() {
 build_path_without_timeout() {
   local out_dir="$1"
   mkdir -p "${out_dir}"
-  for tool in bash cat cp cut dirname grep mkdir mktemp pwd rm tee; do
+  for tool in bash cat cp cut dirname grep mkdir mktemp pwd python3 rm sleep tee; do
     ln -sf "$(command -v "${tool}")" "${out_dir}/${tool}"
   done
 }
@@ -27,9 +27,11 @@ make_fake_repo() {
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/run_morpho_blue_parity.sh"
   cp "${ROOT_DIR}/scripts/run_with_timeout.sh" "${fake_root}/scripts/run_with_timeout.sh"
   cp "${ROOT_DIR}/scripts/check_prepared_verity_artifact_bundle.py" "${fake_root}/scripts/check_prepared_verity_artifact_bundle.py"
+  cp "${ROOT_DIR}/scripts/patch_morpho_blue_harness.py" "${fake_root}/scripts/patch_morpho_blue_harness.py"
   chmod +x "${fake_root}/scripts/run_morpho_blue_parity.sh"
   chmod +x "${fake_root}/scripts/run_with_timeout.sh"
   chmod +x "${fake_root}/scripts/check_prepared_verity_artifact_bundle.py"
+  chmod +x "${fake_root}/scripts/patch_morpho_blue_harness.py"
 
 cat > "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -88,15 +90,26 @@ EOF
   cat > "${fake_root}/morpho-blue/test/BaseTest.sol" <<'EOF'
 // fake harness for parity script tests
 contract BaseTest {
-    function deploy() internal view returns (string memory) {
-        return vm.envString("MORPHO_IMPL");
+    IMorpho internal morpho;
+    address internal OWNER;
+
+    function setUp() public virtual {
+        morpho = IMorpho(address(new Morpho(OWNER)));
     }
 }
 EOF
 
   cat > "${fake_root}/morpho-blue/test/integration/OnlyOwnerIntegrationTest.sol" <<'EOF'
 // fake parity test file
-contract OnlyOwnerIntegrationTest {}
+contract OnlyOwnerIntegrationTest is BaseTest {
+    function testDeployWithAddressZero() public {
+        new Morpho(address(0));
+    }
+
+    function testDeployEmitOwner() public {
+        new Morpho(OWNER);
+    }
+}
 EOF
 
   mkdir -p "${fake_root}/config"
@@ -754,6 +767,24 @@ EOF
   assert_contains "OnlyOwnerIntegrationTest.sol" "${output_file}"
 }
 
+test_auto_patches_morpho_blue_harness() {
+  local fake_root
+  fake_root="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  (
+    cd "${fake_root}"
+    PATH="${fake_root}/bin:${PATH}" \
+      ./scripts/run_morpho_blue_parity.sh
+  )
+
+  assert_contains 'vm.envOr("MORPHO_IMPL", string("solidity"))' "${fake_root}/morpho-blue/test/BaseTest.sol"
+  assert_contains 'morpho = _deployMorpho(OWNER);' "${fake_root}/morpho-blue/test/BaseTest.sol"
+  assert_contains '_deployMorpho(address(0));' "${fake_root}/morpho-blue/test/integration/OnlyOwnerIntegrationTest.sol"
+  assert_contains '_deployMorpho(OWNER);' "${fake_root}/morpho-blue/test/integration/OnlyOwnerIntegrationTest.sol"
+}
+
 test_skip_refused_outside_ci
 test_fail_closed_on_invalid_skip_toggle
 test_fail_closed_on_invalid_local_skip_override_toggle
@@ -775,6 +806,7 @@ test_fail_closed_when_skip_prep_missing_required_artifact
 test_fail_closed_when_harness_ignores_morpho_impl
 test_fail_closed_when_harness_only_mentions_morpho_impl_in_comment
 test_fail_closed_when_test_bypasses_selector
+test_auto_patches_morpho_blue_harness
 test_fail_closed_when_prepared_artifacts_missing_required_file
 test_clears_stale_rewritten_artifact_when_prepared_bundle_omits_it
 
