@@ -10,6 +10,7 @@ import sys
 
 RUN_WITH_TIMEOUT_RE = re.compile(r"run_with_timeout\.sh\s+([A-Z0-9_]+)\s+([0-9]+)\b")
 ENV_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\s*:\s*\"([0-9]+)\"")
+SCRIPT_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\b")
 
 IGNORED_VARS = {
   # This timeout is intentionally overridden in timeout-wrapper tests.
@@ -63,6 +64,16 @@ def collect_timeout_env_literals(workflow_text: str) -> dict[str, set[int]]:
   return seen
 
 
+def collect_script_timeout_refs(scripts_dir: pathlib.Path) -> set[str]:
+  seen: set[str] = set()
+  for path in scripts_dir.glob("*"):
+    if not path.is_file() or path.name.startswith("test_") or path.suffix not in {".py", ".sh"}:
+      continue
+    text = path.read_text(encoding="utf-8")
+    seen.update(SCRIPT_TIMEOUT_RE.findall(text))
+  return seen
+
+
 def main() -> int:
   parser = argparse.ArgumentParser(description="Validate CI timeout defaults stay in sync with workflow")
   parser.add_argument(
@@ -77,12 +88,19 @@ def main() -> int:
     default=pathlib.Path("config/ci-timeout-defaults.env"),
     help="Path to timeout defaults env file",
   )
+  parser.add_argument(
+    "--scripts-dir",
+    type=pathlib.Path,
+    default=pathlib.Path("scripts"),
+    help="Path to scripts directory",
+  )
   args = parser.parse_args()
 
   workflow_text = args.workflow.read_text(encoding="utf-8")
   timeout_defaults = parse_timeout_env_file(args.defaults)
   run_defaults = collect_run_timeout_defaults(workflow_text)
   env_literals = collect_timeout_env_literals(workflow_text)
+  script_refs = collect_script_timeout_refs(args.scripts_dir)
 
   missing_in_defaults = sorted(var for var in run_defaults if var not in timeout_defaults)
   if missing_in_defaults:
@@ -139,9 +157,18 @@ def main() -> int:
   if nested_invariant_failures:
     fail("; ".join(nested_invariant_failures))
 
+  used_timeout_vars = set(run_defaults) | set(env_literals) | script_refs
+  stale_defaults = sorted(
+    var for var in timeout_defaults if var not in used_timeout_vars and var not in IGNORED_VARS
+  )
+  if stale_defaults:
+    fail("timeout defaults include stale/unused vars: " + ", ".join(stale_defaults))
+
   print(
     "ci-timeout-defaults: "
-    f"defaults={len(timeout_defaults)} run_with_timeout_vars={len(run_defaults)} env_timeout_vars={len(env_literals)}"
+    "defaults="
+    f"{len(timeout_defaults)} run_with_timeout_vars={len(run_defaults)} "
+    f"env_timeout_vars={len(env_literals)} script_timeout_vars={len(script_refs)}"
   )
   print("ci-timeout-defaults check: OK")
   return 0
