@@ -12,11 +12,13 @@ WORKFLOW_SCRIPT_REF_RE = re.compile(
   r"\b(?:python3\s+)?(?:\./)?scripts/([A-Za-z0-9_]+\.(?:py|sh))\b"
 )
 RUN_WITH_TIMEOUT_TARGET_RE = re.compile(
-  r"(?:\./|\.\./)?scripts/run_with_timeout\.sh[^\n]*\s--\s+"
-  r"(?:(?:python3\s+)(?:\./)?scripts/|(?:\./)?scripts/)"
+  r"(?:\./|\.\./)?scripts/run_with_timeout\.sh[^\n]*[ \t]+--[ \t]+"
+  r"(?:(?:python3[ \t]+)(?:\./)?scripts/|(?:\./)?scripts/)"
   r"([A-Za-z0-9_]+\.(?:py|sh))\b"
 )
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
+RUN_STEP_RE = re.compile(r"^(\s*)run:\s*(.*)$")
+RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>][-+]?$")
 SHELL_TEST_LOOP_RE = re.compile(
   r"for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+scripts/test_\*\.sh\s*;\s*do(?P<body>.*?)\bdone\b",
   re.DOTALL,
@@ -28,18 +30,67 @@ def fail(msg: str) -> None:
   raise SystemExit(1)
 
 
+def extract_workflow_run_text(workflow_text: str) -> str:
+  commands: list[str] = []
+  lines = workflow_text.splitlines()
+  i = 0
+  while i < len(lines):
+    line = lines[i]
+    match = RUN_STEP_RE.match(line)
+    if match is None:
+      i += 1
+      continue
+
+    run_indent = len(match.group(1))
+    tail = match.group(2).strip()
+    if tail and not RUN_BLOCK_SCALAR_RE.fullmatch(tail):
+      line_parts = [tail]
+      i += 1
+      while i < len(lines):
+        candidate = lines[i]
+        stripped = candidate.lstrip(" ")
+        if not stripped:
+          break
+        indent = len(candidate) - len(stripped)
+        if indent <= run_indent:
+          break
+        line_parts.append(stripped)
+        i += 1
+      commands.append("\n".join(line_parts))
+      continue
+
+    i += 1
+    block_lines: list[str] = []
+    while i < len(lines):
+      candidate = lines[i]
+      stripped = candidate.lstrip(" ")
+      if stripped:
+        indent = len(candidate) - len(stripped)
+        if indent <= run_indent:
+          break
+        block_lines.append(stripped)
+      else:
+        block_lines.append("")
+      i += 1
+    commands.append("\n".join(block_lines))
+  return "\n".join(commands)
+
+
 def collect_workflow_script_references(workflow_text: str) -> set[str]:
-  return {match.group(1) for match in WORKFLOW_SCRIPT_REF_RE.finditer(workflow_text)}
+  run_text = extract_workflow_run_text(workflow_text)
+  return {match.group(1) for match in WORKFLOW_SCRIPT_REF_RE.finditer(run_text)}
 
 
 def collect_wrapped_script_targets(workflow_text: str) -> set[str]:
-  normalized = LINE_CONTINUATION_RE.sub(" ", workflow_text)
+  run_text = extract_workflow_run_text(workflow_text)
+  normalized = LINE_CONTINUATION_RE.sub(" ", run_text)
   return {match.group(1) for match in RUN_WITH_TIMEOUT_TARGET_RE.finditer(normalized)}
 
 
 def collect_shell_test_loop_blocks(workflow_text: str) -> list[tuple[str, str]]:
+  run_text = extract_workflow_run_text(workflow_text)
   blocks: list[tuple[str, str]] = []
-  for match in SHELL_TEST_LOOP_RE.finditer(workflow_text):
+  for match in SHELL_TEST_LOOP_RE.finditer(run_text):
     loop_var = match.group(1)
     loop_body = match.group("body")
     blocks.append((loop_var, loop_body))

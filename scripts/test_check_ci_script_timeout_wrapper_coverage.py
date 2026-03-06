@@ -36,6 +36,16 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
       {"install_lean.sh", "check_alpha.py", "run_with_timeout.sh", "install_solc.sh"},
     )
 
+  def test_collect_workflow_script_references_ignores_non_run_references(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "# scripts/install_from_comment.sh",
+        "name: scripts/install_from_name.sh",
+        "run: ./scripts/install_lean.sh",
+      ]
+    )
+    self.assertEqual(collect_workflow_script_references(workflow_text), {"install_lean.sh"})
+
   def test_collect_wrapped_script_targets(self) -> None:
     workflow_text = "\n".join(
       [
@@ -48,6 +58,15 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
       collect_wrapped_script_targets(workflow_text),
       {"check_alpha.py", "install_solc.sh", "install_lean.sh"},
     )
+
+  def test_collect_wrapped_script_targets_does_not_cross_lines(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: ./scripts/run_with_timeout.sh M 1 d -- ./scripts/install_lean.sh",
+        "run: ./scripts/install_solc.sh 0.8.28",
+      ]
+    )
+    self.assertEqual(collect_wrapped_script_targets(workflow_text), {"install_lean.sh"})
 
   def test_collect_wrapped_script_targets_supports_line_continuation(self) -> None:
     workflow_text = "\n".join(
