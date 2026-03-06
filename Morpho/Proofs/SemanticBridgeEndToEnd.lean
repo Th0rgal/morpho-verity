@@ -171,9 +171,8 @@ theorem edsl_enableIrm_lltvMonotone
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.enableIrm s irm = some s' := by
     rw [← enableIrm_link1]; exact h_ok
-  simp only [Morpho.enableIrm] at h_morpho
-  split at h_morpho <;> simp at h_morpho
-  rw [← h_morpho.right]; exact h_enabled
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_morpho
+  exact h_enabled
 
 /-! ## enableLltv: Link 1 + invariants (4 theorems + enableLltv_monotone) -/
 
@@ -202,9 +201,8 @@ theorem edsl_enableLltv_irmMonotone
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.enableLltv s lltvCall = some s' := by
     rw [← enableLltv_link1]; exact h_ok
-  simp only [Morpho.enableLltv] at h_morpho
-  split at h_morpho <;> simp at h_morpho
-  rw [← h_morpho.right.right]; exact h_enabled
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltvCall).1 h_morpho
+  exact h_enabled
 
 theorem edsl_enableLltv_lltvMonotone
     (s : MorphoState) (lltvCall lltv : Uint256) (s' : MorphoState)
@@ -246,9 +244,8 @@ theorem edsl_setAuthorization_irmMonotone
     s'.isIrmEnabled irm := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     rw [← setAuthorization_link1]; exact h_ok
-  simp only [Morpho.setAuthorization] at h_morpho
-  split at h_morpho <;> simp at h_morpho
-  rw [← h_morpho]; exact h_enabled
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_morpho
+  exact h_enabled
 
 theorem edsl_setAuthorization_lltvMonotone
     (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
@@ -258,9 +255,8 @@ theorem edsl_setAuthorization_lltvMonotone
     s'.isLltvEnabled lltv := by
   have h_morpho : Morpho.setAuthorization s authorized newIsAuthorized = some s' := by
     rw [← setAuthorization_link1]; exact h_ok
-  simp only [Morpho.setAuthorization] at h_morpho
-  split at h_morpho <;> simp at h_morpho
-  rw [← h_morpho]; exact h_enabled
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_morpho
+  exact h_enabled
 
 /-! ## Summary
 

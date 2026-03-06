@@ -25,6 +25,7 @@ import Morpho.Libraries.MathLib
 import Morpho.Libraries.SharesMathLib
 import Morpho.Libraries.UtilsLib
 import Morpho.Libraries.ConstantsLib
+import Morpho.Compiler.AdminAdapters
 
 namespace Morpho
 
@@ -121,23 +122,16 @@ def accrueInterestPublic (s : MorphoState) (id : Id) (borrowRate : Uint256)
 /-! ## Owner functions -/
 
 /-- Set a new owner. Matches `setOwner` (Morpho.sol:95). -/
-def setOwner (s : MorphoState) (newOwner : Address) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if newOwner == s.owner then none  -- ALREADY_SET
-  else some { s with owner := newOwner }
+noncomputable abbrev setOwner : MorphoState → Address → Option MorphoState :=
+  Morpho.Compiler.AdminAdapters.setOwner
 
 /-- Enable an IRM. Matches `enableIrm` (Morpho.sol:104). -/
-def enableIrm (s : MorphoState) (irm : Address) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if s.isIrmEnabled irm then none  -- ALREADY_SET
-  else some { s with isIrmEnabled := fun a => if a == irm then true else s.isIrmEnabled a }
+noncomputable abbrev enableIrm : MorphoState → Address → Option MorphoState :=
+  Morpho.Compiler.AdminAdapters.enableIrm
 
 /-- Enable an LLTV. Matches `enableLltv` (Morpho.sol:113). -/
-def enableLltv (s : MorphoState) (lltv : Uint256) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if s.isLltvEnabled lltv then none  -- ALREADY_SET
-  else if lltv.val ≥ MathLib.WAD then none
-  else some { s with isLltvEnabled := fun l => if l == lltv then true else s.isLltvEnabled l }
+noncomputable abbrev enableLltv : MorphoState → Uint256 → Option MorphoState :=
+  Morpho.Compiler.AdminAdapters.enableLltv
 
 /-- Set fee for a market. Matches `setFee` (Morpho.sol:123).
     Accrues interest using the OLD fee before changing it.
@@ -157,10 +151,8 @@ def setFee (s : MorphoState) (id : Id) (newFee : Uint256) (borrowRate : Uint256)
         market := fun id' => if id' == id then { m' with fee := newFee } else s'.market id' }
 
 /-- Set fee recipient. Matches `setFeeRecipient` (Morpho.sol:139). -/
-def setFeeRecipient (s : MorphoState) (newFeeRecipient : Address) : Option MorphoState :=
-  if s.sender != s.owner then none
-  else if newFeeRecipient == s.feeRecipient then none  -- ALREADY_SET
-  else some { s with feeRecipient := newFeeRecipient }
+noncomputable abbrev setFeeRecipient : MorphoState → Address → Option MorphoState :=
+  Morpho.Compiler.AdminAdapters.setFeeRecipient
 
 /-! ## Market creation -/
 
@@ -181,13 +173,46 @@ def createMarket (s : MorphoState) (params : MarketParams) : Option MorphoState 
 /-! ## Authorization -/
 
 /-- Authorize or deauthorize another address. Matches `setAuthorization` (Morpho.sol:436). -/
-def setAuthorization (s : MorphoState) (authorized : Address) (newIsAuthorized : Bool)
-    : Option MorphoState :=
-  -- ALREADY_SET check (Morpho.sol:437)
-  if newIsAuthorized == s.isAuthorized s.sender authorized then none
-  else some { s with isAuthorized := fun authorizer auth =>
-      if authorizer == s.sender && auth == authorized then newIsAuthorized
-      else s.isAuthorized authorizer auth }
+noncomputable abbrev setAuthorization :
+    MorphoState → Address → Bool → Option MorphoState :=
+  Morpho.Compiler.AdminAdapters.setAuthorization
+
+theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
+    setOwner s newOwner = some s' ↔
+      s.sender = s.owner ∧ newOwner ≠ s.owner ∧ s' = { s with owner := newOwner } :=
+  Morpho.Compiler.AdminAdapters.setOwner_success_iff s s' newOwner
+
+theorem setFeeRecipient_success_iff (s s' : MorphoState) (newFeeRecipient : Address) :
+    setFeeRecipient s newFeeRecipient = some s' ↔
+      s.sender = s.owner ∧
+      newFeeRecipient ≠ s.feeRecipient ∧
+      s' = { s with feeRecipient := newFeeRecipient } :=
+  Morpho.Compiler.AdminAdapters.setFeeRecipient_success_iff s s' newFeeRecipient
+
+theorem enableIrm_success_iff (s s' : MorphoState) (irm : Address) :
+    enableIrm s irm = some s' ↔
+      s.sender = s.owner ∧
+      ¬s.isIrmEnabled irm ∧
+      s' = { s with isIrmEnabled := fun a => if a == irm then true else s.isIrmEnabled a } :=
+  Morpho.Compiler.AdminAdapters.enableIrm_success_iff s s' irm
+
+theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
+    enableLltv s lltv = some s' ↔
+      s.sender = s.owner ∧
+      ¬s.isLltvEnabled lltv ∧
+      lltv.val < MathLib.WAD ∧
+      s' = { s with isLltvEnabled := fun l => if l == lltv then true else s.isLltvEnabled l } :=
+  Morpho.Compiler.AdminAdapters.enableLltv_success_iff s s' lltv
+
+theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
+    (newIsAuthorized : Bool) :
+    setAuthorization s authorized newIsAuthorized = some s' ↔
+      newIsAuthorized ≠ s.isAuthorized s.sender authorized ∧
+      s' = { s with
+        isAuthorized := fun authorizer auth =>
+          if authorizer == s.sender && auth == authorized then newIsAuthorized
+          else s.isAuthorized authorizer auth } :=
+  Morpho.Compiler.AdminAdapters.setAuthorization_success_iff s s' authorized newIsAuthorized
 
 /-- Authorize via EIP-712 signature. Matches `setAuthorizationWithSig` (Morpho.sol:445).
     The signature verification (EIP-712 digest + ecrecover) is cryptographic and cannot

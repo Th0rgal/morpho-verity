@@ -48,64 +48,64 @@ theorem enableIrm_preserves_supplySharesConsistent (s : MorphoState) (irm : Addr
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.enableIrm s irm = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.enableIrm at h_ok; simp at h_ok
-  rw [← h_ok.right.right]; exact h_consistent
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
+  exact h_consistent
 
 theorem enableIrm_preserves_borrowSharesConsistent (s : MorphoState) (irm : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.enableIrm s irm = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.enableIrm at h_ok; simp at h_ok
-  rw [← h_ok.right.right]; exact h_consistent
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
+  exact h_consistent
 
 theorem enableLltv_preserves_supplySharesConsistent (s : MorphoState) (lltv : Uint256)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.enableLltv s lltv = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.enableLltv at h_ok; simp at h_ok
-  rw [← h_ok.right.right.right]; exact h_consistent
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h_ok
+  exact h_consistent
 
 theorem enableLltv_preserves_borrowSharesConsistent (s : MorphoState) (lltv : Uint256)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.enableLltv s lltv = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.enableLltv at h_ok; simp at h_ok
-  rw [← h_ok.right.right.right]; exact h_consistent
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h_ok
+  exact h_consistent
 
 theorem setOwner_preserves_supplySharesConsistent (s : MorphoState) (newOwner : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.setOwner s newOwner = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.setOwner at h_ok; simp at h_ok
-  rw [← h_ok.right.right]; exact h_consistent
+  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
+  exact h_consistent
 
 theorem setOwner_preserves_borrowSharesConsistent (s : MorphoState) (newOwner : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.setOwner s newOwner = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.setOwner at h_ok; simp at h_ok
-  rw [← h_ok.right.right]; exact h_consistent
+  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
+  exact h_consistent
 
 theorem setFeeRecipient_preserves_supplySharesConsistent (s : MorphoState) (addr : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.setFeeRecipient s addr = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.setFeeRecipient at h_ok; simp at h_ok
-  rw [← h_ok.right.right]; exact h_consistent
+  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' addr).1 h_ok
+  exact h_consistent
 
 theorem setFeeRecipient_preserves_borrowSharesConsistent (s : MorphoState) (addr : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.setFeeRecipient s addr = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.setFeeRecipient at h_ok; simp at h_ok
-  rw [← h_ok.right.right]; exact h_consistent
+  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' addr).1 h_ok
+  exact h_consistent
 
 theorem createMarket_preserves_supplySharesConsistent (s : MorphoState)
     (params : MarketParams) (id : Id) (allUsers : List Address)
@@ -137,8 +137,8 @@ theorem setAuthorization_preserves_supplySharesConsistent (s : MorphoState)
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.setAuthorization at h_ok; simp at h_ok
-  rw [← h_ok.right]; exact h_consistent
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  exact h_consistent
 
 theorem setAuthorization_preserves_borrowSharesConsistent (s : MorphoState)
     (authorized : Address) (newIsAuth : Bool)
@@ -146,8 +146,8 @@ theorem setAuthorization_preserves_borrowSharesConsistent (s : MorphoState)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.setAuthorization at h_ok; simp at h_ok
-  rw [← h_ok.right]; exact h_consistent
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  exact h_consistent
 
 theorem setAuthorizationWithSig_preserves_supplySharesConsistent (s : MorphoState)
     (auth : Authorization) (sig : Bool)
