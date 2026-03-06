@@ -4,10 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${MORPHO_VERITY_OUT_DIR:-${ROOT_DIR}/artifacts/yul}"
 MORPHO_YUL="${OUT_DIR}/Morpho.yul"
+MORPHO_REWRITTEN_YUL="${OUT_DIR}/Morpho.rewritten.yul"
 MORPHO_BIN="${OUT_DIR}/Morpho.bin"
 MORPHO_ABI="${OUT_DIR}/Morpho.abi.json"
 MANIFEST_FILE="${OUT_DIR}/Morpho.artifact-manifest.env"
 TIMINGS_LOG="${OUT_DIR}/Morpho.stage-times.log"
+REWRITE_REPORT="${OUT_DIR}/Morpho.rewrite-report.json"
 HASH_LIB="${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
@@ -55,7 +57,10 @@ run_stage() {
 }
 
 artifacts_ready() {
-  if [[ ! -s "${MORPHO_YUL}" || ! -s "${MORPHO_ABI}" ]]; then
+  if [[ ! -s "${MORPHO_YUL}" || ! -s "${MORPHO_REWRITTEN_YUL}" || ! -s "${MORPHO_ABI}" ]]; then
+    return 1
+  fi
+  if [[ ! -s "${REWRITE_REPORT}" ]]; then
     return 1
   fi
   if [[ "${SKIP_SOLC}" != "1" && ! -s "${MORPHO_BIN}" ]]; then
@@ -80,7 +85,11 @@ compute_input_digest() {
     "${ROOT_DIR}/Morpho.lean" \
     "${ROOT_DIR}/MorphoCompiler.lean" \
     "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh" \
+    "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" \
+    "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" \
     "${ROOT_DIR}/config/parity-target.json" \
+    "${ROOT_DIR}/config/yul-rewrite-pipeline.json" \
+    "${ROOT_DIR}/config/yul-rewrite-proof-obligations.json" \
     "${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul" \
     "${ROOT_DIR}/Morpho"; do
     if [[ -f "${path}" ]]; then
@@ -159,6 +168,13 @@ run_solc_bin() {
   solc --strict-assembly --bin "${MORPHO_YUL}" \
     | awk '/Binary representation:/{getline; print; exit}' \
     > "${MORPHO_BIN}"
+}
+
+run_rewrite_yul() {
+  python3 "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" \
+    --input "${MORPHO_YUL}" \
+    --output "${MORPHO_REWRITTEN_YUL}" \
+    --json-out "${REWRITE_REPORT}"
 }
 
 SKIP_BUILD="${MORPHO_VERITY_SKIP_BUILD:-0}"
@@ -242,6 +258,9 @@ EOF
   exit 1
 fi
 
+require_command "python3" "python3 is required to run the Yul rewrite pipeline"
+run_stage "rewrite-yul" run_rewrite_yul
+
 if [[ "${SKIP_SOLC}" != "1" ]]; then
   require_command "solc" "solc is required unless MORPHO_VERITY_SKIP_SOLC=1"
   require_command "awk" "awk is required to extract bytecode from solc output"
@@ -256,13 +275,19 @@ if [[ ! -s "${MORPHO_ABI}" ]]; then
   echo "ERROR: failed to generate ${MORPHO_ABI}"
   exit 1
 fi
+if [[ ! -s "${MORPHO_REWRITTEN_YUL}" ]]; then
+  echo "ERROR: failed to generate ${MORPHO_REWRITTEN_YUL}"
+  exit 1
+fi
 
 write_manifest "${input_digest}"
 echo "Generated Verity artifact: ${MORPHO_YUL}"
+echo "Generated rewritten Verity artifact: ${MORPHO_REWRITTEN_YUL}"
 if [[ "${SKIP_SOLC}" != "1" ]]; then
   echo "Generated Verity bytecode: ${MORPHO_BIN}"
 else
   echo "Skipped bytecode generation (MORPHO_VERITY_SKIP_SOLC=1)"
 fi
 echo "Generated Verity ABI: ${MORPHO_ABI}"
+echo "Rewrite pipeline report: ${REWRITE_REPORT}"
 echo "Stage timing log: ${TIMINGS_LOG}"
