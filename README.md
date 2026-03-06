@@ -62,10 +62,12 @@ See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
+- [`config/yul-rewrite-pipeline.json`](config/yul-rewrite-pipeline.json)
 - [`config/yul-rewrite-proof-obligations.json`](config/yul-rewrite-proof-obligations.json)
 - [`config/semantic-bridge-obligations.json`](config/semantic-bridge-obligations.json)
 - [`Morpho/Proofs/YulRewriteProofs.lean`](Morpho/Proofs/YulRewriteProofs.lean)
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
+- [`scripts/apply_yul_rewrite_pipeline.py`](scripts/apply_yul_rewrite_pipeline.py)
 - [`scripts/check_yul_rewrite_proof_obligations.py`](scripts/check_yul_rewrite_proof_obligations.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
 - [`scripts/check_semantic_bridge_obligations.py`](scripts/check_semantic_bridge_obligations.py)
@@ -216,7 +218,7 @@ Artifact preparation is fail-closed for invalid toggle values and missing requir
 - `MORPHO_VERITY_SKIP_BUILD` / `MORPHO_VERITY_SKIP_SOLC` must be `0` or `1`.
 - `MORPHO_VERITY_ARTIFACT_MODE` may be omitted or set to `edsl` only.
 - `MORPHO_VERITY_INPUT_MODE` is a legacy alias; when both are set they must match.
-- `python3` is required to read `config/parity-target.json` when present.
+- `python3` is required to read `config/parity-target.json` when present and to apply the Yul rewrite pipeline.
 - `config/parity-target.json` must include a non-empty `verity.parityPackId`.
 - `config/parity-target.json` must also pin `yulIdentity.gateMode` to `unsupported-manifest` or `exact`; CI uses that setting to decide whether Yul identity is still manifest-gated or fully exact.
 - `artifacts/inputs/MarketParamsHash.yul` must be present.
@@ -224,7 +226,9 @@ Artifact preparation is fail-closed for invalid toggle values and missing requir
 - `solc` and `awk` are required unless `MORPHO_VERITY_SKIP_SOLC=1`.
 
 The artifact builder also emits:
-- `Morpho.stage-times.log` with stage-level timing diagnostics (`lake-build`, `lake-exe`, `solc-bin`, or manifest reuse)
+- `Morpho.rewritten.yul`, produced by the configured rewrite pipeline in `config/yul-rewrite-pipeline.json`
+- `Morpho.rewrite-report.json`, describing the ordered rewrite stages applied to the raw Verity Yul
+- `Morpho.stage-times.log` with stage-level timing diagnostics (`lake-build`, `lake-exe`, `rewrite-yul`, `solc-bin`, or manifest reuse)
 - `Morpho.artifact-manifest.env` so unchanged input sets can reuse an already-prepared artifact directory without rerunning the compiler
 
 Generate only Yul + ABI (skip `solc` bytecode generation):
@@ -295,7 +299,7 @@ Current status:
 - `./scripts/run_morpho_blue_parity.sh` passes `MORPHO_IMPL=solidity|verity` into the Morpho Blue suite and now fails closed unless `morpho-blue/test/BaseTest.sol` reads that selector via an explicit Foundry env lookup and no test bypasses it with direct `new Morpho(...)` deployments.
 - The currently checked-in `morpho-blue` submodule is not yet wired that way, so full Solidity-vs-Verity differential execution remains blocked on `#120`.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
-- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and a rewrite-oriented prioritization view (`functionBlocks.rewriteFamilies`) that groups exactness blockers by rewrite family / mismatch kind, including ambiguous rename-only clusters. The report now annotates tracked rewrite families from `config/yul-rewrite-proof-obligations.json`, so each reported family is tied to an intended rewrite pass and semantic-preservation obligation, and it flags untracked families that still need proof-plan coverage. `scripts/check_yul_rewrite_proof_obligations.py` fails closed unless every manifest proof ref is backed by a placeholder declaration in `Morpho/Proofs/YulRewriteProofs.lean`, with matching proof-ref, rewrite-pass, and family metadata. The same report also carries a config-driven Yul identity gate (`parityConfig.yulIdentityGateMode`) that currently enforces unsupported-manifest drift but can flip to exact parity without another workflow change.
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and a rewrite-oriented prioritization view (`functionBlocks.rewriteFamilies`) that groups exactness blockers by rewrite family / mismatch kind, including ambiguous rename-only clusters. The report now compares Solidity IR against the rewritten Verity artifact, persists both `verity/Morpho.raw.yul` and `verity/Morpho.yul`, and records the ordered rewrite pipeline under `rewritePipeline`. It also annotates tracked rewrite families from `config/yul-rewrite-proof-obligations.json`, so each reported family is tied to an intended rewrite pass and semantic-preservation obligation, and it flags untracked families that still need proof-plan coverage. `scripts/check_yul_rewrite_proof_obligations.py` fails closed unless every manifest proof ref is backed by a placeholder declaration in `Morpho/Proofs/YulRewriteProofs.lean`, with matching proof-ref, rewrite-pass, and family metadata.
 
 ## Proof progress
 

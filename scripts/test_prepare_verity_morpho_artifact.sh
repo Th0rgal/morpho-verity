@@ -29,8 +29,13 @@ setup_fake_repo() {
   printf '%s\n' 'import Morpho.Morpho' > "${fake_root}/Morpho.lean"
   printf '%s\n' 'import Morpho.Compiler.Main' > "${fake_root}/MorphoCompiler.lean"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
+  cp "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
+  cp "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" "${fake_root}/scripts/check_yul_rewrite_proof_obligations.py"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
+  chmod +x "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
+  cp "${ROOT_DIR}/config/yul-rewrite-pipeline.json" "${fake_root}/config/yul-rewrite-pipeline.json"
+  cp "${ROOT_DIR}/config/yul-rewrite-proof-obligations.json" "${fake_root}/config/yul-rewrite-proof-obligations.json"
   cat > "${fake_root}/artifacts/inputs/MarketParamsHash.yul" <<'EOF_LIB'
 {
   function hashMarketParams() -> result { result := 0 }

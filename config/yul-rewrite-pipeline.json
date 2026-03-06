@@ -1,0 +1,55 @@
+{
+  "version": "rewrite-pipeline-v1",
+  "stages": [
+    {
+      "rewritePass": "rename-normalization",
+      "families": ["renameOnly"],
+      "proofRefs": ["rewrite.rename_only.alpha_equiv"],
+      "implemented": false,
+      "notes": "Reserve the alpha-renaming stage even before a concrete rewrite is implemented."
+    },
+    {
+      "rewritePass": "rename-family-disambiguation",
+      "families": ["renameAmbiguous"],
+      "proofRefs": ["rewrite.rename_ambiguous.disambiguate"],
+      "implemented": false,
+      "notes": "Keep ambiguous rename-only clusters as a dedicated stage in the planned rewrite order."
+    },
+    {
+      "rewritePass": "checked-arith-width-alignment",
+      "families": ["checked_add"],
+      "proofRefs": ["rewrite.checked_add.width_alignment"],
+      "implemented": false
+    },
+    {
+      "rewritePass": "literal-memory-canonicalization",
+      "families": ["copy_literal_to_memory"],
+      "proofRefs": ["rewrite.copy_literal_to_memory.semantic_eq"],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi-decode-helper-canonicalization",
+      "families": ["abi_decode_address"],
+      "proofRefs": ["rewrite.abi_decode_address.semantic_eq"],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi-encode-struct-canonicalization",
+      "families": ["abi_encode_struct"],
+      "proofRefs": ["rewrite.abi_encode_struct.semantic_eq"],
+      "implemented": false
+    },
+    {
+      "rewritePass": "mapping-slot-helper-canonicalization",
+      "families": ["mappingSlot"],
+      "proofRefs": ["rewrite.mapping_slot.semantic_eq"],
+      "implemented": false
+    },
+    {
+      "rewritePass": "market-params-hash-canonicalization",
+      "families": ["keccakMarketParams"],
+      "proofRefs": ["rewrite.market_params_hash.semantic_eq"],
+      "implemented": false
+    }
+  ]
+}

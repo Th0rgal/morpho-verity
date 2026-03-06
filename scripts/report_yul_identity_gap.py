@@ -16,17 +16,22 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
+from apply_yul_rewrite_pipeline import (
+  DEFAULT_PIPELINE_MANIFEST as DEFAULT_REWRITE_PIPELINE_MANIFEST,
+  DEFAULT_PROOF_MANIFEST as DEFAULT_REWRITE_PROOF_MANIFEST,
+  apply_rewrite_pipeline_to_file,
+)
 from parity_target_config import parse_yul_identity_gate_mode as parse_parity_target_yul_identity_gate_mode
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PARITY_TARGET = ROOT / "config" / "parity-target.json"
-VERITY_YUL = ROOT / "artifacts" / "yul" / "Morpho.yul"
+RAW_VERITY_YUL = ROOT / "artifacts" / "yul" / "Morpho.yul"
+REWRITTEN_VERITY_YUL = ROOT / "artifacts" / "yul" / "Morpho.rewritten.yul"
 SOLIDITY_ARTIFACT = ROOT / "morpho-blue" / "out" / "Morpho.sol" / "Morpho.json"
 RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
 DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
-DEFAULT_REWRITE_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
 REWRITE_PLAN_DEFAULT_KINDS = frozenset({"renameOnly", "renameAmbiguous"})
 
 
@@ -887,12 +892,33 @@ def prepared_verity_artifact_dir() -> pathlib.Path | None:
   return base
 
 
-def copy_prepared_verity_yul(prepared_dir: pathlib.Path) -> None:
-  src = prepared_dir / "Morpho.yul"
+def copy_prepared_verity_artifact(
+    prepared_dir: pathlib.Path, artifact_name: str, destination: pathlib.Path
+) -> None:
+  src = prepared_dir / artifact_name
   if not src.is_file():
-    raise RuntimeError(f"Missing prepared Verity Yul artifact: {src}")
-  VERITY_YUL.parent.mkdir(parents=True, exist_ok=True)
-  shutil.copy2(src, VERITY_YUL)
+    raise RuntimeError(f"Missing prepared Verity artifact: {src}")
+  destination.parent.mkdir(parents=True, exist_ok=True)
+  shutil.copy2(src, destination)
+
+
+def copy_prepared_verity_yul(prepared_dir: pathlib.Path) -> None:
+  copy_prepared_verity_artifact(prepared_dir, "Morpho.yul", RAW_VERITY_YUL)
+
+
+def copy_prepared_rewritten_verity_yul(prepared_dir: pathlib.Path) -> None:
+  copy_prepared_verity_artifact(prepared_dir, "Morpho.rewritten.yul", REWRITTEN_VERITY_YUL)
+
+
+def ensure_rewritten_verity_yul(
+    pipeline_manifest_path: pathlib.Path, proof_manifest_path: pathlib.Path
+) -> dict[str, Any]:
+  return apply_rewrite_pipeline_to_file(
+    RAW_VERITY_YUL,
+    REWRITTEN_VERITY_YUL,
+    pipeline_manifest_path=pipeline_manifest_path,
+    proof_manifest_path=proof_manifest_path,
+  )
 
 
 def build_report(
@@ -1040,6 +1066,14 @@ def parse_args() -> argparse.Namespace:
     ),
   )
   parser.add_argument(
+    "--rewrite-pipeline-manifest",
+    default=str(DEFAULT_REWRITE_PIPELINE_MANIFEST),
+    help=(
+      "JSON manifest defining the ordered rewrite pipeline applied to raw Verity Yul "
+      "(default: config/yul-rewrite-pipeline.json)."
+    ),
+  )
+  parser.add_argument(
     "--enforce-unsupported-manifest",
     action="store_true",
     help="Exit non-zero when function-level mismatches diverge from the unsupported manifest.",
@@ -1062,6 +1096,7 @@ def main() -> int:
   out_dir = pathlib.Path(args.out_dir).resolve()
   unsupported_manifest_path = pathlib.Path(args.unsupported_manifest).resolve()
   rewrite_proof_manifest_path = pathlib.Path(args.rewrite_proof_manifest).resolve()
+  rewrite_pipeline_manifest_path = pathlib.Path(args.rewrite_pipeline_manifest).resolve()
   solc_dir = out_dir / "solidity"
   verity_dir = out_dir / "verity"
   out_dir.mkdir(parents=True, exist_ok=True)
@@ -1074,23 +1109,31 @@ def main() -> int:
     prepared_dir = prepared_verity_artifact_dir()
     if prepared_dir is not None:
       copy_prepared_verity_yul(prepared_dir)
+      if (prepared_dir / "Morpho.rewritten.yul").is_file():
+        copy_prepared_rewritten_verity_yul(prepared_dir)
     else:
       compile_verity_yul()
     compile_solidity_ir()
 
-  verity_yul = read_text(VERITY_YUL)
+  rewrite_pipeline_report = ensure_rewritten_verity_yul(
+    rewrite_pipeline_manifest_path,
+    rewrite_proof_manifest_path,
+  )
+  raw_verity_yul = read_text(RAW_VERITY_YUL)
+  rewritten_verity_yul = read_text(REWRITTEN_VERITY_YUL)
   solc_ir = extract_solidity_ir_optimized()
   rewrite_proof_manifest = None
   if rewrite_proof_manifest_path.exists():
     rewrite_proof_manifest = load_rewrite_proof_manifest(rewrite_proof_manifest_path)
 
   write_text(solc_dir / "Morpho.irOptimized.yul", solc_ir)
-  write_text(verity_dir / "Morpho.yul", verity_yul)
+  write_text(verity_dir / "Morpho.raw.yul", raw_verity_yul)
+  write_text(verity_dir / "Morpho.yul", rewritten_verity_yul)
   write_text(solc_dir / "Morpho.irOptimized.normalized.yul", normalize_yul(solc_ir))
-  write_text(verity_dir / "Morpho.normalized.yul", normalize_yul(verity_yul))
+  write_text(verity_dir / "Morpho.normalized.yul", normalize_yul(rewritten_verity_yul))
 
   report, diff_text = build_report(
-    verity_yul,
+    rewritten_verity_yul,
     solc_ir,
     args.max_diff_lines,
     rewrite_proof_manifest=rewrite_proof_manifest,
@@ -1103,6 +1146,10 @@ def main() -> int:
     "path": display_path(rewrite_proof_manifest_path),
     "found": rewrite_proof_manifest is not None,
   }
+  report["rewritePipeline"] = {
+    "path": display_path(rewrite_pipeline_manifest_path),
+    "report": rewrite_pipeline_report,
+  }
   if unsupported_manifest_path.exists():
     manifest = load_unsupported_manifest(unsupported_manifest_path)
     report["unsupportedManifest"]["found"] = True
@@ -1111,7 +1158,8 @@ def main() -> int:
     )
   report["paths"] = {
     "solidityRaw": display_path(solc_dir / "Morpho.irOptimized.yul"),
-    "verityRaw": display_path(verity_dir / "Morpho.yul"),
+    "verityRaw": display_path(verity_dir / "Morpho.raw.yul"),
+    "verityRewritten": display_path(verity_dir / "Morpho.yul"),
     "diff": display_path(out_dir / "normalized.diff"),
   }
 
@@ -1129,6 +1177,10 @@ def main() -> int:
   if report["parityConfig"]["verityParityPackId"] is not None:
     print(f"verityParityPackId: {report['parityConfig']['verityParityPackId']}")
   print(f"yulIdentityGateMode: {report['parityConfig']['yulIdentityGateMode']}")
+  print(f"rewritePipeline: {display_path(rewrite_pipeline_manifest_path)}")
+  print(f"rewritePipelineStages: {report['rewritePipeline']['report']['stageCount']}")
+  print(f"rewritePipelineImplementedStages: {report['rewritePipeline']['report']['implementedStageCount']}")
+  print(f"rewritePipelineChangedStages: {report['rewritePipeline']['report']['changedStageCount']}")
   print(f"report: {display_path(out_dir / 'report.json')}")
   print(f"diff: {display_path(out_dir / 'normalized.diff')}")
   if report["unsupportedManifest"]["found"]:

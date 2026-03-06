@@ -18,6 +18,7 @@ from report_yul_identity_gap import (  # noqa: E402
   build_rewrite_family_summary,
   build_name_insensitive_pairs,
   build_report,
+  copy_prepared_rewritten_verity_yul,
   copy_prepared_verity_yul,
   compare_function_hashes,
   display_path,
@@ -48,8 +49,13 @@ class ReportYulIdentityGapTests(unittest.TestCase):
 
   def test_copy_prepared_verity_yul_fails_closed_when_missing(self) -> None:
     with tempfile.TemporaryDirectory() as d:
-      with self.assertRaisesRegex(RuntimeError, "Missing prepared Verity Yul artifact"):
+      with self.assertRaisesRegex(RuntimeError, "Missing prepared Verity artifact"):
         copy_prepared_verity_yul(pathlib.Path(d))
+
+  def test_copy_prepared_rewritten_verity_yul_fails_closed_when_missing(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      with self.assertRaisesRegex(RuntimeError, "Missing prepared Verity artifact"):
+        copy_prepared_rewritten_verity_yul(pathlib.Path(d))
 
   def test_normalize_yul_strips_comments(self) -> None:
     text = """

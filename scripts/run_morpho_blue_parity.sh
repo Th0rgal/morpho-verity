@@ -99,6 +99,9 @@ require_nonempty_artifact "${artifact_source_dir}/Morpho.bin"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.abi.json"
 mkdir -p "${ROOT_DIR}/artifacts/yul"
 cp "${artifact_source_dir}/Morpho.yul" "${ROOT_DIR}/artifacts/yul/Morpho.yul"
+if [[ -s "${artifact_source_dir}/Morpho.rewritten.yul" ]]; then
+  cp "${artifact_source_dir}/Morpho.rewritten.yul" "${ROOT_DIR}/artifacts/yul/Morpho.rewritten.yul"
+fi
 cp "${artifact_source_dir}/Morpho.bin" "${ROOT_DIR}/artifacts/yul/Morpho.bin"
 cp "${artifact_source_dir}/Morpho.abi.json" "${ROOT_DIR}/artifacts/yul/Morpho.abi.json"
 
