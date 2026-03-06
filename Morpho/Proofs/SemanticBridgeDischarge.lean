@@ -1,5 +1,3 @@
-import Morpho.Compiler.MacroSlice
-import Morpho.Compiler.AdminAdapters
 import Morpho.Specs.ContractSemantics
 import Morpho.Proofs.SolidityBridge
 
@@ -7,17 +5,17 @@ import Morpho.Proofs.SolidityBridge
 # Semantic Bridge Discharge: Link 1 (Pure Lean ↔ EDSL)
 
 This module proves the first link of the semantic bridge discharge chain:
-the EDSL functions in `MacroSlice.lean` (produced by `verity_contract`) are
-equivalent to the pure Lean model functions in `Morpho.lean`.
+the EDSL functions produced by `verity_contract` are equivalent to the
+canonical spec-facing execution surface in `Morpho.Specs.ContractSemantics`.
 
 ## Architecture
 
 The full discharge chain for an obligation like `setOwnerSemEq` has three links:
 
 ```
-   Pure Lean (Morpho.setOwner)          -- this repo, Morpho.lean
+   Canonical contract semantics         -- this repo, ContractSemantics.lean
      ↕ Link 1 (this file)
-   EDSL (MorphoViewSlice.setOwner)      -- this repo, MacroSlice.lean
+   EDSL (Compiler.AdminAdapters.setOwner)
      ↕ Link 2 (verity SemanticBridge)
    Compiled IR (interpretIR morphoIR)   -- verity, once compile pipeline lands
      ↕ Link 3 (verity EndToEnd)
@@ -32,10 +30,9 @@ Verity pin: 9d9533b2 (including the two-storage-address witness needed by `setFe
 ## Proof Strategy
 
 For each function, we:
-1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage layout
-2. Define an EDSL-based wrapper: run `MorphoViewSlice.f` on encoded state, decode result
-3. Prove the wrapper equals the pure Lean `Morpho.f`
-4. Conclude `*SemEq` obligation is satisfiable
+1. Reuse the EDSL-backed adapter exported from `Compiler.AdminAdapters`
+2. Prove that adapter is definitionally equal to `ContractSemantics.f`
+3. Conclude the corresponding `*SemEq` obligation is satisfiable
 
 The key tactic pattern is:
 - Unfold definitions including `Bind.bind` (to resolve do-notation `>>=`)
@@ -48,8 +45,6 @@ namespace Morpho.Proofs.SemanticBridgeDischarge
 
 open Verity
 open Morpho.Types
-open Morpho.Compiler.MacroSlice
-open Morpho.Compiler.AdminAdapters
 
 /-! ## Canonical State Encoding
 
