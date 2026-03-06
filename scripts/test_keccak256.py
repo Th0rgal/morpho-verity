@@ -19,7 +19,7 @@ SOURCE_FORWARDER = ROOT / "scripts" / "keccak256.py"
 class KeccakForwarderTests(unittest.TestCase):
   def test_fails_closed_when_delegate_is_missing(self) -> None:
     with tempfile.TemporaryDirectory() as tmp:
-      workspace = pathlib.Path(tmp)
+      workspace = pathlib.Path(tmp).resolve()
       scripts_dir = workspace / "scripts"
       scripts_dir.mkdir(parents=True, exist_ok=True)
       shutil.copy2(SOURCE_FORWARDER, scripts_dir / "keccak256.py")
@@ -35,7 +35,7 @@ class KeccakForwarderTests(unittest.TestCase):
 
   def test_delegates_to_verity_helper_and_preserves_args(self) -> None:
     with tempfile.TemporaryDirectory() as tmp:
-      workspace = pathlib.Path(tmp)
+      workspace = pathlib.Path(tmp).resolve()
       scripts_dir = workspace / "scripts"
       delegate = workspace / ".lake" / "packages" / "verity" / "scripts" / "keccak256.py"
       scripts_dir.mkdir(parents=True, exist_ok=True)
