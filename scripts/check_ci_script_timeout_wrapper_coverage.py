@@ -16,6 +16,10 @@ RUN_WITH_TIMEOUT_TARGET_RE = re.compile(
   r"(?:(?:python3\s+)(?:\./)?scripts/|(?:\./)?scripts/)"
   r"([A-Za-z0-9_]+\.(?:py|sh))\b"
 )
+SHELL_TEST_LOOP_RE = re.compile(
+  r"for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+scripts/test_\*\.sh\s*;\s*do(?P<body>.*?)\bdone\b",
+  re.DOTALL,
+)
 
 
 def fail(msg: str) -> None:
@@ -29,6 +33,31 @@ def collect_workflow_script_references(workflow_text: str) -> set[str]:
 
 def collect_wrapped_script_targets(workflow_text: str) -> set[str]:
   return {match.group(1) for match in RUN_WITH_TIMEOUT_TARGET_RE.finditer(workflow_text)}
+
+
+def collect_shell_test_loop_blocks(workflow_text: str) -> list[tuple[str, str]]:
+  blocks: list[tuple[str, str]] = []
+  for match in SHELL_TEST_LOOP_RE.finditer(workflow_text):
+    loop_var = match.group(1)
+    loop_body = match.group("body")
+    blocks.append((loop_var, loop_body))
+  return blocks
+
+
+def collect_repo_shell_script_tests(scripts_dir: pathlib.Path) -> set[str]:
+  tests: set[str] = set()
+  for path in scripts_dir.glob("test_*.sh"):
+    if path.is_file():
+      tests.add(path.name)
+  return tests
+
+
+def loop_uses_timeout_wrapper(loop_var: str, loop_body: str) -> bool:
+  var_expr_re = r"(?:\$\{" + re.escape(loop_var) + r"\}|\$" + re.escape(loop_var) + r")"
+  wrapped_loop_target_re = re.compile(
+    r"run_with_timeout\.sh[\s\S]*?--\s+[\"']?\./" + var_expr_re + r"[\"']?"
+  )
+  return bool(wrapped_loop_target_re.search(loop_body))
 
 
 def main() -> int:
@@ -47,14 +76,29 @@ def main() -> int:
     default=[],
     help="script name allowed to be referenced without run_with_timeout.sh",
   )
+  parser.add_argument(
+    "--scripts-dir",
+    type=pathlib.Path,
+    default=pathlib.Path("scripts"),
+    help="Path to scripts directory",
+  )
   args = parser.parse_args()
 
   workflow_text = args.workflow.read_text(encoding="utf-8")
   workflow_refs = collect_workflow_script_references(workflow_text)
   wrapped_targets = collect_wrapped_script_targets(workflow_text)
+  shell_test_loops = collect_shell_test_loop_blocks(workflow_text)
+  shell_script_tests = collect_repo_shell_script_tests(args.scripts_dir)
   allowed = set(args.allow_unwrapped)
 
   workflow_refs.discard("run_with_timeout.sh")
+  if shell_test_loops:
+    workflow_refs.update(shell_script_tests)
+    for loop_var, loop_body in shell_test_loops:
+      if not loop_uses_timeout_wrapper(loop_var, loop_body):
+        fail(f"shell test loop variable '{loop_var}' executes without run_with_timeout.sh")
+    wrapped_targets.update(shell_script_tests)
+
   unwrapped = sorted((workflow_refs - wrapped_targets) - allowed)
   if unwrapped:
     fail("workflow scripts not wrapped by run_with_timeout.sh: " + ", ".join(unwrapped))

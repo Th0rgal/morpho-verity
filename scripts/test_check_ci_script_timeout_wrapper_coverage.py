@@ -14,8 +14,10 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_script_timeout_wrapper_coverage import (  # noqa: E402
+  collect_shell_test_loop_blocks,
   collect_workflow_script_references,
   collect_wrapped_script_targets,
+  loop_uses_timeout_wrapper,
   main,
 )
 
@@ -46,6 +48,35 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
       collect_wrapped_script_targets(workflow_text),
       {"check_alpha.py", "install_solc.sh", "install_lean.sh"},
     )
+
+  def test_collect_shell_test_loop_blocks(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: |",
+        "  for t in scripts/test_*.sh; do",
+        "    ./scripts/run_with_timeout.sh M 1 d -- \"./${t}\"",
+        "  done",
+      ]
+    )
+    self.assertEqual(len(collect_shell_test_loop_blocks(workflow_text)), 1)
+
+  def test_loop_uses_timeout_wrapper_detects_wrapped_body(self) -> None:
+    loop_body = "\n".join(
+      [
+        "  echo running",
+        "  ./scripts/run_with_timeout.sh M 1 d -- \"./${t}\"",
+      ]
+    )
+    self.assertTrue(loop_uses_timeout_wrapper("t", loop_body))
+
+  def test_loop_uses_timeout_wrapper_rejects_unwrapped_body(self) -> None:
+    loop_body = "\n".join(
+      [
+        "  echo running",
+        "  \"./${t}\"",
+      ]
+    )
+    self.assertFalse(loop_uses_timeout_wrapper("t", loop_body))
 
   def test_main_passes_when_all_scripts_are_wrapped(self) -> None:
     workflow_text = "\n".join(
@@ -119,6 +150,67 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
           str(workflow),
           "--allow-unwrapped",
           "install_solc.sh",
+        ]
+        with self.assertRaises(SystemExit) as ctx:
+          main()
+        self.assertEqual(ctx.exception.code, 1)
+      finally:
+        sys.argv = old_argv
+
+  def test_main_passes_for_wrapped_shell_test_loop(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: |",
+        "  for t in scripts/test_*.sh; do",
+        "    ./scripts/run_with_timeout.sh M 1 d -- \"./${t}\"",
+        "  done",
+      ]
+    )
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      root = pathlib.Path(tmp_dir)
+      workflow = root / "verify.yml"
+      scripts_dir = root / "scripts"
+      scripts_dir.mkdir()
+      (scripts_dir / "test_alpha.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+      (scripts_dir / "test_beta.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+      workflow.write_text(workflow_text, encoding="utf-8")
+      old_argv = sys.argv
+      try:
+        sys.argv = [
+          "check_ci_script_timeout_wrapper_coverage.py",
+          "--workflow",
+          str(workflow),
+          "--scripts-dir",
+          str(scripts_dir),
+        ]
+        self.assertEqual(main(), 0)
+      finally:
+        sys.argv = old_argv
+
+  def test_main_fails_for_unwrapped_shell_test_loop(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: |",
+        "  for t in scripts/test_*.sh; do",
+        "    \"./${t}\"",
+        "  done",
+      ]
+    )
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      root = pathlib.Path(tmp_dir)
+      workflow = root / "verify.yml"
+      scripts_dir = root / "scripts"
+      scripts_dir.mkdir()
+      (scripts_dir / "test_alpha.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+      workflow.write_text(workflow_text, encoding="utf-8")
+      old_argv = sys.argv
+      try:
+        sys.argv = [
+          "check_ci_script_timeout_wrapper_coverage.py",
+          "--workflow",
+          str(workflow),
+          "--scripts-dir",
+          str(scripts_dir),
         ]
         with self.assertRaises(SystemExit) as ctx:
           main()
