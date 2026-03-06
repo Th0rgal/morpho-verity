@@ -12,7 +12,9 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from report_yul_identity_gap import (  # noqa: E402
   ROOT,
+  build_exactness_summary,
   build_function_family_summary,
+  build_parity_metadata,
   build_name_insensitive_pairs,
   build_report,
   copy_prepared_verity_yul,
@@ -24,6 +26,7 @@ from report_yul_identity_gap import (  # noqa: E402
   normalize_yul,
   prepared_verity_artifact_dir,
   tokenize_normalized_yul,
+  yul_identity_gate_mode,
 )
 
 
@@ -192,6 +195,96 @@ object "M" {
     self.assertEqual(summary["onlyInSolidity"][0]["family"], "checked_add")
     self.assertEqual(summary["onlyInVerity"][0]["family"], "checked_add")
     self.assertIn("mappingSlot", [entry["family"] for entry in summary["onlyInVerity"]])
+
+  def test_build_exactness_summary_requires_ast_and_function_match(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function f() { leave } } }'),
+      normalize_yul('object "M" { code { function g() { leave } } }'),
+      max_diff_lines=50,
+    )
+    exactness = build_exactness_summary(report)
+    self.assertFalse(exactness["raw"])
+    self.assertFalse(exactness["normalized"])
+    self.assertFalse(exactness["ast"])
+    self.assertFalse(exactness["functionLevel"])
+    self.assertFalse(exactness["fullyExact"])
+
+  def test_build_exactness_summary_marks_exact_match(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function f() { leave } } }'),
+      normalize_yul('object "M" { code { function f() { leave } } }'),
+      max_diff_lines=50,
+    )
+    self.assertEqual(
+      build_exactness_summary(report),
+      {
+        "raw": True,
+        "normalized": True,
+        "ast": True,
+        "functionLevel": True,
+        "fullyExact": True,
+      },
+    )
+
+  def test_build_exactness_summary_tolerates_formatting_only_differences(self) -> None:
+    report, _ = build_report(
+      'object "M" {\n  code {\n    function f() { leave }\n  }\n}\n',
+      'object "M"{code{function f(){leave}}}\n',
+      max_diff_lines=50,
+    )
+    self.assertEqual(
+      build_exactness_summary(report),
+      {
+        "raw": False,
+        "normalized": False,
+        "ast": True,
+        "functionLevel": True,
+        "fullyExact": True,
+      },
+    )
+
+  def test_build_parity_metadata_extracts_pack_id(self) -> None:
+    self.assertEqual(
+      build_parity_metadata(
+        {
+          "id": "target-id",
+          "verity": {"parityPackId": "solc-pack"},
+          "yulIdentity": {"gateMode": "unsupported-manifest"},
+        },
+        "unsupported-manifest",
+      ),
+      {
+        "id": "target-id",
+        "verityParityPackId": "solc-pack",
+        "yulIdentityGateMode": "unsupported-manifest",
+      },
+    )
+
+  def test_build_parity_metadata_handles_missing_pack_id(self) -> None:
+    self.assertEqual(
+      build_parity_metadata(
+        {"id": "target-id", "verity": {}, "yulIdentity": {"gateMode": "exact"}},
+        "exact",
+      ),
+      {
+        "id": "target-id",
+        "verityParityPackId": None,
+        "yulIdentityGateMode": "exact",
+      },
+    )
+
+  def test_yul_identity_gate_mode_reads_supported_values(self) -> None:
+    self.assertEqual(
+      yul_identity_gate_mode({"yulIdentity": {"gateMode": "unsupported-manifest"}}),
+      "unsupported-manifest",
+    )
+    self.assertEqual(yul_identity_gate_mode({"yulIdentity": {"gateMode": "exact"}}), "exact")
+
+  def test_yul_identity_gate_mode_rejects_missing_or_unknown_values(self) -> None:
+    with self.assertRaisesRegex(RuntimeError, "Missing required config `yulIdentity.gateMode`"):
+      yul_identity_gate_mode({})
+    with self.assertRaisesRegex(RuntimeError, "Invalid config `yulIdentity.gateMode`"):
+      yul_identity_gate_mode({"yulIdentity": {"gateMode": "strict"}})
 
   def test_build_report_top_level_mismatch_includes_token_coordinates(self) -> None:
     report, _ = build_report(

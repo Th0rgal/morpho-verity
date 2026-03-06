@@ -10,6 +10,8 @@ import subprocess
 import sys
 from typing import Any
 
+from parity_target_config import parse_yul_identity_gate_mode as parse_parity_target_yul_identity_gate_mode
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET_PATH = ROOT / "config" / "parity-target.json"
@@ -77,6 +79,14 @@ def fail(msg: str) -> None:
   sys.exit(1)
 
 
+def parse_yul_identity_gate_mode(target: dict[str, Any]) -> str:
+  return parse_parity_target_yul_identity_gate_mode(
+    target,
+    missing_message="missing required config `yulIdentity.gateMode` in config/parity-target.json",
+    invalid_message_prefix="invalid config `yulIdentity.gateMode` in config/parity-target.json",
+  )
+
+
 def main() -> None:
   target = load_json(TARGET_PATH)
   foundry = parse_foundry_default(read_text(FOUNDRY_PATH))
@@ -97,10 +107,15 @@ def main() -> None:
   verity_pack = target.get("verity", {}).get("parityPackId")
   if not isinstance(verity_pack, str) or not verity_pack:
     fail("missing required config `verity.parityPackId` in config/parity-target.json")
+  try:
+    yul_gate_mode = parse_yul_identity_gate_mode(target)
+  except RuntimeError as exc:
+    fail(str(exc))
 
   print(f"parity-target id: {target['id']}")
   print(f"solc: {version}+commit.{commit}")
   print(f"verity parity-pack: {verity_pack}")
+  print(f"yul identity gate: {yul_gate_mode}")
   print(
     "foundry.default: "
     f"optimizer={foundry['optimizer']} "

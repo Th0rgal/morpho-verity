@@ -191,6 +191,18 @@ Validate that current function-level Yul gaps match the tracked unsupported mani
 python3 scripts/report_yul_identity_gap.py --enforce-unsupported-manifest
 ```
 
+Honor the gate mode pinned in `config/parity-target.json` (what CI uses):
+
+```bash
+python3 scripts/report_yul_identity_gap.py --enforce-configured-gate
+```
+
+Fail closed once rewritten Verity Yul reaches exact Solidity parity:
+
+```bash
+python3 scripts/report_yul_identity_gap.py --exact
+```
+
 Build the Morpho Verity artifact:
 
 ```bash
@@ -203,6 +215,7 @@ Artifact preparation is fail-closed for invalid toggle values and missing requir
 - `MORPHO_VERITY_INPUT_MODE` is a legacy alias; when both are set they must match.
 - `python3` is required to read `config/parity-target.json` when present.
 - `config/parity-target.json` must include a non-empty `verity.parityPackId`.
+- `config/parity-target.json` must also pin `yulIdentity.gateMode` to `unsupported-manifest` or `exact`; CI uses that setting to decide whether Yul identity is still manifest-gated or fully exact.
 - `artifacts/inputs/MarketParamsHash.yul` must be present.
 - `lake` is required for compiler build/exec.
 - `solc` and `awk` are required unless `MORPHO_VERITY_SKIP_SOLC=1`.
@@ -279,7 +292,7 @@ Current status:
 - `./scripts/run_morpho_blue_parity.sh` passes `MORPHO_IMPL=solidity|verity` into the Morpho Blue suite and now fails closed unless `morpho-blue/test/BaseTest.sol` reads that selector via an explicit Foundry env lookup and no test bypasses it with direct `new Morpho(...)` deployments.
 - The currently checked-in `morpho-blue` submodule is not yet wired that way, so full Solidity-vs-Verity differential execution remains blocked on `#120`.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
-- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`) to prioritize rewrite families, and an enforced unsupported-manifest drift gate (including parity-target ID match).
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`) to prioritize rewrite families, and a config-driven Yul identity gate (`parityConfig.yulIdentityGateMode`) that currently enforces unsupported-manifest drift but can flip to exact parity without another workflow change.
 
 ## Proof progress
 

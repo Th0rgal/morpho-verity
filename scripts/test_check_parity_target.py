@@ -8,7 +8,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from check_parity_target import parse_foundry_default  # noqa: E402
+from check_parity_target import parse_foundry_default, parse_yul_identity_gate_mode  # noqa: E402
 
 
 class ParseFoundryDefaultTests(unittest.TestCase):
@@ -44,6 +44,26 @@ bytecode_hash = "none"
 """
     got = parse_foundry_default(text)
     self.assertEqual(got["optimizerRuns"], 999999)
+
+
+class ParseYulIdentityGateModeTests(unittest.TestCase):
+  def test_accepts_supported_gate_modes(self) -> None:
+    self.assertEqual(
+      parse_yul_identity_gate_mode({"yulIdentity": {"gateMode": "unsupported-manifest"}}),
+      "unsupported-manifest",
+    )
+    self.assertEqual(
+      parse_yul_identity_gate_mode({"yulIdentity": {"gateMode": "exact"}}),
+      "exact",
+    )
+
+  def test_rejects_missing_gate_mode(self) -> None:
+    with self.assertRaisesRegex(RuntimeError, "missing required config `yulIdentity.gateMode`"):
+      parse_yul_identity_gate_mode({})
+
+  def test_rejects_unknown_gate_mode(self) -> None:
+    with self.assertRaisesRegex(RuntimeError, "invalid config `yulIdentity.gateMode`"):
+      parse_yul_identity_gate_mode({"yulIdentity": {"gateMode": "strict"}})
 
 
 if __name__ == "__main__":
