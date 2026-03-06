@@ -178,7 +178,7 @@ verity_contract MorphoViewSlice where
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     -- STUB: Full implementation requires tuple destructuring (marketParams_0..4),
     -- externalCall for keccak hash, and blockTimestamp as a value expression.
-    -- These constructs are still not yet supported at the current pinned verity revision (dab9a567).
+    -- These constructs are still not yet supported at the current pinned verity revision (9d9533b2).
     -- Full implementation preserved in git history (commit 82e5572).
     -- Blocked on: tuple element access, externalCall primitive, blockTimestamp value.
     let marketParams' := marketParams
