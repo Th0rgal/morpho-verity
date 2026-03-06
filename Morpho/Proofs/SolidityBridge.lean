@@ -149,7 +149,7 @@ def accrueInterestPublicSemEq (solidityAccrueInterestPublic : AccrueInterestPubl
 
 def flashLoanSemEq (solidityFlashLoan : FlashLoanSem) : Prop :=
   ∀ s assets,
-    solidityFlashLoan s assets = Morpho.flashLoan s assets
+    solidityFlashLoan s assets = Morpho.Specs.ContractSemantics.flashLoan s assets
 
 theorem solidity_supply_preserves_borrowLeSupply
     (soliditySupply : SupplySem)

@@ -96,6 +96,15 @@ noncomputable def setAuthorization (s : MorphoState) (authorized : Address)
         else s.isAuthorized authorizer auth }
   | .revert _ _ => none
 
+/-- Canonical EDSL-backed adapter for `flashLoan`.
+    The current state model abstracts token/callback I/O, so the adapter keeps the
+    state-observable guard (`assets != 0`) and fixes the ignored token/data inputs. -/
+noncomputable def flashLoan (s : MorphoState) (assets : Uint256) : Option Unit :=
+  let state := encodeMorphoState s
+  match (MorphoViewSlice.flashLoan 0 assets ByteArray.empty) state with
+  | .success _ _ => some ()
+  | .revert _ _ => none
+
 theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
     setOwner s newOwner = some s' ↔
       s.sender = s.owner ∧ newOwner ≠ s.owner ∧ s' = { s with owner := newOwner } := by
@@ -177,5 +186,19 @@ theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     first
     | exact eq_comm_iff _ _
     | assumption
+
+theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
+    flashLoan s assets = some () ↔ assets ≠ 0 := by
+  unfold flashLoan
+  simp [encodeMorphoState, MorphoViewSlice.flashLoan, Bind.bind, Verity.bind, Verity.pure,
+    Verity.require, Verity.msgSender, mstore, rawLog]
+  by_cases h : assets = 0
+  · simp [h]
+  · have hval : assets.val ≠ 0 := by
+      intro hv
+      apply h
+      exact Verity.Core.Uint256.ext (by simpa [Verity.Core.Uint256.val_zero] using hv)
+    have hpos : 0 < assets.val := Nat.pos_of_ne_zero hval
+    simp [h, hpos]
 
 end Morpho.Compiler.AdminAdapters

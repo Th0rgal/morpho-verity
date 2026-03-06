@@ -11,10 +11,11 @@ open Morpho.Types
 Canonical spec-facing execution surface for Morpho operations that already run
 through the generated Verity contract semantics.
 
-The admin operations below are the first migrated cluster. They deliberately
-point at `Compiler.AdminAdapters`, so bridge/spec code can talk about the
-generated contract semantics directly instead of routing through
-`Morpho.Morpho` as an intermediate executable model.
+These operations deliberately point at `Compiler.AdminAdapters`, so bridge/spec
+code can talk about the generated contract semantics directly instead of
+routing through `Morpho.Morpho` as an intermediate executable model. The admin
+cluster was the first migrated slice; `flashLoan` is the first non-admin
+operation wired into the same canonical surface.
 -/
 
 /-- Canonical Contract-monad-backed semantics for `setOwner`. -/
@@ -37,6 +38,10 @@ noncomputable abbrev enableLltv : MorphoState → Uint256 → Option MorphoState
 noncomputable abbrev setAuthorization :
     MorphoState → Address → Bool → Option MorphoState :=
   Morpho.Compiler.AdminAdapters.setAuthorization
+
+/-- Canonical Contract-monad-backed semantics for `flashLoan`. -/
+noncomputable abbrev flashLoan : MorphoState → Uint256 → Option Unit :=
+  Morpho.Compiler.AdminAdapters.flashLoan
 
 theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
     setOwner s newOwner = some s' ↔
@@ -74,5 +79,9 @@ theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
           if authorizer == s.sender && auth == authorized then newIsAuthorized
           else s.isAuthorized authorizer auth } :=
   Morpho.Compiler.AdminAdapters.setAuthorization_success_iff s s' authorized newIsAuthorized
+
+theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
+    flashLoan s assets = some () ↔ assets ≠ 0 :=
+  Morpho.Compiler.AdminAdapters.flashLoan_success_iff s assets
 
 end Morpho.Specs.ContractSemantics
