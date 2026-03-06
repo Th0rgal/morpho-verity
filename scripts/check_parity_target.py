@@ -10,11 +10,12 @@ import subprocess
 import sys
 from typing import Any
 
+from parity_target_config import parse_yul_identity_gate_mode as parse_parity_target_yul_identity_gate_mode
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET_PATH = ROOT / "config" / "parity-target.json"
 FOUNDRY_PATH = ROOT / "morpho-blue" / "foundry.toml"
-ALLOWED_YUL_IDENTITY_GATE_MODES = {"unsupported-manifest", "exact"}
 
 
 def load_json(path: pathlib.Path) -> dict[str, Any]:
@@ -79,17 +80,11 @@ def fail(msg: str) -> None:
 
 
 def parse_yul_identity_gate_mode(target: dict[str, Any]) -> str:
-  yul_identity = target.get("yulIdentity")
-  if not isinstance(yul_identity, dict):
-    raise RuntimeError("missing required config `yulIdentity.gateMode` in config/parity-target.json")
-  gate_mode = yul_identity.get("gateMode")
-  if not isinstance(gate_mode, str) or gate_mode not in ALLOWED_YUL_IDENTITY_GATE_MODES:
-    allowed = ", ".join(sorted(ALLOWED_YUL_IDENTITY_GATE_MODES))
-    raise RuntimeError(
-      "invalid config `yulIdentity.gateMode` in config/parity-target.json "
-      f"(expected one of: {allowed})"
-    )
-  return gate_mode
+  return parse_parity_target_yul_identity_gate_mode(
+    target,
+    missing_message="missing required config `yulIdentity.gateMode` in config/parity-target.json",
+    invalid_message_prefix="invalid config `yulIdentity.gateMode` in config/parity-target.json",
+  )
 
 
 def main() -> None:

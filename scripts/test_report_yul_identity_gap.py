@@ -250,7 +250,8 @@ object "M" {
           "id": "target-id",
           "verity": {"parityPackId": "solc-pack"},
           "yulIdentity": {"gateMode": "unsupported-manifest"},
-        }
+        },
+        "unsupported-manifest",
       ),
       {
         "id": "target-id",
@@ -261,7 +262,10 @@ object "M" {
 
   def test_build_parity_metadata_handles_missing_pack_id(self) -> None:
     self.assertEqual(
-      build_parity_metadata({"id": "target-id", "verity": {}, "yulIdentity": {"gateMode": "exact"}}),
+      build_parity_metadata(
+        {"id": "target-id", "verity": {}, "yulIdentity": {"gateMode": "exact"}},
+        "exact",
+      ),
       {
         "id": "target-id",
         "verityParityPackId": None,

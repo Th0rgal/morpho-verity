@@ -16,6 +16,8 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
+from parity_target_config import parse_yul_identity_gate_mode as parse_parity_target_yul_identity_gate_mode
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PARITY_TARGET = ROOT / "config" / "parity-target.json"
@@ -24,7 +26,6 @@ SOLIDITY_ARTIFACT = ROOT / "morpho-blue" / "out" / "Morpho.sol" / "Morpho.json"
 RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
 DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
-ALLOWED_YUL_IDENTITY_GATE_MODES = {"unsupported-manifest", "exact"}
 
 
 @dataclass(frozen=True)
@@ -554,14 +555,13 @@ def build_exactness_summary(report: dict[str, Any]) -> dict[str, bool]:
   }
 
 
-def build_parity_metadata(target: dict[str, Any]) -> dict[str, Any]:
+def build_parity_metadata(target: dict[str, Any], gate_mode: str) -> dict[str, Any]:
   verity_cfg = target.get("verity")
   parity_pack_id = None
   if isinstance(verity_cfg, dict):
     raw_pack = verity_cfg.get("parityPackId")
     if isinstance(raw_pack, str) and raw_pack.strip():
       parity_pack_id = raw_pack
-  gate_mode = yul_identity_gate_mode(target)
   return {
     "id": target["id"],
     "verityParityPackId": parity_pack_id,
@@ -570,17 +570,12 @@ def build_parity_metadata(target: dict[str, Any]) -> dict[str, Any]:
 
 
 def yul_identity_gate_mode(target: dict[str, Any]) -> str:
-  yul_identity = target.get("yulIdentity")
-  if not isinstance(yul_identity, dict):
-    raise RuntimeError("Missing required config `yulIdentity.gateMode` in config/parity-target.json.")
-  gate_mode = yul_identity.get("gateMode")
-  if not isinstance(gate_mode, str) or gate_mode not in ALLOWED_YUL_IDENTITY_GATE_MODES:
-    allowed = ", ".join(sorted(ALLOWED_YUL_IDENTITY_GATE_MODES))
-    raise RuntimeError(
-      "Invalid config `yulIdentity.gateMode` in config/parity-target.json "
-      f"(expected one of: {allowed})."
-    )
-  return gate_mode
+  return parse_parity_target_yul_identity_gate_mode(
+    target,
+    missing_message="Missing required config `yulIdentity.gateMode` in config/parity-target.json.",
+    invalid_message_prefix="Invalid config `yulIdentity.gateMode` in config/parity-target.json",
+    invalid_message_suffix=".",
+  )
 
 
 def extract_solidity_ir_optimized() -> str:
@@ -820,7 +815,7 @@ def main() -> int:
 
   report, diff_text = build_report(verity_yul, solc_ir, args.max_diff_lines)
   report["parityTarget"] = target["id"]
-  report["parityConfig"] = build_parity_metadata(target)
+  report["parityConfig"] = build_parity_metadata(target, gate_mode)
   report["exactness"] = build_exactness_summary(report)
   report["unsupportedManifest"] = {"path": display_path(unsupported_manifest_path), "found": False, "check": None}
   if unsupported_manifest_path.exists():
