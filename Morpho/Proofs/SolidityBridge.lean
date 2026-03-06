@@ -314,9 +314,7 @@ theorem solidity_enableIrm_preserves_lltvMonotone
     s'.isLltvEnabled lltv := by
   have h_ok_morpho : Morpho.enableIrm s irmCall = some s' := by
     simpa [enableIrmSemEq] using (h_eq s irmCall).symm.trans h_ok
-  unfold Morpho.enableIrm at h_ok_morpho
-  split at h_ok_morpho <;> simp at h_ok_morpho
-  rw [← h_ok_morpho.right]
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irmCall).1 h_ok_morpho
   simpa using h_enabled
 
 theorem solidity_enableLltv_preserves_borrowLeSupply
@@ -350,9 +348,7 @@ theorem solidity_enableLltv_preserves_irmMonotone
     s'.isIrmEnabled irm := by
   have h_ok_morpho : Morpho.enableLltv s lltvCall = some s' := by
     simpa [enableLltvSemEq] using (h_eq s lltvCall).symm.trans h_ok
-  unfold Morpho.enableLltv at h_ok_morpho
-  split at h_ok_morpho <;> simp at h_ok_morpho
-  rw [← h_ok_morpho.right.right]
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltvCall).1 h_ok_morpho
   simpa using h_enabled
 
 theorem solidity_enableLltv_preserves_lltvMonotone
