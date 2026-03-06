@@ -230,7 +230,7 @@ Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho
 ```
 
 The artifact gate is fail-closed: all three artifacts must exist and be non-empty.
-Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `8400`; set `0` to disable). When this guard is enabled, `timeout` must be available in `PATH`.
+Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `8400`; set `0` to disable). When this guard is enabled, `setsid` must be available in `PATH`.
 When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is set, the differential runner
 uses that verified bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
 still fails closed if any file is missing or empty.
@@ -254,7 +254,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_VERITY_SMOKE_TIMEOUT_SEC` (default `3000`)
 - `MORPHO_TIMEOUT_KILL_AFTER_SEC` (default `30`)
 - `0` disables timeout for each respective command
-The shared timeout wrapper enforces hard fail-closed termination (`timeout --kill-after=${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}s`) so TERM-ignoring subprocesses cannot hang CI indefinitely.
+The shared timeout wrapper enforces hard fail-closed termination by running the command in its own session via `setsid --wait` and escalating from `TERM` to `KILL` after `${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}s`, so TERM-ignoring subprocesses cannot hang CI indefinitely.
 `MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
 The Yul identity report script wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics. When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is provided, the report reuses that verified bundle and still fails closed if `Morpho.yul` is missing.
 CI sets stricter non-conflicting outer budgets for nested timeout-wrapped stages:

@@ -60,7 +60,11 @@ fi
 
 tmp_dir="$(mktemp -d)"
 status_file="${tmp_dir}/timeout-status"
+session_pid_file="${tmp_dir}/session-pid"
+command_status_file="${tmp_dir}/command-status"
+launcher_script="${tmp_dir}/launch-command.sh"
 command_pid=""
+session_pid=""
 watchdog_pid=""
 
 cleanup() {
@@ -73,38 +77,118 @@ cleanup() {
 
 trap cleanup EXIT
 
-start_epoch="$(date +%s)"
-setsid --wait "$@" &
-command_pid=$!
+cat > "${launcher_script}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
 
-(
-  sleep "${timeout_sec}"
-  if kill -0 "${command_pid}" >/dev/null 2>&1; then
-    printf 'timeout\n' > "${status_file}"
-    kill -TERM "-${command_pid}" >/dev/null 2>&1 || true
-    sleep "${kill_after_sec}"
-    if kill -0 "${command_pid}" >/dev/null 2>&1; then
-      printf 'kill-after\n' > "${status_file}"
-      kill -KILL "-${command_pid}" >/dev/null 2>&1 || true
-    fi
-  fi
-) &
-watchdog_pid=$!
+session_pid_file="$1"
+command_status_file="$2"
+shift 2
 
 set +e
-wait "${command_pid}"
+setsid --wait bash -lc '
+  set -euo pipefail
+  session_pid_file="$1"
+  shift
+  printf "%s\n" "$$" > "${session_pid_file}"
+  exec "$@"
+' bash "${session_pid_file}" "$@"
 status=$?
 set -e
+printf "%s\n" "${status}" > "${command_status_file}"
+exit "${status}"
+EOF
+chmod +x "${launcher_script}"
+
+start_epoch="$(date +%s)"
+"${launcher_script}" "${session_pid_file}" "${command_status_file}" "$@" &
+command_pid=$!
+
+for _ in $(seq 1 50); do
+  if [[ -s "${session_pid_file}" ]]; then
+    session_pid="$(tr -d '[:space:]' < "${session_pid_file}")"
+    break
+  fi
+  if ! kill -0 "${command_pid}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.1
+done
+
+if [[ -n "${session_pid}" && ! "${session_pid}" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: invalid session leader pid captured for ${description}: ${session_pid}" >&2
+  exit 1
+fi
+
+signal_pid="${session_pid:-${command_pid}}"
+
+watchdog() {
+  local sleep_pid=""
+  exec </dev/null >/dev/null 2>&1
+
+  cleanup_watchdog() {
+    if [[ -n "${sleep_pid}" ]]; then
+      kill "${sleep_pid}" >/dev/null 2>&1 || true
+      wait "${sleep_pid}" >/dev/null 2>&1 || true
+    fi
+  }
+
+  trap cleanup_watchdog EXIT TERM INT
+
+  sleep "${timeout_sec}" &
+  sleep_pid=$!
+  wait "${sleep_pid}" >/dev/null 2>&1 || true
+  sleep_pid=""
+
+  if kill -0 "${command_pid}" >/dev/null 2>&1; then
+    printf 'timeout\n' > "${status_file}"
+    kill -TERM "-${signal_pid}" >/dev/null 2>&1 || true
+
+    sleep "${kill_after_sec}" &
+    sleep_pid=$!
+    wait "${sleep_pid}" >/dev/null 2>&1 || true
+    sleep_pid=""
+
+    if kill -0 "${command_pid}" >/dev/null 2>&1; then
+      printf 'kill-after\n' > "${status_file}"
+      kill -KILL "-${signal_pid}" >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
+watchdog &
+watchdog_pid=$!
+
+status=""
+for _ in $(seq 1 $((timeout_sec * 20 + 200))); do
+  if [[ -s "${command_status_file}" ]]; then
+    status="$(tr -d '[:space:]' < "${command_status_file}")"
+    break
+  fi
+  if ! kill -0 "${command_pid}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.05
+done
+
+if [[ -z "${status}" ]]; then
+  set +e
+  wait "${command_pid}"
+  status=$?
+  set -e
+else
+  wait "${command_pid}" >/dev/null 2>&1 || true
+fi
 
 kill "${watchdog_pid}" >/dev/null 2>&1 || true
 wait "${watchdog_pid}" >/dev/null 2>&1 || true
 
-if kill -0 "-${command_pid}" >/dev/null 2>&1; then
-  echo "WARNING: ${description} left descendant processes running; terminating process group ${command_pid}" >&2
-  kill -TERM "-${command_pid}" >/dev/null 2>&1 || true
+if kill -0 "-${signal_pid}" >/dev/null 2>&1; then
+  echo "WARNING: ${description} left descendant processes running; terminating process group ${signal_pid}" >&2
+  kill -TERM "-${signal_pid}" >/dev/null 2>&1 || true
   sleep 1
-  if kill -0 "-${command_pid}" >/dev/null 2>&1; then
-    kill -KILL "-${command_pid}" >/dev/null 2>&1 || true
+  if kill -0 "-${signal_pid}" >/dev/null 2>&1; then
+    kill -KILL "-${signal_pid}" >/dev/null 2>&1 || true
   fi
 fi
 
