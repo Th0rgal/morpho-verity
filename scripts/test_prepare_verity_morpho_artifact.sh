@@ -85,6 +85,45 @@ printf "%s\n" "[{\"type\":\"function\",\"name\":\"foo\",\"inputs\":[],\"outputs\
 '
 }
 
+install_fake_lake_without_yul() {
+  local fake_bin="$1"
+  make_exe "${fake_bin}/lake" '#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "build" ]]; then
+  exit 0
+fi
+if [[ "${1:-}" != "exe" ]]; then
+  exit 97
+fi
+shift
+if [[ "${1:-}" != "morpho-verity-compiler" ]]; then
+  exit 96
+fi
+shift
+
+out_dir=""
+abi_out_dir=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output)
+      out_dir="$2"
+      shift 2
+      ;;
+    --abi-output)
+      abi_out_dir="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+mkdir -p "${out_dir}" "${abi_out_dir}"
+printf "%s\n" "[{\"type\":\"function\",\"name\":\"foo\",\"inputs\":[],\"outputs\":[]}]" > "${abi_out_dir}/Morpho.abi.json"
+'
+}
+
 install_fake_python3() {
   local fake_bin="$1"
   make_exe "${fake_bin}/python3" '#!/usr/bin/env bash
@@ -239,6 +278,34 @@ test_fail_closed_when_python3_missing_for_parity_target_read() {
     exit 1
   fi
   assert_contains "ERROR: python3 is required to read parity pack from ${fake_root}/config/parity-target.json" "${output_file}"
+}
+
+test_fail_closed_when_lake_exe_omits_yul_artifact() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_lake_without_yul "${fake_bin}"
+  install_fake_python3 "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" MORPHO_VERITY_SKIP_SOLC=1 "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected missing Morpho.yul to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 1 ]]; then
+    echo "ASSERTION FAILED: expected exit code 1, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: ${fake_root}/artifacts/yul/Morpho.yul was not generated." "${output_file}"
 }
 
 test_fail_closed_on_invalid_parity_target_json() {

@@ -247,8 +247,6 @@ if [[ -n "${PARITY_PACK}" ]]; then
 fi
 echo "Using artifact mode: ${ARTIFACT_MODE}"
 run_stage "lake-exe" run_lake_exe
-require_command "python3" "python3 is required to run the Yul rewrite pipeline"
-run_stage "rewrite-yul" run_rewrite_yul
 
 if [[ ! -s "${MORPHO_YUL}" ]]; then
   cat <<EOF
@@ -259,6 +257,9 @@ Check `lake exe morpho-verity-compiler --help` and build logs above.
 EOF
   exit 1
 fi
+
+require_command "python3" "python3 is required to run the Yul rewrite pipeline"
+run_stage "rewrite-yul" run_rewrite_yul
 
 if [[ "${SKIP_SOLC}" != "1" ]]; then
   require_command "solc" "solc is required unless MORPHO_VERITY_SKIP_SOLC=1"

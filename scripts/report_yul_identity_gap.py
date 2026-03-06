@@ -911,7 +911,7 @@ def copy_prepared_rewritten_verity_yul(prepared_dir: pathlib.Path) -> None:
 
 
 def ensure_rewritten_verity_yul(
-    pipeline_manifest_path: pathlib.Path, proof_manifest_path: pathlib.Path
+    pipeline_manifest_path: pathlib.Path, proof_manifest_path: pathlib.Path | None
 ) -> dict[str, Any]:
   return apply_rewrite_pipeline_to_file(
     RAW_VERITY_YUL,
@@ -919,6 +919,31 @@ def ensure_rewritten_verity_yul(
     pipeline_manifest_path=pipeline_manifest_path,
     proof_manifest_path=proof_manifest_path,
   )
+
+
+def load_prepared_rewrite_pipeline_report(prepared_dir: pathlib.Path) -> dict[str, Any] | None:
+  path = prepared_dir / "Morpho.rewrite-report.json"
+  if not path.is_file():
+    return None
+  report = read_json(path)
+  if not isinstance(report, dict):
+    raise RuntimeError(f"Prepared rewrite pipeline report must be a JSON object: {path}")
+  return report
+
+
+def resolve_rewrite_pipeline_report(
+    prepared_dir: pathlib.Path | None,
+    pipeline_manifest_path: pathlib.Path,
+    proof_manifest_path: pathlib.Path,
+) -> dict[str, Any]:
+  if prepared_dir is not None and (prepared_dir / "Morpho.rewritten.yul").is_file():
+    copy_prepared_rewritten_verity_yul(prepared_dir)
+    prepared_report = load_prepared_rewrite_pipeline_report(prepared_dir)
+    if prepared_report is not None:
+      return prepared_report
+
+  proof_manifest_for_rewrite = proof_manifest_path if proof_manifest_path.exists() else None
+  return ensure_rewritten_verity_yul(pipeline_manifest_path, proof_manifest_for_rewrite)
 
 
 def build_report(
@@ -1109,13 +1134,14 @@ def main() -> int:
     prepared_dir = prepared_verity_artifact_dir()
     if prepared_dir is not None:
       copy_prepared_verity_yul(prepared_dir)
-      if (prepared_dir / "Morpho.rewritten.yul").is_file():
-        copy_prepared_rewritten_verity_yul(prepared_dir)
     else:
       compile_verity_yul()
     compile_solidity_ir()
+  else:
+    prepared_dir = None
 
-  rewrite_pipeline_report = ensure_rewritten_verity_yul(
+  rewrite_pipeline_report = resolve_rewrite_pipeline_report(
+    prepared_dir,
     rewrite_pipeline_manifest_path,
     rewrite_proof_manifest_path,
   )

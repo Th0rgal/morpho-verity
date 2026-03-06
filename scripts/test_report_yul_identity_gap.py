@@ -3,13 +3,16 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import os
 import tempfile
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import report_yul_identity_gap as report_module  # noqa: E402
 from report_yul_identity_gap import (  # noqa: E402
   ROOT,
   build_exactness_summary,
@@ -25,9 +28,11 @@ from report_yul_identity_gap import (  # noqa: E402
   evaluate_unsupported_manifest,
   function_family_for_key,
   function_ast_digests,
+  load_prepared_rewrite_pipeline_report,
   load_rewrite_proof_manifest,
   normalize_yul,
   prepared_verity_artifact_dir,
+  resolve_rewrite_pipeline_report,
   tokenize_normalized_yul,
   yul_identity_gate_mode,
 )
@@ -56,6 +61,45 @@ class ReportYulIdentityGapTests(unittest.TestCase):
     with tempfile.TemporaryDirectory() as d:
       with self.assertRaisesRegex(RuntimeError, "Missing prepared Verity artifact"):
         copy_prepared_rewritten_verity_yul(pathlib.Path(d))
+
+  def test_load_prepared_rewrite_pipeline_report_returns_none_when_missing(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      self.assertIsNone(load_prepared_rewrite_pipeline_report(pathlib.Path(d)))
+
+  def test_resolve_rewrite_pipeline_report_reuses_prepared_report(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      prepared_dir = tmp / "prepared"
+      output_path = tmp / "out" / "Morpho.rewritten.yul"
+      prepared_dir.mkdir(parents=True, exist_ok=True)
+      (prepared_dir / "Morpho.rewritten.yul").write_text("prepared rewrite", encoding="utf-8")
+      prepared_report = {"stageCount": 1, "implementedStageCount": 0, "changedStageCount": 0, "stages": []}
+      (prepared_dir / "Morpho.rewrite-report.json").write_text(
+        json.dumps(prepared_report),
+        encoding="utf-8",
+      )
+      with mock.patch.object(report_module, "REWRITTEN_VERITY_YUL", output_path):
+        with mock.patch.object(report_module, "ensure_rewritten_verity_yul") as ensure_rewritten:
+          report = resolve_rewrite_pipeline_report(
+            prepared_dir,
+            tmp / "pipeline.json",
+            tmp / "missing-proof.json",
+          )
+      self.assertEqual(report, prepared_report)
+      self.assertEqual(output_path.read_text(encoding="utf-8"), "prepared rewrite")
+      ensure_rewritten.assert_not_called()
+
+  def test_resolve_rewrite_pipeline_report_keeps_proof_manifest_optional(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      with mock.patch.object(report_module, "ensure_rewritten_verity_yul", return_value={"stageCount": 0}) as ensure_rewritten:
+        report = resolve_rewrite_pipeline_report(
+          None,
+          tmp / "pipeline.json",
+          tmp / "missing-proof.json",
+        )
+      self.assertEqual(report, {"stageCount": 0})
+      ensure_rewritten.assert_called_once_with(tmp / "pipeline.json", None)
 
   def test_normalize_yul_strips_comments(self) -> None:
     text = """

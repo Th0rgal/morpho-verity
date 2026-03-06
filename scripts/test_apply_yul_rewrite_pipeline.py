@@ -172,6 +172,41 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
       json_report = json.loads(json_out.read_text(encoding="utf-8"))
       self.assertEqual(json_report["output"], str(output_path))
 
+  def test_apply_rewrite_pipeline_to_file_allows_missing_proof_manifest(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      input_path = tmp / "Morpho.yul"
+      output_path = tmp / "Morpho.rewritten.yul"
+      pipeline_path = tmp / "pipeline.json"
+
+      input_path.write_text('object "M" { code { } }\n', encoding="utf-8")
+      pipeline_path.write_text(
+        json.dumps(
+          {
+            "version": "rewrite-pipeline-v1",
+            "stages": [
+              {
+                "rewritePass": "rename-normalization",
+                "families": ["renameOnly"],
+                "proofRefs": ["rewrite.rename_only.alpha_equiv"],
+                "implemented": False,
+              }
+            ],
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      report = apply_rewrite_pipeline_to_file(
+        input_path,
+        output_path,
+        pipeline_manifest_path=pipeline_path,
+        proof_manifest_path=None,
+      )
+
+      self.assertEqual(output_path.read_text(encoding="utf-8"), input_path.read_text(encoding="utf-8"))
+      self.assertIsNone(report["proofManifest"])
+
 
 if __name__ == "__main__":
   unittest.main()

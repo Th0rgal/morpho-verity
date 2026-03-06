@@ -234,12 +234,13 @@ def apply_rewrite_pipeline_to_file(
     output_path: pathlib.Path,
     *,
     pipeline_manifest_path: pathlib.Path = DEFAULT_PIPELINE_MANIFEST,
-    proof_manifest_path: pathlib.Path = DEFAULT_PROOF_MANIFEST,
+    proof_manifest_path: pathlib.Path | None = DEFAULT_PROOF_MANIFEST,
     json_out: pathlib.Path | None = None,
 ) -> dict[str, Any]:
   pipeline_manifest = load_rewrite_pipeline_manifest(pipeline_manifest_path)
-  proof_manifest = read_json(proof_manifest_path)
-  validate_pipeline_against_proof_manifest(pipeline_manifest, proof_manifest)
+  if proof_manifest_path is not None:
+    proof_manifest = read_json(proof_manifest_path)
+    validate_pipeline_against_proof_manifest(pipeline_manifest, proof_manifest)
 
   input_text = read_text(input_path)
   rewritten_text, report = apply_rewrite_pipeline_text(input_text, pipeline_manifest)
@@ -247,7 +248,7 @@ def apply_rewrite_pipeline_to_file(
 
   full_report = {
     "pipelineManifest": display_path(pipeline_manifest_path),
-    "proofManifest": display_path(proof_manifest_path),
+    "proofManifest": display_path(proof_manifest_path) if proof_manifest_path is not None else None,
     "input": display_path(input_path),
     "output": display_path(output_path),
     "inputSha256": sha256_text(input_text),
