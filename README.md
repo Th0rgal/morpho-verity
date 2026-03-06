@@ -62,6 +62,7 @@ See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
+- [`config/yul-rewrite-proof-obligations.json`](config/yul-rewrite-proof-obligations.json)
 - [`config/semantic-bridge-obligations.json`](config/semantic-bridge-obligations.json)
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
@@ -292,7 +293,7 @@ Current status:
 - `./scripts/run_morpho_blue_parity.sh` passes `MORPHO_IMPL=solidity|verity` into the Morpho Blue suite and now fails closed unless `morpho-blue/test/BaseTest.sol` reads that selector via an explicit Foundry env lookup and no test bypasses it with direct `new Morpho(...)` deployments.
 - The currently checked-in `morpho-blue` submodule is not yet wired that way, so full Solidity-vs-Verity differential execution remains blocked on `#120`.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
-- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and a rewrite-oriented prioritization view (`functionBlocks.rewriteFamilies`) that groups exactness blockers by rewrite family / mismatch kind, including ambiguous rename-only clusters, so follow-up Yul passes can be planned mechanically. The same report also carries a config-driven Yul identity gate (`parityConfig.yulIdentityGateMode`) that currently enforces unsupported-manifest drift but can flip to exact parity without another workflow change.
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and a rewrite-oriented prioritization view (`functionBlocks.rewriteFamilies`) that groups exactness blockers by rewrite family / mismatch kind, including ambiguous rename-only clusters. The report now annotates tracked rewrite families from `config/yul-rewrite-proof-obligations.json`, so each reported family is tied to an intended rewrite pass and semantic-preservation obligation, and it flags untracked families that still need proof-plan coverage. The same report also carries a config-driven Yul identity gate (`parityConfig.yulIdentityGateMode`) that currently enforces unsupported-manifest drift but can flip to exact parity without another workflow change.
 
 ## Proof progress
 

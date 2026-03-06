@@ -26,6 +26,8 @@ SOLIDITY_ARTIFACT = ROOT / "morpho-blue" / "out" / "Morpho.sol" / "Morpho.json"
 RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
 DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
+DEFAULT_REWRITE_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+REWRITE_PLAN_DEFAULT_KINDS = frozenset({"renameOnly", "renameAmbiguous"})
 
 
 @dataclass(frozen=True)
@@ -470,6 +472,99 @@ def build_function_family_summary(deltas: dict[str, list[str]]) -> dict[str, Any
   }
 
 
+def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
+  data = read_json(path)
+  if not isinstance(data, dict):
+    raise RuntimeError(f"Rewrite proof manifest must be a JSON object: {path}")
+
+  version = data.get("version")
+  if not isinstance(version, str) or not version.strip():
+    raise RuntimeError(
+      f"Rewrite proof manifest key `version` must be a non-empty string: {path}"
+    )
+
+  def validate_plan(plan: Any, *, where: str, require_family: bool) -> dict[str, Any]:
+    if not isinstance(plan, dict):
+      raise RuntimeError(f"Rewrite proof manifest entry `{where}` must be an object: {path}")
+    normalized: dict[str, Any] = {}
+    if require_family:
+      family = plan.get("family")
+      if not isinstance(family, str) or not family.strip():
+        raise RuntimeError(
+          f"Rewrite proof manifest entry `{where}` must include non-empty `family`: {path}"
+        )
+      normalized["family"] = family
+    rewrite_pass = plan.get("rewritePass")
+    if not isinstance(rewrite_pass, str) or not rewrite_pass.strip():
+      raise RuntimeError(
+        f"Rewrite proof manifest entry `{where}` must include non-empty `rewritePass`: {path}"
+      )
+    proof_obligation = plan.get("proofObligation")
+    if not isinstance(proof_obligation, str) or not proof_obligation.strip():
+      raise RuntimeError(
+        f"Rewrite proof manifest entry `{where}` must include non-empty `proofObligation`: {path}"
+      )
+    status = plan.get("status")
+    if not isinstance(status, str) or status not in {"planned", "in-progress", "proven", "blocked"}:
+      raise RuntimeError(
+        f"Rewrite proof manifest entry `{where}` has invalid `status`: {path}"
+      )
+    proof_refs = plan.get("proofRefs", [])
+    if not isinstance(proof_refs, list) or not all(isinstance(ref, str) for ref in proof_refs):
+      raise RuntimeError(
+        f"Rewrite proof manifest entry `{where}` must use `proofRefs` as a list of strings: {path}"
+      )
+    notes = plan.get("notes")
+    if notes is not None and not isinstance(notes, str):
+      raise RuntimeError(
+        f"Rewrite proof manifest entry `{where}` has non-string `notes`: {path}"
+      )
+    normalized.update(
+      {
+        "rewritePass": rewrite_pass,
+        "proofObligation": proof_obligation,
+        "status": status,
+        "proofRefs": proof_refs,
+      }
+    )
+    if notes is not None:
+      normalized["notes"] = notes
+    return normalized
+
+  defaults = data.get("defaults", {})
+  if not isinstance(defaults, dict):
+    raise RuntimeError(f"Rewrite proof manifest key `defaults` must be an object: {path}")
+  normalized_defaults: dict[str, dict[str, Any]] = {}
+  for kind, plan in defaults.items():
+    if not isinstance(kind, str) or not kind.strip():
+      raise RuntimeError(f"Rewrite proof manifest has invalid default kind key: {path}")
+    if kind not in REWRITE_PLAN_DEFAULT_KINDS:
+      allowed = ", ".join(sorted(REWRITE_PLAN_DEFAULT_KINDS))
+      raise RuntimeError(
+        f"Rewrite proof manifest default kind `{kind}` is unsupported; expected one of {allowed}: {path}"
+      )
+    normalized_defaults[kind] = validate_plan(plan, where=f"defaults.{kind}", require_family=False)
+
+  families = data.get("families", [])
+  if not isinstance(families, list):
+    raise RuntimeError(f"Rewrite proof manifest key `families` must be a list: {path}")
+  normalized_families: list[dict[str, Any]] = []
+  seen_families: set[str] = set()
+  for i, entry in enumerate(families):
+    normalized_entry = validate_plan(entry, where=f"families[{i}]", require_family=True)
+    family = normalized_entry["family"]
+    if family in seen_families:
+      raise RuntimeError(f"Rewrite proof manifest defines duplicate family `{family}`: {path}")
+    seen_families.add(family)
+    normalized_families.append(normalized_entry)
+
+  return {
+    "version": version,
+    "defaults": normalized_defaults,
+    "families": normalized_families,
+  }
+
+
 def _family_entry_index(entries: list[dict[str, Any]], family: str, kind: str) -> dict[str, Any]:
   for entry in entries:
     if entry["family"] == family and entry["kind"] == kind:
@@ -525,9 +620,34 @@ def _rename_family_label(sol_keys: list[str], ver_keys: list[str]) -> str:
   return f"{'|'.join(sol_families)}->{'|'.join(ver_families)}"
 
 
+def _rewrite_plan_for_entry(entry: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any] | None:
+  for plan in manifest.get("families", []):
+    if plan["family"] == entry["family"]:
+      return {
+        "match": "family",
+        "rewritePass": plan["rewritePass"],
+        "proofObligation": plan["proofObligation"],
+        "status": plan["status"],
+        "proofRefs": plan["proofRefs"],
+        **({"notes": plan["notes"]} if "notes" in plan else {}),
+      }
+  default_plan = manifest.get("defaults", {}).get(entry["kind"])
+  if default_plan is None:
+    return None
+  return {
+    "match": "kind-default",
+    "rewritePass": default_plan["rewritePass"],
+    "proofObligation": default_plan["proofObligation"],
+    "status": default_plan["status"],
+    "proofRefs": default_plan["proofRefs"],
+    **({"notes": default_plan["notes"]} if "notes" in default_plan else {}),
+  }
+
+
 def build_rewrite_family_summary(
     deltas: dict[str, list[str]],
     name_insensitive_pairs: dict[str, Any],
+    rewrite_proof_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
   entries: list[dict[str, Any]] = []
   priority_counts: dict[str, int] = {}
@@ -567,11 +687,40 @@ def build_rewrite_family_summary(
     {"family": family, "count": count}
     for family, count in sorted(priority_counts.items(), key=lambda item: (-item[1], item[0]))
   ]
-  return {
+
+  untracked_families: list[dict[str, Any]] = []
+  tracked_count = 0
+  status_counts: dict[str, int] = {}
+  if rewrite_proof_manifest is not None:
+    for entry in entries:
+      plan = _rewrite_plan_for_entry(entry, rewrite_proof_manifest)
+      if plan is None:
+        untracked_families.append(
+          {"family": entry["family"], "kind": entry["kind"], "count": entry["count"]}
+        )
+        continue
+      entry["rewritePlan"] = plan
+      tracked_count += 1
+      status = plan["status"]
+      status_counts[status] = status_counts.get(status, 0) + 1
+
+  summary = {
     "version": "rewrite-family-v1",
     "entries": entries,
     "priorityFamilies": priority,
   }
+  if rewrite_proof_manifest is not None:
+    summary["proofManifest"] = {
+      "version": rewrite_proof_manifest["version"],
+      "trackedEntryCount": tracked_count,
+      "untrackedEntryCount": len(untracked_families),
+      "statusSummary": [
+        {"status": status, "count": count}
+        for status, count in sorted(status_counts.items(), key=lambda item: (-item[1], item[0]))
+      ],
+    }
+    summary["untrackedFamilies"] = untracked_families
+  return summary
 
 
 def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
@@ -746,7 +895,12 @@ def copy_prepared_verity_yul(prepared_dir: pathlib.Path) -> None:
   shutil.copy2(src, VERITY_YUL)
 
 
-def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[dict[str, Any], str]:
+def build_report(
+    verity_yul: str,
+    solc_ir: str,
+    max_diff_lines: int,
+    rewrite_proof_manifest: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], str]:
   normalized_verity = normalize_yul(verity_yul)
   normalized_solc = normalize_yul(solc_ir)
 
@@ -757,7 +911,11 @@ def build_report(verity_yul: str, solc_ir: str, max_diff_lines: int) -> tuple[di
     solidity_function_digests, verity_function_digests, function_deltas
   )
   family_summary = build_function_family_summary(function_deltas)
-  rewrite_families = build_rewrite_family_summary(function_deltas, name_insensitive_pairs)
+  rewrite_families = build_rewrite_family_summary(
+    function_deltas,
+    name_insensitive_pairs,
+    rewrite_proof_manifest,
+  )
 
   solidity_tokens = tokenize_normalized_yul_with_spans(normalized_solc)
   verity_tokens = tokenize_normalized_yul_with_spans(normalized_verity)
@@ -874,6 +1032,14 @@ def parse_args() -> argparse.Namespace:
     ),
   )
   parser.add_argument(
+    "--rewrite-proof-manifest",
+    default=str(DEFAULT_REWRITE_PROOF_MANIFEST),
+    help=(
+      "JSON manifest mapping rewrite families to intended rewrite passes and proof obligations "
+      "(default: config/yul-rewrite-proof-obligations.json)."
+    ),
+  )
+  parser.add_argument(
     "--enforce-unsupported-manifest",
     action="store_true",
     help="Exit non-zero when function-level mismatches diverge from the unsupported manifest.",
@@ -895,6 +1061,7 @@ def main() -> int:
   args = parse_args()
   out_dir = pathlib.Path(args.out_dir).resolve()
   unsupported_manifest_path = pathlib.Path(args.unsupported_manifest).resolve()
+  rewrite_proof_manifest_path = pathlib.Path(args.rewrite_proof_manifest).resolve()
   solc_dir = out_dir / "solidity"
   verity_dir = out_dir / "verity"
   out_dir.mkdir(parents=True, exist_ok=True)
@@ -913,17 +1080,29 @@ def main() -> int:
 
   verity_yul = read_text(VERITY_YUL)
   solc_ir = extract_solidity_ir_optimized()
+  rewrite_proof_manifest = None
+  if rewrite_proof_manifest_path.exists():
+    rewrite_proof_manifest = load_rewrite_proof_manifest(rewrite_proof_manifest_path)
 
   write_text(solc_dir / "Morpho.irOptimized.yul", solc_ir)
   write_text(verity_dir / "Morpho.yul", verity_yul)
   write_text(solc_dir / "Morpho.irOptimized.normalized.yul", normalize_yul(solc_ir))
   write_text(verity_dir / "Morpho.normalized.yul", normalize_yul(verity_yul))
 
-  report, diff_text = build_report(verity_yul, solc_ir, args.max_diff_lines)
+  report, diff_text = build_report(
+    verity_yul,
+    solc_ir,
+    args.max_diff_lines,
+    rewrite_proof_manifest=rewrite_proof_manifest,
+  )
   report["parityTarget"] = target["id"]
   report["parityConfig"] = build_parity_metadata(target, gate_mode)
   report["exactness"] = build_exactness_summary(report)
   report["unsupportedManifest"] = {"path": display_path(unsupported_manifest_path), "found": False, "check": None}
+  report["rewriteProofManifest"] = {
+    "path": display_path(rewrite_proof_manifest_path),
+    "found": rewrite_proof_manifest is not None,
+  }
   if unsupported_manifest_path.exists():
     manifest = load_unsupported_manifest(unsupported_manifest_path)
     report["unsupportedManifest"]["found"] = True
@@ -958,6 +1137,13 @@ def main() -> int:
     print(f"unsupportedManifestTargetOk: {report['unsupportedManifest']['check']['parityTarget']['ok']}")
   else:
     print(f"unsupportedManifest: missing ({display_path(unsupported_manifest_path)})")
+  if report["rewriteProofManifest"]["found"]:
+    rewrite_manifest_meta = report["functionBlocks"]["rewriteFamilies"]["proofManifest"]
+    print(f"rewriteProofManifest: {display_path(rewrite_proof_manifest_path)}")
+    print(f"rewritePlanTrackedEntries: {rewrite_manifest_meta['trackedEntryCount']}")
+    print(f"rewritePlanUntrackedEntries: {rewrite_manifest_meta['untrackedEntryCount']}")
+  else:
+    print(f"rewriteProofManifest: missing ({display_path(rewrite_proof_manifest_path)})")
 
   if args.strict and not report["astEqual"]:
     print("yul-identity check failed in strict mode", file=sys.stderr)

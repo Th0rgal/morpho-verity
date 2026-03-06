@@ -24,6 +24,7 @@ from report_yul_identity_gap import (  # noqa: E402
   evaluate_unsupported_manifest,
   function_family_for_key,
   function_ast_digests,
+  load_rewrite_proof_manifest,
   normalize_yul,
   prepared_verity_artifact_dir,
   tokenize_normalized_yul,
@@ -240,6 +241,151 @@ object "M" {
       [{"family": "copy_literal_to_memory", "count": 2}],
     )
 
+  def test_load_rewrite_proof_manifest_validates_schema(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "rewrite-proof.json"
+      path.write_text(
+        """{
+  "version": "rewrite-proof-v1",
+  "defaults": {
+    "renameOnly": {
+      "rewritePass": "rename-normalization",
+      "proofObligation": "alpha-equivalence",
+      "status": "planned",
+      "proofRefs": ["rewrite.rename_only.alpha_equiv"]
+    }
+  },
+  "families": [
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment",
+      "proofObligation": "width normalization",
+      "status": "in-progress",
+      "proofRefs": ["rewrite.checked_add.width_alignment"]
+    }
+  ]
+}
+""",
+        encoding="utf-8",
+      )
+      manifest = load_rewrite_proof_manifest(path)
+    self.assertEqual(manifest["version"], "rewrite-proof-v1")
+    self.assertEqual(manifest["defaults"]["renameOnly"]["status"], "planned")
+    self.assertEqual(manifest["families"][0]["family"], "checked_add")
+
+  def test_load_rewrite_proof_manifest_rejects_unknown_default_kind(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "rewrite-proof.json"
+      path.write_text(
+        """{
+  "version": "rewrite-proof-v1",
+  "defaults": {
+    "hashMismatch": {
+      "rewritePass": "bad-default",
+      "proofObligation": "bad",
+      "status": "planned",
+      "proofRefs": []
+    }
+  },
+  "families": []
+}
+""",
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(RuntimeError, "default kind `hashMismatch` is unsupported"):
+        load_rewrite_proof_manifest(path)
+
+  def test_load_rewrite_proof_manifest_rejects_duplicate_family_entries(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "rewrite-proof.json"
+      path.write_text(
+        """{
+  "version": "rewrite-proof-v1",
+  "defaults": {},
+  "families": [
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment",
+      "proofObligation": "width normalization",
+      "status": "planned",
+      "proofRefs": []
+    },
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment-v2",
+      "proofObligation": "width normalization v2",
+      "status": "planned",
+      "proofRefs": []
+    }
+  ]
+}
+""",
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(RuntimeError, "defines duplicate family `checked_add`"):
+        load_rewrite_proof_manifest(path)
+
+  def test_build_rewrite_family_summary_attaches_rewrite_proof_manifest(self) -> None:
+    manifest = {
+      "version": "rewrite-proof-v1",
+      "defaults": {
+        "renameOnly": {
+          "rewritePass": "rename-normalization",
+          "proofObligation": "alpha-equivalence",
+          "status": "planned",
+          "proofRefs": ["rewrite.rename_only.alpha_equiv"],
+        }
+      },
+      "families": [
+        {
+          "family": "checked_add",
+          "rewritePass": "checked-arith-width-alignment",
+          "proofObligation": "width normalization",
+          "status": "in-progress",
+          "proofRefs": ["rewrite.checked_add.width_alignment"],
+        }
+      ],
+    }
+    summary = build_rewrite_family_summary(
+      {
+        "hashMismatch": ["checked_add_uint256#0"],
+        "onlyInSolidity": [],
+        "onlyInVerity": [],
+      },
+      {
+        "pairs": [
+          {
+            "solidity": {"key": "helper_renamed#0"},
+            "verity": {"key": "helper#0"},
+          }
+        ],
+        "ambiguousGroups": [],
+      },
+      manifest,
+    )
+    checked_add_entry = next(entry for entry in summary["entries"] if entry["family"] == "checked_add")
+    self.assertEqual(checked_add_entry["rewritePlan"]["match"], "family")
+    self.assertEqual(checked_add_entry["rewritePlan"]["status"], "in-progress")
+    rename_entry = next(entry for entry in summary["entries"] if entry["kind"] == "renameOnly")
+    self.assertEqual(rename_entry["rewritePlan"]["match"], "kind-default")
+    self.assertEqual(summary["proofManifest"]["trackedEntryCount"], 2)
+    self.assertEqual(summary["proofManifest"]["untrackedEntryCount"], 0)
+
+  def test_build_rewrite_family_summary_reports_untracked_families(self) -> None:
+    summary = build_rewrite_family_summary(
+      {
+        "hashMismatch": [],
+        "onlyInSolidity": ["mappingSlot#0"],
+        "onlyInVerity": [],
+      },
+      {"pairs": [], "ambiguousGroups": []},
+      {"version": "rewrite-proof-v1", "defaults": {}, "families": []},
+    )
+    self.assertEqual(
+      summary["untrackedFamilies"],
+      [{"family": "mappingSlot", "kind": "onlyInSolidity", "count": 1}],
+    )
+
   def test_tokenizer_keeps_strings_and_compound_tokens(self) -> None:
     tokens = tokenize_normalized_yul('let x := add("a b", 0x10) -> y')
     self.assertEqual(tokens, ["let", "x", ":=", "add", "(", '"a b"', ",", "0x10", ")", "->", "y"])
@@ -324,6 +470,30 @@ object "M" {
     )
     self.assertEqual(ambiguous_entry["family"], "checked_add")
     self.assertEqual(len(ambiguous_entry["groups"][0]["solidityKeys"]), 2)
+
+  def test_build_report_includes_rewrite_proof_manifest_metadata(self) -> None:
+    report, _ = build_report(
+      normalize_yul('object "M" { code { function checked_add_uint128() { pop(1) } } }'),
+      normalize_yul('object "M" { code { function checked_add_uint256() { pop(2) } } }'),
+      max_diff_lines=50,
+      rewrite_proof_manifest={
+        "version": "rewrite-proof-v1",
+        "defaults": {},
+        "families": [
+          {
+            "family": "checked_add",
+            "rewritePass": "checked-arith-width-alignment",
+            "proofObligation": "width normalization",
+            "status": "planned",
+            "proofRefs": ["rewrite.checked_add.width_alignment"],
+          }
+        ],
+      },
+    )
+    summary = report["functionBlocks"]["rewriteFamilies"]
+    self.assertEqual(summary["proofManifest"]["trackedEntryCount"], 2)
+    self.assertEqual(summary["proofManifest"]["untrackedEntryCount"], 0)
+    self.assertEqual(summary["entries"][0]["rewritePlan"]["rewritePass"], "checked-arith-width-alignment")
 
   def test_build_exactness_summary_requires_ast_and_function_match(self) -> None:
     report, _ = build_report(

@@ -1,0 +1,77 @@
+{
+  "version": "rewrite-proof-v1",
+  "defaults": {
+    "renameOnly": {
+      "rewritePass": "rename-normalization",
+      "proofObligation": "Prove alpha-renaming of matched helper functions preserves control flow, storage effects, and ABI-visible behavior.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.rename_only.alpha_equiv"
+      ]
+    },
+    "renameAmbiguous": {
+      "rewritePass": "rename-family-disambiguation",
+      "proofObligation": "Prove deterministic rename-family resolution preserves call targets and does not merge semantically distinct helpers.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.rename_ambiguous.disambiguate"
+      ]
+    }
+  },
+  "families": [
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment",
+      "proofObligation": "Prove width-specialized checked_add helpers preserve success/revert behavior and resulting values across uint-width normalization.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.checked_add.width_alignment"
+      ]
+    },
+    {
+      "family": "copy_literal_to_memory",
+      "rewritePass": "literal-memory-canonicalization",
+      "proofObligation": "Prove literal copy helper rewrites preserve byte-for-byte memory contents and allocation boundaries.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.copy_literal_to_memory.semantic_eq"
+      ]
+    },
+    {
+      "family": "abi_decode_address",
+      "rewritePass": "abi-decode-helper-canonicalization",
+      "proofObligation": "Prove address decoder helper rewrites preserve decoded values, revert conditions, and memory cursor movement.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.abi_decode_address.semantic_eq"
+      ]
+    },
+    {
+      "family": "abi_encode_struct",
+      "rewritePass": "abi-encode-struct-canonicalization",
+      "proofObligation": "Prove struct encoder helper rewrites preserve emitted ABI layout, offsets, and padding rules.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.abi_encode_struct.semantic_eq"
+      ]
+    },
+    {
+      "family": "mappingSlot",
+      "rewritePass": "mapping-slot-helper-canonicalization",
+      "proofObligation": "Prove mappingSlot helper rewrites preserve computed storage keys and scratch-memory usage.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.mapping_slot.semantic_eq"
+      ]
+    },
+    {
+      "family": "keccakMarketParams",
+      "rewritePass": "market-params-hash-canonicalization",
+      "proofObligation": "Prove market-parameter hashing rewrites preserve the exact keccak preimage and resulting market id.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.market_params_hash.semantic_eq"
+      ]
+    }
+  ]
+}
