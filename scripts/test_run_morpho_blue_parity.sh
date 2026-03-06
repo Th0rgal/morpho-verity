@@ -117,7 +117,7 @@ EOF
   chmod +x "${fake_root}/bin/forge"
 }
 
-test_fail_closed_when_timeout_missing_but_enabled() {
+test_fail_closed_when_timeout_wrapper_dependency_missing_but_enabled() {
   local fake_root output_file restricted_path
   fake_root="$(mktemp -d)"
   output_file="$(mktemp)"
@@ -138,10 +138,10 @@ test_fail_closed_when_timeout_missing_but_enabled() {
   set -e
 
   if [[ "${status}" -eq 0 ]]; then
-    echo "ASSERTION FAILED: expected missing timeout command to fail"
+    echo "ASSERTION FAILED: expected missing timeout-wrapper dependency to fail"
     exit 1
   fi
-  assert_contains "ERROR: timeout command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero" "${output_file}"
+  assert_contains "ERROR: setsid command is required when MORPHO_BLUE_SUITE_TIMEOUT_SEC is greater than zero" "${output_file}"
 }
 
 test_fail_closed_on_invalid_parity_preflight_timeout_value() {
@@ -720,7 +720,7 @@ test_skip_allowed_with_explicit_override
 test_skip_allowed_in_ci_without_override
 test_default_mode_runs_parity_preflight
 test_reuse_prepared_artifacts_skips_parity_preflight
-test_fail_closed_when_timeout_missing_but_enabled
+test_fail_closed_when_timeout_wrapper_dependency_missing_but_enabled
 test_suite_timeout_fails_closed
 test_suite_timeout_force_kill_fails_closed
 test_skip_mode_prep_timeout_fails_closed
