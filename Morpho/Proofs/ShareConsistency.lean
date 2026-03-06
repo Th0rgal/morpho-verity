@@ -6,6 +6,7 @@
   quantified — no changes to Types.lean or Morpho.lean.
 -/
 import Morpho.Morpho
+import Morpho.Specs.ContractSemantics
 import Morpho.Specs.Invariants
 import Morpho.Proofs.NatListSum
 
@@ -46,65 +47,65 @@ private theorem borrowConsistent_of_eq_market_position {s s' : MorphoState}
 theorem enableIrm_preserves_supplySharesConsistent (s : MorphoState) (irm : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
-    (h_ok : Morpho.enableIrm s irm = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.enableIrm s irm = some s') :
     supplySharesConsistent s' id allUsers := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm).1 h_ok
   exact h_consistent
 
 theorem enableIrm_preserves_borrowSharesConsistent (s : MorphoState) (irm : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
-    (h_ok : Morpho.enableIrm s irm = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.enableIrm s irm = some s') :
     borrowSharesConsistent s' id allUsers := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm).1 h_ok
   exact h_consistent
 
 theorem enableLltv_preserves_supplySharesConsistent (s : MorphoState) (lltv : Uint256)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
-    (h_ok : Morpho.enableLltv s lltv = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.enableLltv s lltv = some s') :
     supplySharesConsistent s' id allUsers := by
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h_ok
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv).1 h_ok
   exact h_consistent
 
 theorem enableLltv_preserves_borrowSharesConsistent (s : MorphoState) (lltv : Uint256)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
-    (h_ok : Morpho.enableLltv s lltv = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.enableLltv s lltv = some s') :
     borrowSharesConsistent s' id allUsers := by
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h_ok
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv).1 h_ok
   exact h_consistent
 
 theorem setOwner_preserves_supplySharesConsistent (s : MorphoState) (newOwner : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
-    (h_ok : Morpho.setOwner s newOwner = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.setOwner s newOwner = some s') :
     supplySharesConsistent s' id allUsers := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner).1 h_ok
   exact h_consistent
 
 theorem setOwner_preserves_borrowSharesConsistent (s : MorphoState) (newOwner : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
-    (h_ok : Morpho.setOwner s newOwner = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.setOwner s newOwner = some s') :
     borrowSharesConsistent s' id allUsers := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner).1 h_ok
   exact h_consistent
 
 theorem setFeeRecipient_preserves_supplySharesConsistent (s : MorphoState) (addr : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
-    (h_ok : Morpho.setFeeRecipient s addr = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.setFeeRecipient s addr = some s') :
     supplySharesConsistent s' id allUsers := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' addr).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' addr).1 h_ok
   exact h_consistent
 
 theorem setFeeRecipient_preserves_borrowSharesConsistent (s : MorphoState) (addr : Address)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
-    (h_ok : Morpho.setFeeRecipient s addr = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.setFeeRecipient s addr = some s') :
     borrowSharesConsistent s' id allUsers := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' addr).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' addr).1 h_ok
   exact h_consistent
 
 theorem createMarket_preserves_supplySharesConsistent (s : MorphoState)
@@ -135,18 +136,20 @@ theorem setAuthorization_preserves_supplySharesConsistent (s : MorphoState)
     (authorized : Address) (newIsAuth : Bool)
     (id : Id) (allUsers : List Address)
     (h_consistent : supplySharesConsistent s id allUsers)
-    (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuth = some s') :
     supplySharesConsistent s' id allUsers := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain ⟨_, rfl⟩ :=
+    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_consistent
 
 theorem setAuthorization_preserves_borrowSharesConsistent (s : MorphoState)
     (authorized : Address) (newIsAuth : Bool)
     (id : Id) (allUsers : List Address)
     (h_consistent : borrowSharesConsistent s id allUsers)
-    (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
+    (h_ok : Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuth = some s') :
     borrowSharesConsistent s' id allUsers := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain ⟨_, rfl⟩ :=
+    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_consistent
 
 theorem setAuthorizationWithSig_preserves_supplySharesConsistent (s : MorphoState)

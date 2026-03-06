@@ -25,7 +25,7 @@ import Morpho.Libraries.MathLib
 import Morpho.Libraries.SharesMathLib
 import Morpho.Libraries.UtilsLib
 import Morpho.Libraries.ConstantsLib
-import Morpho.Compiler.AdminAdapters
+import Morpho.Specs.ContractSemantics
 
 namespace Morpho
 
@@ -123,15 +123,15 @@ def accrueInterestPublic (s : MorphoState) (id : Id) (borrowRate : Uint256)
 
 /-- Set a new owner. Matches `setOwner` (Morpho.sol:95). -/
 noncomputable abbrev setOwner : MorphoState → Address → Option MorphoState :=
-  Morpho.Compiler.AdminAdapters.setOwner
+  Morpho.Specs.ContractSemantics.setOwner
 
 /-- Enable an IRM. Matches `enableIrm` (Morpho.sol:104). -/
 noncomputable abbrev enableIrm : MorphoState → Address → Option MorphoState :=
-  Morpho.Compiler.AdminAdapters.enableIrm
+  Morpho.Specs.ContractSemantics.enableIrm
 
 /-- Enable an LLTV. Matches `enableLltv` (Morpho.sol:113). -/
 noncomputable abbrev enableLltv : MorphoState → Uint256 → Option MorphoState :=
-  Morpho.Compiler.AdminAdapters.enableLltv
+  Morpho.Specs.ContractSemantics.enableLltv
 
 /-- Set fee for a market. Matches `setFee` (Morpho.sol:123).
     Accrues interest using the OLD fee before changing it.
@@ -152,7 +152,7 @@ def setFee (s : MorphoState) (id : Id) (newFee : Uint256) (borrowRate : Uint256)
 
 /-- Set fee recipient. Matches `setFeeRecipient` (Morpho.sol:139). -/
 noncomputable abbrev setFeeRecipient : MorphoState → Address → Option MorphoState :=
-  Morpho.Compiler.AdminAdapters.setFeeRecipient
+  Morpho.Specs.ContractSemantics.setFeeRecipient
 
 /-! ## Market creation -/
 
@@ -175,26 +175,26 @@ def createMarket (s : MorphoState) (params : MarketParams) : Option MorphoState 
 /-- Authorize or deauthorize another address. Matches `setAuthorization` (Morpho.sol:436). -/
 noncomputable abbrev setAuthorization :
     MorphoState → Address → Bool → Option MorphoState :=
-  Morpho.Compiler.AdminAdapters.setAuthorization
+  Morpho.Specs.ContractSemantics.setAuthorization
 
 theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
     setOwner s newOwner = some s' ↔
       s.sender = s.owner ∧ newOwner ≠ s.owner ∧ s' = { s with owner := newOwner } :=
-  Morpho.Compiler.AdminAdapters.setOwner_success_iff s s' newOwner
+  Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner
 
 theorem setFeeRecipient_success_iff (s s' : MorphoState) (newFeeRecipient : Address) :
     setFeeRecipient s newFeeRecipient = some s' ↔
       s.sender = s.owner ∧
       newFeeRecipient ≠ s.feeRecipient ∧
       s' = { s with feeRecipient := newFeeRecipient } :=
-  Morpho.Compiler.AdminAdapters.setFeeRecipient_success_iff s s' newFeeRecipient
+  Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' newFeeRecipient
 
 theorem enableIrm_success_iff (s s' : MorphoState) (irm : Address) :
     enableIrm s irm = some s' ↔
       s.sender = s.owner ∧
       ¬s.isIrmEnabled irm ∧
       s' = { s with isIrmEnabled := fun a => if a == irm then true else s.isIrmEnabled a } :=
-  Morpho.Compiler.AdminAdapters.enableIrm_success_iff s s' irm
+  Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm
 
 theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
     enableLltv s lltv = some s' ↔
@@ -202,7 +202,7 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
       ¬s.isLltvEnabled lltv ∧
       lltv.val < MathLib.WAD ∧
       s' = { s with isLltvEnabled := fun l => if l == lltv then true else s.isLltvEnabled l } :=
-  Morpho.Compiler.AdminAdapters.enableLltv_success_iff s s' lltv
+  Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv
 
 theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) :
@@ -212,7 +212,7 @@ theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
         isAuthorized := fun authorizer auth =>
           if authorizer == s.sender && auth == authorized then newIsAuthorized
           else s.isAuthorized authorizer auth } :=
-  Morpho.Compiler.AdminAdapters.setAuthorization_success_iff s s' authorized newIsAuthorized
+  Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuthorized
 
 /-- Authorize via EIP-712 signature. Matches `setAuthorizationWithSig` (Morpho.sol:445).
     The signature verification (EIP-712 digest + ecrecover) is cryptographic and cannot
