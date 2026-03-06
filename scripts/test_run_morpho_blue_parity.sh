@@ -410,6 +410,33 @@ test_fail_closed_when_prepared_artifacts_missing_required_file() {
   assert_contains "Morpho.bin" "${output_file}"
 }
 
+test_clears_stale_rewritten_artifact_when_prepared_bundle_omits_it() {
+  local fake_root prepared_root stale_rewritten
+  fake_root="$(mktemp -d)"
+  prepared_root="$(mktemp -d)"
+  trap 'rm -rf "${fake_root}" "${prepared_root}"' RETURN
+  make_fake_repo "${fake_root}"
+
+  mkdir -p "${prepared_root}/edsl" "${fake_root}/artifacts/yul"
+  printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
+  printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
+  printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
+  stale_rewritten="${fake_root}/artifacts/yul/Morpho.rewritten.yul"
+  printf '%s\n' "stale rewritten artifact" > "${stale_rewritten}"
+
+  (
+    cd "${fake_root}"
+    MORPHO_VERITY_PREPARED_ARTIFACT_DIR="${prepared_root}" \
+    MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP=1 \
+      ./scripts/run_morpho_blue_parity.sh
+  )
+
+  if [[ -e "${stale_rewritten}" ]]; then
+    echo "ASSERTION FAILED: expected stale Morpho.rewritten.yul to be removed"
+    exit 1
+  fi
+}
+
 test_suite_timeout_fails_closed() {
   if ! command -v setsid >/dev/null 2>&1; then
     echo "Skipping timeout regression: 'setsid' command is unavailable."
@@ -733,5 +760,6 @@ test_fail_closed_when_harness_ignores_morpho_impl
 test_fail_closed_when_harness_only_mentions_morpho_impl_in_comment
 test_fail_closed_when_test_bypasses_selector
 test_fail_closed_when_prepared_artifacts_missing_required_file
+test_clears_stale_rewritten_artifact_when_prepared_bundle_omits_it
 
 echo "run_morpho_blue_parity.sh tests passed"

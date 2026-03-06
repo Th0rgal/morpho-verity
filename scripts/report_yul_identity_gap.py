@@ -931,15 +931,27 @@ def load_prepared_rewrite_pipeline_report(prepared_dir: pathlib.Path) -> dict[st
   return report
 
 
+def prepared_rewrite_pipeline_report_matches_request(
+    report: dict[str, Any], pipeline_manifest_path: pathlib.Path, proof_manifest_path: pathlib.Path
+) -> bool:
+  expected_pipeline_manifest = display_path(pipeline_manifest_path)
+  if report.get("pipelineManifest") != expected_pipeline_manifest:
+    return False
+  expected_proof_manifest = display_path(proof_manifest_path) if proof_manifest_path.exists() else None
+  return report.get("proofManifest") == expected_proof_manifest
+
+
 def resolve_rewrite_pipeline_report(
     prepared_dir: pathlib.Path | None,
     pipeline_manifest_path: pathlib.Path,
     proof_manifest_path: pathlib.Path,
 ) -> dict[str, Any]:
   if prepared_dir is not None and (prepared_dir / "Morpho.rewritten.yul").is_file():
-    copy_prepared_rewritten_verity_yul(prepared_dir)
     prepared_report = load_prepared_rewrite_pipeline_report(prepared_dir)
-    if prepared_report is not None:
+    if prepared_report is not None and prepared_rewrite_pipeline_report_matches_request(
+        prepared_report, pipeline_manifest_path, proof_manifest_path
+    ):
+      copy_prepared_rewritten_verity_yul(prepared_dir)
       return prepared_report
 
   proof_manifest_for_rewrite = proof_manifest_path if proof_manifest_path.exists() else None
