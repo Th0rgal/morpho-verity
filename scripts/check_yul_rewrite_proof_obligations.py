@@ -334,18 +334,20 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
+    manifest_path = args.manifest.resolve()
+    proof_path = args.proof_file.resolve()
 
-    manifest = load_manifest(args.manifest)
+    manifest = load_manifest(manifest_path)
     manifest_proof_plans = extract_manifest_proof_plans(manifest)
     validate_manifest_against_proofs(
         manifest_proof_plans,
-        extract_declared_proof_obligations(read_text(args.proof_file)),
+        extract_declared_proof_obligations(read_text(proof_path)),
     )
 
     report = build_report(
         list(manifest_proof_plans),
-        manifest_path=args.manifest,
-        proof_path=args.proof_file,
+        manifest_path=manifest_path,
+        proof_path=proof_path,
     )
     if args.json_out:
         write_json_report(args.json_out, report)
