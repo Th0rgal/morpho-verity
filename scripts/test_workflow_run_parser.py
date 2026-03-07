@@ -68,6 +68,24 @@ class WorkflowRunParserTests(unittest.TestCase):
       "echo before\npython3 scripts/check_alpha.py",
     )
 
+  def test_extract_workflow_run_text_preserves_extra_indentation_with_explicit_indicator(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: |2",
+        "            cat <<'EOF'",
+        "              indented",
+        "            EOF",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "  cat <<'EOF'\n    indented\n  EOF",
+    )
+
   def test_extract_workflow_run_text_handles_block_scalar_comment(self) -> None:
     workflow_text = "\n".join(
       [
@@ -292,6 +310,24 @@ class WorkflowRunParserTests(unittest.TestCase):
     self.assertEqual(
       extract_named_step_runs(workflow_text),
       ({"Validate alpha": 1}, {"Validate alpha": ["echo before\npython3 scripts/check_alpha.py"]}),
+    )
+
+  def test_extract_named_step_runs_preserve_extra_indentation_with_explicit_indicator(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: |2",
+        "            cat <<'EOF'",
+        "              indented",
+        "            EOF",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["  cat <<'EOF'\n    indented\n  EOF"]}),
     )
 
   def test_extract_named_step_runs_handles_folded_block_scalar_comment(self) -> None:

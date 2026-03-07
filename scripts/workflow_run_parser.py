@@ -73,8 +73,11 @@ def _consume_run_command(
     next_index += 1
   if not any(indent is not None for _, indent in block_lines):
     return "", next_index
-  content_indent = min(
-    indent for _, indent in block_lines if indent is not None
+  explicit_indent = _extract_block_scalar_indent(tail)
+  content_indent = (
+    run_indent + explicit_indent
+    if explicit_indent is not None
+    else min(indent for _, indent in block_lines if indent is not None)
   )
   normalized_lines = [
     line[content_indent:] if indent is not None else ""
@@ -104,6 +107,17 @@ def _fold_block_scalar_lines(lines: list[str]) -> str:
       folded.append(" ")
     folded.append(line)
   return "".join(folded)
+
+
+def _extract_block_scalar_indent(tail: str) -> int | None:
+  header = tail.split("#", 1)[0].strip()
+  indicator = header[1:]
+  if not indicator:
+    return None
+  for char in indicator:
+    if char.isdigit():
+      return int(char)
+  return None
 
 
 def _parse_scalar_env_value(raw: str) -> str | None:
