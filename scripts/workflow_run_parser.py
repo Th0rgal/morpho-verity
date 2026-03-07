@@ -28,9 +28,11 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   (?:,|$)
 """, re.VERBOSE)
-TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$")
-ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$")
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$", re.DOTALL)
+ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$", re.DOTALL)
 ALIAS_SCALAR_RE = re.compile(r"^\*([^\s]+)$")
+SINGLE_QUOTED_SCALAR_RE = re.compile(r"^'(?:[^']|'')*'(?:\s+#.*)?\s*$", re.DOTALL)
+DOUBLE_QUOTED_SCALAR_RE = re.compile(r'^"(?:[^"\\]|\\.)*"(?:\s+#.*)?\s*$', re.DOTALL)
 
 DOUBLE_QUOTED_ESCAPES = {
   "0": "\0",
@@ -159,6 +161,60 @@ def _strip_yaml_scalar_properties(value: str) -> tuple[str, list[str]]:
   return value, anchors
 
 
+def _starts_quoted_yaml_scalar(raw: str) -> str | None:
+  value, _ = _strip_yaml_scalar_properties(raw.strip())
+  if value.startswith("'"):
+    return "'"
+  if value.startswith('"'):
+    return '"'
+  return None
+
+
+def _is_complete_quoted_yaml_scalar(raw: str) -> bool:
+  value, _ = _strip_yaml_scalar_properties(raw.strip())
+  if value.startswith("'"):
+    return SINGLE_QUOTED_SCALAR_RE.fullmatch(value) is not None
+  if value.startswith('"'):
+    return DOUBLE_QUOTED_SCALAR_RE.fullmatch(value) is not None
+  return False
+
+
+def _consume_multiline_quoted_scalar(
+  lines: list[str],
+  start_index: int,
+  raw: str,
+  field_indent: int,
+) -> tuple[str, int]:
+  if _starts_quoted_yaml_scalar(raw) is None or _is_complete_quoted_yaml_scalar(raw):
+    return raw, start_index + 1
+
+  parts = [raw.rstrip()]
+  next_index = start_index + 1
+  while next_index < len(lines):
+    candidate = lines[next_index]
+    stripped = candidate.lstrip(" ")
+    if stripped:
+      indent = len(candidate) - len(stripped)
+      if indent <= field_indent:
+        break
+      parts.append(stripped)
+    else:
+      parts.append("")
+    combined = "\n".join(parts)
+    next_index += 1
+    if _is_complete_quoted_yaml_scalar(combined):
+      return combined, next_index
+  return raw, start_index + 1
+
+
+def _fold_quoted_yaml_scalar_lines(inner: str, quote: str) -> str:
+  if "\n" not in inner:
+    return inner
+  if quote == '"':
+    inner = re.sub(r"\\\n[ \t]*", "", inner)
+  return re.sub(r"\n[ \t]*", " ", inner)
+
+
 def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> str | None:
   value = _strip_yaml_comment(raw).strip()
   if not value:
@@ -174,7 +230,7 @@ def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> 
   if value[0] in {'"', "'"}:
     if len(value) < 2 or value[-1] != value[0]:
       return None
-    inner = value[1:-1]
+    inner = _fold_quoted_yaml_scalar_lines(value[1:-1], value[0])
     if value[0] == "'":
       parsed = inner.replace("''", "'")
     else:
@@ -335,10 +391,15 @@ def _consume_env_mapping(
     if entry_match is None or len(entry_match.group(1)) != env_indent + 2:
       next_index += 1
       continue
-    value = _parse_scalar_env_value(entry_match.group(3), anchors)
+    raw_value, next_index = _consume_multiline_quoted_scalar(
+      lines,
+      next_index,
+      entry_match.group(3),
+      env_indent + 2,
+    )
+    value = _parse_scalar_env_value(raw_value, anchors)
     if value is not None:
       values.setdefault(entry_match.group(2), []).append(value)
-    next_index += 1
   return values, next_index
 
 
@@ -527,12 +588,17 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
 
     name_match = NAME_FIELD_RE.match(line)
     if name_match is not None and len(name_match.group(1)) == current_step_indent + 2:
-      parsed_name = _parse_scalar_env_value(name_match.group(2), anchors)
+      raw_name, i = _consume_multiline_quoted_scalar(
+        lines,
+        i,
+        name_match.group(2),
+        current_step_indent + 2,
+      )
+      parsed_name = _parse_scalar_env_value(raw_name, anchors)
       current_step_name = parsed_name
       if current_step_name is not None:
         step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1
         step_runs.setdefault(current_step_name, [])
-      i += 1
       continue
 
     run_match = RUN_FIELD_RE.match(line)
