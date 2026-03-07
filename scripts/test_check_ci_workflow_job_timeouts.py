@@ -36,6 +36,18 @@ class CollectJobTimeoutValuesTests(unittest.TestCase):
 
     self.assertEqual(collect_job_timeout_values(job_text), ["15"])
 
+  def test_strips_inline_yaml_comment_from_job_timeout(self) -> None:
+    job_text = "\n".join(
+      [
+        "  build:",
+        "    timeout-minutes: 15 # bounded by policy",
+        "    steps:",
+        "      - run: echo hi",
+      ]
+    )
+
+    self.assertEqual(collect_job_timeout_values(job_text), ["15"])
+
 
 class ValidateJobTimeoutValueTests(unittest.TestCase):
   def test_accepts_literal_positive_integer(self) -> None:
@@ -91,6 +103,37 @@ class ValidateJobTimeoutsTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+  def test_main_accepts_timeout_with_inline_comment(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow_path = pathlib.Path(tmp_dir) / "verify.yml"
+      workflow_path.write_text(
+        "\n".join(
+          [
+            "jobs:",
+            "  build:",
+            "    timeout-minutes: 10 # literal with comment",
+            "    steps:",
+            "      - run: echo hi",
+          ]
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_workflow_job_timeouts.py"),
+          "--workflow",
+          str(workflow_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      self.assertIn("ci-workflow-job-timeouts check: OK", proc.stdout)
+
   def test_main_reports_expression_timeout(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
       workflow_path = pathlib.Path(tmp_dir) / "verify.yml"

@@ -50,6 +50,28 @@ class CheckCiTimeoutJobBudgetFitTests(unittest.TestCase):
     )
     self.assertEqual(parse_job_timeout_minutes("parity-target", job_text), 15)
 
+  def test_parse_job_timeout_minutes_accepts_inline_comment(self) -> None:
+    job_text = (
+      "  parity-target:\n"
+      "    timeout-minutes: 15 # bounded by policy\n"
+      "    steps:\n"
+      "      - run: echo hi\n"
+    )
+    self.assertEqual(parse_job_timeout_minutes("parity-target", job_text), 15)
+
+  def test_parse_job_timeout_minutes_rejects_non_literal_value(self) -> None:
+    job_text = (
+      "  parity-target:\n"
+      "    timeout-minutes: ${{ matrix.timeout }}\n"
+      "    steps:\n"
+      "      - run: echo hi\n"
+    )
+    with self.assertRaisesRegex(
+      CiTimeoutJobBudgetFitError,
+      r"job parity-target timeout-minutes must be a literal integer, found: \$\{\{ matrix.timeout \}\}",
+    ):
+      parse_job_timeout_minutes("parity-target", job_text)
+
   def test_parse_job_timeout_minutes_requires_value(self) -> None:
     job_text = (
       "  parity-target:\n"

@@ -8,6 +8,7 @@ import pathlib
 import re
 import sys
 
+from ci_workflow_helpers import strip_yaml_comment
 from workflow_run_parser import extract_workflow_run_text
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -15,7 +16,7 @@ WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
 
 JOBS_FIELD_RE = re.compile(r"^(\s*)jobs:\s*$")
 JOB_FIELD_RE = re.compile(r"^(\s*)([A-Za-z0-9_-]+):\s*$")
-TIMEOUT_MINUTES_RE = re.compile(r"^(\s*)timeout-minutes:\s*([0-9]+)\s*$")
+TIMEOUT_MINUTES_RE = re.compile(r"^(\s*)timeout-minutes:\s*(.*?)\s*$")
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 RUN_WITH_TIMEOUT_RE = re.compile(r"run_with_timeout\.sh\s+([A-Z0-9_]+)\s+([0-9]+)\b")
 
@@ -95,7 +96,12 @@ def parse_job_timeout_minutes(job_name: str, job_text: str) -> int:
       continue
     if len(match.group(1)) != 4:
       continue
-    timeout_values.append(int(match.group(2)))
+    raw_value = strip_yaml_comment(match.group(2)).strip()
+    if not re.fullmatch(r"[0-9]+", raw_value):
+      raise CiTimeoutJobBudgetFitError(
+        f"job {job_name} timeout-minutes must be a literal integer, found: {raw_value or match.group(2).strip()}"
+      )
+    timeout_values.append(int(raw_value))
   if not timeout_values:
     raise CiTimeoutJobBudgetFitError(f"job {job_name} is missing timeout-minutes")
   if len(timeout_values) != 1:

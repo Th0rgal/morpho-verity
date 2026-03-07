@@ -9,6 +9,7 @@ import re
 import sys
 
 from check_ci_timeout_job_budget_fit import collect_job_blocks, read_text
+from ci_workflow_helpers import strip_yaml_comment
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -33,7 +34,7 @@ def collect_job_timeout_values(job_text: str) -> list[str]:
       continue
     if len(match.group(1)) != 4:
       continue
-    values.append(match.group(2))
+    values.append(strip_yaml_comment(match.group(2)).strip())
   return values
 
 
