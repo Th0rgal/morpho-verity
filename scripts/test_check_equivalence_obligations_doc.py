@@ -138,6 +138,20 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
   def test_parse_operation_list_allows_none_sentinel(self) -> None:
     self.assertEqual(parse_operation_list("none"), [])
 
+  def test_parse_operation_list_rejects_mixed_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "mixes the none sentinel",
+    ):
+      parse_operation_list("none, setOwner")
+
+  def test_parse_operation_list_rejects_duplicate_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "repeats the none sentinel",
+    ):
+      parse_operation_list("none, none")
+
   def test_validate_status_summary_passes(self) -> None:
     config = make_config()
     validate_status_summary(make_doc([], summary=derive_summary(config)), derive_summary(config))
@@ -183,6 +197,21 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
       "Link 1 operation list drift",
     ):
       validate_status_summary(drifted_doc, derive_summary(config))
+
+  def test_validate_status_summary_rejects_mixed_none_sentinel(self) -> None:
+    summary = {
+      "link1_count": 1,
+      "total": 4,
+      "link1_operations": ["setOwner"],
+      "macro_migrated_count": 1,
+      "macro_pending_count": 3,
+    }
+    drifted_doc = make_doc([], summary=summary).replace("setOwner", "none, setOwner", 1)
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "mixes the none sentinel",
+    ):
+      validate_status_summary(drifted_doc, summary)
 
   def test_validate_status_summary_rejects_macro_migration_drift(self) -> None:
     config = make_config()

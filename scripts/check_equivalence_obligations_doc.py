@@ -143,7 +143,16 @@ def expected_table_lines(clusters: list[dict[str, Any]]) -> list[str]:
 
 def parse_operation_list(raw_ops: str) -> list[str]:
   operations = [item.strip() for item in raw_ops.replace("\n", " ").split(",")]
+  none_count = sum(1 for item in operations if item.lower() == "none")
   normalized = [item for item in operations if item and item.lower() != "none"]
+  if none_count > 1:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations status operation list repeats the none sentinel"
+    )
+  if none_count and normalized:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations status operation list mixes the none sentinel with named operations"
+    )
   if len(normalized) != len(set(normalized)):
     raise EquivalenceObligationsDocError(
       "equivalence obligations status operation list contains duplicate operations"
