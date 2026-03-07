@@ -65,13 +65,24 @@ verity_contract MorphoViewSlice where
     require (0 == 1) "createMarket stub"
 """
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+DEFAULT_SOURCE_PATH = display_path(ROOT / "Morpho" / "Proofs" / "SolidityBridge.lean")
 
-def make_config(obligations: list[dict]) -> dict:
-    return {
+
+def make_config(
+    obligations: list[dict],
+    *,
+    source_path: str | None = None,
+    legacy_source: str | None = None,
+) -> dict:
+    config = {
         "obligations": obligations,
         "notes": "test",
-        "source": "test",
+        "sourcePath": source_path or DEFAULT_SOURCE_PATH,
     }
+    if legacy_source is not None:
+        config["source"] = legacy_source
+    return config
 
 
 def make_obligation(
@@ -187,10 +198,24 @@ class ValidateConfigTests(unittest.TestCase):
 
     def test_missing_obligations_key_fails(self) -> None:
         bridge_hyps = ["supplySemEq"]
-        config = {"notes": "test"}
+        config = {"notes": "test", "sourcePath": DEFAULT_SOURCE_PATH}
         with self.assertRaises(ObligationError) as ctx:
             validate_config(config, bridge_hyps)
         self.assertIn("missing 'obligations' array", str(ctx.exception))
+
+    def test_legacy_source_field_fails(self) -> None:
+        bridge_hyps = ["supplySemEq"]
+        config = make_config([make_obligation("supplySemEq")], legacy_source="test")
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps)
+        self.assertIn("legacy 'source' field", str(ctx.exception))
+
+    def test_mismatched_source_path_fails(self) -> None:
+        bridge_hyps = ["supplySemEq"]
+        config = make_config([make_obligation("supplySemEq")], source_path="wrong/bridge.lean")
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps)
+        self.assertIn("does not match bridge input", str(ctx.exception))
 
     def test_non_object_obligation_fails_closed(self) -> None:
         bridge_hyps = ["supplySemEq"]
@@ -500,7 +525,8 @@ class CliFailureTests(unittest.TestCase):
                         [
                             make_obligation("supplySemEq", macro_migrated=False),
                             make_obligation("withdrawSemEq", macro_migrated=False),
-                        ]
+                        ],
+                        source_path=str(bridge_path),
                     )
                 ),
                 encoding="utf-8",
@@ -546,7 +572,8 @@ class CliFailureTests(unittest.TestCase):
                         [
                             make_obligation("supplySemEq", macro_migrated=False),
                             make_obligation("withdrawSemEq", macro_migrated=False),
-                        ]
+                        ],
+                        source_path=str(bridge_path),
                     )
                 ),
                 encoding="utf-8",

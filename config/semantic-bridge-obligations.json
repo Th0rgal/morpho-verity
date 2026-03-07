@@ -175,7 +175,7 @@
     }
   ],
   "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is ad03fc64; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
-  "source": "Morpho/Proofs/SolidityBridge.lean",
+  "sourcePath": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"
 }
