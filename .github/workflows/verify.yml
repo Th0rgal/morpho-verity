@@ -43,15 +43,7 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check Lean toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean
 
       - name: Clear stale Lake packages on verity pin change
-        run: |
-          if [ -d .lake/packages/verity ]; then
-            CACHED_REV=$(cd .lake/packages/verity && git rev-parse HEAD 2>/dev/null || echo "none")
-            WANTED_REV=$(jq -r '.packages[] | select(.name == "verity") | .rev' lake-manifest.json)
-            if [ "$CACHED_REV" != "$WANTED_REV" ]; then
-              echo "Verity pin changed ($CACHED_REV → $WANTED_REV), clearing stale Lake state"
-              rm -rf .lake/packages .lake/build
-            fi
-          fi
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Build and check proofs
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build and check Lean proofs" -- lake build
@@ -90,6 +82,9 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
       - name: Check solc toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check solc toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require solc
+
+      - name: Validate verity pin sync
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin sync" -- python3 scripts/check_verity_pin_sync.py
 
       - name: Validate pinned parity target
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate pinned parity target" -- python3 scripts/check_parity_target.py
@@ -192,6 +187,8 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Clear stale Lake packages on verity pin change
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -322,6 +319,8 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Clear stale Lake packages on verity pin change
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -408,6 +407,8 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Clear stale Lake packages on verity pin change
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
