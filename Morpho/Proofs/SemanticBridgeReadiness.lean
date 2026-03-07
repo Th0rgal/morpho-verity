@@ -157,7 +157,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "createMarketSemEq"
     operation := "createMarket"
     status := .assumed
-    macroMigrated := false },  -- hard stub (require 0==1); pending tuple access, externalCall, blockTimestamp
+    macroMigrated := false },  -- hard stub; pending tuple-component binding, externalCall, and usable blockTimestamp value support
   { id := "OBL-SET-FEE-SEM-EQ"
     hypothesis := "setFeeSemEq"
     operation := "setFee"

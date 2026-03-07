@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_macro_migration_blockers import (  # noqa: E402
@@ -75,6 +79,48 @@ class BaselineValidationTests(unittest.TestCase):
       }
       baseline_path.write_text(str(baseline), encoding="utf-8")
       self.assertTrue(baseline_path.exists())
+
+
+class CreateMarketFrontendRegressionTests(unittest.TestCase):
+  def test_create_market_frontend_blockers_still_fail_at_current_pin(self) -> None:
+    if shutil.which("lake") is None:
+      self.skipTest("lake is not available in this test environment")
+
+    source = """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
+    Contract Unit := Verity.pure ()
+
+verity_contract Tmp where
+  storage
+    marketSlot : Uint256 → Uint256 := slot 0
+
+  function f (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
+    let loanToken := marketParams_0
+    let id := externalCall "keccakMarketParams" [loanToken]
+    let ts := blockTimestamp
+    setMappingWord marketSlot id 0 ts
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+      path = pathlib.Path(tmp) / "CreateMarketFrontendRegression.lean"
+      path.write_text(source, encoding="utf-8")
+      proc = subprocess.run(
+        ["lake", "env", "lean", str(path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertNotEqual(proc.returncode, 0)
+    output = proc.stdout + proc.stderr
+    self.assertIn("unknown identifier 'marketParams_0'", output)
+    self.assertIn("unknown identifier 'externalCall'", output)
+    self.assertIn("Contract Uint256", output)
 
 
 if __name__ == "__main__":

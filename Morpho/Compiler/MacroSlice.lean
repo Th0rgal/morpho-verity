@@ -177,9 +177,10 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    -- STUB: Full implementation requires tuple destructuring (marketParams_0..4),
-    -- externalCall for keccak hash, and blockTimestamp as a value expression.
-    -- These constructs are still not yet supported at the current pinned verity revision (9d9533b2).
+    -- STUB: the current macro frontend does not bind tuple components like
+    -- `marketParams_0` inside contract bodies, does not recognize pure-expression
+    -- `externalCall` here, and still exposes `blockTimestamp` as a `Contract Uint256`
+    -- rather than a plain value for `setMappingWord`.
     -- Full implementation preserved in git history (commit 82e5572).
     -- Blocked on: tuple element access, externalCall primitive, blockTimestamp value.
     let marketParams' := marketParams
