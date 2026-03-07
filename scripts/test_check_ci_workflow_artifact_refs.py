@@ -99,6 +99,31 @@ class CollectWorkflowArtifactReferencesTests(unittest.TestCase):
       ),
     )
 
+  def test_unescapes_quoted_artifact_names(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - uses: actions/upload-artifact@v4",
+        "        with:",
+        "          name: 'Don''t drift'",
+        "      - uses: actions/download-artifact@v4",
+        "        with:",
+        '          name: "Say \\"hi\\""',
+      ]
+    )
+
+    self.assertEqual(
+      collect_workflow_artifact_references(workflow_text),
+      (
+        ["Don't drift"],
+        ['Say "hi"'],
+        {"verify": ["Don't drift"]},
+        {"verify": ['Say "hi"']},
+      ),
+    )
+
   def test_rejects_download_steps_without_explicit_name(self) -> None:
     workflow_text = "\n".join(
       [
