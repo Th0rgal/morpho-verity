@@ -356,6 +356,23 @@ verity_contract Tmp where
 """,
         "unsupported statement in do block",
       ),
+      (
+        "erc20_transfer_from",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransferFrom token sender receiver amount
+""",
+        "unsupported statement in do block",
+      ),
     ]
 
     for name, source, expected in cases:

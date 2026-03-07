@@ -56,7 +56,7 @@ tracks machine-readable `macroSurfaceBlockers` arrays, and
 drift from `Morpho/Compiler/Spec.lean`.
 The same regression suite also compile-checks minimal `verity_contract` repros for the current
 core-flow frontend gaps: `Calls.withReturn`, internal `call`, `Callbacks.callback`, and
-`ERC20.safeTransfer` still fail at the pinned verity revision.
+`ERC20.safeTransfer`/`ERC20.safeTransferFrom` still fail at the pinned verity revision.
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
