@@ -64,6 +64,13 @@ def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
         raise RewriteProofError(f"failed to write JSON report {path}: {exc}") from exc
 
 
+def display_path(path: pathlib.Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def load_manifest(path: pathlib.Path) -> dict[str, Any]:
     manifest = read_json(path)
     if not isinstance(manifest, dict):
@@ -291,7 +298,12 @@ def validate_manifest_against_proofs(
         )
 
 
-def build_report(manifest_proof_refs: list[str]) -> dict[str, Any]:
+def build_report(
+    manifest_proof_refs: list[str],
+    *,
+    manifest_path: pathlib.Path,
+    proof_path: pathlib.Path,
+) -> dict[str, Any]:
     by_prefix: dict[str, int] = {}
     for ref in manifest_proof_refs:
         parts = ref.split(".")
@@ -299,8 +311,8 @@ def build_report(manifest_proof_refs: list[str]) -> dict[str, Any]:
         by_prefix[family] = by_prefix.get(family, 0) + 1
 
     return {
-        "manifest": str(MANIFEST_PATH.relative_to(ROOT)),
-        "proofFile": str(PROOF_PATH.relative_to(ROOT)),
+        "manifest": display_path(manifest_path),
+        "proofFile": display_path(proof_path),
         "trackedProofRefCount": len(manifest_proof_refs),
         "proofRefs": manifest_proof_refs,
         "byFamily": [
@@ -330,7 +342,11 @@ def main() -> None:
         extract_declared_proof_obligations(read_text(args.proof_file)),
     )
 
-    report = build_report(list(manifest_proof_plans))
+    report = build_report(
+        list(manifest_proof_plans),
+        manifest_path=args.manifest,
+        proof_path=args.proof_file,
+    )
     if args.json_out:
         write_json_report(args.json_out, report)
 
