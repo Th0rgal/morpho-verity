@@ -174,6 +174,19 @@ def extract_heading_section(
   return section_text
 
 
+def extract_section_until_next_h2(
+  doc_text: str,
+  heading: str,
+  *,
+  doc_path: pathlib.Path,
+) -> str:
+  start_match = require_unique_heading_line(doc_text, heading, doc_path)
+  next_h2_match = re.search(r"(?m)^## .*\r?$", doc_text[start_match.end() :])
+  if next_h2_match is None:
+    return doc_text[start_match.end() :]
+  return doc_text[start_match.end() : start_match.end() + next_h2_match.start()]
+
+
 def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
   marker = f"### {heading}"
   divergence_section = extract_heading_section(
@@ -233,6 +246,8 @@ def extract_section_body(doc_text: str, heading: str, doc_path: pathlib.Path) ->
     WHY_THIS_PIN_HEADING: REMAINING_DIVERGENCES_HEADING,
     REMAINING_DIVERGENCES_HEADING: ENFORCEMENT_HEADING,
   }.get(heading)
+  if next_heading is None and heading == ENFORCEMENT_HEADING:
+    return extract_section_until_next_h2(doc_text, heading, doc_path=doc_path)
   return extract_heading_section(
     doc_text,
     heading,

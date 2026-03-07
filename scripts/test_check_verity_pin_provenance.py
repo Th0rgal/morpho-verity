@@ -219,6 +219,25 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       doc_path=pathlib.Path("docs/VERITY_PIN.md"),
     )
 
+  def test_validate_enforcement_section_ignores_later_h2_appendix(self) -> None:
+    validate_enforcement_section(
+      doc_text="\n".join([
+        "# Verity Pin",
+        "",
+        "## Enforcement",
+        "",
+        "The machine-readable source of truth is",
+        "`config/verity-pin-provenance.json`. CI checks that it stays in sync with",
+        "`lakefile.lean` and `lake-manifest.json` via",
+        "`scripts/check_verity_pin_provenance.py`.",
+        "",
+        "## Appendix",
+        "",
+        "Supplemental notes.",
+      ]),
+      doc_path=pathlib.Path("docs/VERITY_PIN.md"),
+    )
+
   def test_validate_divergence_section_headings_passes(self) -> None:
     validate_divergence_section_headings(
       doc_text="\n".join([
