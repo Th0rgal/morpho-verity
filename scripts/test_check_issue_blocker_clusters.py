@@ -23,15 +23,21 @@ def make_config() -> dict:
   return {
     "obligations": [
       {
+        "issue": 123,
         "operation": "supply",
+        "macroMigrated": False,
         "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall"],
       },
       {
+        "issue": 123,
         "operation": "withdraw",
+        "macroMigrated": False,
         "macroSurfaceBlockers": ["erc20", "internalCall"],
       },
       {
+        "issue": 124,
         "operation": "liquidate",
+        "macroMigrated": False,
         "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn"],
       },
     ],
@@ -39,24 +45,10 @@ def make_config() -> dict:
       {
         "issue": 123,
         "title": "Core flows",
-        "operations": ["supply", "withdraw"],
-        "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall"],
-        "blockerCoverageCounts": {
-          "callbacks": 1,
-          "erc20": 2,
-          "internalCall": 2,
-        },
       },
       {
         "issue": 124,
         "title": "Collateral flows",
-        "operations": ["liquidate"],
-        "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn"],
-        "blockerCoverageCounts": {
-          "callbacks": 1,
-          "erc20": 1,
-          "externalWithReturn": 1,
-        },
       },
     ],
   }
@@ -89,23 +81,31 @@ class ValidateIssueClustersTests(unittest.TestCase):
   def test_validate_issue_clusters_passes(self) -> None:
     reports = validate_issue_clusters(make_config())
     self.assertEqual([item["issue"] for item in reports], [123, 124])
+    self.assertEqual(reports[0]["operations"], ["supply", "withdraw"])
+    self.assertEqual(reports[0]["blockerCoverageCounts"]["erc20"], 2)
 
-  def test_rejects_blocker_drift(self) -> None:
+  def test_rejects_unknown_issue_reference(self) -> None:
     config = make_config()
-    config["issueClusters"][0]["macroSurfaceBlockers"] = ["erc20"]
-    with self.assertRaisesRegex(IssueClusterError, "macroSurfaceBlockers drift detected"):
+    config["obligations"][0]["issue"] = 999
+    with self.assertRaisesRegex(IssueClusterError, "unknown issue cluster"):
       validate_issue_clusters(config)
 
-  def test_rejects_count_drift(self) -> None:
+  def test_rejects_issue_tag_once_obligation_is_migrated(self) -> None:
     config = make_config()
-    config["issueClusters"][0]["blockerCoverageCounts"]["erc20"] = 1
-    with self.assertRaisesRegex(IssueClusterError, "blockerCoverageCounts drift detected"):
+    config["obligations"][0]["macroMigrated"] = True
+    with self.assertRaisesRegex(IssueClusterError, "cannot reference open issue"):
       validate_issue_clusters(config)
 
-  def test_rejects_unknown_operation(self) -> None:
+  def test_rejects_missing_macro_surface_blockers(self) -> None:
     config = make_config()
-    config["issueClusters"][0]["operations"].append("borrow")
-    with self.assertRaisesRegex(IssueClusterError, "unknown operations"):
+    del config["obligations"][0]["macroSurfaceBlockers"]
+    with self.assertRaisesRegex(IssueClusterError, "missing non-empty string-list 'macroSurfaceBlockers'"):
+      validate_issue_clusters(config)
+
+  def test_rejects_empty_issue_cluster(self) -> None:
+    config = make_config()
+    config["obligations"][2]["issue"] = 123
+    with self.assertRaisesRegex(IssueClusterError, "does not cover any obligations"):
       validate_issue_clusters(config)
 
   def test_rejects_duplicate_issue(self) -> None:

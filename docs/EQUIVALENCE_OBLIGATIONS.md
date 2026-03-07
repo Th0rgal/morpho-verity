@@ -61,8 +61,8 @@ For the collateral/liquidation cluster, the same suite also pins the still-faili
 `structMember2` read/write surface and direct `mstore`/`mload` use that the current
 `supplyCollateral`, `withdrawCollateral`, and `liquidate` specs depend on.
 `scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
-from the obligation tracker so the remaining open migration issues cannot drift from the actual
-per-operation blocker inventory.
+from per-obligation `issue` tags in the obligation tracker so the remaining open migration issues
+cannot drift from the actual per-operation blocker inventory.
 
 ### Open issue blocker summary
 
