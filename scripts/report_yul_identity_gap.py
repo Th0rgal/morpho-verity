@@ -21,7 +21,10 @@ from apply_yul_rewrite_pipeline import (
   DEFAULT_PROOF_MANIFEST as DEFAULT_REWRITE_PROOF_MANIFEST,
   apply_rewrite_pipeline_to_file,
 )
-from check_prepared_verity_artifact_bundle import validate_prepared_verity_artifact_bundle
+from check_prepared_verity_artifact_bundle import (
+  PreparedArtifactBundleError,
+  validate_prepared_verity_artifact_bundle,
+)
 from parity_target_config import parse_yul_identity_gate_mode as parse_parity_target_yul_identity_gate_mode
 
 
@@ -987,6 +990,24 @@ def prepared_rewrite_pipeline_report_matches_request(
   return report.get("proofManifestPath") == expected_proof_manifest
 
 
+def can_reuse_prepared_rewrite_pipeline_report(
+    prepared_dir: pathlib.Path,
+    pipeline_manifest_path: pathlib.Path,
+    proof_manifest_path: pathlib.Path,
+) -> bool:
+  try:
+    validate_prepared_verity_artifact_bundle(
+      prepared_dir,
+      require_bin=False,
+      require_rewrite=True,
+      pipeline_manifest_path=pipeline_manifest_path,
+      proof_manifest_path=proof_manifest_path,
+    )
+  except PreparedArtifactBundleError:
+    return False
+  return True
+
+
 def resolve_rewrite_pipeline_report(
     prepared_dir: pathlib.Path | None,
     pipeline_manifest_path: pathlib.Path,
@@ -996,6 +1017,8 @@ def resolve_rewrite_pipeline_report(
     prepared_report = load_prepared_rewrite_pipeline_report(prepared_dir)
     if prepared_report is not None and prepared_rewrite_pipeline_report_matches_request(
         prepared_report, pipeline_manifest_path, proof_manifest_path
+    ) and can_reuse_prepared_rewrite_pipeline_report(
+        prepared_dir, pipeline_manifest_path, proof_manifest_path
     ):
       copy_prepared_rewritten_verity_yul(prepared_dir)
       return prepared_report
