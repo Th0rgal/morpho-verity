@@ -372,7 +372,7 @@ def build_report(
     return {
         "specPath": display_path(spec_path),
         "macroSlicePath": display_path(macro_path),
-        "config": display_path(config_path),
+        "configPath": display_path(config_path),
         "specFunctions": len(spec_fns),
         "macroFunctions": len(macro_fns),
         "migratedChecked": len(migrated_ops),
@@ -394,16 +394,19 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
+    spec_path = args.spec.resolve()
+    macro_path = args.macro_slice.resolve()
+    config_path = args.config.resolve()
 
-    spec_text = read_text(args.spec)
-    macro_text = read_text(args.macro_slice)
+    spec_text = read_text(spec_path)
+    macro_text = read_text(macro_path)
 
     spec_fns = extract_spec_functions(spec_text)
     macro_fns = extract_macro_functions(macro_text)
     spec_fields = extract_spec_fields(spec_text)
     macro_slots = extract_macro_slots(macro_text)
 
-    migrated_ops = load_migrated_operations(args.config)
+    migrated_ops = load_migrated_operations(config_path)
 
     errors = validate_correspondence(
         spec_fns, macro_fns, spec_fields, macro_slots, migrated_ops,
@@ -414,9 +417,9 @@ def main() -> None:
         macro_fns,
         migrated_ops,
         errors,
-        spec_path=args.spec,
-        macro_path=args.macro_slice,
-        config_path=args.config,
+        spec_path=spec_path,
+        macro_path=macro_path,
+        config_path=config_path,
     )
 
     if args.json_out:

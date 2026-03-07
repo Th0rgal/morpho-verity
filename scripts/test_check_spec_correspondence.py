@@ -279,7 +279,7 @@ class BuildReportTests(unittest.TestCase):
         self.assertEqual(report["errors"], [])
         self.assertEqual(report["specPath"], "/tmp/Spec.lean")
         self.assertEqual(report["macroSlicePath"], "/tmp/MacroSlice.lean")
-        self.assertEqual(report["config"], "/tmp/semantic-bridge-obligations.json")
+        self.assertEqual(report["configPath"], "/tmp/semantic-bridge-obligations.json")
 
     def test_report_json_serializable(self) -> None:
         report = build_report(
@@ -556,7 +556,61 @@ class IntegrationTests(unittest.TestCase):
             report = json.loads(json_out.read_text(encoding="utf-8"))
             self.assertEqual(report["specPath"], str(spec_path))
             self.assertEqual(report["macroSlicePath"], str(macro_path))
-            self.assertEqual(report["config"], str(config_path))
+            self.assertEqual(report["configPath"], str(config_path))
+
+    def test_cli_json_report_normalizes_relative_external_input_paths(self) -> None:
+        root = pathlib.Path(__file__).resolve().parent.parent
+        script_path = root / "scripts" / "check_spec_correspondence.py"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = pathlib.Path(tmpdir)
+            inputs = workspace / "external-inputs"
+            inputs.mkdir()
+            run_dir = workspace / "runner"
+            run_dir.mkdir()
+            spec_path = inputs / "Spec.lean"
+            macro_path = inputs / "MacroSlice.lean"
+            config_path = inputs / "semantic-bridge-obligations.json"
+            json_out = workspace / "report.json"
+            spec_path.write_text(SAMPLE_SPEC, encoding="utf-8")
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                            {"operation": "enableIrm", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--spec",
+                    str(pathlib.Path("..") / "external-inputs" / "Spec.lean"),
+                    "--macro-slice",
+                    str(pathlib.Path("..") / "external-inputs" / "MacroSlice.lean"),
+                    "--config",
+                    str(pathlib.Path("..") / "external-inputs" / "semantic-bridge-obligations.json"),
+                    "--json-out",
+                    str(json_out),
+                ],
+                cwd=run_dir,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+
+        self.assertEqual(report["specPath"], str(spec_path.resolve()))
+        self.assertEqual(report["macroSlicePath"], str(macro_path.resolve()))
+        self.assertEqual(report["configPath"], str(config_path.resolve()))
 
 
 if __name__ == "__main__":
