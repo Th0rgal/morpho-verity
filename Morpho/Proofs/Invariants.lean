@@ -1085,8 +1085,7 @@ theorem accrueInterestPublic_preserves_borrowLeSupply (s : MorphoState) (id : Id
           (u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
       < Verity.Core.Uint256.modulus) :
     borrowLeSupply s' id := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]
+  obtain ⟨_, rfl⟩ := (Morpho.accrueInterestPublic_success_iff s s' id borrowRate hasIrm).1 h_ok
   exact accrueInterest_preserves_borrowLeSupply s id borrowRate hasIrm h_solvent h_no_overflow
 
 /-- Public accrueInterest preserves collateralization. -/
@@ -1095,8 +1094,7 @@ theorem accrueInterestPublic_preserves_alwaysCollateralized (s : MorphoState) (i
     (h_collat : alwaysCollateralized s id user)
     (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s') :
     alwaysCollateralized s' id user := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]
+  obtain ⟨_, rfl⟩ := (Morpho.accrueInterestPublic_success_iff s s' id borrowRate hasIrm).1 h_ok
   exact accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
 
 /-! ## Exchange rate monotonicity
@@ -1277,8 +1275,7 @@ theorem accrueInterestPublic_preserves_supplyExchangeRateMonotone (s : MorphoSta
       (s.market id).totalSupplyAssets.val + interest.val - feeAmount.val +
         Libraries.SharesMathLib.VIRTUAL_ASSETS < Core.Uint256.modulus) :
     supplyExchangeRateMonotone s s' id := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]
+  obtain ⟨_, rfl⟩ := (Morpho.accrueInterestPublic_success_iff s s' id borrowRate hasIrm).1 h_ok
   exact accrueInterest_preserves_supplyExchangeRateMonotone s id borrowRate hasIrm
     h_supply_no_overflow h_shares_no_overflow h_fee_le_interest
     h_shares_vs_no_overflow h_denom_no_overflow
@@ -1420,8 +1417,10 @@ theorem accrueInterestPublic_preserves_irmMonotone (s : MorphoState) (id : Id)
     (h_enabled : s.isIrmEnabled irm)
     (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s') :
     s'.isIrmEnabled irm := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]; unfold Morpho.accrueInterest; simp
+  obtain ⟨_, hEq⟩ := (Morpho.accrueInterestPublic_success_iff s s' id borrowRate hasIrm).1 h_ok
+  rw [hEq]
+  unfold Morpho.accrueInterest
+  simp
   split
   · exact h_enabled
   · split <;> exact h_enabled
@@ -1551,8 +1550,10 @@ theorem accrueInterestPublic_preserves_lltvMonotone (s : MorphoState) (id : Id)
     (h_enabled : s.isLltvEnabled lltv)
     (h_ok : Morpho.accrueInterestPublic s id borrowRate hasIrm = some s') :
     s'.isLltvEnabled lltv := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]; unfold Morpho.accrueInterest; simp
+  obtain ⟨_, hEq⟩ := (Morpho.accrueInterestPublic_success_iff s s' id borrowRate hasIrm).1 h_ok
+  rw [hEq]
+  unfold Morpho.accrueInterest
+  simp
   split
   · exact h_enabled
   · split <;> exact h_enabled
@@ -1579,8 +1580,7 @@ theorem accrueInterestPublic_lastUpdate_monotone (s : MorphoState) (id : Id)
     (h_elapsed : s.blockTimestamp.val ≥ (s.market id).lastUpdate.val) :
     lastUpdateMonotone s s' id := by
   unfold lastUpdateMonotone
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]
+  obtain ⟨_, rfl⟩ := (Morpho.accrueInterestPublic_success_iff s s' id borrowRate hasIrm).1 h_ok
   have h_ai := accrueInterest_lastUpdate_monotone s id borrowRate hasIrm h_elapsed
   unfold lastUpdateMonotone at h_ai
   exact h_ai

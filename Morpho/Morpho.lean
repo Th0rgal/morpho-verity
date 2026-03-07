@@ -119,6 +119,23 @@ def accrueInterestPublic (s : MorphoState) (id : Id) (borrowRate : Uint256)
   if m.lastUpdate.val == 0 then none
   else some (accrueInterest s id borrowRate hasIrm)
 
+theorem accrueInterestPublic_success_iff (s s' : MorphoState) (id : Id) (borrowRate : Uint256)
+    (hasIrm : Bool) :
+    accrueInterestPublic s id borrowRate hasIrm = some s' ↔
+      (s.market id).lastUpdate.val ≠ 0 ∧
+      s' = accrueInterest s id borrowRate hasIrm := by
+  constructor
+  · intro h
+    unfold accrueInterestPublic at h
+    by_cases hLast : (s.market id).lastUpdate.val = 0
+    · simp [hLast] at h
+    · simp [hLast] at h
+      exact ⟨hLast, h.symm⟩
+  · intro h
+    rcases h with ⟨hLast, rfl⟩
+    unfold accrueInterestPublic
+    simp [hLast]
+
 /-! ## Owner functions -/
 
 /-- Set a new owner. Matches `setOwner` (Morpho.sol:95). -/

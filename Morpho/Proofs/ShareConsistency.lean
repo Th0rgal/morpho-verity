@@ -605,8 +605,7 @@ theorem accrueInterestPublic_preserves_supplySharesConsistent (s : MorphoState)
         (s.market aid).totalSupplyShares
       (s.market aid).totalSupplyShares.val + feeShares.val < Core.Uint256.modulus) :
     supplySharesConsistent s' aid allUsers := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]
+  obtain ⟨_, rfl⟩ := (Morpho.accrueInterestPublic_success_iff s s' aid borrowRate hasIrm).1 h_ok
   exact accrueInterest_preserves_supplySharesConsistent s aid borrowRate hasIrm allUsers
     h_nodup h_mem_fee h_consistent h_pos_no_overflow h_total_no_overflow
 
@@ -616,8 +615,7 @@ theorem accrueInterestPublic_preserves_borrowSharesConsistent (s : MorphoState)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.accrueInterestPublic s aid borrowRate hasIrm = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.accrueInterestPublic at h_ok; simp at h_ok
-  rw [← h_ok.right]
+  obtain ⟨_, rfl⟩ := (Morpho.accrueInterestPublic_success_iff s s' aid borrowRate hasIrm).1 h_ok
   exact accrueInterest_preserves_borrowSharesConsistent s aid borrowRate hasIrm id allUsers
     h_consistent
 
