@@ -120,6 +120,20 @@ class WorkflowRunParserTests(unittest.TestCase):
     )
     self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_real.py")
 
+  def test_extract_workflow_run_text_ignores_nested_run_field_within_step_mapping(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Composite metadata",
+        "        with:",
+        "          run: python3 scripts/check_fake.py",
+        "        run: python3 scripts/check_real.py",
+      ]
+    )
+    self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_real.py")
+
   def test_extract_workflow_run_text_covers_real_verify_workflow(self) -> None:
     workflow_text = (ROOT / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
     run_text = extract_workflow_run_text(workflow_text)
