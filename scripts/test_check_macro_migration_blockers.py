@@ -407,6 +407,14 @@ class BaselineValidationTests(unittest.TestCase):
 
 
 class OperationBlockerTests(unittest.TestCase):
+  def test_load_baseline_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      path = pathlib.Path(tmp) / "macro-migration-blockers.json"
+      path.write_bytes(b"\xff\xfe")
+
+      with self.assertRaisesRegex(MigrationGateError, "failed to decode .* as UTF-8"):
+        load_baseline(path)
+
   def test_load_baseline_rejects_invalid_json(self) -> None:
     with tempfile.TemporaryDirectory() as tmp:
       path = pathlib.Path(tmp) / "macro-migration-blockers.json"
@@ -682,6 +690,29 @@ verity_contract Tmp where
 
 
 class MainFailureTests(unittest.TestCase):
+  def test_cli_reports_invalid_utf8_spec_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      tmp_path = pathlib.Path(tmp)
+      spec_path = tmp_path / "Spec.lean"
+      spec_path.write_bytes(b"\xff\xfe")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_blockers.py"),
+          "--spec",
+          str(spec_path),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("macro-migration blockers check failed: failed to decode", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
   def test_cli_reports_invalid_baseline_json_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as tmp:
       tmp_path = pathlib.Path(tmp)
@@ -729,6 +760,29 @@ class MainFailureTests(unittest.TestCase):
         "macro-migration blockers check failed: expected top-level object",
         proc.stderr,
       )
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_json_out_write_failure_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      tmp_path = pathlib.Path(tmp)
+      json_out = tmp_path / "not-a-dir"
+      json_out.write_text("occupied", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_blockers.py"),
+          "--json-out",
+          str(json_out / "report.json"),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("macro-migration blockers check failed: failed to write", proc.stderr)
       self.assertNotIn("Traceback", proc.stderr)
 
 
