@@ -281,6 +281,7 @@ class BaselineValidationTests(unittest.TestCase):
 
     self.assertEqual(report["specPath"], str(spec_path))
     self.assertEqual(report["macroPath"], str(macro_path))
+    self.assertEqual(report["baselinePath"], str(baseline_path))
 
 
 class RepoCheckTests(unittest.TestCase):
@@ -488,6 +489,59 @@ verity_contract MorphoViewSlice where
     self.assertEqual(proc.returncode, 1)
     self.assertIn("macro-migration-slice check failed: failed to write JSON report", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_json_out_records_actual_input_paths(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      spec_path = root / "Spec.lean"
+      macro_path = root / "MacroSlice.lean"
+      baseline_path = root / "baseline.json"
+      json_out = root / "report.json"
+      repo_report = run_check()
+      spec_path.write_text(
+        (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+      macro_path.write_text(
+        (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+      baseline_path.write_text(
+        json.dumps(
+          {
+            "source": str(macro_path),
+            "contract": "MorphoViewSlice",
+            "expectedMigrated": repo_report["migratedSignatures"],
+            "expectedBlocked": repo_report["blockedSignatures"],
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_slice.py"),
+          "--spec",
+          str(spec_path),
+          "--macro",
+          str(macro_path),
+          "--baseline",
+          str(baseline_path),
+          "--json-out",
+          str(json_out),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      report = json.loads(json_out.read_text(encoding="utf-8"))
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertEqual(report["specPath"], str(spec_path))
+    self.assertEqual(report["macroPath"], str(macro_path))
+    self.assertEqual(report["baselinePath"], str(baseline_path))
 
 
 if __name__ == "__main__":
