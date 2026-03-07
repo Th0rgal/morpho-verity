@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import shutil
 import subprocess
@@ -247,6 +248,56 @@ class CliTests(unittest.TestCase):
     self.assertIn("macro-blocker-regression-coverage check failed:", proc.stderr)
     self.assertIn("failed to decode JSON config", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_resolves_relative_external_obligations_from_another_cwd(self) -> None:
+    script_dir = pathlib.Path(__file__).resolve().parent
+    checker = script_dir / "check_macro_blocker_regression_coverage.py"
+
+    with tempfile.TemporaryDirectory() as d:
+      workspace = pathlib.Path(d)
+      external = workspace / "external"
+      caller = workspace / "caller"
+      external.mkdir()
+      caller.mkdir()
+      obligations = external / "semantic-bridge-obligations.json"
+      obligations.write_text(
+        json.dumps(
+          {
+            "obligations": [
+              {
+                "issue": 123,
+                "operation": "supply",
+                "macroMigrated": False,
+                "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+              },
+              {
+                "issue": 124,
+                "operation": "liquidate",
+                "macroMigrated": False,
+                "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+              },
+            ]
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(checker),
+          "--obligations",
+          str(pathlib.Path("..") / "external" / "semantic-bridge-obligations.json"),
+        ],
+        cwd=caller,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("macro-blocker-regression-coverage check: OK", proc.stdout)
+    self.assertEqual(proc.stderr, "")
 
 
 if __name__ == "__main__":

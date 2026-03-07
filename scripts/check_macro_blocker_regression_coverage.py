@@ -138,8 +138,9 @@ def main() -> int:
     help="Path to semantic bridge obligations config",
   )
   args = parser.parse_args()
+  obligations_path = args.obligations.resolve()
 
-  required = build_required_issue_blockers(load_obligations(args.obligations))
+  required = build_required_issue_blockers(load_obligations(obligations_path))
   covered = build_regression_case_coverage()
   validate_issue_blocker_regression_coverage(required, covered)
 
