@@ -25,6 +25,7 @@
     {
       "area": "Upstream macro/frontend gaps still block operation migration",
       "summary": "Several operations remain blocked at the current pin on internal calls, ERC20 helpers, callbacks, 2D struct access, direct mstore/mload, pure-expression externalCall, usable blockTimestamp values, and dynamic-topic rawLog witnesses.",
+      "issueClusters": ["#123", "#124"],
       "blockers": [
         "internal calls",
         "ERC20 helpers",

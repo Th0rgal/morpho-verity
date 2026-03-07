@@ -22,6 +22,20 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
     manifest_text: str,
     provenance_text: str,
     doc_text: str,
+    obligations_text: str = """
+    {
+      "issueClusters": [
+        {
+          "issue": 123,
+          "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL"
+        },
+        {
+          "issue": 124,
+          "title": "Implement collateral and liquidation flows in the Verity EDSL"
+        }
+      ]
+    }
+    """,
     readme_text: str = "See docs/VERITY_PIN.md for the pinned Verity revision.\n",
   ) -> int:
     with tempfile.TemporaryDirectory() as d:
@@ -35,6 +49,10 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       (root / "lake-manifest.json").write_text(textwrap.dedent(manifest_text), encoding="utf-8")
       (root / "config/verity-pin-provenance.json").write_text(
         textwrap.dedent(provenance_text),
+        encoding="utf-8",
+      )
+      (root / "config/semantic-bridge-obligations.json").write_text(
+        textwrap.dedent(obligations_text),
         encoding="utf-8",
       )
       (root / "docs/VERITY_PIN.md").write_text(textwrap.dedent(doc_text), encoding="utf-8")
@@ -63,6 +81,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           str(root / "docs/VERITY_PIN.md"),
           "--readme",
           str(root / "README.md"),
+          "--obligations",
+          str(root / "config/semantic-bridge-obligations.json"),
         ]
         return check_main()
       finally:
@@ -105,6 +125,10 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           {
             "area": "Upstream macro/frontend gaps still block operation migration",
             "summary": "Several operations remain blocked at the current pin on internal calls, ERC20 helpers, callbacks, 2D struct access, direct mstore/mload, pure-expression externalCall, usable blockTimestamp values, and dynamic-topic rawLog witnesses.",
+            "issueClusters": [
+              "#123",
+              "#124"
+            ],
             "blockers": [
               "internal calls",
               "ERC20 helpers",
@@ -144,6 +168,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         pure-expression externalCall
         usable blockTimestamp values
         dynamic-topic rawLog witnesses
+        #123
+        #124
         Morpho/Proofs/SemanticBridgeReadiness.lean
         scripts/check_macro_migration_blockers.py
         """,
@@ -180,6 +206,9 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "area": "Upstream macro/frontend gaps still block operation migration",
               "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
               "files": [
                 "Morpho/Compiler/MacroSlice.lean"
               ]
@@ -195,6 +224,116 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         Current deterministic base.
         Upstream macro/frontend gaps still block operation migration
         Still blocked.
+        Morpho/Compiler/MacroSlice.lean
+        """,
+      )
+
+  def test_rejects_missing_macro_frontend_issue_clusters(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        https://github.com/Th0rgal/verity.git
+        9d9533b2
+        9d9533b2e8fd775ed673797b6a95301c8414c675
+        #118
+        Current deterministic base.
+        Upstream macro/frontend gaps still block operation migration
+        Still blocked.
+        internal calls
+        Morpho/Compiler/MacroSlice.lean
+        """,
+      )
+
+  def test_rejects_unknown_macro_frontend_issue_cluster(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#999"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        https://github.com/Th0rgal/verity.git
+        9d9533b2
+        9d9533b2e8fd775ed673797b6a95301c8414c675
+        #118
+        Current deterministic base.
+        Upstream macro/frontend gaps still block operation migration
+        Still blocked.
+        #999
+        internal calls
         Morpho/Compiler/MacroSlice.lean
         """,
       )
