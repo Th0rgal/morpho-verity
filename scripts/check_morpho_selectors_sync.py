@@ -13,6 +13,7 @@ from check_macro_migration_surface import (  # noqa: E402
   EXPECTED_ONLY_IN_SPEC,
   IMORPHO_CONTRACT,
   INTERFACE_PATH,
+  MacroMigrationSurfaceError,
   SPEC_PATH,
   extract_solc_selector_map,
   extract_spec_selector_entries,
@@ -21,6 +22,10 @@ from check_macro_migration_surface import (  # noqa: E402
 
 
 ENTRY_RE = re.compile(r"^(\s*)0x[0-9a-fA-F]+,?\s*--\s*(.+?)\s*$")
+
+
+class MorphoSelectorsSyncError(RuntimeError):
+  """Raised when the morphoSelectors sync check cannot validate its inputs."""
 
 
 def fail(msg: str) -> None:
@@ -35,11 +40,11 @@ def find_selector_block_bounds(lines: list[str]) -> tuple[int, int]:
       start_idx = idx + 1
       break
   if start_idx is None:
-    raise RuntimeError("unable to find morphoSelectors definition in Spec.lean")
+    raise MorphoSelectorsSyncError("unable to find morphoSelectors definition in Spec.lean")
   for idx in range(start_idx, len(lines)):
     if re.match(r"^\s*\]\s*$", lines[idx]):
       return start_idx, idx
-  raise RuntimeError("unable to find morphoSelectors closing bracket in Spec.lean")
+  raise MorphoSelectorsSyncError("unable to find morphoSelectors closing bracket in Spec.lean")
 
 
 def infer_indent(body_lines: list[str]) -> str:
@@ -79,7 +84,7 @@ def expected_selector_map(interface_path: pathlib.Path, spec_signatures: list[st
   missing = set(spec_signatures) - set(interface_map)
   unexpected_missing = missing - EXPECTED_ONLY_IN_SPEC
   if unexpected_missing:
-    raise RuntimeError(
+    raise MorphoSelectorsSyncError(
       "signatures present in morphoSelectors but missing from IMorpho and getter allowlist: "
       f"{sorted(unexpected_missing)}"
     )
@@ -100,7 +105,7 @@ def render_selector_block(spec_text: str, selector_map: dict[str, int]) -> list[
   rendered: list[str] = []
   for idx, signature in enumerate(signatures):
     if signature not in selector_map:
-      raise RuntimeError(f"missing selector mapping for signature: {signature}")
+      raise MorphoSelectorsSyncError(f"missing selector mapping for signature: {signature}")
     comma = "," if idx < len(signatures) - 1 else ""
     rendered.append(f"{indent}0x{selector_map[signature]:08x}{comma} -- {signature}")
   return rendered
@@ -126,10 +131,13 @@ def main() -> None:
 
   spec_path = args.spec.resolve()
   interface_path = args.interface.resolve()
-  spec_text = read_text(spec_path)
-  signatures = parse_selector_signatures(spec_text)
-  selector_map = expected_selector_map(interface_path, signatures)
-  rewritten, unchanged = rewrite_selector_block(spec_text, selector_map)
+  try:
+    spec_text = read_text(spec_path)
+    signatures = parse_selector_signatures(spec_text)
+    selector_map = expected_selector_map(interface_path, signatures)
+    rewritten, unchanged = rewrite_selector_block(spec_text, selector_map)
+  except (MorphoSelectorsSyncError, FileNotFoundError, MacroMigrationSurfaceError) as exc:
+    fail(str(exc))
 
   if unchanged:
     print("morpho-selectors-sync check: OK (up to date)")
