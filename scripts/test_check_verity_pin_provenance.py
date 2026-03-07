@@ -16,6 +16,7 @@ from check_verity_pin_provenance import (  # noqa: E402
   EXPECTED_WORKFLOW_RUN_LINES,
   EXPECTED_WORKFLOW_STEPS,
   main as check_main,
+  validate_divergence_section_headings,
   validate_enforcement_section,
   validate_workflow,
 )
@@ -200,6 +201,50 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           "",
           "Extra stale note.",
         ]),
+        doc_path=pathlib.Path("docs/VERITY_PIN.md"),
+      )
+
+  def test_validate_divergence_section_headings_passes(self) -> None:
+    validate_divergence_section_headings(
+      doc_text="\n".join([
+        "# Verity Pin",
+        "",
+        "## Remaining repo-local divergence at this pin",
+        "",
+        "### Local generated-contract boundary",
+        "",
+        "Summary.",
+        "",
+        "### Repo-local state encoding wrappers",
+        "",
+        "Summary.",
+      ]),
+      divergences=[
+        {"area": "Local generated-contract boundary"},
+        {"area": "Repo-local state encoding wrappers"},
+      ],
+      doc_path=pathlib.Path("docs/VERITY_PIN.md"),
+    )
+
+  def test_validate_divergence_section_headings_rejects_extra_heading(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      validate_divergence_section_headings(
+        doc_text="\n".join([
+          "# Verity Pin",
+          "",
+          "## Remaining repo-local divergence at this pin",
+          "",
+          "### Local generated-contract boundary",
+          "",
+          "Summary.",
+          "",
+          "### Stale extra divergence",
+          "",
+          "Summary.",
+        ]),
+        divergences=[
+          {"area": "Local generated-contract boundary"},
+        ],
         doc_path=pathlib.Path("docs/VERITY_PIN.md"),
       )
 
@@ -1533,5 +1578,72 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         - `Morpho/Compiler/AdminAdapters.lean`
         - `Morpho/Compiler/AdminAdapters.lean`
         - `Morpho/Proofs/SemanticBridgeDischarge.lean`
+        """,
+      )
+
+  def test_rejects_stale_extra_divergence_section(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Local generated-contract boundary",
+              "summary": "Repo-local generated boundary remains.",
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `9d9533b2`
+        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
+        Current deterministic base.
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Local generated-contract boundary
+
+        Repo-local generated boundary remains.
+
+        Relevant files:
+        - `Morpho/Compiler/MacroSlice.lean`
+
+        ### Stale extra divergence
+
+        This stale section is not tracked in JSON.
+
+        Relevant files:
+        - `Morpho/Compiler/Generated.lean`
         """,
       )
