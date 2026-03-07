@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -208,6 +210,40 @@ class BaselineValidationTests(unittest.TestCase):
       with self.assertRaisesRegex(MigrationSliceError, "must contain a JSON object"):
         load_baseline(path)
 
+  def test_load_baseline_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "baseline.json"
+      path.write_bytes(b"\x80")
+
+      with self.assertRaisesRegex(MigrationSliceError, "baseline file is not valid UTF-8"):
+        load_baseline(path)
+
+  def test_write_mode_and_report_support_external_absolute_paths(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      spec_path = root / "Spec.lean"
+      macro_path = root / "MacroSlice.lean"
+      baseline_path = root / "baseline.json"
+      repo_report = run_check()
+      spec_path.write_text((ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text(encoding="utf-8"), encoding="utf-8")
+      macro_path.write_text((ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text(encoding="utf-8"), encoding="utf-8")
+      baseline_path.write_text(
+        json.dumps(
+          {
+            "source": str(macro_path),
+            "contract": "MorphoViewSlice",
+            "expectedMigrated": repo_report["migratedSignatures"],
+            "expectedBlocked": repo_report["blockedSignatures"],
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      report = run_check(spec_path=spec_path, macro_path=macro_path, baseline_path=baseline_path)
+
+    self.assertEqual(report["specPath"], str(spec_path))
+    self.assertEqual(report["macroPath"], str(macro_path))
+
 
 class RepoCheckTests(unittest.TestCase):
   def test_flash_loan_event_topic_matches_spec(self) -> None:
@@ -230,6 +266,69 @@ class RepoCheckTests(unittest.TestCase):
     self.assertEqual(report["contract"], "MorphoViewSlice")
     self.assertTrue((ROOT / report["macroPath"]).exists())
     self.assertGreaterEqual(report["migratedCount"], 1)
+
+
+class CliTests(unittest.TestCase):
+  def test_cli_reports_invalid_utf8_macro_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      spec_path = pathlib.Path(d) / "Spec.lean"
+      macro_path = pathlib.Path(d) / "MacroSlice.lean"
+      baseline_path = pathlib.Path(d) / "baseline.json"
+      spec_path.write_text((ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text(encoding="utf-8"), encoding="utf-8")
+      macro_path.write_bytes(b"\x80")
+      baseline_path.write_text((ROOT / "config" / "macro-migration-slice.json").read_text(encoding="utf-8"), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_slice.py"),
+          "--spec",
+          str(spec_path),
+          "--macro",
+          str(macro_path),
+          "--baseline",
+          str(baseline_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("macro-migration-slice check failed:", proc.stderr)
+    self.assertIn("failed to decode UTF-8 text file", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_json_out_failure_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      json_out = pathlib.Path(d) / "occupied"
+      json_out.write_text("not a directory", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          "-c",
+          "\n".join([
+            "import sys",
+            f"sys.path.insert(0, {str(ROOT / 'scripts')!r})",
+            "import check_macro_migration_slice as mod",
+            "mod.run_check = lambda **kwargs: {'status': 'ok', 'specPath': 'Spec.lean', 'macroPath': 'MacroSlice.lean', 'contract': 'MorphoViewSlice', 'migratedCount': 1, 'specSignatureCount': 1, 'coveragePct': 100.0, 'migratedSignatures': ['owner()'], 'blockedCount': 0, 'blockedSignatures': {}}",
+            f"sys.argv = ['check_macro_migration_slice.py', '--json-out', {str(json_out / 'report.json')!r}]",
+            "try:",
+            "  mod.main()",
+            "except mod.MigrationSliceError as exc:",
+            "  print(f'macro-migration-slice check failed: {exc}', file=sys.stderr)",
+            "  raise SystemExit(1)",
+          ]),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("macro-migration-slice check failed: failed to write JSON report", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":

@@ -11,9 +11,10 @@ import sys
 from typing import Any
 
 from check_macro_migration_surface import (  # reuse canonical spec-signature parser
+  MacroMigrationSurfaceError,
   SPEC_PATH,
   extract_spec_signatures,
-  read_text,
+  read_text as read_surface_text,
 )
 
 
@@ -40,6 +41,20 @@ TYPE_MAP = {
 
 class MigrationSliceError(RuntimeError):
   pass
+
+
+def display_path(path: pathlib.Path) -> str:
+  try:
+    return str(path.relative_to(ROOT))
+  except ValueError:
+    return str(path)
+
+
+def read_text(path: pathlib.Path) -> str:
+  try:
+    return read_surface_text(path)
+  except MacroMigrationSurfaceError as exc:
+    raise MigrationSliceError(str(exc)) from exc
 
 
 def _normalize_type(type_src: str) -> str:
@@ -136,6 +151,10 @@ def load_baseline(path: pathlib.Path) -> dict[str, Any]:
   try:
     with path.open("r", encoding="utf-8") as f:
       data = json.load(f)
+  except UnicodeDecodeError as exc:
+    raise MigrationSliceError(f"baseline file is not valid UTF-8: {path}: {exc}") from exc
+  except OSError as exc:
+    raise MigrationSliceError(f"failed to read baseline file {path}: {exc}") from exc
   except json.JSONDecodeError as exc:
     raise MigrationSliceError(f"baseline file is not valid JSON: {path}") from exc
   if not isinstance(data, dict):
@@ -144,10 +163,13 @@ def load_baseline(path: pathlib.Path) -> dict[str, Any]:
 
 
 def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
-  path.parent.mkdir(parents=True, exist_ok=True)
-  with path.open("w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2, sort_keys=True)
-    f.write("\n")
+  try:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+      json.dump(data, f, indent=2, sort_keys=True)
+      f.write("\n")
+  except OSError as exc:
+    raise MigrationSliceError(f"failed to write baseline file {path}: {exc}") from exc
 
 
 def validate_against_baseline(actual: set[str], baseline: dict[str, Any]) -> None:
@@ -184,7 +206,7 @@ def validate_baseline_metadata(
   baseline_source = baseline.get("source")
   if not isinstance(baseline_source, str) or not baseline_source.strip():
     raise MigrationSliceError("baseline source must be a non-empty string")
-  expected_source = str(macro_path.relative_to(ROOT))
+  expected_source = display_path(macro_path)
   if baseline_source != expected_source:
     raise MigrationSliceError(
       f"baseline source mismatch: expected {expected_source!r}, got {baseline_source!r}"
@@ -277,8 +299,8 @@ def run_check(
   coverage = round(100.0 * len(migrated_signatures) / max(len(spec_signatures), 1), 2)
   return {
     "status": "ok",
-    "specPath": str(spec_path.relative_to(ROOT)),
-    "macroPath": str(macro_path.relative_to(ROOT)),
+    "specPath": display_path(spec_path),
+    "macroPath": display_path(macro_path),
     "contract": contract_name,
     "migratedCount": len(migrated_signatures),
     "specSignatureCount": len(spec_signatures),
@@ -314,7 +336,7 @@ def main() -> None:
     spec_signatures = extract_spec_signatures(read_text(args.spec))
     blocked = sorted(spec_signatures - macro_signatures)
     baseline = {
-      "source": str(args.macro.relative_to(ROOT)),
+      "source": display_path(args.macro),
       "contract": args.contract,
       "expectedMigrated": sorted(macro_signatures),
       "expectedBlocked": {sig: "pending macro migration (tracked blocker)" for sig in blocked},
@@ -334,10 +356,13 @@ def main() -> None:
   )
 
   if args.json_out:
-    args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    with args.json_out.open("w", encoding="utf-8") as f:
-      json.dump(report, f, indent=2, sort_keys=True)
-      f.write("\n")
+    try:
+      args.json_out.parent.mkdir(parents=True, exist_ok=True)
+      with args.json_out.open("w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, sort_keys=True)
+        f.write("\n")
+    except OSError as exc:
+      raise MigrationSliceError(f"failed to write JSON report {args.json_out}: {exc}") from exc
 
   print("macro-migration-slice check: OK")
   print(f"contract: {report['contract']}")
@@ -352,8 +377,5 @@ if __name__ == "__main__":
   try:
     main()
   except MigrationSliceError as e:
-    print(f"macro-migration-slice check failed: {e}", file=sys.stderr)
-    sys.exit(1)
-  except FileNotFoundError as e:
     print(f"macro-migration-slice check failed: {e}", file=sys.stderr)
     sys.exit(1)
