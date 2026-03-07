@@ -17,7 +17,9 @@ from check_semantic_bridge_obligations import (  # noqa: E402
     extract_macro_functions,
     extract_sem_eq_definitions,
     load_config,
+    read_text,
     validate_config,
+    write_json_report,
 )
 
 
@@ -215,6 +217,14 @@ class ValidateConfigTests(unittest.TestCase):
 
 
 class LoadConfigTests(unittest.TestCase):
+    def test_invalid_utf8_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_bytes(b"\x80")
+            with self.assertRaises(ObligationError) as ctx:
+                load_config(config_path)
+        self.assertIn("failed to decode JSON config", str(ctx.exception))
+
     def test_invalid_json_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
@@ -323,6 +333,25 @@ class BuildReportTests(unittest.TestCase):
         json.dumps(report)
 
 
+class IoHelperTests(unittest.TestCase):
+    def test_read_text_invalid_utf8_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge_path = pathlib.Path(tmpdir) / "SolidityBridge.lean"
+            bridge_path.write_bytes(b"\x80")
+            with self.assertRaises(ObligationError) as ctx:
+                read_text(bridge_path)
+        self.assertIn("failed to decode text file", str(ctx.exception))
+
+    def test_write_json_report_to_missing_parent_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = pathlib.Path(tmpdir) / "missing-parent" / "child" / "report.json"
+            report_path.parent.parent.mkdir()
+            report_path.parent.write_text("not a directory", encoding="utf-8")
+            with self.assertRaises(ObligationError) as ctx:
+                write_json_report(report_path, {"ok": True})
+        self.assertIn("failed to write JSON report", str(ctx.exception))
+
+
 class IntegrationTests(unittest.TestCase):
     def test_real_config_and_bridge(self) -> None:
         """Validate that the actual repo config matches actual source files."""
@@ -370,6 +399,28 @@ class IntegrationTests(unittest.TestCase):
 
 
 class CliFailureTests(unittest.TestCase):
+    def test_invalid_utf8_bridge_reports_checker_error_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(__file__).resolve().parent.parent
+            bridge_path = pathlib.Path(tmpdir) / "SolidityBridge.lean"
+            bridge_path.write_bytes(b"\x80")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "check_semantic_bridge_obligations.py"),
+                    "--bridge",
+                    str(bridge_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=root,
+            )
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("semantic bridge obligations check failed:", proc.stderr)
+        self.assertIn("failed to decode text file", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
     def test_invalid_json_reports_checker_error_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = pathlib.Path(__file__).resolve().parent.parent
@@ -390,6 +441,29 @@ class CliFailureTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertIn("semantic bridge obligations check failed:", proc.stderr)
         self.assertIn("contains invalid JSON", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_json_out_write_failure_reports_checker_error_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(__file__).resolve().parent.parent
+            json_out = pathlib.Path(tmpdir) / "missing-parent" / "child" / "report.json"
+            json_out.parent.parent.mkdir()
+            json_out.parent.write_text("not a directory", encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "check_semantic_bridge_obligations.py"),
+                    "--json-out",
+                    str(json_out),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=root,
+            )
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("semantic bridge obligations check failed:", proc.stderr)
+        self.assertIn("failed to write JSON report", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
 
