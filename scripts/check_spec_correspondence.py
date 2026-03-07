@@ -34,6 +34,42 @@ def read_text(path: pathlib.Path) -> str:
         return f.read()
 
 
+def load_migrated_operations(path: pathlib.Path) -> set[str]:
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            config = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise CorrespondenceError(f"failed to parse JSON config {path}: {exc}") from exc
+    if not isinstance(config, dict):
+        raise CorrespondenceError(f"config root must be an object in {path}")
+
+    obligations = config.get("obligations")
+    if not isinstance(obligations, list):
+        raise CorrespondenceError(f"missing `obligations` list in {path}")
+
+    migrated_ops: set[str] = set()
+    for i, obligation in enumerate(obligations):
+        if not isinstance(obligation, dict):
+            raise CorrespondenceError(f"obligation[{i}] is not an object in {path}")
+
+        operation = obligation.get("operation")
+        if not isinstance(operation, str) or not operation:
+            raise CorrespondenceError(
+                f"obligation[{i}] missing non-empty 'operation' in {path}"
+            )
+
+        macro_migrated = obligation.get("macroMigrated")
+        if not isinstance(macro_migrated, bool):
+            raise CorrespondenceError(
+                f"obligation[{i}] missing boolean 'macroMigrated' in {path}"
+            )
+
+        if macro_migrated:
+            migrated_ops.add(operation)
+
+    return migrated_ops
+
+
 # ---------------------------------------------------------------------------
 # Spec.lean extraction
 # ---------------------------------------------------------------------------
@@ -347,13 +383,7 @@ def main() -> None:
     spec_fields = extract_spec_fields(spec_text)
     macro_slots = extract_macro_slots(macro_text)
 
-    with args.config.open("r", encoding="utf-8") as f:
-        config = json.load(f)
-    migrated_ops = {
-        o["operation"]
-        for o in config["obligations"]
-        if o.get("macroMigrated")
-    }
+    migrated_ops = load_migrated_operations(args.config)
 
     errors = validate_correspondence(
         spec_fns, macro_fns, spec_fields, macro_slots, migrated_ops,
