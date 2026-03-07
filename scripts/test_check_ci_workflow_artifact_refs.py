@@ -49,7 +49,7 @@ class CollectWorkflowArtifactReferencesTests(unittest.TestCase):
       ),
     )
 
-  def test_ignores_download_steps_without_explicit_name(self) -> None:
+  def test_rejects_download_steps_without_explicit_name(self) -> None:
     workflow_text = "\n".join(
       [
         "jobs:",
@@ -61,10 +61,29 @@ class CollectWorkflowArtifactReferencesTests(unittest.TestCase):
       ]
     )
 
-    self.assertEqual(
-      collect_workflow_artifact_references(workflow_text),
-      ([], [], {"verify": []}, {"verify": []}),
+    with self.assertRaisesRegex(
+      RuntimeError,
+      "download-artifact step missing non-empty with.name",
+    ):
+      collect_workflow_artifact_references(workflow_text)
+
+  def test_rejects_download_steps_with_empty_name(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - uses: actions/download-artifact@v4",
+        "        with:",
+        '          name: ""',
+      ]
     )
+
+    with self.assertRaisesRegex(
+      RuntimeError,
+      "download-artifact step missing non-empty with.name",
+    ):
+      collect_workflow_artifact_references(workflow_text)
 
 
 class CliTests(unittest.TestCase):
@@ -103,6 +122,43 @@ class CliTests(unittest.TestCase):
       self.assertIn(
         "ci-workflow-artifact-refs check failed: "
         "workflow downloads artifacts with no matching upload step: missing-artifact",
+        proc.stderr,
+      )
+
+  def test_main_reports_download_without_explicit_name(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      workflow_path = root / "verify.yml"
+      workflow_path.write_text(
+        "\n".join(
+          [
+            "jobs:",
+            "  verify:",
+            "    steps:",
+            "      - uses: actions/download-artifact@v4",
+            "        with:",
+            "          path: out/all-artifacts",
+          ]
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_workflow_artifact_refs.py"),
+          "--workflow",
+          str(workflow_path),
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn(
+        "ci-workflow-artifact-refs check failed: download-artifact step missing non-empty with.name",
         proc.stderr,
       )
 
