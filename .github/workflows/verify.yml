@@ -125,6 +125,9 @@ jobs:
       - name: Validate CI workflow artifact references
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow artifact references" -- python3 scripts/check_ci_workflow_artifact_refs.py
 
+      - name: Validate CI workflow job references
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow job references" -- python3 scripts/check_ci_workflow_job_refs.py
+
       - name: Validate CI workflow hashFiles() references
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow hashFiles() references" -- python3 scripts/check_ci_workflow_hashfiles_refs.py
 
