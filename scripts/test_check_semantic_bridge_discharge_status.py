@@ -136,12 +136,15 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
     ])
     self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(decoy + make_text()))
 
-  def test_extract_discharge_section_rejects_duplicate_namespace_footer(self) -> None:
-    with self.assertRaisesRegex(
-      SemanticBridgeDischargeStatusError,
-      "missing unique namespace footer",
-    ):
-      extract_discharge_section(f"{make_text()}\n{NAMESPACE_FOOTER}\n")
+  def test_extract_discharge_section_accepts_reopened_namespace_after_primary_block(self) -> None:
+    trailing_namespace = (
+      "\nnamespace Morpho.Proofs.SemanticBridgeDischarge\n"
+      "/-! ## Discharge Status\n\n"
+      "trailing notes\n"
+      "-/\n\n"
+      "end Morpho.Proofs.SemanticBridgeDischarge\n"
+    )
+    self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text() + trailing_namespace))
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
@@ -264,6 +267,16 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
 
   def test_validate_status_accepts_crlf_line_endings(self) -> None:
     validate_status(make_text().replace("\n", "\r\n"))
+
+  def test_validate_status_accepts_reopened_namespace_after_primary_block(self) -> None:
+    trailing_namespace = (
+      "\nnamespace Morpho.Proofs.SemanticBridgeDischarge\n"
+      "/-- trailing notes outside the tracked block -/\n"
+      "theorem trailing_fact : True := by\n"
+      "  trivial\n"
+      "end Morpho.Proofs.SemanticBridgeDischarge\n"
+    )
+    validate_status(make_text() + trailing_namespace)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:

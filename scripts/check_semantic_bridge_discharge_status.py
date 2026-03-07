@@ -62,29 +62,30 @@ def require_unique_line(text: str, line: str, error: str) -> re.Match[str]:
 
 
 def extract_namespace_block(text: str) -> str:
-  namespace_match = require_unique_line(
-    text,
-    NAMESPACE_HEADER,
-    "SemanticBridgeDischarge.lean status drift: missing unique namespace header",
-  )
-  end_match = require_unique_line(
-    text,
-    NAMESPACE_FOOTER,
-    "SemanticBridgeDischarge.lean status drift: missing unique namespace footer",
-  )
-  if end_match.start() <= namespace_match.end():
+  namespace_match = re.search(rf"(?m)^\s*{re.escape(NAMESPACE_HEADER)}\r?$", text)
+  if namespace_match is None:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing namespace header"
+    )
+  end_match = re.search(rf"(?m)^\s*{re.escape(NAMESPACE_FOOTER)}\r?$", text[namespace_match.end():])
+  if end_match is None:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing namespace footer"
+    )
+  end_start = namespace_match.end() + end_match.start()
+  if end_start <= namespace_match.end():
     raise SemanticBridgeDischargeStatusError(
       "SemanticBridgeDischarge.lean status drift: invalid namespace boundary ordering"
     )
-  return text[namespace_match.end():end_match.start()]
+  return text[namespace_match.end():end_start]
 
 
 def extract_intro_block(text: str) -> str:
-  namespace_match = require_unique_line(
-    text,
-    NAMESPACE_HEADER,
-    "SemanticBridgeDischarge.lean status drift: missing unique namespace header",
-  )
+  namespace_match = re.search(rf"(?m)^\s*{re.escape(NAMESPACE_HEADER)}\r?$", text)
+  if namespace_match is None:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing namespace header"
+    )
   intro = text[:namespace_match.start()]
   if not intro.strip():
     raise SemanticBridgeDischargeStatusError(
