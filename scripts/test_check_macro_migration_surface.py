@@ -9,6 +9,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -120,6 +121,30 @@ def morphoSelectors : List Nat := [
         "failed to write JSON report",
       ):
         write_json_report(output_dir, {"status": "ok"})
+
+  def test_run_check_accepts_external_absolute_paths_in_report(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      tmp = pathlib.Path(tmpdir)
+      spec_path = tmp / "Spec.lean"
+      interface_path = tmp / "IMorpho.sol"
+      spec_path.write_text("spec", encoding="utf-8")
+      interface_path.write_text("interface", encoding="utf-8")
+
+      with mock.patch(
+        "check_macro_migration_surface.extract_spec_selector_entries",
+        return_value=[("owner()", 0x8DA5CB5B)],
+      ), mock.patch(
+        "check_macro_migration_surface.extract_interface_signatures",
+        return_value={"owner()"},
+      ), mock.patch(
+        "check_macro_migration_surface.extract_solc_selector_map",
+        return_value={"owner()": 0x8DA5CB5B},
+      ):
+        report = run_check(spec_path, interface_path)
+
+    self.assertEqual(report["specPath"], str(spec_path))
+    self.assertEqual(report["interfacePath"], str(interface_path))
+    self.assertEqual(report["matchedSignatureCount"], 1)
 
   def test_cli_reports_checker_error_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
