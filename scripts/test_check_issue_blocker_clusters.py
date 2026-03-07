@@ -76,6 +76,17 @@ class DeriveClusterBlockersTests(unittest.TestCase):
     self.assertEqual(blockers, ["callbacks", "erc20", "internalCall"])
     self.assertEqual(counts, {"callbacks": 1, "erc20": 2, "internalCall": 2})
 
+  def test_rejects_duplicate_blockers_within_single_operation(self) -> None:
+    config = make_config()
+    config["obligations"][0]["macroSurfaceBlockers"] = [
+      "callbacks",
+      "erc20",
+      "erc20",
+    ]
+    by_operation = load_obligations_by_operation(config)
+    with self.assertRaisesRegex(IssueClusterError, "duplicate macroSurfaceBlockers entries"):
+      derive_cluster_blockers(["supply"], by_operation)
+
 
 class ValidateIssueClustersTests(unittest.TestCase):
   def test_validate_issue_clusters_passes(self) -> None:
@@ -100,6 +111,16 @@ class ValidateIssueClustersTests(unittest.TestCase):
     config = make_config()
     del config["obligations"][0]["macroSurfaceBlockers"]
     with self.assertRaisesRegex(IssueClusterError, "missing non-empty string-list 'macroSurfaceBlockers'"):
+      validate_issue_clusters(config)
+
+  def test_rejects_duplicate_macro_surface_blockers(self) -> None:
+    config = make_config()
+    config["obligations"][0]["macroSurfaceBlockers"] = [
+      "callbacks",
+      "erc20",
+      "erc20",
+    ]
+    with self.assertRaisesRegex(IssueClusterError, "duplicate macroSurfaceBlockers entries"):
       validate_issue_clusters(config)
 
   def test_rejects_empty_issue_cluster(self) -> None:

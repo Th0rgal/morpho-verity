@@ -63,6 +63,10 @@ def derive_cluster_blockers(
       raise IssueClusterError(
         f"operation '{operation}' has invalid macroSurfaceBlockers; expected string list"
       )
+    if len(blockers) != len(set(blockers)):
+      raise IssueClusterError(
+        f"operation '{operation}' has duplicate macroSurfaceBlockers entries"
+      )
     for blocker in blockers:
       counts[blocker] = counts.get(blocker, 0) + 1
   return sorted(counts), dict(sorted(counts.items()))
@@ -114,6 +118,10 @@ def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(blockers, list) or not blockers or not all(isinstance(b, str) for b in blockers):
       raise IssueClusterError(
         f"obligation '{operation}' missing non-empty string-list 'macroSurfaceBlockers'"
+      )
+    if len(blockers) != len(set(blockers)):
+      raise IssueClusterError(
+        f"obligation '{operation}' has duplicate macroSurfaceBlockers entries"
       )
     if operation not in obligations_by_operation:
       raise IssueClusterError(f"obligation '{operation}' missing from operation index")
