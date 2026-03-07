@@ -199,11 +199,9 @@ theorem sig_rejects_wrong_nonce (s : MorphoState) (auth : Authorization) (sig : 
 theorem sig_increments_nonce (s : MorphoState) (auth : Authorization) (sig : Bool)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     nonceIncremented s s' auth.authorizer := by
-  unfold Morpho.setAuthorizationWithSig at h_ok
-  simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
   unfold nonceIncremented
-  rw [← h_eq]
+  rw [h_eq]
   simp [Morpho.u256, Nat.add_comm]
 
 end Morpho.Proofs.Authorization

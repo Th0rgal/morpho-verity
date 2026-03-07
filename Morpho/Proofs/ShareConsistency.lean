@@ -151,9 +151,8 @@ theorem setAuthorizationWithSig_preserves_supplySharesConsistent (s : MorphoStat
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     supplySharesConsistent s' id allUsers := by
-  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; exact h_consistent
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
+  rw [h_eq]; exact h_consistent
 
 theorem setAuthorizationWithSig_preserves_borrowSharesConsistent (s : MorphoState)
     (auth : Authorization) (sig : Bool)
@@ -161,9 +160,8 @@ theorem setAuthorizationWithSig_preserves_borrowSharesConsistent (s : MorphoStat
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; exact h_consistent
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
+  rw [h_eq]; exact h_consistent
 
 theorem supplyCollateral_preserves_supplySharesConsistent (s : MorphoState)
     (scId : Id) (assets : Uint256) (onBehalf : Address)

@@ -308,6 +308,38 @@ def setAuthorizationWithSig (s : MorphoState) (auth : Authorization) (signatureV
       if authorizer == auth.authorizer && authorized == auth.authorized then auth.isAuthorized
       else s.isAuthorized authorizer authorized }
 
+theorem setAuthorizationWithSig_success_iff (s s' : MorphoState) (auth : Authorization)
+    (signatureValid : Bool) :
+    setAuthorizationWithSig s auth signatureValid = some s' ↔
+      s.blockTimestamp.val ≤ auth.deadline.val ∧
+      auth.nonce = s.nonce auth.authorizer ∧
+      signatureValid = true ∧
+      s' = { s with
+        nonce := fun addr =>
+          if addr = auth.authorizer then u256 ((s.nonce auth.authorizer).val + 1)
+          else s.nonce addr
+        isAuthorized := fun authorizer authorized =>
+          if authorizer = auth.authorizer ∧ authorized = auth.authorized then auth.isAuthorized
+          else s.isAuthorized authorizer authorized } := by
+  constructor
+  · intro h
+    unfold setAuthorizationWithSig at h
+    by_cases hDeadline : s.blockTimestamp.val > auth.deadline.val
+    · simp [hDeadline] at h
+    · by_cases hNonce : auth.nonce != s.nonce auth.authorizer
+      · simp [hDeadline, hNonce] at h
+      · by_cases hSig : ¬ signatureValid
+        · simp [hDeadline, hNonce, hSig] at h
+        · simp [hDeadline, hNonce, hSig] at h
+          exact ⟨Nat.le_of_not_gt hDeadline, by simpa using hNonce, by simpa using hSig, h.symm⟩
+  · intro h
+    rcases h with ⟨hDeadline, hNonce, hSig, rfl⟩
+    unfold setAuthorizationWithSig
+    have hDeadline' : ¬ s.blockTimestamp.val > auth.deadline.val := by omega
+    have hNonce' : ¬ auth.nonce != s.nonce auth.authorizer := by simpa using hNonce
+    have hSig' : ¬ ¬ signatureValid := by simpa using hSig
+    simp [hDeadline', hNonce', hSig']
+
 /-! ## Core operations -/
 
 /-- Supply assets to a market. Matches `supply` (Morpho.sol:169).
