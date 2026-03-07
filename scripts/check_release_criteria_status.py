@@ -71,6 +71,17 @@ class ReleaseCriteriaStatusError(RuntimeError):
   pass
 
 
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except UnicodeDecodeError as exc:
+    raise ReleaseCriteriaStatusError(
+      f"failed to decode {context} `{path}` as UTF-8"
+    ) from exc
+  except OSError as exc:
+    raise ReleaseCriteriaStatusError(f"failed to read {context} `{path}`: {exc}") from exc
+
+
 def require_unique_line(text: str, line: str, description: str) -> re.Match[str]:
   matches = list(re.finditer(rf"(?m)^{re.escape(line)}\r?$", text))
   if not matches:
@@ -207,14 +218,8 @@ def main() -> int:
   parser.add_argument("--workflow", type=pathlib.Path, default=WORKFLOW_PATH)
   args = parser.parse_args()
 
-  try:
-    doc_text = args.doc.read_text(encoding="utf-8")
-  except (OSError, UnicodeDecodeError) as exc:
-    raise ReleaseCriteriaStatusError(f"failed to read {args.doc}: {exc}") from exc
-  try:
-    workflow_text = args.workflow.read_text(encoding="utf-8")
-  except (OSError, UnicodeDecodeError) as exc:
-    raise ReleaseCriteriaStatusError(f"failed to read {args.workflow}: {exc}") from exc
+  doc_text = read_text(args.doc, context="release criteria document")
+  workflow_text = read_text(args.workflow, context="workflow")
   validate_doc_status(doc_text)
   validate_workflow(workflow_text)
 
