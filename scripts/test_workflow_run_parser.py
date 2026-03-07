@@ -64,6 +64,61 @@ class WorkflowRunParserTests(unittest.TestCase):
       "python3 scripts/check_alpha.py \\\n--strict",
     )
 
+  def test_extract_workflow_run_text_handles_inline_run_step_item(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - run: python3 scripts/check_alpha.py",
+        "      - uses: actions/checkout@v5",
+      ]
+    )
+    self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_alpha.py")
+
+  def test_extract_workflow_run_text_keeps_top_level_run_fixtures(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: python3 scripts/check_alpha.py",
+        "run: ./scripts/check_beta.sh",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py\n./scripts/check_beta.sh",
+    )
+
+  def test_extract_workflow_run_text_ignores_nested_list_items_within_step(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Restore cache",
+        "        with:",
+        "          path:",
+        "            - ~/.elan",
+        "            - ~/.lake",
+        "        run: python3 scripts/check_real.py",
+      ]
+    )
+    self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_real.py")
+
+  def test_extract_workflow_run_text_ignores_non_step_run_mapping(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "defaults:",
+        "  run:",
+        "    shell: bash",
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Real step",
+        "        run: python3 scripts/check_real.py",
+      ]
+    )
+    self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_real.py")
+
 
 if __name__ == "__main__":
   unittest.main()
