@@ -28,8 +28,8 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   (?:,|$)
 """, re.VERBOSE)
-TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$")
-ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$")
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$", re.DOTALL)
+ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$", re.DOTALL)
 ALIAS_SCALAR_RE = re.compile(r"^\*([^\s]+)$")
 SINGLE_QUOTED_SCALAR_RE = re.compile(r"^'(?:[^']|'')*'(?:\s+#.*)?\s*$", re.DOTALL)
 DOUBLE_QUOTED_SCALAR_RE = re.compile(r'^"(?:[^"\\]|\\.)*"(?:\s+#.*)?\s*$', re.DOTALL)
@@ -207,10 +207,11 @@ def _consume_multiline_quoted_scalar(
   return raw, start_index + 1
 
 
-def _fold_quoted_yaml_scalar_lines(inner: str) -> str:
+def _fold_quoted_yaml_scalar_lines(inner: str, quote: str) -> str:
   if "\n" not in inner:
     return inner
-  inner = re.sub(r"\\\n[ \t]*", "", inner)
+  if quote == '"':
+    inner = re.sub(r"\\\n[ \t]*", "", inner)
   return re.sub(r"\n[ \t]*", " ", inner)
 
 
@@ -229,7 +230,7 @@ def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> 
   if value[0] in {'"', "'"}:
     if len(value) < 2 or value[-1] != value[0]:
       return None
-    inner = _fold_quoted_yaml_scalar_lines(value[1:-1])
+    inner = _fold_quoted_yaml_scalar_lines(value[1:-1], value[0])
     if value[0] == "'":
       parsed = inner.replace("''", "'")
     else:
