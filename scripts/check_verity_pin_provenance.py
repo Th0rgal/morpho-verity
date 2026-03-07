@@ -50,9 +50,16 @@ def fail(msg: str) -> None:
   raise SystemExit(1)
 
 
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except (OSError, UnicodeDecodeError) as exc:
+    fail(f"failed to read {context} {path}: {exc}")
+
+
 def load_provenance(path: pathlib.Path) -> dict[str, object]:
   try:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(read_text(path, context="provenance file"))
   except json.JSONDecodeError as exc:
     fail(f"failed to parse provenance JSON {path}: {exc}")
   if not isinstance(data, dict):
@@ -62,7 +69,7 @@ def load_provenance(path: pathlib.Path) -> dict[str, object]:
 
 def load_issue_clusters(path: pathlib.Path) -> dict[str, dict[str, Any]]:
   try:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(read_text(path, context="issue cluster file"))
   except json.JSONDecodeError as exc:
     fail(f"failed to parse issue cluster JSON {path}: {exc}")
   if not isinstance(data, dict):
@@ -592,7 +599,7 @@ def main() -> int:
       if not file_path.exists():
         fail(f"documented divergence file does not exist: {raw_path}")
 
-  doc_text = args.doc.read_text(encoding="utf-8")
+  doc_text = read_text(args.doc, context="documentation file")
   validate_doc_metadata(
     doc_text=doc_text,
     upstream_repo=upstream_repo,
@@ -637,9 +644,9 @@ def main() -> int:
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
 
-  readme_text = args.readme.read_text(encoding="utf-8")
+  readme_text = read_text(args.readme, context="README file")
   require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)
-  workflow_text = args.workflow.read_text(encoding="utf-8")
+  workflow_text = read_text(args.workflow, context="workflow file")
   validate_workflow(workflow_text=workflow_text, workflow_path=args.workflow)
 
   print(

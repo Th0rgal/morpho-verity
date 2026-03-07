@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -173,6 +174,15 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         return check_main()
       finally:
         sys.argv = argv
+
+  def run_cli(self, root: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+      [sys.executable, str(pathlib.Path(__file__).resolve().parent / "check_verity_pin_provenance.py"), *args],
+      cwd=root,
+      text=True,
+      capture_output=True,
+      check=False,
+    )
 
   def test_validate_enforcement_section_passes(self) -> None:
     validate_enforcement_section(
@@ -2584,3 +2594,224 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         `scripts/check_verity_pin_provenance.py`.
         """,
       )
+
+  def test_cli_reports_invalid_utf8_doc_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      (root / "config").mkdir()
+      (root / "docs").mkdir()
+      (root / ".github/workflows").mkdir(parents=True)
+      (root / "Morpho/Compiler").mkdir(parents=True)
+      (root / "Morpho/Proofs").mkdir(parents=True)
+      (root / "scripts").mkdir()
+      (root / "lakefile.lean").write_text(
+        textwrap.dedent(
+          """
+          require verity from git
+            "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "lake-manifest.json").write_text(
+        textwrap.dedent(
+          """
+          {
+            "packages": [
+              {
+                "name": "verity",
+                "url": "https://github.com/Th0rgal/verity.git",
+                "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+                "inputRev": "ad03fc64"
+              }
+            ]
+          }
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "config/verity-pin-provenance.json").write_text(
+        textwrap.dedent(
+          """
+          {
+            "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+            "inputRev": "ad03fc64",
+            "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+            "trackedIssue": "#118",
+            "whyPinned": "Current deterministic base.",
+            "remainingDivergences": [
+              {
+                "area": "Local generated-contract boundary",
+                "summary": "Repo-local generated boundary remains.",
+                "files": [
+                  "Morpho/Compiler/MacroSlice.lean"
+                ]
+              }
+            ]
+          }
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "config/semantic-bridge-obligations.json").write_text(
+        '{"issueClusters":[{"issue":123,"title":"Track migration gap"}]}',
+        encoding="utf-8",
+      )
+      (root / "docs/VERITY_PIN.md").write_bytes(b"\x80not-utf8")
+      (root / "README.md").write_text(
+        "See docs/VERITY_PIN.md for the pinned Verity revision.\n",
+        encoding="utf-8",
+      )
+      (root / ".github/workflows/verify.yml").write_text(
+        make_verify_workflow(),
+        encoding="utf-8",
+      )
+      for rel in (
+        "Morpho/Compiler/MacroSlice.lean",
+        "Morpho/Proofs/SemanticBridgeReadiness.lean",
+        "scripts/check_macro_migration_blockers.py",
+      ):
+        (root / rel).write_text("-- placeholder\n", encoding="utf-8")
+
+      result = self.run_cli(
+        root,
+        "--lakefile",
+        "lakefile.lean",
+        "--manifest",
+        "lake-manifest.json",
+        "--provenance",
+        "config/verity-pin-provenance.json",
+        "--doc",
+        "docs/VERITY_PIN.md",
+        "--readme",
+        "README.md",
+        "--obligations",
+        "config/semantic-bridge-obligations.json",
+        "--workflow",
+        ".github/workflows/verify.yml",
+      )
+
+    self.assertEqual(result.returncode, 1)
+    self.assertIn("verity-pin-provenance check failed: failed to read documentation file", result.stderr)
+    self.assertNotIn("Traceback", result.stderr)
+
+  def test_cli_reports_missing_workflow_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      (root / "config").mkdir()
+      (root / "docs").mkdir()
+      (root / "Morpho/Compiler").mkdir(parents=True)
+      (root / "scripts").mkdir()
+      (root / "lakefile.lean").write_text(
+        textwrap.dedent(
+          """
+          require verity from git
+            "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "lake-manifest.json").write_text(
+        textwrap.dedent(
+          """
+          {
+            "packages": [
+              {
+                "name": "verity",
+                "url": "https://github.com/Th0rgal/verity.git",
+                "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+                "inputRev": "ad03fc64"
+              }
+            ]
+          }
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "config/verity-pin-provenance.json").write_text(
+        textwrap.dedent(
+          """
+          {
+            "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+            "inputRev": "ad03fc64",
+            "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+            "trackedIssue": "#118",
+            "whyPinned": "Current deterministic base.",
+            "remainingDivergences": [
+              {
+                "area": "Local generated-contract boundary",
+                "summary": "Repo-local generated boundary remains.",
+                "files": [
+                  "Morpho/Compiler/MacroSlice.lean"
+                ]
+              }
+            ]
+          }
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "config/semantic-bridge-obligations.json").write_text(
+        '{"issueClusters":[{"issue":123,"title":"Track migration gap"}]}',
+        encoding="utf-8",
+      )
+      (root / "docs/VERITY_PIN.md").write_text(
+        textwrap.dedent(
+          """
+          # Verity Pin
+
+          - Repo: `https://github.com/Th0rgal/verity.git`
+          - Short rev: `ad03fc64`
+          - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+          - Tracking issue: `#118`
+
+          ## Why this pin
+
+          Current deterministic base.
+
+          ## Remaining repo-local divergence at this pin
+
+          ### Local generated-contract boundary
+
+          Repo-local generated boundary remains.
+
+          Relevant files:
+          - `Morpho/Compiler/MacroSlice.lean`
+
+          ## Enforcement
+
+          The machine-readable source of truth is
+          `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+          `lakefile.lean` and `lake-manifest.json` via
+          `scripts/check_verity_pin_provenance.py`.
+          """
+        ),
+        encoding="utf-8",
+      )
+      (root / "README.md").write_text(
+        "See docs/VERITY_PIN.md for the pinned Verity revision.\n",
+        encoding="utf-8",
+      )
+      (root / "Morpho/Compiler/MacroSlice.lean").write_text("-- placeholder\n", encoding="utf-8")
+
+      result = self.run_cli(
+        root,
+        "--lakefile",
+        "lakefile.lean",
+        "--manifest",
+        "lake-manifest.json",
+        "--provenance",
+        "config/verity-pin-provenance.json",
+        "--doc",
+        "docs/VERITY_PIN.md",
+        "--readme",
+        "README.md",
+        "--obligations",
+        "config/semantic-bridge-obligations.json",
+        "--workflow",
+        ".github/workflows/missing.yml",
+      )
+
+    self.assertEqual(result.returncode, 1)
+    self.assertIn("verity-pin-provenance check failed: failed to read workflow file", result.stderr)
+    self.assertNotIn("Traceback", result.stderr)
