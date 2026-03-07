@@ -29,6 +29,13 @@ class CorrespondenceError(RuntimeError):
     pass
 
 
+def display_path(path: pathlib.Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def read_text(path: pathlib.Path) -> str:
     try:
         with path.open("r", encoding="utf-8") as f:
@@ -344,6 +351,10 @@ def build_report(
     macro_fns: dict[str, dict[str, Any]],
     migrated_ops: set[str],
     errors: list[str],
+    *,
+    spec_path: pathlib.Path,
+    macro_path: pathlib.Path,
+    config_path: pathlib.Path,
 ) -> dict[str, Any]:
     correspondences = []
     for op in sorted(migrated_ops):
@@ -359,6 +370,9 @@ def build_report(
         correspondences.append(entry)
 
     return {
+        "specPath": display_path(spec_path),
+        "macroSlicePath": display_path(macro_path),
+        "config": display_path(config_path),
         "specFunctions": len(spec_fns),
         "macroFunctions": len(macro_fns),
         "migratedChecked": len(migrated_ops),
@@ -395,7 +409,15 @@ def main() -> None:
         spec_fns, macro_fns, spec_fields, macro_slots, migrated_ops,
     )
 
-    report = build_report(spec_fns, macro_fns, migrated_ops, errors)
+    report = build_report(
+        spec_fns,
+        macro_fns,
+        migrated_ops,
+        errors,
+        spec_path=args.spec,
+        macro_path=args.macro_slice,
+        config_path=args.config,
+    )
 
     if args.json_out:
         try:
