@@ -54,6 +54,19 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
     )
     self.assertEqual(collect_workflow_script_references(workflow_text), {"install_lean.sh"})
 
+  def test_collect_workflow_script_references_supports_quoted_paths(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'run: python3 "./scripts/check_alpha.py"',
+        'run: bash "./scripts/install_foundry.sh"',
+        'run: "./scripts/install_lean.sh"',
+      ]
+    )
+    self.assertEqual(
+      collect_workflow_script_references(workflow_text),
+      {"check_alpha.py", "install_foundry.sh", "install_lean.sh"},
+    )
+
   def test_collect_wrapped_script_targets(self) -> None:
     workflow_text = "\n".join(
       [
@@ -86,6 +99,18 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
       ]
     )
     self.assertEqual(collect_wrapped_script_targets(workflow_text), {"install_solc.sh"})
+
+  def test_collect_wrapped_script_targets_supports_quoted_paths(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'run: ./scripts/run_with_timeout.sh M 1 d -- "./scripts/install_lean.sh"',
+        'run: ./scripts/run_with_timeout.sh M 1 d -- bash "./scripts/install_foundry.sh"',
+      ]
+    )
+    self.assertEqual(
+      collect_wrapped_script_targets(workflow_text),
+      {"install_lean.sh", "install_foundry.sh"},
+    )
 
   def test_collect_shell_test_loop_blocks(self) -> None:
     workflow_text = "\n".join(

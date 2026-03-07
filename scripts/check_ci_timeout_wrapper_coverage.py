@@ -10,11 +10,14 @@ import sys
 
 from workflow_run_parser import extract_workflow_run_text
 
-WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b")
+WORKFLOW_CHECK_REF_RE = re.compile(
+  r"\b(?:(?:python3|python|bash|sh)[ \t]+|env[ \t]+(?:python3|python|bash|sh)[ \t]+)?"
+  r"[\"']?(?:\./)?scripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b[\"']?"
+)
 RUN_WITH_TIMEOUT_STEP_RE = re.compile(
   r"run_with_timeout\.sh[^\n]*[ \t]+(?:--[ \t]+)?"
   r"(?:(?:python3|python|bash|sh)[ \t]+|env[ \t]+(?:python3|python|bash|sh)[ \t]+)?"
-  r"(?:\./)?scripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b"
+  r"[\"']?(?:\./)?scripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b[\"']?"
 )
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 
