@@ -18,9 +18,66 @@ TARGET_PATH = ROOT / "config" / "parity-target.json"
 FOUNDRY_PATH = ROOT / "morpho-blue" / "foundry.toml"
 
 
-def load_json(path: pathlib.Path) -> dict[str, Any]:
+class ParityTargetError(RuntimeError):
+  """Raised when config/parity-target.json is malformed."""
+
+
+def load_json(path: pathlib.Path) -> Any:
   with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+    try:
+      return json.load(f)
+    except json.JSONDecodeError as exc:
+      raise ParityTargetError(f"config/parity-target.json is not valid JSON: {path}") from exc
+
+
+def require_non_empty_string(value: Any, field: str) -> str:
+  if not isinstance(value, str) or not value:
+    raise ParityTargetError(f"config/parity-target.json missing non-empty string `{field}`")
+  return value
+
+
+def require_bool(value: Any, field: str) -> bool:
+  if not isinstance(value, bool):
+    raise ParityTargetError(f"config/parity-target.json missing boolean `{field}`")
+  return value
+
+
+def require_int(value: Any, field: str) -> int:
+  if not isinstance(value, int) or isinstance(value, bool):
+    raise ParityTargetError(f"config/parity-target.json missing integer `{field}`")
+  return value
+
+
+def require_object(value: Any, field: str) -> dict[str, Any]:
+  if not isinstance(value, dict):
+    raise ParityTargetError(f"config/parity-target.json missing object `{field}`")
+  return value
+
+
+def load_target(path: pathlib.Path) -> dict[str, Any]:
+  data = load_json(path)
+  if not isinstance(data, dict):
+    raise ParityTargetError(f"config/parity-target.json root must be a JSON object: {path}")
+
+  require_non_empty_string(data.get("id"), "id")
+
+  solc = require_object(data.get("solc"), "solc")
+  require_non_empty_string(solc.get("version"), "solc.version")
+  commit = solc.get("commit")
+  if commit is not None:
+    require_non_empty_string(commit, "solc.commit")
+
+  foundry = require_object(data.get("foundryDefaultProfile"), "foundryDefaultProfile")
+  require_bool(foundry.get("optimizer"), "foundryDefaultProfile.optimizer")
+  require_int(foundry.get("optimizerRuns"), "foundryDefaultProfile.optimizerRuns")
+  require_bool(foundry.get("viaIR"), "foundryDefaultProfile.viaIR")
+  require_non_empty_string(foundry.get("evmVersion"), "foundryDefaultProfile.evmVersion")
+  require_non_empty_string(foundry.get("bytecodeHash"), "foundryDefaultProfile.bytecodeHash")
+
+  verity = require_object(data.get("verity"), "verity")
+  require_non_empty_string(verity.get("parityPackId"), "verity.parityPackId")
+
+  return data
 
 
 def read_text(path: pathlib.Path) -> str:
@@ -88,7 +145,10 @@ def parse_yul_identity_gate_mode(target: dict[str, Any]) -> str:
 
 
 def main() -> None:
-  target = load_json(TARGET_PATH)
+  try:
+    target = load_target(TARGET_PATH)
+  except ParityTargetError as exc:
+    fail(str(exc))
   foundry = parse_foundry_default(read_text(FOUNDRY_PATH))
 
   version, commit = parse_solc_version()
@@ -104,12 +164,10 @@ def main() -> None:
     if foundry[key] != expected_foundry[key]:
       fail(f"foundry default `{key}` mismatch: expected {expected_foundry[key]!r}, got {foundry[key]!r}")
 
-  verity_pack = target.get("verity", {}).get("parityPackId")
-  if not isinstance(verity_pack, str) or not verity_pack:
-    fail("missing required config `verity.parityPackId` in config/parity-target.json")
+  verity_pack = target["verity"]["parityPackId"]
   try:
     yul_gate_mode = parse_yul_identity_gate_mode(target)
-  except RuntimeError as exc:
+  except (ParityTargetError, RuntimeError) as exc:
     fail(str(exc))
 
   print(f"parity-target id: {target['id']}")
