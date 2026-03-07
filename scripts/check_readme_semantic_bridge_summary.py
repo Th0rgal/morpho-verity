@@ -39,6 +39,10 @@ class ReadmeSemanticBridgeSummaryError(RuntimeError):
   pass
 
 
+def normalize_text(text: str) -> str:
+  return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
 def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.Match[str]:
   match = pattern.search(text)
   if match is None:
@@ -103,8 +107,9 @@ def extract_link1_operations(section_text: str) -> list[str]:
 
 def validate_summary(text: str, summary: dict[str, object]) -> None:
   section_text = extract_semantic_bridge_section(text)
+  normalized_section_text = normalize_text(section_text)
 
-  if UPSTREAM_STATUS_PREFIX not in section_text:
+  if normalize_text(UPSTREAM_STATUS_PREFIX) not in normalized_section_text:
     raise ReadmeSemanticBridgeSummaryError(
       "README upstream semantic-bridge status drift: "
       f"expected `{UPSTREAM_STATUS_PREFIX}`"

@@ -21,6 +21,7 @@ from check_readme_semantic_bridge_summary import (  # noqa: E402
   extract_semantic_bridge_section,
   extract_link1_operations,
   main,
+  normalize_text,
   validate_summary,
 )
 from check_semantic_bridge_readiness_summary import derive_summary  # noqa: E402
@@ -84,6 +85,9 @@ def make_readme(
 
 
 class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
+  def test_normalize_text_collapses_whitespace(self) -> None:
+    self.assertEqual(normalize_text("alpha\n\n beta\tgamma"), "alpha beta gamma")
+
   def test_extract_semantic_bridge_section(self) -> None:
     section = extract_semantic_bridge_section(make_readme())
     self.assertIn(UPSTREAM_STATUS_PREFIX, section)
@@ -176,6 +180,16 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
       "upstream semantic-bridge status drift",
     ):
       validate_summary(readme_text, derive_summary(make_config()))
+
+  def test_validate_summary_accepts_wrapped_upstream_status_prefix(self) -> None:
+    readme_text = make_readme().replace(
+      UPSTREAM_STATUS_PREFIX,
+      "The Verity framework now has the upstream typed-IR / canonical-semantics bridge "
+      "for supported `verity_contract` functions:\n"
+      "`EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.",
+      1,
+    )
+    validate_summary(readme_text, derive_summary(make_config()))
 
   def test_validate_summary_rejects_link1_summary_drift_hidden_outside_section(self) -> None:
     readme_text = make_readme(proven_count=1)
