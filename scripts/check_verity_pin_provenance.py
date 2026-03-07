@@ -18,6 +18,7 @@ MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
 MACRO_ISSUE_CLUSTERS_LABEL = "Tracked migration issue clusters:"
 FILES_LABEL = "Relevant files:"
 WHY_THIS_PIN_HEADING = "## Why this pin"
+REMAINING_DIVERGENCES_HEADING = "## Remaining repo-local divergence at this pin"
 ENFORCEMENT_HEADING = "## Enforcement"
 SECTION_LIST_LABELS = {
   FILES_LABEL,
@@ -212,6 +213,23 @@ def extract_section_body(doc_text: str, heading: str, doc_path: pathlib.Path) ->
   return "\n".join(section_lines)
 
 
+def extract_section_subheadings(
+  doc_text: str,
+  heading: str,
+  *,
+  subheading_prefix: str,
+  doc_path: pathlib.Path,
+) -> list[str]:
+  section_text = extract_section_body(doc_text, heading, doc_path)
+  subheadings: list[str] = []
+  prefix = f"{subheading_prefix} "
+  for line in section_text.splitlines():
+    stripped = line.strip()
+    if stripped.startswith(prefix):
+      subheadings.append(stripped[len(prefix):].strip())
+  return subheadings
+
+
 def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
   lines = section_text.splitlines()
   start_index = None
@@ -375,6 +393,29 @@ def validate_enforcement_section(
     )
 
 
+def validate_divergence_section_headings(
+  *,
+  doc_text: str,
+  divergences: list[dict[str, object]],
+  doc_path: pathlib.Path,
+) -> None:
+  actual = [
+    normalize_doc_token(item)
+    for item in extract_section_subheadings(
+      doc_text,
+      REMAINING_DIVERGENCES_HEADING,
+      subheading_prefix="###",
+      doc_path=doc_path,
+    )
+  ]
+  expected = [normalize_doc_token(str(item["area"])) for item in divergences]
+  if actual != expected:
+    fail(
+      f"documentation {doc_path} divergence section heading drift: "
+      f"expected {expected}; found {actual}"
+    )
+
+
 def validate_workflow(
   *,
   workflow_text: str,
@@ -509,6 +550,11 @@ def main() -> int:
   validate_why_pinned(
     doc_text=doc_text,
     why_pinned=why_pinned,
+    doc_path=args.doc,
+  )
+  validate_divergence_section_headings(
+    doc_text=doc_text,
+    divergences=divergences,
     doc_path=args.doc,
   )
   validate_enforcement_section(doc_text=doc_text, doc_path=args.doc)
