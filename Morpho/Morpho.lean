@@ -354,6 +354,40 @@ theorem setAuthorizationWithSig_success_iff (s s' : MorphoState) (auth : Authori
     have hSig' : ¬ ¬ signatureValid := by simpa using hSig
     simp [hDeadline', hNonce', hSig']
 
+theorem setAuthorizationWithSig_none_iff (s : MorphoState) (auth : Authorization)
+    (signatureValid : Bool) :
+    setAuthorizationWithSig s auth signatureValid = none ↔
+      auth.deadline.val < s.blockTimestamp.val ∨
+      auth.nonce ≠ s.nonce auth.authorizer ∨
+      signatureValid = false := by
+  constructor
+  · intro h
+    unfold setAuthorizationWithSig at h
+    by_cases hDeadline : s.blockTimestamp.val > auth.deadline.val
+    · exact Or.inl hDeadline
+    · by_cases hNonce : auth.nonce != s.nonce auth.authorizer
+      · exact Or.inr <| Or.inl (by simpa using hNonce)
+      · by_cases hSig : ¬ signatureValid
+        · exact Or.inr <| Or.inr (by simpa using hSig)
+        · simp [hDeadline, hNonce, hSig] at h
+  · intro h
+    rcases h with hDeadline | hNonce | hSig
+    · unfold setAuthorizationWithSig
+      have hDeadline' : s.blockTimestamp.val > auth.deadline.val := hDeadline
+      simp [hDeadline']
+    · unfold setAuthorizationWithSig
+      by_cases hDeadline' : s.blockTimestamp.val > auth.deadline.val
+      · simp [hDeadline']
+      · have hNonce' : auth.nonce != s.nonce auth.authorizer := by simpa using hNonce
+        simp [hDeadline', hNonce']
+    · unfold setAuthorizationWithSig
+      by_cases hDeadline' : s.blockTimestamp.val > auth.deadline.val
+      · simp [hDeadline']
+      · by_cases hNonce' : auth.nonce != s.nonce auth.authorizer
+        · simp [hDeadline', hNonce']
+        · have hSig' : ¬ signatureValid := by simpa using hSig
+          simp [hDeadline', hNonce', hSig']
+
 /-! ## Core operations -/
 
 /-- Supply assets to a market. Matches `supply` (Morpho.sol:169).

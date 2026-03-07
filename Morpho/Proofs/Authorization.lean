@@ -180,20 +180,13 @@ theorem liquidate_requires_unhealthy (s : MorphoState) (id : Id)
 theorem sig_rejects_expired_deadline (s : MorphoState) (auth : Authorization) (sig : Bool)
     (h_expired : s.blockTimestamp.val > auth.deadline.val) :
     Morpho.setAuthorizationWithSig s auth sig = none := by
-  unfold Morpho.setAuthorizationWithSig
-  simp
-  intro h_le
-  omega
+  exact (Morpho.setAuthorizationWithSig_none_iff s auth sig).2 <| Or.inl h_expired
 
 /-- setAuthorizationWithSig rejects wrong nonces. -/
 theorem sig_rejects_wrong_nonce (s : MorphoState) (auth : Authorization) (sig : Bool)
     (h_nonce : auth.nonce ≠ s.nonce auth.authorizer) :
     Morpho.setAuthorizationWithSig s auth sig = none := by
-  unfold Morpho.setAuthorizationWithSig
-  simp
-  intro _
-  intro h_eq
-  exact absurd h_eq h_nonce
+  exact (Morpho.setAuthorizationWithSig_none_iff s auth sig).2 <| Or.inr <| Or.inl h_nonce
 
 /-- Successful setAuthorizationWithSig increments the authorizer's nonce. -/
 theorem sig_increments_nonce (s : MorphoState) (auth : Authorization) (sig : Bool)
