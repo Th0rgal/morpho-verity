@@ -44,26 +44,134 @@ def normalize_text(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
 
+VALIDATES_SECTION_HEADER = "## What this validates"
+SUMMARY_SECTION_HEADER = "/-! ## Summary"
+NAMESPACE_HEADER = "namespace Morpho.Proofs.SemanticBridgeInstantiation"
+CLOSING_DOCBLOCK_PATTERN = r"(?m)^\s*-/\s*$"
+VALIDATES_SECTION_PATTERN = r"(?m)^\s*## What this validates\s*$"
+SUMMARY_SECTION_PATTERN = r"(?m)^\s*/-!\s*## Summary\s*$"
+NAMESPACE_PATTERN = r"(?m)^\s*namespace Morpho\.Proofs\.SemanticBridgeInstantiation\s*$"
+
+
+def require_unique_match(
+  *,
+  text: str,
+  pattern: str,
+  missing_error: str,
+  duplicate_error: str,
+) -> re.Match[str]:
+  matches = list(re.finditer(pattern, text))
+  if not matches:
+    raise SemanticBridgeInstantiationStatusError(missing_error)
+  if len(matches) > 1:
+    raise SemanticBridgeInstantiationStatusError(duplicate_error)
+  return matches[0]
+
+
+def extract_section(
+  *,
+  text: str,
+  start_pattern: str,
+  start_label: str,
+  missing_error: str,
+  empty_error: str,
+  missing_end_error: str,
+  end_marker: str | None = None,
+  end_pattern: str | None = None,
+) -> str:
+  start_match = require_unique_match(
+    text=text,
+    pattern=start_pattern,
+    missing_error=missing_error,
+    duplicate_error=f"SemanticBridgeInstantiation.lean status drift: multiple `{start_label}` section markers",
+  )
+
+  after_start = text[start_match.end() :]
+
+  if end_marker is not None:
+    try:
+      section, _ = after_start.split(end_marker, 1)
+    except ValueError as exc:
+      raise SemanticBridgeInstantiationStatusError(missing_end_error) from exc
+  elif end_pattern is not None:
+    match = re.search(end_pattern, after_start)
+    if match is None:
+      raise SemanticBridgeInstantiationStatusError(missing_end_error)
+    section = after_start[: match.start()]
+  else:
+    section = after_start
+
+  if not section.strip():
+    raise SemanticBridgeInstantiationStatusError(empty_error)
+  return section
+
+
+def extract_validates_section(text: str) -> str:
+  require_unique_match(
+    text=text,
+    pattern=NAMESPACE_PATTERN,
+    missing_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section",
+    duplicate_error="SemanticBridgeInstantiation.lean status drift: multiple namespace boundaries for `## What this validates` section",
+  )
+  section = extract_section(
+    text=text,
+    start_pattern=VALIDATES_SECTION_PATTERN,
+    start_label=VALIDATES_SECTION_HEADER,
+    end_pattern=NAMESPACE_PATTERN,
+    missing_error="SemanticBridgeInstantiation.lean status drift: missing `## What this validates` section",
+    empty_error="SemanticBridgeInstantiation.lean status drift: empty `## What this validates` section",
+    missing_end_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section",
+  )
+  if not section.strip().endswith("-/"):
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: missing closing `-/` for `## What this validates` section"
+    )
+  return section
+
+
+def extract_summary_section(text: str) -> str:
+  namespace_match = require_unique_match(
+    text=text,
+    pattern=NAMESPACE_PATTERN,
+    missing_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary before `## Summary` section",
+    duplicate_error="SemanticBridgeInstantiation.lean status drift: multiple namespace boundaries before `## Summary` section",
+  )
+  return extract_section(
+    text=text[namespace_match.end() :],
+    start_pattern=SUMMARY_SECTION_PATTERN,
+    start_label=SUMMARY_SECTION_HEADER,
+    end_pattern=CLOSING_DOCBLOCK_PATTERN,
+    missing_error="SemanticBridgeInstantiation.lean status drift: missing `## Summary` section",
+    empty_error="SemanticBridgeInstantiation.lean status drift: empty `## Summary` section",
+    missing_end_error="SemanticBridgeInstantiation.lean status drift: missing closing `-/` for `## Summary` section",
+  )
+
+
 def validate_status(text: str) -> None:
-  normalized_text = normalize_text(text)
-  for expected in (
-    EXPECTED_INTRO_STATUS,
-    EXPECTED_SUMMARY_HEADING,
-    EXPECTED_SUMMARY_STATUS,
-    EXPECTED_SUMMARY_COMPOSITION,
-  ):
-    if normalize_text(expected) not in normalized_text:
+  validates_text = normalize_text(extract_validates_section(text))
+  summary_text = normalize_text(extract_summary_section(text))
+
+  expected_sections = (
+    (validates_text, EXPECTED_INTRO_STATUS),
+    (summary_text, EXPECTED_SUMMARY_HEADING),
+    (summary_text, EXPECTED_SUMMARY_STATUS),
+    (summary_text, EXPECTED_SUMMARY_COMPOSITION),
+  )
+  for section_text, expected in expected_sections:
+    if normalize_text(expected) not in section_text:
       raise SemanticBridgeInstantiationStatusError(
         "SemanticBridgeInstantiation.lean status drift: missing expected text "
         f"`{expected}`"
       )
 
-  stale = [snippet for snippet in FORBIDDEN_SNIPPETS if snippet in text]
+  combined_text = validates_text + " " + summary_text
+  stale = [snippet for snippet in FORBIDDEN_SNIPPETS if normalize_text(snippet) in combined_text]
   if stale:
     raise SemanticBridgeInstantiationStatusError(
       "SemanticBridgeInstantiation.lean still contains stale future-tense bridge text: "
       + "; ".join(stale)
     )
+
 
 
 def main() -> int:
