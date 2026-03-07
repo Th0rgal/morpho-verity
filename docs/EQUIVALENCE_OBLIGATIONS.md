@@ -63,6 +63,9 @@ frontend blocker surface too: `Calls.withReturn`, internal `call`,
 `Callbacks.callback`, `ERC20.safeTransfer`/`ERC20.safeTransferFrom`,
 `structMember2` read/write, and direct `mstore`/`mload` all still fail for the current
 `supplyCollateral`, `withdrawCollateral`, and `liquidate` spec shapes.
+`scripts/check_macro_blocker_regression_coverage.py` now fail-closes the remaining gap
+between that compile-checked suite and the open issue tracker by requiring every current
+`#123`/`#124` `macroSurfaceBlockers` family to have at least one named regression case.
 `scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
 from per-obligation `issue` tags in the obligation tracker so the remaining open migration issues
 cannot drift from the actual per-operation blocker inventory.

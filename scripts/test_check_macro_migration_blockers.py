@@ -22,6 +22,327 @@ from check_macro_migration_blockers import (  # noqa: E402
   validate_against_baseline,
 )
 
+CORE_FLOW_FRONTEND_REGRESSION_CASES = (
+  {
+    "name": "calls_with_return",
+    "blocker": "externalWithReturn",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (oracle : Address) : Unit := do
+    let _ <- Calls.withReturn oracle 0 []
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+  {
+    "name": "internal_call",
+    "blocker": "internalCall",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f () : Unit := do
+    let _ <- call g()
+    pure ()
+
+  function g () : Unit := do
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+  {
+    "name": "callback",
+    "blocker": "callbacks",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (onBehalf : Address, data : Bytes) : Unit := do
+    Callbacks.callback onBehalf 0 [] data
+""",
+    "expected": "unsupported statement in do block",
+  },
+  {
+    "name": "erc20_transfer",
+    "blocker": "erc20",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransfer token receiver amount
+""",
+    "expected": "unsupported statement in do block",
+  },
+  {
+    "name": "erc20_transfer_from",
+    "blocker": "erc20",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransferFrom token sender receiver amount
+""",
+    "expected": "unsupported statement in do block",
+  },
+  {
+    "name": "struct_member2_read",
+    "blocker": "structMember2",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address) : Unit := do
+    let shares := position[id][user]._0
+    let _ := shares
+    pure ()
+""",
+    "expected": "unsupported expression in verity_contract body",
+  },
+  {
+    "name": "struct_member2_write",
+    "blocker": "structMember2",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address, x : Uint256) : Unit := do
+    position[id][user]._0 := x
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+  {
+    "name": "memory_ops",
+    "blocker": "memoryOps",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (x : Uint256) : Unit := do
+    mstore 0 x
+    let y := mload 0
+    let _ := y
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+)
+
+COLLATERAL_FRONTEND_REGRESSION_CASES = (
+  {
+    "name": "calls_with_return",
+    "blocker": "externalWithReturn",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (oracle : Address) : Unit := do
+    let _ <- Calls.withReturn oracle 0 []
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+  {
+    "name": "internal_call",
+    "blocker": "internalCall",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f () : Unit := do
+    let _ <- call g()
+    pure ()
+
+  function g () : Unit := do
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+  {
+    "name": "callback",
+    "blocker": "callbacks",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (onBehalf : Address, data : Bytes) : Unit := do
+    Callbacks.callback onBehalf 0 [] data
+""",
+    "expected": "unsupported statement in do block",
+  },
+  {
+    "name": "erc20_transfer",
+    "blocker": "erc20",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransfer token receiver amount
+""",
+    "expected": "unsupported statement in do block",
+  },
+  {
+    "name": "erc20_transfer_from",
+    "blocker": "erc20",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransferFrom token sender receiver amount
+""",
+    "expected": "unsupported statement in do block",
+  },
+  {
+    "name": "struct_member2_read",
+    "blocker": "structMember2",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address) : Unit := do
+    let collateral := position[id][user]._1
+    let _ := collateral
+    pure ()
+""",
+    "expected": "unsupported expression in verity_contract body",
+  },
+  {
+    "name": "struct_member2_write",
+    "blocker": "structMember2",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address, x : Uint256) : Unit := do
+    position[id][user]._1 := x
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+  {
+    "name": "memory_ops",
+    "blocker": "memoryOps",
+    "source": """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (x : Uint256) : Unit := do
+    mstore 0 x
+    let y := mload 0
+    let _ := y
+    pure ()
+""",
+    "expected": "unsupported do element",
+  },
+)
+
+ISSUE_FRONTEND_REGRESSION_CASES = {
+  123: CORE_FLOW_FRONTEND_REGRESSION_CASES,
+  124: COLLATERAL_FRONTEND_REGRESSION_CASES,
+}
+
 
 class ParseUsageTests(unittest.TestCase):
   def test_extracts_stmt_and_expr_counts(self) -> None:
@@ -282,321 +603,21 @@ verity_contract Tmp where
     if shutil.which("lake") is None:
       self.skipTest("lake is not available in this test environment")
 
-    cases = [
-      (
-        "calls_with_return",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (oracle : Address) : Unit := do
-    let _ <- Calls.withReturn oracle 0 []
-    pure ()
-""",
-        "unsupported do element",
-      ),
-      (
-        "internal_call",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f () : Unit := do
-    let _ <- call g()
-    pure ()
-
-  function g () : Unit := do
-    pure ()
-""",
-        "unsupported do element",
-      ),
-      (
-        "callback",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (onBehalf : Address, data : Bytes) : Unit := do
-    Callbacks.callback onBehalf 0 [] data
-""",
-        "unsupported statement in do block",
-      ),
-      (
-        "erc20_transfer",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
-    ERC20.safeTransfer token receiver amount
-""",
-        "unsupported statement in do block",
-      ),
-      (
-        "erc20_transfer_from",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
-    ERC20.safeTransferFrom token sender receiver amount
-""",
-        "unsupported statement in do block",
-      ),
-      (
-        "struct_member2_read",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    position : Uint256 := slot 0
-
-  function f (id : Uint256, user : Address) : Unit := do
-    let shares := position[id][user]._0
-    let _ := shares
-    pure ()
-""",
-        "unsupported expression in verity_contract body",
-      ),
-      (
-        "struct_member2_write",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    position : Uint256 := slot 0
-
-  function f (id : Uint256, user : Address, x : Uint256) : Unit := do
-    position[id][user]._0 := x
-    pure ()
-""",
-        "unsupported do element",
-      ),
-      (
-        "memory_ops",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (x : Uint256) : Unit := do
-    mstore 0 x
-    let y := mload 0
-    let _ := y
-    pure ()
-""",
-        "unsupported do element",
-      ),
-    ]
-
-    for name, source, expected in cases:
-      with self.subTest(name=name):
-        proc = self.compile_contract(source)
+    for case in CORE_FLOW_FRONTEND_REGRESSION_CASES:
+      with self.subTest(name=case["name"]):
+        proc = self.compile_contract(case["source"])
         self.assertNotEqual(proc.returncode, 0)
-        self.assertIn(expected, proc.stdout + proc.stderr)
+        self.assertIn(case["expected"], proc.stdout + proc.stderr)
 
   def test_collateral_liquidation_frontend_blockers_still_fail_at_current_pin(self) -> None:
     if shutil.which("lake") is None:
       self.skipTest("lake is not available in this test environment")
 
-    cases = [
-      (
-        "calls_with_return",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (oracle : Address) : Unit := do
-    let _ <- Calls.withReturn oracle 0 []
-    pure ()
-""",
-        "unsupported do element",
-      ),
-      (
-        "internal_call",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f () : Unit := do
-    let _ <- call g()
-    pure ()
-
-  function g () : Unit := do
-    pure ()
-""",
-        "unsupported do element",
-      ),
-      (
-        "callback",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (onBehalf : Address, data : Bytes) : Unit := do
-    Callbacks.callback onBehalf 0 [] data
-""",
-        "unsupported statement in do block",
-      ),
-      (
-        "erc20_transfer",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
-    ERC20.safeTransfer token receiver amount
-""",
-        "unsupported statement in do block",
-      ),
-      (
-        "erc20_transfer_from",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
-    ERC20.safeTransferFrom token sender receiver amount
-""",
-        "unsupported statement in do block",
-      ),
-      (
-        "struct_member2_read",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    position : Uint256 := slot 0
-
-  function f (id : Uint256, user : Address) : Unit := do
-    let collateral := position[id][user]._1
-    let _ := collateral
-    pure ()
-""",
-        "unsupported expression in verity_contract body",
-      ),
-      (
-        "struct_member2_write",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    position : Uint256 := slot 0
-
-  function f (id : Uint256, user : Address, x : Uint256) : Unit := do
-    position[id][user]._1 := x
-    pure ()
-""",
-        "unsupported do element",
-      ),
-      (
-        "memory_ops",
-        """\
-import Verity.Core
-import Verity.Macro
-
-open Verity
-
-verity_contract Tmp where
-  storage
-    dummy : Uint256 := slot 0
-
-  function f (x : Uint256) : Unit := do
-    mstore 0 x
-    let y := mload 0
-    let _ := y
-    pure ()
-""",
-        "unsupported do element",
-      ),
-    ]
-
-    for name, source, expected in cases:
-      with self.subTest(name=name):
-        proc = self.compile_contract(source)
+    for case in COLLATERAL_FRONTEND_REGRESSION_CASES:
+      with self.subTest(name=case["name"]):
+        proc = self.compile_contract(case["source"])
         self.assertNotEqual(proc.returncode, 0)
-        self.assertIn(expected, proc.stdout + proc.stderr)
+        self.assertIn(case["expected"], proc.stdout + proc.stderr)
 
 
 if __name__ == "__main__":
