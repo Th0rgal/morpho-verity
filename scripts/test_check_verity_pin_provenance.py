@@ -204,6 +204,21 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         doc_path=pathlib.Path("docs/VERITY_PIN.md"),
       )
 
+  def test_validate_enforcement_section_accepts_crlf_heading_lines(self) -> None:
+    validate_enforcement_section(
+      doc_text="\r\n".join([
+        "# Verity Pin",
+        "",
+        "## Enforcement",
+        "",
+        "The machine-readable source of truth is",
+        "`config/verity-pin-provenance.json`. CI checks that it stays in sync with",
+        "`lakefile.lean` and `lake-manifest.json` via",
+        "`scripts/check_verity_pin_provenance.py`.",
+      ]),
+      doc_path=pathlib.Path("docs/VERITY_PIN.md"),
+    )
+
   def test_validate_divergence_section_headings_passes(self) -> None:
     validate_divergence_section_headings(
       doc_text="\n".join([
@@ -218,6 +233,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         "### Repo-local state encoding wrappers",
         "",
         "Summary.",
+        "",
+        "## Enforcement",
       ]),
       divergences=[
         {"area": "Local generated-contract boundary"},
@@ -241,6 +258,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           "### Stale extra divergence",
           "",
           "Summary.",
+          "",
+          "## Enforcement",
         ]),
         divergences=[
           {"area": "Local generated-contract boundary"},
@@ -1747,5 +1766,245 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
 
         Relevant files:
         - `Morpho/Compiler/Generated.lean`
+        """,
+      )
+
+  def test_rejects_prefixed_fake_why_section_masking_real_drift(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Current deterministic base.",
+              "blockers": ["internal calls"],
+              "issueClusters": ["#123"],
+              "files": ["scripts/check_macro_migration_blockers.py"]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        ## Why this pin
+
+        Current deterministic base.
+
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
+        Drifted why-pinned text.
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Upstream macro/frontend gaps still block operation migration
+
+        Current deterministic base.
+
+        Current blocker families at this pin:
+        - internal calls
+
+        Tracked migration issue clusters:
+        - `#123`
+
+        Relevant files:
+        - `scripts/check_macro_migration_blockers.py`
+
+        ## Enforcement
+
+        The machine-readable source of truth is
+        `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+        `lakefile.lean` and `lake-manifest.json` via
+        `scripts/check_verity_pin_provenance.py`.
+        """,
+      )
+
+  def test_rejects_prefixed_fake_enforcement_section_masking_real_drift(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Current deterministic base.",
+              "blockers": ["internal calls"],
+              "issueClusters": ["#123"],
+              "files": ["scripts/check_macro_migration_blockers.py"]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        ## Enforcement
+
+        The machine-readable source of truth is
+        `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+        `lakefile.lean` and `lake-manifest.json` via
+        `scripts/check_verity_pin_provenance.py`.
+
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
+        Current deterministic base.
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Upstream macro/frontend gaps still block operation migration
+
+        Current deterministic base.
+
+        Current blocker families at this pin:
+        - internal calls
+
+        Tracked migration issue clusters:
+        - `#123`
+
+        Relevant files:
+        - `scripts/check_macro_migration_blockers.py`
+
+        ## Enforcement
+
+        Drifted enforcement text.
+        """,
+      )
+
+  def test_rejects_prefixed_fake_divergence_subsection_masking_real_drift(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Current deterministic base.",
+              "blockers": ["internal calls"],
+              "issueClusters": ["#123"],
+              "files": ["scripts/check_macro_migration_blockers.py"]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        ### Upstream macro/frontend gaps still block operation migration
+
+        Current deterministic base.
+
+        Current blocker families at this pin:
+        - internal calls
+
+        Tracked migration issue clusters:
+        - `#123`
+
+        Relevant files:
+        - `scripts/check_macro_migration_blockers.py`
+
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
+        Current deterministic base.
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Upstream macro/frontend gaps still block operation migration
+
+        Drifted macro divergence summary.
+
+        Current blocker families at this pin:
+        - internal calls
+
+        Tracked migration issue clusters:
+        - `#123`
+
+        Relevant files:
+        - `scripts/check_macro_migration_blockers.py`
+
+        ## Enforcement
+
+        The machine-readable source of truth is
+        `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+        `lakefile.lean` and `lake-manifest.json` via
+        `scripts/check_verity_pin_provenance.py`.
         """,
       )

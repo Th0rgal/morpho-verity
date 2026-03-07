@@ -144,16 +144,51 @@ def normalize_doc_token(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
 
+def require_unique_heading_line(doc_text: str, heading: str, doc_path: pathlib.Path) -> re.Match[str]:
+  matches = list(re.finditer(rf"(?m)^{re.escape(heading)}\r?$", doc_text))
+  if not matches:
+    fail(f"documentation {doc_path} missing expected heading: {heading}")
+  if len(matches) > 1:
+    fail(f"documentation {doc_path} has duplicate heading: {heading}")
+  return matches[0]
+
+
+def extract_heading_section(
+  doc_text: str,
+  heading: str,
+  *,
+  doc_path: pathlib.Path,
+  next_heading: str | None = None,
+) -> str:
+  start_match = require_unique_heading_line(doc_text, heading, doc_path)
+  if next_heading is None:
+    section_text = doc_text[start_match.end() :]
+  else:
+    end_match = require_unique_heading_line(doc_text, next_heading, doc_path)
+    if end_match.start() <= start_match.end():
+      fail(
+        f"documentation {doc_path} has invalid heading boundary ordering: "
+        f"{heading} before {next_heading}"
+      )
+    section_text = doc_text[start_match.end() : end_match.start()]
+  return section_text
+
+
 def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
   marker = f"### {heading}"
-  lines = doc_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == marker:
-      start_index = index + 1
-      break
-  if start_index is None:
+  divergence_section = extract_heading_section(
+    doc_text,
+    REMAINING_DIVERGENCES_HEADING,
+    doc_path=doc_path,
+    next_heading=ENFORCEMENT_HEADING,
+  )
+  lines = divergence_section.splitlines()
+  matches = [index for index, line in enumerate(lines) if line.strip() == marker]
+  if not matches:
     fail(f"documentation {doc_path} missing expected section heading: {marker}")
+  if len(matches) > 1:
+    fail(f"documentation {doc_path} has duplicate section heading: {marker}")
+  start_index = matches[0] + 1
 
   section_lines: list[str] = []
   for line in lines[start_index:]:
@@ -165,22 +200,20 @@ def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path
 
 
 def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib.Path) -> list[str]:
-  lines = doc_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == "# Verity Pin":
-      start_index = index + 1
-      break
-  if start_index is None:
-    fail(f"documentation {doc_path} missing expected heading: # Verity Pin")
+  start_match = require_unique_heading_line(doc_text, "# Verity Pin", doc_path)
+  end_match = require_unique_heading_line(doc_text, stop_heading, doc_path)
+  if end_match.start() <= start_match.end():
+    fail(
+      f"documentation {doc_path} has invalid heading boundary ordering: "
+      f"# Verity Pin before {stop_heading}"
+    )
 
+  lines = doc_text[start_match.end() : end_match.start()].splitlines()
   bullets: list[str] = []
-  for line in lines[start_index:]:
+  for line in lines:
     stripped = line.strip()
     if not stripped:
       continue
-    if stripped == stop_heading:
-      break
     if not bullets and not stripped.startswith("- "):
       if normalize_doc_token(stripped) != normalize_doc_token(ALLOWED_METADATA_PREAMBLE) and ":" in stripped:
         fail(
@@ -196,23 +229,16 @@ def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib
 
 
 def extract_section_body(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
-  marker = heading
-  lines = doc_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == marker:
-      start_index = index + 1
-      break
-  if start_index is None:
-    fail(f"documentation {doc_path} missing expected heading: {marker}")
-
-  section_lines: list[str] = []
-  for line in lines[start_index:]:
-    stripped = line.strip()
-    if stripped.startswith("## "):
-      break
-    section_lines.append(line)
-  return "\n".join(section_lines)
+  next_heading = {
+    WHY_THIS_PIN_HEADING: REMAINING_DIVERGENCES_HEADING,
+    REMAINING_DIVERGENCES_HEADING: ENFORCEMENT_HEADING,
+  }.get(heading)
+  return extract_heading_section(
+    doc_text,
+    heading,
+    doc_path=doc_path,
+    next_heading=next_heading,
+  )
 
 
 def extract_section_subheadings(
