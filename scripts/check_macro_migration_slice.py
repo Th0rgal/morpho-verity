@@ -213,14 +213,6 @@ def validate_baseline_metadata(
     )
 
 
-def validate_blocked_against_baseline(
-  spec_signatures: set[str],
-  migrated_signatures: set[str],
-  baseline: dict[str, Any],
-) -> dict[str, str]:
-  blocked = validate_blocked_reasons(baseline.get("expectedBlocked"), context="baseline")
-
-
 def validate_blocked_reasons(blocked: Any, *, context: str) -> dict[str, str]:
   if not isinstance(blocked, dict):
     raise MigrationSliceError(f"{context} expectedBlocked must be a map of signature -> reason")
