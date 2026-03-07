@@ -19,6 +19,7 @@ from check_release_criteria_status import (  # noqa: E402
   EXPECTED_WORKFLOW_STEPS,
   FORBIDDEN_NOT_YET_ENFORCED_ITEMS,
   ReleaseCriteriaStatusError,
+  extract_section,
   filter_tracked_items,
   main,
   parse_numbered_items,
@@ -80,6 +81,14 @@ def make_workflow(*, steps: list[str] | None = None) -> str:
 
 
 class ReleaseCriteriaStatusTests(unittest.TestCase):
+  def test_extract_section(self) -> None:
+    section = extract_section(
+      make_doc(),
+      "Partially enforced:",
+      "Not yet enforced:",
+    )
+    self.assertIn(EXPECTED_PARTIALLY_ENFORCED_ITEMS[0], section)
+
   def test_parse_numbered_items(self) -> None:
     self.assertEqual(parse_numbered_items("1. alpha\n2. beta\n"), ["alpha", "beta"])
 
@@ -185,6 +194,27 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
           ]
         )
       )
+
+  def test_validate_doc_status_rejects_drift_hidden_behind_inline_section_markers(self) -> None:
+    drifted_doc = make_doc(partially_enforced_items=EXPECTED_PARTIALLY_ENFORCED_ITEMS[:-1])
+    fake_section = "\n".join([
+      "# Notes",
+      "",
+      "Historical notes about Partially enforced:",
+      *[
+        f"{index}. {item}"
+        for index, item in enumerate(EXPECTED_PARTIALLY_ENFORCED_ITEMS, start=1)
+      ],
+      "",
+      "Historical notes about Not yet enforced:",
+      "1. strict `yul-identity-check` (zero structural AST mismatch for supported fragment).",
+      "",
+    ])
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "missing expected partially-enforced status items",
+    ):
+      validate_doc_status(f"{fake_section}{drifted_doc}")
 
   def test_validate_workflow_passes(self) -> None:
     validate_workflow(make_workflow())

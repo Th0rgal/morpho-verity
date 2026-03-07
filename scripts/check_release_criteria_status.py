@@ -69,19 +69,34 @@ class ReleaseCriteriaStatusError(RuntimeError):
   pass
 
 
+def require_unique_line(text: str, line: str, description: str) -> re.Match[str]:
+  matches = list(re.finditer(rf"(?m)^{re.escape(line)}$", text))
+  if not matches:
+    raise ReleaseCriteriaStatusError(f"missing `{description}` in RELEASE_CRITERIA.md")
+  if len(matches) > 1:
+    raise ReleaseCriteriaStatusError(f"found multiple `{description}` lines in RELEASE_CRITERIA.md")
+  return matches[0]
+
+
 def extract_section(text: str, heading: str, next_heading: str) -> str:
   try:
-    start = text.index(heading)
-  except ValueError as exc:
+    start_match = require_unique_line(text, heading, heading)
+  except ReleaseCriteriaStatusError as exc:
     raise ReleaseCriteriaStatusError(f"missing `{heading}` section in RELEASE_CRITERIA.md") from exc
 
   try:
-    end = text.index(next_heading, start)
-  except ValueError as exc:
+    end_match = require_unique_line(text, next_heading, next_heading)
+  except ReleaseCriteriaStatusError as exc:
     raise ReleaseCriteriaStatusError(
       f"missing `{next_heading}` section after `{heading}` in RELEASE_CRITERIA.md"
     ) from exc
 
+  start = start_match.end() + 1
+  end = end_match.start()
+  if end <= start:
+    raise ReleaseCriteriaStatusError(
+      f"`{heading}` has invalid boundary ordering in RELEASE_CRITERIA.md"
+    )
   return text[start:end]
 
 
