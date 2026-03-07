@@ -20,7 +20,10 @@ from check_semantic_bridge_instantiation_status import (  # noqa: E402
   EXPECTED_SUMMARY_HEADING,
   EXPECTED_SUMMARY_STATUS,
   FORBIDDEN_SNIPPETS,
+  NAMESPACE_HEADER,
   SemanticBridgeInstantiationStatusError,
+  extract_summary_section,
+  extract_validates_section,
   main,
   normalize_text,
   validate_status,
@@ -32,6 +35,8 @@ def make_text() -> str:
     f"""\
     /-!
     # Semantic Bridge Instantiation
+
+    ## What this validates
 
     {EXPECTED_INTRO_STATUS}
     -/
@@ -57,6 +62,26 @@ def make_text() -> str:
 class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
   def test_normalize_text_collapses_whitespace(self) -> None:
     self.assertEqual(normalize_text("alpha\n\n beta\tgamma"), "alpha beta gamma")
+
+  def test_extract_validates_section_returns_target_block(self) -> None:
+    self.assertIn(EXPECTED_INTRO_STATUS, extract_validates_section(make_text()))
+
+  def test_extract_summary_section_returns_target_block(self) -> None:
+    self.assertIn(EXPECTED_SUMMARY_COMPOSITION, extract_summary_section(make_text()))
+
+  def test_extract_validates_section_rejects_missing_header(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing `## What this validates` section",
+    ):
+      extract_validates_section(make_text().replace("## What this validates", "## Validation"))
+
+  def test_extract_summary_section_rejects_missing_header(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing `## Summary` section",
+    ):
+      extract_summary_section(make_text().replace("/-! ## Summary", "/-! ## Closing"))
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
@@ -93,7 +118,42 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       SemanticBridgeInstantiationStatusError,
       "stale future-tense bridge text",
     ):
-      validate_status(make_text() + "\n" + FORBIDDEN_SNIPPETS[0])
+      validate_status(
+        make_text().replace(
+          EXPECTED_SUMMARY_STATUS,
+          EXPECTED_SUMMARY_STATUS + "\n\n" + FORBIDDEN_SNIPPETS[0],
+          1,
+        )
+      )
+
+  def test_validate_status_rejects_intro_drift_hidden_by_duplicate_elsewhere(self) -> None:
+    stale_text = make_text().replace(EXPECTED_INTRO_STATUS, "old intro", 1)
+    masked_text = stale_text + "\n" + EXPECTED_INTRO_STATUS
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing expected text",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_summary_drift_hidden_by_duplicate_elsewhere(self) -> None:
+    stale_text = make_text().replace(EXPECTED_SUMMARY_COMPOSITION, "old summary", 1)
+    masked_text = stale_text.replace(
+      NAMESPACE_HEADER,
+      NAMESPACE_HEADER + "\n\n" + EXPECTED_SUMMARY_COMPOSITION,
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing expected text",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_missing_intro_docblock_boundary(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing closing `-/` for `## What this validates` section",
+    ):
+      validate_status(make_text().replace("-/", "", 1))
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
