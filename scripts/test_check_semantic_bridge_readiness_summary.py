@@ -304,7 +304,22 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
     )
     with self.assertRaisesRegex(
       SemanticBridgeReadinessSummaryError,
-      "intro section is missing its closing `-/`",
+      "intro section must begin with a closed module docblock",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_unclosed_module_docblock_hidden_by_earlier_docblock(self) -> None:
+    readiness_text = (
+      "/-! Earlier closed docblock. -/\n\n"
+      + make_readiness_text().replace(
+        "    -/\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+        "\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+        1,
+      )
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "intro section contains multiple module docblocks",
     ):
       validate_summary(readiness_text, derive_summary(make_config()))
 

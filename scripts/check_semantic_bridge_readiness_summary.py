@@ -31,7 +31,7 @@ NAMESPACE_PATTERN = re.compile(
 END_NAMESPACE_PATTERN = re.compile(
   r"(?m)^\s*end\s+Morpho\.Proofs\.SemanticBridgeReadiness\s*$"
 )
-INTRO_DOCBLOCK_PATTERN = re.compile(r"/-!(?P<body>.*?)-/", re.DOTALL)
+INTRO_DOCBLOCK_PATTERN = re.compile(r"\A\s*/-!(?P<body>.*?)-/", re.DOTALL)
 
 
 class SemanticBridgeReadinessSummaryError(RuntimeError):
@@ -137,9 +137,15 @@ def extract_intro_section(text: str) -> str:
   intro = text[: namespace_match.start()]
   if not intro.strip():
     raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness intro section is empty")
-  if INTRO_DOCBLOCK_PATTERN.search(intro) is None:
+  intro_docblock = INTRO_DOCBLOCK_PATTERN.match(intro)
+  if intro_docblock is None:
     raise SemanticBridgeReadinessSummaryError(
-      "SemanticBridgeReadiness intro section is missing its closing `-/`"
+      "SemanticBridgeReadiness intro section must begin with a closed module docblock"
+    )
+  trailing_intro = intro[intro_docblock.end() :]
+  if "/-!" in trailing_intro:
+    raise SemanticBridgeReadinessSummaryError(
+      "SemanticBridgeReadiness intro section contains multiple module docblocks"
     )
   return intro
 
