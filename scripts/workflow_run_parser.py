@@ -156,7 +156,10 @@ def _consume_multiline_quoted_scalar(
   raw: str,
   field_indent: int,
 ) -> tuple[str, int]:
-  if _starts_quoted_yaml_scalar(raw) is None or _is_complete_quoted_yaml_scalar(raw):
+  starts_quoted = _starts_quoted_yaml_scalar(raw)
+  normalized, _ = _strip_yaml_node_properties(raw.strip())
+  property_only_prefix = bool(raw.strip()) and not normalized
+  if (starts_quoted is None and not property_only_prefix) or _is_complete_quoted_yaml_scalar(raw):
     return raw, start_index + 1
 
   parts = [raw.rstrip()]
