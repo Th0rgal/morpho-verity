@@ -15,11 +15,15 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_semantic_bridge_discharge_status import (  # noqa: E402
+  ARCHITECTURE_SECTION_HEADER,
   DISCHARGE_SECTION_HEADER,
+  EXPECTED_ARCHITECTURE_SUMMARY,
   EXPECTED_DISCHARGE_STATUS,
   EXPECTED_FLASHLOAN_ROW,
   FORBIDDEN_SNIPPETS,
+  PROOF_STRATEGY_SECTION_HEADER,
   SemanticBridgeDischargeStatusError,
+  extract_architecture_section,
   extract_discharge_section,
   main,
   normalize_text,
@@ -32,6 +36,12 @@ def make_text() -> str:
     f"""\
     /-!
     # Semantic Bridge Discharge: Link 1 (Wrapper API ↔ EDSL)
+
+    {ARCHITECTURE_SECTION_HEADER}
+
+    {EXPECTED_ARCHITECTURE_SUMMARY}
+
+    {PROOF_STRATEGY_SECTION_HEADER}
 
     {DISCHARGE_SECTION_HEADER}
 
@@ -53,6 +63,36 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
   def test_normalize_text_collapses_whitespace(self) -> None:
     self.assertEqual(normalize_text("alpha\n\n beta\tgamma"), "alpha beta gamma")
 
+  def test_extract_architecture_section_returns_target_block(self) -> None:
+    self.assertIn(EXPECTED_ARCHITECTURE_SUMMARY, extract_architecture_section(make_text()))
+
+  def test_extract_architecture_section_rejects_missing_header(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Architecture` section",
+    ):
+      extract_architecture_section(make_text().replace(ARCHITECTURE_SECTION_HEADER, "## Overview"))
+
+  def test_extract_architecture_section_rejects_missing_boundary(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Proof Strategy` boundary",
+    ):
+      extract_architecture_section(make_text().replace(PROOF_STRATEGY_SECTION_HEADER, "## Strategy", 1))
+
+  def test_extract_architecture_section_rejects_inline_boundary_text(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Proof Strategy` boundary",
+    ):
+      extract_architecture_section(
+        make_text().replace(
+          PROOF_STRATEGY_SECTION_HEADER,
+          "## Strategy\n\nThe roadmap still references `## Proof Strategy` in prose.",
+          1,
+        )
+      )
+
   def test_extract_discharge_section_returns_target_block(self) -> None:
     self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text()))
 
@@ -63,12 +103,25 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
     ):
       extract_discharge_section(make_text().replace(DISCHARGE_SECTION_HEADER, "/-! ## Other"))
 
+  def test_extract_discharge_section_rejects_missing_closing_delimiter(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing closing `-/`",
+    ):
+      extract_discharge_section(make_text().replace("-/\n", "", 1))
+
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
 
   def test_validate_status_accepts_wrapped_status_text(self) -> None:
     validate_status(
       make_text()
+      .replace(
+        "Links 2+3 are already provided upstream for the supported fragment "
+        "(verity#1060 / #1065).",
+        "Links 2+3 are already provided upstream for the supported fragment\n"
+        "(verity#1060 / #1065).",
+      )
       .replace(
         "For the supported fragment, Links 2+3 are already\nprovided upstream",
         "For the supported fragment, Links 2+3 are already\n\nprovided upstream",
@@ -85,6 +138,13 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       "missing expected text",
     ):
       validate_status(make_text().replace(EXPECTED_DISCHARGE_STATUS, "old status"))
+
+  def test_validate_status_rejects_missing_architecture_summary(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing expected text",
+    ):
+      validate_status(make_text().replace(EXPECTED_ARCHITECTURE_SUMMARY, "old architecture"))
 
   def test_validate_status_rejects_missing_flashloan_row(self) -> None:
     with self.assertRaisesRegex(
@@ -119,9 +179,32 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
         )
       )
 
+  def test_validate_status_rejects_stale_architecture_text(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing expected text",
+    ):
+      validate_status(
+        make_text().replace(
+          "Links 2+3 are already provided upstream for the supported fragment "
+          "(verity#1060 / #1065).",
+          "Links 2+3 are provided upstream for the supported fragment "
+          "(verity#1060 / #1065).",
+        )
+      )
+
   def test_validate_status_rejects_drift_hidden_by_duplicate_elsewhere(self) -> None:
     stale_section = make_text().replace(EXPECTED_DISCHARGE_STATUS, "old status")
     masked_text = stale_section + "\n" + EXPECTED_DISCHARGE_STATUS + "\n" + EXPECTED_FLASHLOAN_ROW
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing expected text",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_architecture_drift_hidden_by_duplicate_elsewhere(self) -> None:
+    stale_section = make_text().replace(EXPECTED_ARCHITECTURE_SUMMARY, "old architecture")
+    masked_text = stale_section + "\n" + EXPECTED_ARCHITECTURE_SUMMARY
     with self.assertRaisesRegex(
       SemanticBridgeDischargeStatusError,
       "missing expected text",
