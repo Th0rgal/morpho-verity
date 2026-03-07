@@ -17,6 +17,7 @@ from check_macro_migration_blockers import (  # noqa: E402
   MigrationGateError,
   build_report,
   build_operation_blocker_report,
+  load_obligations,
   parse_constructor_usage,
   validate_operation_blockers,
   validate_against_baseline,
@@ -405,6 +406,24 @@ class BaselineValidationTests(unittest.TestCase):
 
 
 class OperationBlockerTests(unittest.TestCase):
+  def test_load_obligations_rejects_duplicate_operations(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      path = pathlib.Path(tmp) / "semantic-bridge-obligations.json"
+      path.write_text(
+        """\
+{
+  "obligations": [
+    {"operation": "supply"},
+    {"operation": "supply"}
+  ]
+}
+""",
+        encoding="utf-8",
+      )
+
+      with self.assertRaisesRegex(MigrationGateError, "duplicate obligation operation `supply`"):
+        load_obligations(path)
+
   def test_build_operation_blocker_report_for_tracked_ops(self) -> None:
     spec_text = """
 def morphoSpec : CompilationModel := {
@@ -552,6 +571,31 @@ private def liquidateBody : List Stmt := [
     }
     obligations["supply"]["macroSurfaceBlockers"] = ["erc20", "internalCall"]
     with self.assertRaisesRegex(MigrationGateError, "macroSurfaceBlockers drift detected"):
+      validate_operation_blockers(report, obligations)
+
+  def test_validate_operation_blockers_rejects_duplicate_blocker_entries(self) -> None:
+    report = {
+      "borrow": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "liquidate": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "repay": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+      "supply": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+      "supplyCollateral": ["callbacks", "erc20", "memoryOps", "structMember2"],
+      "withdraw": ["erc20", "internalCall", "memoryOps", "structMember2"],
+      "withdrawCollateral": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+    }
+    obligations = {
+      op: {"operation": op, "macroMigrated": False, "macroSurfaceBlockers": blockers}
+      for op, blockers in report.items()
+    }
+    obligations["supply"]["macroSurfaceBlockers"] = [
+      "callbacks",
+      "erc20",
+      "internalCall",
+      "memoryOps",
+      "memoryOps",
+      "structMember2",
+    ]
+    with self.assertRaisesRegex(MigrationGateError, "duplicate entries in `macroSurfaceBlockers`"):
       validate_operation_blockers(report, obligations)
 
 
