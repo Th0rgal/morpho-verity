@@ -338,13 +338,16 @@ class BuildReportTests(unittest.TestCase):
             tmp = pathlib.Path(tmpdir)
             bridge_path = tmp / "external" / "SolidityBridge.lean"
             config_path = tmp / "external" / "semantic-bridge-obligations.json"
+            macro_slice_path = tmp / "external" / "MacroSlice.lean"
             report = build_report(
                 make_config([make_obligation("supplySemEq")]),
                 bridge_path=bridge_path,
                 config_path=config_path,
+                macro_slice_path=macro_slice_path,
             )
         self.assertEqual(report["source"], display_path(bridge_path))
         self.assertEqual(report["config"], display_path(config_path))
+        self.assertEqual(report["macroSlice"], display_path(macro_slice_path))
 
 
 class IoHelperTests(unittest.TestCase):
@@ -479,6 +482,52 @@ class CliFailureTests(unittest.TestCase):
         self.assertIn("semantic bridge obligations check failed:", proc.stderr)
         self.assertIn("failed to write JSON report", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
+
+    def test_json_report_records_cli_input_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(__file__).resolve().parent.parent
+            tmp = pathlib.Path(tmpdir)
+            bridge_path = tmp / "external" / "SolidityBridge.lean"
+            config_path = tmp / "external" / "semantic-bridge-obligations.json"
+            macro_path = tmp / "external" / "MacroSlice.lean"
+            json_out = tmp / "report.json"
+            bridge_path.parent.mkdir(parents=True)
+            bridge_path.write_text(SAMPLE_BRIDGE, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    make_config(
+                        [
+                            make_obligation("supplySemEq", macro_migrated=False),
+                            make_obligation("withdrawSemEq", macro_migrated=False),
+                        ]
+                    )
+                ),
+                encoding="utf-8",
+            )
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "check_semantic_bridge_obligations.py"),
+                    "--bridge",
+                    str(bridge_path),
+                    "--config",
+                    str(config_path),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--json-out",
+                    str(json_out),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=root,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+            self.assertEqual(report["source"], str(bridge_path))
+            self.assertEqual(report["config"], str(config_path))
+            self.assertEqual(report["macroSlice"], str(macro_path))
 
     def test_missing_macro_slice_reports_checker_error_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

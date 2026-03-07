@@ -217,6 +217,7 @@ def build_report(
     *,
     bridge_path: pathlib.Path = BRIDGE_PATH,
     config_path: pathlib.Path = CONFIG_PATH,
+    macro_slice_path: pathlib.Path = MACRO_SLICE_PATH,
 ) -> dict[str, Any]:
     obligations = config["obligations"]
     by_status: dict[str, int] = {}
@@ -230,6 +231,7 @@ def build_report(
     return {
         "source": display_path(bridge_path),
         "config": display_path(config_path),
+        "macroSlice": display_path(macro_slice_path),
         "total": len(obligations),
         "byStatus": dict(sorted(by_status.items())),
         "macroMigrated": migrated,
@@ -270,7 +272,12 @@ def main() -> None:
     config = load_config(args.config)
     validate_config(config, bridge_hypotheses, macro_functions)
 
-    report = build_report(config, bridge_path=args.bridge, config_path=args.config)
+    report = build_report(
+        config,
+        bridge_path=args.bridge,
+        config_path=args.config,
+        macro_slice_path=args.macro_slice,
+    )
 
     if args.json_out:
         write_json_report(args.json_out, report)
