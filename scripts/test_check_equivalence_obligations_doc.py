@@ -74,7 +74,7 @@ def make_config() -> dict:
 
 def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None) -> str:
   summary = derive_summary(make_config()) if summary is None else summary
-  link1_operations = ", ".join(summary["link1_operations"])
+  link1_operations = ", ".join(summary["link1_operations"]) or "none"
   return "\n".join([
     "# Equivalence",
     "",
@@ -100,9 +100,22 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
   def test_parse_operation_list(self) -> None:
     self.assertEqual(parse_operation_list("setOwner, liquidate"), ["setOwner", "liquidate"])
 
+  def test_parse_operation_list_allows_none_sentinel(self) -> None:
+    self.assertEqual(parse_operation_list("none"), [])
+
   def test_validate_status_summary_passes(self) -> None:
     config = make_config()
     validate_status_summary(make_doc([], summary=derive_summary(config)), derive_summary(config))
+
+  def test_validate_status_summary_passes_with_zero_link1_operations(self) -> None:
+    summary = {
+      "link1_count": 0,
+      "total": 3,
+      "link1_operations": [],
+      "macro_migrated_count": 0,
+      "macro_pending_count": 3,
+    }
+    validate_status_summary(make_doc([], summary=summary), summary)
 
   def test_validate_status_summary_rejects_link1_count_drift(self) -> None:
     config = make_config()

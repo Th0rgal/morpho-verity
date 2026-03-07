@@ -62,9 +62,7 @@ def expected_table_lines(clusters: list[dict[str, Any]]) -> list[str]:
 
 def parse_operation_list(raw_ops: str) -> list[str]:
   operations = [item.strip() for item in raw_ops.replace("\n", " ").split(",")]
-  normalized = [item for item in operations if item]
-  if not normalized:
-    raise EquivalenceObligationsDocError("equivalence obligations status operation list is empty")
+  normalized = [item for item in operations if item and item.lower() != "none"]
   if len(normalized) != len(set(normalized)):
     raise EquivalenceObligationsDocError(
       "equivalence obligations status operation list contains duplicate operations"
@@ -89,6 +87,11 @@ def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
 
   actual_operations = parse_operation_list(link1_match.group("ops"))
   expected_operations = list(summary["link1_operations"])
+  if not expected_operations and actual_operations:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations Link 1 operation list drift: expected no operations; found "
+      + ", ".join(actual_operations)
+    )
   if set(actual_operations) != set(expected_operations):
     raise EquivalenceObligationsDocError(
       "equivalence obligations Link 1 operation list drift: expected "
