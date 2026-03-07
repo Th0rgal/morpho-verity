@@ -14,6 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_semantic_bridge_obligations import (  # noqa: E402
     ObligationError,
     build_report,
+    display_path,
     extract_macro_functions,
     extract_sem_eq_definitions,
     load_config,
@@ -332,6 +333,19 @@ class BuildReportTests(unittest.TestCase):
         # Should not raise
         json.dumps(report)
 
+    def test_report_uses_provided_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            bridge_path = tmp / "external" / "SolidityBridge.lean"
+            config_path = tmp / "external" / "semantic-bridge-obligations.json"
+            report = build_report(
+                make_config([make_obligation("supplySemEq")]),
+                bridge_path=bridge_path,
+                config_path=config_path,
+            )
+        self.assertEqual(report["source"], display_path(bridge_path))
+        self.assertEqual(report["config"], display_path(config_path))
+
 
 class IoHelperTests(unittest.TestCase):
     def test_read_text_invalid_utf8_fails_closed(self) -> None:
@@ -464,6 +478,28 @@ class CliFailureTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertIn("semantic bridge obligations check failed:", proc.stderr)
         self.assertIn("failed to write JSON report", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_missing_macro_slice_reports_checker_error_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(__file__).resolve().parent.parent
+            macro_path = pathlib.Path(tmpdir) / "missing" / "MacroSlice.lean"
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "check_semantic_bridge_obligations.py"),
+                    "--macro-slice",
+                    str(macro_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=root,
+            )
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("semantic bridge obligations check failed:", proc.stderr)
+        self.assertIn("failed to read text file", proc.stderr)
+        self.assertIn(str(macro_path), proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
 

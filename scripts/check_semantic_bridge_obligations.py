@@ -44,6 +44,13 @@ class ObligationError(RuntimeError):
     pass
 
 
+def display_path(path: pathlib.Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def read_text(path: pathlib.Path) -> str:
     try:
         with path.open("r", encoding="utf-8") as f:
@@ -205,7 +212,12 @@ def validate_config(
                 )
 
 
-def build_report(config: dict[str, Any]) -> dict[str, Any]:
+def build_report(
+    config: dict[str, Any],
+    *,
+    bridge_path: pathlib.Path = BRIDGE_PATH,
+    config_path: pathlib.Path = CONFIG_PATH,
+) -> dict[str, Any]:
     obligations = config["obligations"]
     by_status: dict[str, int] = {}
     for obl in obligations:
@@ -216,8 +228,8 @@ def build_report(config: dict[str, Any]) -> dict[str, Any]:
     pending_migration = sum(1 for o in obligations if not o.get("macroMigrated"))
 
     return {
-        "source": str(BRIDGE_PATH.relative_to(ROOT)),
-        "config": str(CONFIG_PATH.relative_to(ROOT)),
+        "source": display_path(bridge_path),
+        "config": display_path(config_path),
         "total": len(obligations),
         "byStatus": dict(sorted(by_status.items())),
         "macroMigrated": migrated,
@@ -252,15 +264,13 @@ def main() -> None:
     bridge_text = read_text(args.bridge)
     bridge_hypotheses = extract_sem_eq_definitions(bridge_text)
 
-    macro_functions: dict[str, bool] | None = None
-    if args.macro_slice.exists():
-        macro_text = read_text(args.macro_slice)
-        macro_functions = extract_macro_functions(macro_text)
+    macro_text = read_text(args.macro_slice)
+    macro_functions = extract_macro_functions(macro_text)
 
     config = load_config(args.config)
     validate_config(config, bridge_hypotheses, macro_functions)
 
-    report = build_report(config)
+    report = build_report(config, bridge_path=args.bridge, config_path=args.config)
 
     if args.json_out:
         write_json_report(args.json_out, report)
