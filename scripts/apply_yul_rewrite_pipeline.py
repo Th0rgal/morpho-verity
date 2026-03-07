@@ -276,6 +276,14 @@ def apply_rewrite_pipeline_to_file(
     proof_manifest_path: pathlib.Path | None = DEFAULT_PROOF_MANIFEST,
     json_out: pathlib.Path | None = None,
 ) -> dict[str, Any]:
+  input_path = input_path.resolve()
+  output_path = output_path.resolve()
+  pipeline_manifest_path = pipeline_manifest_path.resolve()
+  if proof_manifest_path is not None:
+    proof_manifest_path = proof_manifest_path.resolve()
+  if json_out is not None:
+    json_out = json_out.resolve()
+
   pipeline_manifest = load_rewrite_pipeline_manifest(pipeline_manifest_path)
   if proof_manifest_path is not None:
     proof_manifest = load_rewrite_proof_manifest(proof_manifest_path)
@@ -286,12 +294,12 @@ def apply_rewrite_pipeline_to_file(
   write_text(output_path, rewritten_text)
 
   full_report = {
-    "pipelineManifest": display_path(pipeline_manifest_path),
+    "pipelineManifestPath": display_path(pipeline_manifest_path),
     "pipelineManifestSha256": sha256_file(pipeline_manifest_path),
-    "proofManifest": display_path(proof_manifest_path) if proof_manifest_path is not None else None,
+    "proofManifestPath": display_path(proof_manifest_path) if proof_manifest_path is not None else None,
     "proofManifestSha256": sha256_file(proof_manifest_path) if proof_manifest_path is not None else None,
-    "input": display_path(input_path),
-    "output": display_path(output_path),
+    "inputPath": display_path(input_path),
+    "outputPath": display_path(output_path),
     "inputSha256": sha256_text(input_text),
     "outputSha256": sha256_text(rewritten_text),
     **report,
@@ -342,12 +350,12 @@ def main() -> int:
     print(f"yul-rewrite-pipeline failed: {exc}", file=sys.stderr)
     return 1
 
-  print(f"rewritePipeline: {report['pipelineManifest']}")
-  print(f"rewriteProofManifest: {report['proofManifest']}")
+  print(f"rewritePipeline: {report['pipelineManifestPath']}")
+  print(f"rewriteProofManifest: {report['proofManifestPath']}")
   print(f"rewritePipelineStages: {report['stageCount']}")
   print(f"rewritePipelineImplementedStages: {report['implementedStageCount']}")
   print(f"rewritePipelineChangedStages: {report['changedStageCount']}")
-  print(f"rewrittenYul: {report['output']}")
+  print(f"rewrittenYul: {report['outputPath']}")
   if json_out is not None:
     print(f"rewritePipelineReport: {display_path(json_out)}")
   return 0
