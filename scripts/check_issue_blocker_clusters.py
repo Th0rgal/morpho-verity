@@ -18,6 +18,10 @@ class IssueClusterError(RuntimeError):
   pass
 
 
+def _is_strict_int(value: Any) -> bool:
+  return isinstance(value, int) and not isinstance(value, bool)
+
+
 def load_config(path: pathlib.Path) -> dict[str, Any]:
   try:
     with path.open("r", encoding="utf-8") as f:
@@ -94,7 +98,7 @@ def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
     issue = item.get("issue")
     title = item.get("title")
 
-    if not isinstance(issue, int):
+    if not _is_strict_int(issue):
       raise IssueClusterError(f"issueClusters[{i}] missing integer 'issue'")
     if issue in seen_issues:
       raise IssueClusterError(f"duplicate issue cluster '{issue}'")
@@ -110,7 +114,7 @@ def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
     issue = obligation.get("issue")
     if issue is None:
       continue
-    if not isinstance(issue, int):
+    if not _is_strict_int(issue):
       raise IssueClusterError(f"obligations[{i}] has non-integer 'issue'")
     if issue not in cluster_meta:
       raise IssueClusterError(
