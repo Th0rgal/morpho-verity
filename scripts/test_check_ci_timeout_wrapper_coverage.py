@@ -3,9 +3,12 @@
 
 from __future__ import annotations
 
+import io
 import pathlib
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 import sys
 
@@ -14,9 +17,11 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_timeout_wrapper_coverage import (  # noqa: E402
+  CiTimeoutWrapperCoverageError,
   collect_workflow_check_scripts,
   collect_wrapped_check_scripts,
   main,
+  read_workflow_text,
 )
 
 
@@ -187,6 +192,80 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
       finally:
         sys.argv = old_argv
+
+  def test_read_workflow_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      workflow.write_bytes(b"\x80")
+
+      with self.assertRaisesRegex(
+        CiTimeoutWrapperCoverageError,
+        "is not valid UTF-8",
+      ):
+        read_workflow_text(workflow)
+
+  def test_collect_workflow_check_scripts_wraps_parser_errors(self) -> None:
+    with mock.patch(
+      "check_ci_timeout_wrapper_coverage.extract_workflow_run_text",
+      side_effect=ValueError("bad workflow"),
+    ):
+      with self.assertRaisesRegex(
+        CiTimeoutWrapperCoverageError,
+        "failed to parse workflow run steps: bad workflow",
+      ):
+        collect_workflow_check_scripts("jobs:\n")
+
+  def test_cli_reports_invalid_utf8_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      workflow.write_bytes(b"\x80")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_timeout_wrapper_coverage.py"),
+          "--workflow",
+          str(workflow),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("ci-timeout-wrapper-coverage check failed:", proc.stderr)
+    self.assertIn("is not valid UTF-8", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_parser_error_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      workflow.write_text("jobs:\n", encoding="utf-8")
+
+      with mock.patch(
+        "check_ci_timeout_wrapper_coverage.extract_workflow_run_text",
+        side_effect=ValueError("bad workflow"),
+      ):
+        old_argv = sys.argv
+        old_stderr = sys.stderr
+        try:
+          sys.argv = [
+            "check_ci_timeout_wrapper_coverage.py",
+            "--workflow",
+            str(workflow),
+          ]
+          stderr = io.StringIO()
+          sys.stderr = stderr
+          with self.assertRaises(SystemExit) as ctx:
+            main()
+          self.assertEqual(ctx.exception.code, 1)
+        finally:
+          sys.argv = old_argv
+          sys.stderr = old_stderr
+
+    self.assertIn("ci-timeout-wrapper-coverage check failed:", stderr.getvalue())
+    self.assertIn("failed to parse workflow run steps: bad workflow", stderr.getvalue())
+    self.assertNotIn("Traceback", stderr.getvalue())
 
 
 if __name__ == "__main__":

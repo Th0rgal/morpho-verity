@@ -22,18 +22,45 @@ RUN_WITH_TIMEOUT_STEP_RE = re.compile(
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 
 
+class CiTimeoutWrapperCoverageError(RuntimeError):
+  """Raised when timeout-wrapper coverage validation cannot complete safely."""
+
+
 def fail(msg: str) -> None:
   print(f"ci-timeout-wrapper-coverage check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
 
 
+def read_workflow_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except UnicodeDecodeError as exc:
+    raise CiTimeoutWrapperCoverageError(
+      f"workflow file {path} is not valid UTF-8"
+    ) from exc
+  except OSError as exc:
+    raise CiTimeoutWrapperCoverageError(
+      f"failed to read workflow file {path}: {exc}"
+    ) from exc
+
+
 def collect_workflow_check_scripts(workflow_text: str) -> set[str]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiTimeoutWrapperCoverageError(
+      f"failed to parse workflow run steps: {exc}"
+    ) from exc
   return {match.group(1) for match in WORKFLOW_CHECK_REF_RE.finditer(run_text)}
 
 
 def collect_wrapped_check_scripts(workflow_text: str) -> set[str]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiTimeoutWrapperCoverageError(
+      f"failed to parse workflow run steps: {exc}"
+    ) from exc
   normalized = LINE_CONTINUATION_RE.sub(" ", run_text)
   return {match.group(1) for match in RUN_WITH_TIMEOUT_STEP_RE.finditer(normalized)}
 
@@ -56,9 +83,12 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  workflow_text = args.workflow.read_text(encoding="utf-8")
-  workflow_checks = collect_workflow_check_scripts(workflow_text)
-  wrapped_checks = collect_wrapped_check_scripts(workflow_text)
+  try:
+    workflow_text = read_workflow_text(args.workflow)
+    workflow_checks = collect_workflow_check_scripts(workflow_text)
+    wrapped_checks = collect_wrapped_check_scripts(workflow_text)
+  except CiTimeoutWrapperCoverageError as exc:
+    fail(str(exc))
   allowed = set(args.allow_unwrapped)
 
   unwrapped = sorted((workflow_checks - wrapped_checks) - allowed)
