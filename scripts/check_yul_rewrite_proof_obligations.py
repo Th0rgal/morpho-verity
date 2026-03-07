@@ -124,7 +124,7 @@ def _add_plan_refs(
 def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, str]]:
     obligations: dict[str, dict[str, str]] = {}
     namespace_stack: list[str] = []
-    scope_stack: list[bool] = []
+    scope_stack: list[tuple[bool, int, str | None]] = []
     lines = lean_text.splitlines()
     i = 0
 
@@ -132,20 +132,25 @@ def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, st
         line = lines[i]
         namespace_match = NAMESPACE_RE.match(line)
         if namespace_match:
-            namespace_stack.append(namespace_match.group(1))
-            scope_stack.append(True)
+            namespace_name = namespace_match.group(1)
+            namespace_stack.append(namespace_name)
+            scope_stack.append((True, i + 1, namespace_name))
             i += 1
             continue
 
         if SECTION_RE.match(line):
-            scope_stack.append(False)
+            scope_stack.append((False, i + 1, None))
             i += 1
             continue
 
         if END_RE.match(line):
-            if scope_stack:
-                if scope_stack.pop():
-                    namespace_stack.pop()
+            if not scope_stack:
+                raise RewriteProofError(
+                    f"unexpected `end` without matching scope opener at line {i + 1}"
+                )
+            is_namespace, _, _ = scope_stack.pop()
+            if is_namespace:
+                namespace_stack.pop()
             i += 1
             continue
 
@@ -189,6 +194,16 @@ def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, st
             "rewritePass": rewrite_pass,
             "family": family,
         }
+
+    if scope_stack:
+        is_namespace, opened_line, opened_name = scope_stack[-1]
+        if is_namespace:
+            raise RewriteProofError(
+                f"unterminated namespace `{opened_name}` opened at line {opened_line}"
+            )
+        raise RewriteProofError(
+            f"unterminated section opened at line {opened_line}"
+        )
 
     return obligations
 

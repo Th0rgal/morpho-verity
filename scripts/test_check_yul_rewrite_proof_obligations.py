@@ -202,6 +202,34 @@ end Morpho.Proofs.YulRewriteProofs
             },
         )
 
+    def test_rejects_unmatched_end_without_scope_opener(self) -> None:
+        lean = """\
+end rewrite
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+axiom width_alignment :
+  RewriteProofObligation "rewrite.checked_add.width_alignment" "pass" "checked_add"
+end checked_add
+end rewrite
+end Morpho.Proofs.YulRewriteProofs
+"""
+        with self.assertRaisesRegex(RewriteProofError, "unexpected `end` without matching scope opener"):
+            extract_declared_proof_obligations(lean)
+
+    def test_rejects_unterminated_namespace_at_eof(self) -> None:
+        lean = """\
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+axiom width_alignment :
+  RewriteProofObligation "rewrite.checked_add.width_alignment" "pass" "checked_add"
+end checked_add
+end rewrite
+"""
+        with self.assertRaisesRegex(RewriteProofError, "unterminated namespace `Morpho.Proofs.YulRewriteProofs`"):
+            extract_declared_proof_obligations(lean)
+
 
 class ValidateManifestAgainstProofsTests(unittest.TestCase):
     def test_matching_sets_pass(self) -> None:
