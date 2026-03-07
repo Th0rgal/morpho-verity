@@ -267,6 +267,19 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
     self.assertIn("failed to parse workflow run steps: bad workflow", stderr.getvalue())
     self.assertNotIn("Traceback", stderr.getvalue())
 
+  def test_cli_uses_repo_workflow_from_another_cwd_without_args(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      proc = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "check_ci_timeout_wrapper_coverage.py")],
+        cwd=tmp_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("ci-timeout-wrapper-coverage check: OK", proc.stdout)
+
 
 if __name__ == "__main__":
   unittest.main()

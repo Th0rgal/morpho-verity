@@ -329,6 +329,19 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
     self.assertIn("is not valid UTF-8", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
+  def test_cli_uses_repo_defaults_from_another_cwd_without_args(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      proc = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "check_ci_script_timeout_wrapper_coverage.py")],
+        cwd=tmp_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("ci-script-timeout-wrapper-coverage check: OK", proc.stdout)
+
 
 if __name__ == "__main__":
   unittest.main()

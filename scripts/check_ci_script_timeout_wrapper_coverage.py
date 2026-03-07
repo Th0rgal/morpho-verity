@@ -10,6 +10,8 @@ import sys
 
 from workflow_run_parser import extract_workflow_run_text
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 WORKFLOW_SCRIPT_REF_RE = re.compile(
   r"\b(?:(?:python3|python|bash|sh)\s+|env\s+(?:python3|python|bash|sh)\s+)?"
   r"[\"']?(?:\./)?scripts/([A-Za-z0-9_]+\.(?:py|sh))\b[\"']?"
@@ -98,7 +100,7 @@ def main() -> int:
   parser.add_argument(
     "--workflow",
     type=pathlib.Path,
-    default=pathlib.Path(".github/workflows/verify.yml"),
+    default=ROOT / ".github/workflows/verify.yml",
     help="Path to workflow yaml",
   )
   parser.add_argument(
@@ -110,17 +112,19 @@ def main() -> int:
   parser.add_argument(
     "--scripts-dir",
     type=pathlib.Path,
-    default=pathlib.Path("scripts"),
+    default=ROOT / "scripts",
     help="Path to scripts directory",
   )
   args = parser.parse_args()
+  workflow_path = args.workflow.resolve()
+  scripts_dir = args.scripts_dir.resolve()
 
   try:
-    workflow_text = read_workflow_text(args.workflow)
+    workflow_text = read_workflow_text(workflow_path)
     workflow_refs = collect_workflow_script_references(workflow_text)
     wrapped_targets = collect_wrapped_script_targets(workflow_text)
     shell_test_loops = collect_shell_test_loop_blocks(workflow_text)
-    shell_script_tests = collect_repo_shell_script_tests(args.scripts_dir)
+    shell_script_tests = collect_repo_shell_script_tests(scripts_dir)
   except CiScriptTimeoutWrapperCoverageError as exc:
     fail(str(exc))
   allowed = set(args.allow_unwrapped)

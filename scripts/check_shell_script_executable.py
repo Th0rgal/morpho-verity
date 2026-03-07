@@ -8,6 +8,8 @@ import pathlib
 import stat
 import sys
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 
 # Require owner execute bit because Git tracks executable files as mode 100755.
 REQUIRED_EXEC_BIT = stat.S_IXUSR
@@ -36,14 +38,15 @@ def main() -> int:
   parser.add_argument(
     "--scripts-dir",
     type=pathlib.Path,
-    default=pathlib.Path("scripts"),
+    default=ROOT / "scripts",
     help="Path to scripts directory",
   )
   args = parser.parse_args()
+  scripts_dir = args.scripts_dir.resolve()
 
-  shell_scripts = collect_shell_scripts(args.scripts_dir)
+  shell_scripts = collect_shell_scripts(scripts_dir)
   if not shell_scripts:
-    fail(f"{args.scripts_dir}: no shell scripts found")
+    fail(f"{scripts_dir}: no shell scripts found")
 
   non_executable = find_non_executable_scripts(shell_scripts)
   if non_executable:
