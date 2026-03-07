@@ -128,6 +128,47 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
     ):
       compare_entries(config_entries, config_entries[:-1])
 
+  def test_compare_entries_rejects_duplicate_readiness_id(self) -> None:
+    config_entries = build_config_projection(make_config())
+    readiness_entries = [
+      {
+        "id": "OBL-SUPPLY-SEM-EQ",
+        "hypothesis": "supplySemEq",
+        "operation": "supply",
+        "status": "assumed",
+        "macroMigrated": False,
+      },
+      {
+        "id": "OBL-SUPPLY-SEM-EQ",
+        "hypothesis": "setOwnerSemEq",
+        "operation": "setOwner",
+        "status": "in_progress",
+        "macroMigrated": True,
+      },
+    ]
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSyncError,
+      "contains duplicate obligation ids",
+    ):
+      compare_entries(config_entries, readiness_entries)
+
+  def test_build_config_projection_rejects_duplicate_id(self) -> None:
+    config = make_config()
+    config["obligations"].append(
+      {
+        "id": "OBL-SUPPLY-SEM-EQ",
+        "hypothesis": "borrowSemEq",
+        "operation": "borrow",
+        "status": "assumed",
+        "macroMigrated": False,
+      }
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSyncError,
+      "config contains duplicate obligation id",
+    ):
+      build_config_projection(config)
+
   def test_main_passes_on_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)

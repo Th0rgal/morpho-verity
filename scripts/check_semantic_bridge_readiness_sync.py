@@ -85,6 +85,7 @@ def build_config_projection(config: dict[str, Any]) -> list[dict[str, Any]]:
     raise SemanticBridgeReadinessSyncError("config missing 'obligations' array")
 
   projection: list[dict[str, Any]] = []
+  seen_ids: set[str] = set()
   for i, obligation in enumerate(obligations):
     if not isinstance(obligation, dict):
       raise SemanticBridgeReadinessSyncError(f"obligations[{i}] is not an object")
@@ -93,9 +94,19 @@ def build_config_projection(config: dict[str, Any]) -> list[dict[str, Any]]:
         raise SemanticBridgeReadinessSyncError(
           f"obligations[{i}] missing required field '{field}'"
         )
+    obligation_id = obligation["id"]
+    if not isinstance(obligation_id, str) or not obligation_id:
+      raise SemanticBridgeReadinessSyncError(
+        f"obligations[{i}] missing non-empty string field 'id'"
+      )
+    if obligation_id in seen_ids:
+      raise SemanticBridgeReadinessSyncError(
+        f"config contains duplicate obligation id '{obligation_id}'"
+      )
+    seen_ids.add(obligation_id)
     projection.append(
       {
-        "id": obligation["id"],
+        "id": obligation_id,
         "hypothesis": obligation["hypothesis"],
         "operation": obligation["operation"],
         "status": obligation["status"],
@@ -109,6 +120,19 @@ def compare_entries(
   config_entries: list[dict[str, Any]],
   readiness_entries: list[dict[str, Any]],
 ) -> None:
+  seen_readiness_ids: set[str] = set()
+  duplicate_readiness_ids: set[str] = set()
+  for entry in readiness_entries:
+    obligation_id = entry["id"]
+    if obligation_id in seen_readiness_ids:
+      duplicate_readiness_ids.add(obligation_id)
+    seen_readiness_ids.add(obligation_id)
+  if duplicate_readiness_ids:
+    raise SemanticBridgeReadinessSyncError(
+      "SemanticBridgeReadiness.lean contains duplicate obligation ids: "
+      + ", ".join(sorted(duplicate_readiness_ids))
+    )
+
   config_by_id = {entry["id"]: entry for entry in config_entries}
   readiness_by_id = {entry["id"]: entry for entry in readiness_entries}
 
