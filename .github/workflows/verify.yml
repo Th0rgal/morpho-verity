@@ -140,6 +140,9 @@ jobs:
       - name: Validate issue blocker clusters
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate issue blocker clusters" -- python3 scripts/check_issue_blocker_clusters.py
 
+      - name: Validate equivalence obligations doc sync
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate equivalence obligations doc sync" -- python3 scripts/check_equivalence_obligations_doc.py
+
       - name: Validate Yul rewrite proof obligations
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate Yul rewrite proof obligations" -- python3 scripts/check_yul_rewrite_proof_obligations.py --json-out out/parity-target/yul-rewrite-proof-obligations.json
 

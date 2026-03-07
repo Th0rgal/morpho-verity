@@ -63,6 +63,9 @@ For the collateral/liquidation cluster, the same suite also pins the still-faili
 `scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
 from per-obligation `issue` tags in the obligation tracker so the remaining open migration issues
 cannot drift from the actual per-operation blocker inventory.
+`scripts/check_equivalence_obligations_doc.py` now also fail-closes the markdown summary table
+below against that derived cluster report, so the repo-facing blocker roadmap in this document
+cannot silently drift from the tracked issue inventory.
 `scripts/check_verity_pin_provenance.py` also now requires the current-pin macro/frontend
 divergence record to name the live issue clusters for that blocker surface, so `docs/VERITY_PIN.md`
 cannot drift away from the open migration roadmap.
