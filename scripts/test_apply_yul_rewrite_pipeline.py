@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import hashlib
 import pathlib
+import subprocess
 import tempfile
 import sys
 import unittest
@@ -15,6 +16,7 @@ from apply_yul_rewrite_pipeline import (  # noqa: E402
   apply_rewrite_pipeline_text,
   apply_rewrite_pipeline_to_file,
   load_rewrite_pipeline_manifest,
+  load_rewrite_proof_manifest,
   validate_pipeline_against_proof_manifest,
 )
 
@@ -66,6 +68,35 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
       )
       with self.assertRaisesRegex(RuntimeError, "duplicate rewritePass `rename-normalization`"):
         load_rewrite_pipeline_manifest(path)
+
+  def test_load_rewrite_pipeline_manifest_rejects_invalid_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "pipeline.json"
+      path.write_text("{not json", encoding="utf-8")
+      with self.assertRaisesRegex(RuntimeError, "invalid JSON in"):
+        load_rewrite_pipeline_manifest(path)
+
+  def test_load_rewrite_proof_manifest_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "proof.json"
+      path.write_text("[]", encoding="utf-8")
+      with self.assertRaisesRegex(RuntimeError, "rewrite proof manifest must be a JSON object"):
+        load_rewrite_proof_manifest(path)
+
+  def test_load_rewrite_proof_manifest_wraps_schema_errors(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "proof.json"
+      path.write_text(
+        json.dumps(
+          {
+            "defaults": [],
+            "families": [],
+          }
+        ),
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(RuntimeError, "invalid rewrite proof manifest"):
+        load_rewrite_proof_manifest(path)
 
   def test_validate_pipeline_against_proof_manifest_rejects_missing_pass(self) -> None:
     pipeline = {
@@ -216,6 +247,55 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
       self.assertEqual(output_path.read_text(encoding="utf-8"), input_path.read_text(encoding="utf-8"))
       self.assertIsNone(report["proofManifest"])
       self.assertIsNone(report["proofManifestSha256"])
+
+  def test_cli_rejects_invalid_proof_manifest_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      input_path = tmp / "Morpho.yul"
+      output_path = tmp / "Morpho.rewritten.yul"
+      pipeline_path = tmp / "pipeline.json"
+      proof_path = tmp / "proof.json"
+
+      input_path.write_text('object "M" { code { } }\n', encoding="utf-8")
+      pipeline_path.write_text(
+        json.dumps(
+          {
+            "version": "rewrite-pipeline-v1",
+            "stages": [
+              {
+                "rewritePass": "rename-normalization",
+                "families": ["renameOnly"],
+                "proofRefs": ["rewrite.rename_only.alpha_equiv"],
+                "implemented": False,
+              }
+            ],
+          }
+        ),
+        encoding="utf-8",
+      )
+      proof_path.write_text("{not json", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "apply_yul_rewrite_pipeline.py"),
+          "--input",
+          str(input_path),
+          "--output",
+          str(output_path),
+          "--pipeline-manifest",
+          str(pipeline_path),
+          "--proof-manifest",
+          str(proof_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("yul-rewrite-pipeline failed: invalid JSON in", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":

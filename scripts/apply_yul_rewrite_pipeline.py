@@ -10,7 +10,10 @@ import pathlib
 import sys
 from typing import Any
 
-from check_yul_rewrite_proof_obligations import extract_manifest_proof_plans
+from check_yul_rewrite_proof_obligations import (
+  RewriteProofError,
+  extract_manifest_proof_plans,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -28,8 +31,11 @@ def read_text(path: pathlib.Path) -> str:
 
 
 def read_json(path: pathlib.Path) -> Any:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return json.load(f)
+  except json.JSONDecodeError as exc:
+    raise RewritePipelineError(f"invalid JSON in {path}: {exc}") from exc
 
 
 def write_text(path: pathlib.Path, content: str) -> None:
@@ -140,6 +146,17 @@ def load_rewrite_pipeline_manifest(path: pathlib.Path) -> dict[str, Any]:
   return {"version": version, "stages": normalized_stages}
 
 
+def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
+  data = read_json(path)
+  if not isinstance(data, dict):
+    raise RewritePipelineError(f"rewrite proof manifest must be a JSON object: {path}")
+  try:
+    extract_manifest_proof_plans(data)
+  except RewriteProofError as exc:
+    raise RewritePipelineError(f"invalid rewrite proof manifest {path}: {exc}") from exc
+  return data
+
+
 def validate_pipeline_against_proof_manifest(
     pipeline_manifest: dict[str, Any], proof_manifest: dict[str, Any]
 ) -> dict[str, dict[str, str]]:
@@ -243,7 +260,7 @@ def apply_rewrite_pipeline_to_file(
 ) -> dict[str, Any]:
   pipeline_manifest = load_rewrite_pipeline_manifest(pipeline_manifest_path)
   if proof_manifest_path is not None:
-    proof_manifest = read_json(proof_manifest_path)
+    proof_manifest = load_rewrite_proof_manifest(proof_manifest_path)
     validate_pipeline_against_proof_manifest(pipeline_manifest, proof_manifest)
 
   input_text = read_text(input_path)
