@@ -62,7 +62,30 @@ def _consume_run_command(
     line[content_indent:] if indent is not None else ""
     for line, indent in block_lines
   ]
+  if tail.startswith(">"):
+    return _fold_block_scalar_lines(normalized_lines), next_index
   return "\n".join(normalized_lines), next_index
+
+
+def _fold_block_scalar_lines(lines: list[str]) -> str:
+  """Approximate YAML folded scalar semantics for workflow `run: >` bodies."""
+  folded: list[str] = []
+  for line in lines:
+    if not folded:
+      folded.append(line)
+      continue
+    previous = folded[-1]
+    if (
+      not previous
+      or not line
+      or previous.startswith(" ")
+      or line.startswith(" ")
+    ):
+      folded.append("\n")
+    else:
+      folded.append(" ")
+    folded.append(line)
+  return "".join(folded)
 
 
 def extract_workflow_run_text(workflow_text: str) -> str:
