@@ -84,6 +84,15 @@ THEOREM_PATTERNS = {
     re.DOTALL,
   ),
 }
+TRACKED_NAMESPACE_PATTERNS = (
+  TOTAL_COMMENT_RE,
+  LINK1_COMMENT_RE,
+  LINK1_LIST_RE,
+  ASSUMED_COMMENT_RE,
+  MIGRATED_COMMENT_RE,
+  PENDING_COMMENT_RE,
+  *THEOREM_PATTERNS.values(),
+)
 
 
 def derive_summary(config: dict[str, Any]) -> dict[str, Any]:
@@ -143,12 +152,45 @@ def require_first_match(
   return match
 
 
+def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[str], str]]:
+  namespace_matches = list(NAMESPACE_PATTERN.finditer(text))
+  if not namespace_matches:
+    raise SemanticBridgeReadinessSummaryError(
+      "failed to locate SemanticBridgeReadiness namespace boundary in SemanticBridgeReadiness.lean"
+    )
+
+  end_matches = list(END_NAMESPACE_PATTERN.finditer(text))
+  blocks: list[tuple[re.Match[str], re.Match[str], str]] = []
+  end_index = 0
+  previous_end = -1
+  for namespace_match in namespace_matches:
+    if namespace_match.start() < previous_end:
+      raise SemanticBridgeReadinessSummaryError(
+        "SemanticBridgeReadiness namespace blocks overlap in SemanticBridgeReadiness.lean"
+      )
+    while end_index < len(end_matches) and end_matches[end_index].start() <= namespace_match.end():
+      end_index += 1
+    if end_index >= len(end_matches):
+      raise SemanticBridgeReadinessSummaryError(
+        "failed to locate SemanticBridgeReadiness namespace end boundary in SemanticBridgeReadiness.lean"
+      )
+    end_match = end_matches[end_index]
+    namespace_body = text[namespace_match.end() : end_match.start()]
+    if not namespace_body.strip():
+      raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness namespace body is empty")
+    blocks.append((namespace_match, end_match, namespace_body))
+    previous_end = end_match.end()
+    end_index += 1
+  return blocks
+
+
+def namespace_block_has_tracked_summary(namespace_body: str) -> bool:
+  return any(pattern.search(namespace_body) is not None for pattern in TRACKED_NAMESPACE_PATTERNS)
+
+
 def extract_intro_section(text: str) -> str:
-  namespace_match = require_first_match(
-    NAMESPACE_PATTERN,
-    text,
-    "SemanticBridgeReadiness namespace boundary",
-  )
+  namespace_blocks = extract_namespace_blocks(text)
+  namespace_match = namespace_blocks[0][0]
   intro = text[: namespace_match.start()]
   if not intro.strip():
     raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness intro section is empty")
@@ -189,25 +231,22 @@ def extract_discharge_path_section(intro_text: str) -> str:
 
 
 def extract_namespace_body(text: str) -> str:
-  namespace_match = require_first_match(
-    NAMESPACE_PATTERN,
-    text,
-    "SemanticBridgeReadiness namespace boundary",
-  )
-  end_namespace_match = require_first_match(
-    END_NAMESPACE_PATTERN,
-    text,
-    "SemanticBridgeReadiness namespace end boundary",
-    start=namespace_match.end(),
-  )
-  if end_namespace_match.start() <= namespace_match.end():
+  namespace_blocks = extract_namespace_blocks(text)
+  _, _, primary_namespace_body = namespace_blocks[0]
+  if not namespace_block_has_tracked_summary(primary_namespace_body):
     raise SemanticBridgeReadinessSummaryError(
-      "SemanticBridgeReadiness namespace body has an invalid boundary ordering"
+      "primary SemanticBridgeReadiness namespace block is missing tracked summary content"
     )
-  namespace_body = text[namespace_match.end() : end_namespace_match.start()]
-  if not namespace_body.strip():
-    raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness namespace body is empty")
-  return namespace_body
+  duplicate_summary_blocks = [
+    match.group(0).strip()
+    for match, _, namespace_body in namespace_blocks[1:]
+    if namespace_block_has_tracked_summary(namespace_body)
+  ]
+  if duplicate_summary_blocks:
+    raise SemanticBridgeReadinessSummaryError(
+      "found multiple SemanticBridgeReadiness namespace blocks with tracked summary content"
+    )
+  return primary_namespace_body
 
 
 def parse_operation_list(raw_ops: str) -> list[str]:
