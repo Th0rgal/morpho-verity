@@ -126,6 +126,9 @@ class WorkflowRunParserTests(unittest.TestCase):
     self.assertIn("python3 scripts/check_ci_check_coverage.py", run_text)
     self.assertIn("python3 -m unittest discover -s scripts -p 'test_*.py'", run_text)
     self.assertIn("./scripts/install_solc.sh 0.8.28", run_text)
+    self.assertIn("set -euo pipefail", run_text)
+    self.assertIn('for t in scripts/test_*.sh; do', run_text)
+    self.assertIn('python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-configured-gate', run_text)
     self.assertNotIn("actions/cache@v4", run_text)
     self.assertNotIn("${{ hashFiles('config/parity-target.json') }}", run_text)
 
