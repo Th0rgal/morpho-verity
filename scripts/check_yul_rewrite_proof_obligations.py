@@ -35,14 +35,19 @@ class RewriteProofError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-    with path.open("r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return f.read()
+    except OSError as exc:
+        raise RewriteProofError(f"failed to read {path}: {exc}") from exc
 
 
 def read_json(path: pathlib.Path) -> Any:
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
+    except OSError as exc:
+        raise RewriteProofError(f"failed to read {path}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise RewriteProofError(f"invalid JSON in {path}: {exc}") from exc
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -106,6 +107,12 @@ class ExtractManifestProofRefsTests(unittest.TestCase):
 
 
 class LoadManifestTests(unittest.TestCase):
+    def test_rejects_missing_manifest_with_checker_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "missing.json"
+            with self.assertRaisesRegex(RewriteProofError, "failed to read"):
+                load_manifest(path)
+
     def test_rejects_invalid_json_with_checker_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = pathlib.Path(tmpdir) / "manifest.json"
@@ -357,6 +364,65 @@ class BuildReportTests(unittest.TestCase):
                 {"family": "rename_only", "count": 1},
             ],
         )
+
+
+class CliTests(unittest.TestCase):
+    def test_cli_reports_invalid_manifest_json_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = pathlib.Path(tmpdir) / "manifest.json"
+            proof_file = pathlib.Path(tmpdir) / "YulRewriteProofs.lean"
+            manifest.write_text("{\n", encoding="utf-8")
+            proof_file.write_text(SAMPLE_LEAN, encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_yul_rewrite_proof_obligations.py"),
+                    "--manifest",
+                    str(manifest),
+                    "--proof-file",
+                    str(proof_file),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("yul-rewrite-proof-obligations check failed:", proc.stderr)
+        self.assertIn("invalid JSON", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_missing_proof_file_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = pathlib.Path(tmpdir) / "manifest.json"
+            proof_file = pathlib.Path(tmpdir) / "missing.lean"
+            manifest.write_text(
+                '{'
+                '"defaults":{"renameOnly":{"rewritePass":"rename-pass","proofRefs":["rewrite.rename_only.alpha_equiv"]}},'
+                '"families":[{"family":"checked_add","rewritePass":"pass","proofRefs":["rewrite.checked_add.width_alignment"]}]'
+                '}\n',
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_yul_rewrite_proof_obligations.py"),
+                    "--manifest",
+                    str(manifest),
+                    "--proof-file",
+                    str(proof_file),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("yul-rewrite-proof-obligations check failed:", proc.stderr)
+        self.assertIn("failed to read", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
