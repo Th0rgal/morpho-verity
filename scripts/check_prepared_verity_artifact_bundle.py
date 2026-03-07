@@ -260,6 +260,11 @@ def validate_prepared_verity_artifact_bundle(
         "Prepared rewrite report proof manifest digest mismatch: expected "
         f"{expected_proof_sha256!r}, got {proof_manifest_sha256!r}"
       )
+    if not rewritten_path.exists():
+      raise PreparedArtifactBundleError(
+        "Prepared rewrite report is present without matching Morpho.rewritten.yul: "
+        f"{_display_path(rewrite_report_path)}"
+      )
     if rewritten_path.exists() and rewritten_path.stat().st_size <= 0:
       raise PreparedArtifactBundleError(
         f"Prepared rewritten artifact is empty: {_display_path(rewritten_path)}"
