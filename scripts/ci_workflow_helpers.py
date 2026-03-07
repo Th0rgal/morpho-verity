@@ -38,7 +38,12 @@ def strip_yaml_comment(value: str) -> str:
         cursor -= 1
       if backslash_count % 2 == 0:
         in_double_quote = not in_double_quote
-    elif char == "#" and not in_single_quote and not in_double_quote:
+    elif (
+      char == "#"
+      and not in_single_quote
+      and not in_double_quote
+      and (index == 0 or value[index - 1].isspace())
+    ):
       return value[:index].rstrip()
     index += 1
   return value.rstrip()

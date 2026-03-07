@@ -18,6 +18,12 @@ class StripYamlCommentTests(unittest.TestCase):
   def test_strips_unquoted_trailing_comments(self) -> None:
     self.assertEqual(strip_yaml_comment("value # comment"), "value")
 
+  def test_preserves_plain_hash_without_comment_whitespace(self) -> None:
+    self.assertEqual(strip_yaml_comment("value#fragment"), "value#fragment")
+
+  def test_preserves_plain_hash_followed_by_space_without_comment_whitespace(self) -> None:
+    self.assertEqual(strip_yaml_comment("value# fragment"), "value# fragment")
+
   def test_preserves_hash_inside_double_quotes(self) -> None:
     self.assertEqual(strip_yaml_comment('"value#still-value" # comment'), '"value#still-value"')
 
@@ -28,6 +34,9 @@ class StripYamlCommentTests(unittest.TestCase):
 class StripYamlScalarTests(unittest.TestCase):
   def test_unquotes_and_strips_comment(self) -> None:
     self.assertEqual(strip_yaml_scalar(' "value" # comment'), "value")
+
+  def test_preserves_plain_hash_scalar(self) -> None:
+    self.assertEqual(strip_yaml_scalar("artifact#bundle"), "artifact#bundle")
 
   def test_preserves_hash_inside_quoted_scalar(self) -> None:
     self.assertEqual(strip_yaml_scalar('"value#still-value"'), "value#still-value")
