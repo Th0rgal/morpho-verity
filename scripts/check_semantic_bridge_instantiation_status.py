@@ -68,6 +68,25 @@ def require_unique_match(
   return matches[0]
 
 
+def require_namespace_header(text: str) -> re.Match[str]:
+  match = re.search(NAMESPACE_PATTERN, text)
+  if match is None:
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section"
+    )
+  return match
+
+
+def extract_intro_block(text: str) -> str:
+  namespace_match = require_namespace_header(text)
+  intro = text[:namespace_match.start()]
+  if not intro.strip():
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: empty intro block before namespace"
+    )
+  return intro
+
+
 def extract_section(
   *,
   text: str,
@@ -107,35 +126,19 @@ def extract_section(
 
 
 def extract_validates_section(text: str) -> str:
-  require_unique_match(
-    text=text,
-    pattern=NAMESPACE_PATTERN,
-    missing_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section",
-    duplicate_error="SemanticBridgeInstantiation.lean status drift: multiple namespace boundaries for `## What this validates` section",
-  )
-  section = extract_section(
-    text=text,
+  return extract_section(
+    text=extract_intro_block(text),
     start_pattern=VALIDATES_SECTION_PATTERN,
     start_label=VALIDATES_SECTION_HEADER,
-    end_pattern=NAMESPACE_PATTERN,
     missing_error="SemanticBridgeInstantiation.lean status drift: missing `## What this validates` section",
     empty_error="SemanticBridgeInstantiation.lean status drift: empty `## What this validates` section",
-    missing_end_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section",
+    missing_end_error="SemanticBridgeInstantiation.lean status drift: missing closing `-/` for `## What this validates` section",
+    end_pattern=CLOSING_DOCBLOCK_PATTERN,
   )
-  if not section.strip().endswith("-/"):
-    raise SemanticBridgeInstantiationStatusError(
-      "SemanticBridgeInstantiation.lean status drift: missing closing `-/` for `## What this validates` section"
-    )
-  return section
 
 
 def extract_summary_section(text: str) -> str:
-  namespace_match = require_unique_match(
-    text=text,
-    pattern=NAMESPACE_PATTERN,
-    missing_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary before `## Summary` section",
-    duplicate_error="SemanticBridgeInstantiation.lean status drift: multiple namespace boundaries before `## Summary` section",
-  )
+  namespace_match = require_namespace_header(text)
   return extract_section(
     text=text[namespace_match.end() :],
     start_pattern=SUMMARY_SECTION_PATTERN,

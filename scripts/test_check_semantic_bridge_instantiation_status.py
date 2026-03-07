@@ -107,6 +107,19 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     )
     self.assertIn(EXPECTED_INTRO_STATUS, extract_validates_section(text))
 
+  def test_extract_validates_section_rejects_inline_closing_delimiter(self) -> None:
+    text = make_text().replace(
+      "\n    -/\n\n    namespace Morpho.Proofs.SemanticBridgeInstantiation",
+      "\n\nInline prose ending with a fake docblock close -/\n\n"
+      "namespace Morpho.Proofs.SemanticBridgeInstantiation",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing closing `-/` for `## What this validates` section",
+    ):
+      extract_validates_section(text)
+
   def test_extract_summary_section_rejects_missing_header(self) -> None:
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
@@ -216,6 +229,19 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       "missing closing `-/` for `## What this validates` section",
     ):
       validate_status(make_text().replace("-/", "", 1))
+
+  def test_validate_status_rejects_missing_intro_docblock_boundary_hidden_by_inline_close(self) -> None:
+    text = make_text().replace(
+      "\n    -/\n\n    namespace Morpho.Proofs.SemanticBridgeInstantiation",
+      "\n\nInline prose ending with a fake docblock close -/\n\n"
+      "namespace Morpho.Proofs.SemanticBridgeInstantiation",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing closing `-/` for `## What this validates` section",
+    ):
+      validate_status(text)
 
   def test_validate_status_rejects_intro_header_drift_hidden_by_inline_marker_text(self) -> None:
     text = make_text().replace("## What this validates", "## Validation", 1)
