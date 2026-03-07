@@ -21,6 +21,7 @@ from check_semantic_bridge_instantiation_status import (  # noqa: E402
   EXPECTED_SUMMARY_STATUS,
   FORBIDDEN_SNIPPETS,
   NAMESPACE_HEADER,
+  NAMESPACE_FOOTER,
   SUMMARY_SECTION_HEADER,
   VALIDATES_SECTION_HEADER,
   SemanticBridgeInstantiationStatusError,
@@ -57,6 +58,10 @@ def make_text() -> str:
 
     {EXPECTED_SUMMARY_COMPOSITION}
     -/
+
+    def fakeWitness : Nat := 0
+
+    end Morpho.Proofs.SemanticBridgeInstantiation
     """
   )
 
@@ -140,13 +145,31 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       extract_summary_section(text)
 
   def test_extract_summary_section_rejects_summary_before_namespace(self) -> None:
-    text = make_text()
-    summary_block = text.split(f"{NAMESPACE_HEADER}\n\n", 1)[1]
-    text = text.replace(f"{NAMESPACE_HEADER}\n\n{summary_block}", NAMESPACE_HEADER, 1)
-    text = text.replace(NAMESPACE_HEADER, summary_block + "\n" + NAMESPACE_HEADER, 1)
+    summary_block = textwrap.dedent(
+      f"""\
+      /-! ## Summary
+
+      {EXPECTED_SUMMARY_HEADING}
+
+      {EXPECTED_SUMMARY_STATUS}
+
+      {EXPECTED_SUMMARY_COMPOSITION}
+      -/
+      """
+    )
+    intro, _ = make_text().split(f"{NAMESPACE_HEADER}\n", 1)
+    text = (
+      intro
+      + summary_block
+      + "\n"
+      + NAMESPACE_HEADER
+      + "\n\n/-! ## Closing\n\n"
+      + "def fakeWitness : Nat := 0\n\n"
+      + NAMESPACE_FOOTER
+    )
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
-      "missing `## Summary` section",
+      "primary namespace block is missing tracked status content",
     ):
       extract_summary_section(text)
 
@@ -157,6 +180,47 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       1,
     )
     self.assertIn(EXPECTED_SUMMARY_COMPOSITION, extract_summary_section(text))
+
+  def test_extract_summary_section_rejects_reopened_namespace_with_tracked_status(self) -> None:
+    fake_namespace = textwrap.dedent(
+      f"""\
+      namespace Morpho.Proofs.SemanticBridgeInstantiation
+
+      /-! ## Summary
+
+      {EXPECTED_SUMMARY_HEADING}
+
+      {EXPECTED_SUMMARY_STATUS}
+
+      {EXPECTED_SUMMARY_COMPOSITION}
+      -/
+
+      def fakeWitness : Nat := 0
+
+      end Morpho.Proofs.SemanticBridgeInstantiation
+      """
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "found multiple namespace blocks with tracked status content",
+    ):
+      extract_summary_section(fake_namespace + "\n" + make_text())
+
+  def test_extract_summary_section_rejects_unmatched_footer_before_namespace(self) -> None:
+    text = NAMESPACE_FOOTER + "\n\n" + make_text()
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer before first namespace block",
+    ):
+      extract_summary_section(text)
+
+  def test_extract_summary_section_rejects_unmatched_footer_after_namespace_blocks(self) -> None:
+    text = make_text() + "\n" + NAMESPACE_FOOTER
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer after namespace blocks",
+    ):
+      extract_summary_section(text)
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
@@ -299,15 +363,74 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       validate_status(masked_text)
 
   def test_validate_status_rejects_summary_relocated_before_namespace(self) -> None:
-    text = make_text()
-    summary_block = text.split(f"{NAMESPACE_HEADER}\n\n", 1)[1]
-    text = text.replace(f"{NAMESPACE_HEADER}\n\n{summary_block}", NAMESPACE_HEADER, 1)
-    text = text.replace(NAMESPACE_HEADER, summary_block + "\n" + NAMESPACE_HEADER, 1)
+    summary_block = textwrap.dedent(
+      f"""\
+      /-! ## Summary
+
+      {EXPECTED_SUMMARY_HEADING}
+
+      {EXPECTED_SUMMARY_STATUS}
+
+      {EXPECTED_SUMMARY_COMPOSITION}
+      -/
+      """
+    )
+    intro, _ = make_text().split(f"{NAMESPACE_HEADER}\n", 1)
+    text = (
+      intro
+      + summary_block
+      + "\n"
+      + NAMESPACE_HEADER
+      + "\n\n/-! ## Closing\n\n"
+      + "def fakeWitness : Nat := 0\n\n"
+      + NAMESPACE_FOOTER
+    )
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
-      "missing `## Summary` section",
+      "primary namespace block is missing tracked status content",
     ):
       validate_status(text)
+
+  def test_validate_status_rejects_prefixed_namespace_masking_real_summary_drift(self) -> None:
+    fake_namespace = textwrap.dedent(
+      f"""\
+      namespace Morpho.Proofs.SemanticBridgeInstantiation
+
+      /-! ## Summary
+
+      {EXPECTED_SUMMARY_HEADING}
+
+      {EXPECTED_SUMMARY_STATUS}
+
+      {EXPECTED_SUMMARY_COMPOSITION}
+      -/
+
+      def fakeWitness : Nat := 0
+
+      end Morpho.Proofs.SemanticBridgeInstantiation
+      """
+    )
+    stale_text = make_text().replace(EXPECTED_SUMMARY_COMPOSITION, "old summary", 1)
+    intro, remainder = stale_text.split(f"{NAMESPACE_HEADER}\n", 1)
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "found multiple namespace blocks with tracked status content",
+    ):
+      validate_status(intro + fake_namespace + "\n" + NAMESPACE_HEADER + "\n" + remainder)
+
+  def test_validate_status_rejects_unmatched_footer_before_namespace(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer before first namespace block",
+    ):
+      validate_status(NAMESPACE_FOOTER + "\n\n" + make_text())
+
+  def test_validate_status_rejects_unmatched_footer_after_namespace_blocks(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer after namespace blocks",
+    ):
+      validate_status(make_text() + "\n" + NAMESPACE_FOOTER)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:

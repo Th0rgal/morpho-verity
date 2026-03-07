@@ -47,10 +47,15 @@ def normalize_text(text: str) -> str:
 VALIDATES_SECTION_HEADER = "## What this validates"
 SUMMARY_SECTION_HEADER = "/-! ## Summary"
 NAMESPACE_HEADER = "namespace Morpho.Proofs.SemanticBridgeInstantiation"
+NAMESPACE_FOOTER = "end Morpho.Proofs.SemanticBridgeInstantiation"
 CLOSING_DOCBLOCK_PATTERN = r"(?m)^\s*-/\s*$"
 VALIDATES_SECTION_PATTERN = r"(?m)^\s*## What this validates\s*$"
 SUMMARY_SECTION_PATTERN = r"(?m)^\s*/-!\s*## Summary\s*$"
-NAMESPACE_PATTERN = r"(?m)^\s*namespace Morpho\.Proofs\.SemanticBridgeInstantiation\s*$"
+TRACKED_NAMESPACE_PATTERNS = (
+  re.compile(SUMMARY_SECTION_PATTERN),
+  re.compile(re.escape(EXPECTED_SUMMARY_STATUS), re.DOTALL),
+  re.compile(re.escape(EXPECTED_SUMMARY_COMPOSITION), re.DOTALL),
+)
 
 
 def require_unique_match(
@@ -68,17 +73,76 @@ def require_unique_match(
   return matches[0]
 
 
-def require_namespace_header(text: str) -> re.Match[str]:
-  match = re.search(NAMESPACE_PATTERN, text)
-  if match is None:
+def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[str], str]]:
+  namespace_matches = list(re.finditer(rf"(?m)^\s*{re.escape(NAMESPACE_HEADER)}\r?$", text))
+  if not namespace_matches:
     raise SemanticBridgeInstantiationStatusError(
       "SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section"
     )
-  return match
+  end_matches = list(re.finditer(rf"(?m)^\s*{re.escape(NAMESPACE_FOOTER)}\r?$", text))
+  if not end_matches:
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: missing namespace footer"
+    )
+  if end_matches[0].start() < namespace_matches[0].start():
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: unmatched namespace footer before first namespace block"
+    )
+  blocks: list[tuple[re.Match[str], re.Match[str], str]] = []
+  end_index = 0
+  previous_end = -1
+  for namespace_match in namespace_matches:
+    if namespace_match.start() < previous_end:
+      raise SemanticBridgeInstantiationStatusError(
+        "SemanticBridgeInstantiation.lean status drift: namespace blocks overlap"
+      )
+    while end_index < len(end_matches) and end_matches[end_index].start() <= namespace_match.end():
+      end_index += 1
+    if end_index >= len(end_matches):
+      raise SemanticBridgeInstantiationStatusError(
+        "SemanticBridgeInstantiation.lean status drift: missing namespace footer"
+      )
+    end_match = end_matches[end_index]
+    namespace_body = text[namespace_match.end() : end_match.start()]
+    if not namespace_body.strip():
+      raise SemanticBridgeInstantiationStatusError(
+        "SemanticBridgeInstantiation.lean status drift: empty namespace body"
+      )
+    blocks.append((namespace_match, end_match, namespace_body))
+    previous_end = end_match.end()
+    end_index += 1
+  if end_index != len(end_matches):
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: unmatched namespace footer after namespace blocks"
+    )
+  return blocks
+
+
+def namespace_block_has_tracked_status(namespace_body: str) -> bool:
+  return any(pattern.search(namespace_body) is not None for pattern in TRACKED_NAMESPACE_PATTERNS)
+
+
+def extract_namespace_block(text: str) -> str:
+  namespace_blocks = extract_namespace_blocks(text)
+  _, _, primary_namespace_body = namespace_blocks[0]
+  if not namespace_block_has_tracked_status(primary_namespace_body):
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: primary namespace block is missing tracked status content"
+    )
+  duplicate_status_blocks = [
+    match.group(0).strip()
+    for match, _, namespace_body in namespace_blocks[1:]
+    if namespace_block_has_tracked_status(namespace_body)
+  ]
+  if duplicate_status_blocks:
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: found multiple namespace blocks with tracked status content"
+    )
+  return primary_namespace_body
 
 
 def extract_intro_block(text: str) -> str:
-  namespace_match = require_namespace_header(text)
+  namespace_match = extract_namespace_blocks(text)[0][0]
   intro = text[:namespace_match.start()]
   if not intro.strip():
     raise SemanticBridgeInstantiationStatusError(
@@ -138,9 +202,8 @@ def extract_validates_section(text: str) -> str:
 
 
 def extract_summary_section(text: str) -> str:
-  namespace_match = require_namespace_header(text)
   return extract_section(
-    text=text[namespace_match.end() :],
+    text=extract_namespace_block(text),
     start_pattern=SUMMARY_SECTION_PATTERN,
     start_label=SUMMARY_SECTION_HEADER,
     end_pattern=CLOSING_DOCBLOCK_PATTERN,
