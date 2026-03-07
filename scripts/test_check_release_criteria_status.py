@@ -241,6 +241,9 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
     ):
       validate_doc_status(f"{fake_status}{drifted_doc}")
 
+  def test_validate_doc_status_accepts_crlf_line_endings(self) -> None:
+    validate_doc_status(make_doc().replace("\n", "\r\n"))
+
   def test_validate_workflow_passes(self) -> None:
     validate_workflow(make_workflow())
 

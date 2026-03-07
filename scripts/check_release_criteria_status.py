@@ -72,7 +72,7 @@ class ReleaseCriteriaStatusError(RuntimeError):
 
 
 def require_unique_line(text: str, line: str, description: str) -> re.Match[str]:
-  matches = list(re.finditer(rf"(?m)^{re.escape(line)}$", text))
+  matches = list(re.finditer(rf"(?m)^{re.escape(line)}\r?$", text))
   if not matches:
     raise ReleaseCriteriaStatusError(f"missing `{description}` in RELEASE_CRITERIA.md")
   if len(matches) > 1:
