@@ -25,6 +25,7 @@ from check_release_criteria_status import (  # noqa: E402
   filter_tracked_items,
   main,
   parse_numbered_items,
+  read_text,
   validate_doc_status,
   validate_workflow,
 )
@@ -446,6 +447,17 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
       finally:
         sys.argv = old_argv
 
+  def test_read_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "RELEASE_CRITERIA.md"
+      path.write_bytes(b"\xff")
+
+      with self.assertRaisesRegex(
+        ReleaseCriteriaStatusError,
+        "failed to decode release criteria document",
+      ):
+        read_text(path, context="release criteria document")
+
   def test_main_rejects_invalid_utf8_doc_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
@@ -470,7 +482,60 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
 
     self.assertEqual(proc.returncode, 1)
     self.assertIn("release-criteria-status check failed:", proc.stderr)
-    self.assertIn("failed to read", proc.stderr)
+    self.assertIn("failed to decode release criteria document", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_main_rejects_invalid_utf8_workflow_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      doc_path = root / "RELEASE_CRITERIA.md"
+      workflow_path = root / "verify.yml"
+      doc_path.write_text(make_doc(), encoding="utf-8")
+      workflow_path.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_release_criteria_status.py"),
+          "--doc",
+          str(doc_path),
+          "--workflow",
+          str(workflow_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("release-criteria-status check failed:", proc.stderr)
+    self.assertIn("failed to decode workflow", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_main_rejects_missing_workflow_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      doc_path = root / "RELEASE_CRITERIA.md"
+      workflow_path = root / "verify.yml"
+      doc_path.write_text(make_doc(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_release_criteria_status.py"),
+          "--doc",
+          str(doc_path),
+          "--workflow",
+          str(workflow_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("release-criteria-status check failed:", proc.stderr)
+    self.assertIn("failed to read workflow", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
 
