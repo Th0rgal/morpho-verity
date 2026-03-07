@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import sys
 from typing import Any
 
@@ -13,6 +14,8 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 DOC_PATH = ROOT / "docs" / "EQUIVALENCE_OBLIGATIONS.md"
+SECTION_HEADING = "## Macro Migration Blockers"
+NEXT_SECTION_HEADING = "## Primitive Coverage & Discharge Readiness"
 SECTION_MARKER = "**Remaining blockers**:"
 TABLE_HEADER = "| Blocker | Operations affected | Count |"
 TABLE_SEPARATOR = "|---------|-------------------|:-----:|"
@@ -46,6 +49,32 @@ BLOCKER_LABELS = {
 
 class MacroMigrationBlockersDocError(RuntimeError):
   pass
+
+
+def require_unique_heading_line(text: str, heading: str) -> re.Match[str]:
+  matches = list(re.finditer(rf"(?m)^{re.escape(heading)}$", text))
+  if not matches:
+    raise MacroMigrationBlockersDocError(f"missing `{heading}` section in EQUIVALENCE_OBLIGATIONS.md")
+  if len(matches) > 1:
+    raise MacroMigrationBlockersDocError(
+      f"found multiple `{heading}` section markers in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  return matches[0]
+
+
+def extract_macro_migration_section(doc_text: str) -> str:
+  start_match = require_unique_heading_line(doc_text, SECTION_HEADING)
+  end_match = require_unique_heading_line(doc_text, NEXT_SECTION_HEADING)
+  if end_match.start() <= start_match.end():
+    raise MacroMigrationBlockersDocError(
+      f"`{SECTION_HEADING}` has invalid boundary ordering in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  section = doc_text[start_match.end() : end_match.start()]
+  if not section.strip():
+    raise MacroMigrationBlockersDocError(
+      f"`{SECTION_HEADING}` section is empty in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  return section
 
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
@@ -114,7 +143,7 @@ def expected_table_lines(report: list[dict[str, Any]]) -> list[str]:
 
 
 def extract_table(doc_text: str) -> list[str]:
-  lines = doc_text.splitlines()
+  lines = extract_macro_migration_section(doc_text).splitlines()
   try:
     marker_index = lines.index(SECTION_MARKER)
   except ValueError as exc:
