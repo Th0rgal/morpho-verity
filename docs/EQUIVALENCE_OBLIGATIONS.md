@@ -60,6 +60,16 @@ core-flow frontend gaps: `Calls.withReturn`, internal `call`, `Callbacks.callbac
 For the collateral/liquidation cluster, the same suite also pins the still-failing
 `structMember2` read/write surface and direct `mstore`/`mload` use that the current
 `supplyCollateral`, `withdrawCollateral`, and `liquidate` specs depend on.
+`scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
+from the obligation tracker so the remaining open migration issues cannot drift from the actual
+per-operation blocker inventory.
+
+### Open issue blocker summary
+
+| Issue | Operations | Blocker families | Coverage counts |
+|-------|------------|------------------|-----------------|
+| `#123` | `supply`, `withdraw`, `borrow`, `repay` | `callbacks`, `erc20`, `externalWithReturn`, `internalCall`, `memoryOps`, `structMember2` | callbacks×2, erc20×4, externalWithReturn×1, internalCall×4, memoryOps×4, structMember2×4 |
+| `#124` | `supplyCollateral`, `withdrawCollateral`, `liquidate` | `callbacks`, `erc20`, `externalWithReturn`, `internalCall`, `memoryOps`, `structMember2` | callbacks×2, erc20×3, externalWithReturn×2, internalCall×2, memoryOps×3, structMember2×3 |
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
