@@ -186,6 +186,29 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
         ]
       ))
 
+  def test_validate_workflow_rejects_duplicate_step_without_second_run(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "duplicates workflow steps",
+    ):
+      validate_workflow("\n".join([
+        "jobs:",
+        "  parity-target:",
+        "    steps:",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[0]]}",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+        "        uses: actions/checkout@v5",
+        *[
+          "\n".join([
+            f"      - name: {step}",
+            f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+          ])
+          for step in EXPECTED_WORKFLOW_STEPS[1:]
+        ],
+        "",
+      ]))
+
   def test_validate_workflow_rejects_wrong_run_command(self) -> None:
     with self.assertRaisesRegex(
       ReleaseCriteriaStatusError,

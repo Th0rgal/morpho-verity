@@ -97,13 +97,15 @@ def filter_tracked_items(items: list[str]) -> list[str]:
   ]
 
 
-def parse_named_step_runs(text: str) -> dict[str, list[str]]:
+def parse_named_step_runs(text: str) -> tuple[dict[str, int], dict[str, list[str]]]:
+  step_counts: dict[str, int] = {}
   step_runs: dict[str, list[str]] = {}
   current_step: str | None = None
   for line in text.splitlines():
     step_match = re.match(r"\s*-\s+name:\s+(.*\S)\s*$", line)
     if step_match is not None:
       current_step = step_match.group(1)
+      step_counts[current_step] = step_counts.get(current_step, 0) + 1
       step_runs.setdefault(current_step, [])
       continue
     if current_step is None:
@@ -111,7 +113,7 @@ def parse_named_step_runs(text: str) -> dict[str, list[str]]:
     run_match = re.match(r"\s+run:\s+(.*\S)\s*$", line)
     if run_match is not None:
       step_runs[current_step].append(run_match.group(1))
-  return step_runs
+  return step_counts, step_runs
 
 
 def validate_doc_status(text: str) -> None:
@@ -152,14 +154,16 @@ def validate_doc_status(text: str) -> None:
 
 
 def validate_workflow(text: str) -> None:
-  step_runs = parse_named_step_runs(text)
+  step_counts, step_runs = parse_named_step_runs(text)
   missing_steps = [step for step in EXPECTED_WORKFLOW_STEPS if step not in step_runs]
   if missing_steps:
     raise ReleaseCriteriaStatusError(
       "verify.yml is missing workflow steps referenced by RELEASE_CRITERIA.md: "
       + ", ".join(missing_steps)
     )
-  duplicate_steps = [step for step, runs in step_runs.items() if step in EXPECTED_WORKFLOW_STEPS and len(runs) > 1]
+  duplicate_steps = [
+    step for step in EXPECTED_WORKFLOW_STEPS if step_counts.get(step, 0) > 1
+  ]
   if duplicate_steps:
     raise ReleaseCriteriaStatusError(
       "verify.yml duplicates workflow steps referenced by RELEASE_CRITERIA.md: "
