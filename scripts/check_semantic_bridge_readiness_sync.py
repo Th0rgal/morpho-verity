@@ -14,6 +14,8 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 READINESS_PATH = ROOT / "Morpho" / "Proofs" / "SemanticBridgeReadiness.lean"
+NAMESPACE_HEADER = "namespace Morpho.Proofs.SemanticBridgeReadiness"
+NAMESPACE_FOOTER = "end Morpho.Proofs.SemanticBridgeReadiness"
 
 OBLIGATIONS_RE = re.compile(
   r"def\s+obligations\s*:\s*List\s+SemanticBridgeObligation\s*:=\s*\[(?P<body>.*?)]",
@@ -44,16 +46,86 @@ def load_config(path: pathlib.Path) -> dict[str, Any]:
     return json.load(f)
 
 
-def parse_readiness_entries(path: pathlib.Path) -> list[dict[str, Any]]:
-  text = path.read_text(encoding="utf-8")
-  obligations_match = OBLIGATIONS_RE.search(text)
-  if obligations_match is None:
+def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[str], str]]:
+  namespace_matches = list(
+    re.finditer(rf"(?m)^\s*{re.escape(NAMESPACE_HEADER)}\r?$", text)
+  )
+  if not namespace_matches:
     raise SemanticBridgeReadinessSyncError(
-      "failed to locate obligations list in SemanticBridgeReadiness.lean"
+      "failed to locate SemanticBridgeReadiness namespace boundary in SemanticBridgeReadiness.lean"
     )
 
+  end_matches = list(re.finditer(rf"(?m)^\s*{re.escape(NAMESPACE_FOOTER)}\r?$", text))
+  if not end_matches:
+    raise SemanticBridgeReadinessSyncError(
+      "failed to locate SemanticBridgeReadiness namespace end boundary in SemanticBridgeReadiness.lean"
+    )
+  if end_matches[0].start() < namespace_matches[0].start():
+    raise SemanticBridgeReadinessSyncError(
+      "found unmatched SemanticBridgeReadiness namespace footer before first namespace block"
+    )
+
+  blocks: list[tuple[re.Match[str], re.Match[str], str]] = []
+  end_index = 0
+  previous_end = -1
+  for namespace_match in namespace_matches:
+    if namespace_match.start() < previous_end:
+      raise SemanticBridgeReadinessSyncError(
+        "SemanticBridgeReadiness namespace blocks overlap in SemanticBridgeReadiness.lean"
+      )
+    while end_index < len(end_matches) and end_matches[end_index].start() <= namespace_match.end():
+      end_index += 1
+    if end_index >= len(end_matches):
+      raise SemanticBridgeReadinessSyncError(
+        "failed to locate SemanticBridgeReadiness namespace end boundary in SemanticBridgeReadiness.lean"
+      )
+    end_match = end_matches[end_index]
+    namespace_body = text[namespace_match.end() : end_match.start()]
+    if not namespace_body.strip():
+      raise SemanticBridgeReadinessSyncError("SemanticBridgeReadiness namespace body is empty")
+    blocks.append((namespace_match, end_match, namespace_body))
+    previous_end = end_match.end()
+    end_index += 1
+
+  if end_index != len(end_matches):
+    raise SemanticBridgeReadinessSyncError(
+      "found unmatched SemanticBridgeReadiness namespace footer after namespace blocks"
+    )
+  return blocks
+
+
+def extract_obligations_body(text: str) -> str:
+  namespace_blocks = extract_namespace_blocks(text)
+  _, _, primary_namespace_body = namespace_blocks[0]
+  obligations_matches = list(OBLIGATIONS_RE.finditer(primary_namespace_body))
+  if not obligations_matches:
+    raise SemanticBridgeReadinessSyncError(
+      "primary SemanticBridgeReadiness namespace block is missing tracked obligations"
+    )
+  if len(obligations_matches) > 1:
+    raise SemanticBridgeReadinessSyncError(
+      "primary SemanticBridgeReadiness namespace block contains multiple tracked obligations definitions"
+    )
+
+  duplicate_obligation_blocks = [
+    match.group(0).strip()
+    for _, _, namespace_body in namespace_blocks[1:]
+    for match in OBLIGATIONS_RE.finditer(namespace_body)
+  ]
+  if duplicate_obligation_blocks:
+    raise SemanticBridgeReadinessSyncError(
+      "found multiple SemanticBridgeReadiness namespace blocks with tracked obligations"
+    )
+
+  return obligations_matches[0].group("body")
+
+
+def parse_readiness_entries(path: pathlib.Path) -> list[dict[str, Any]]:
+  text = path.read_text(encoding="utf-8")
+  obligations_body = extract_obligations_body(text)
+
   entries: list[dict[str, Any]] = []
-  for match in ENTRY_BLOCK_RE.finditer(obligations_match.group("body")):
+  for match in ENTRY_BLOCK_RE.finditer(obligations_body):
     entry_body = match.group("body")
     values: dict[str, str] = {}
     for field, pattern in FIELD_PATTERNS.items():
