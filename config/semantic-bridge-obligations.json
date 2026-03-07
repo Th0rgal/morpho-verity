@@ -76,6 +76,7 @@
       "operation": "accrueInterest",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["externalWithReturn", "internalCall", "mappingStruct"],
       "blockedBy": "macro migration (internal calls, external contract calls) + typed-IR SupportedStmtList proof"
     },
     {
@@ -108,6 +109,7 @@
       "operation": "setAuthorizationWithSig",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["memoryOps", "precompileAccess", "tupleDestructuring"],
       "blockedBy": "macro migration blocked on tuple-param destructuring in verity_contract, plus signature-validity/spec abstraction and typed-IR SupportedStmtList proof"
     },
     {
@@ -132,6 +134,7 @@
       "operation": "createMarket",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["blockTimestampValue", "externalCall", "tupleDestructuring"],
       "blockedBy": "hard stub (require 0==1): tuple components are not bound in macro bodies, pure-expression externalCall is rejected there, and blockTimestamp is not materialized as a plain Uint256 value for setMappingWord; typed-IR SupportedStmtList proof still pending after frontend support lands"
     },
     {
@@ -140,6 +143,7 @@
       "operation": "setFee",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["internalCall", "mappingStruct"],
       "blockedBy": "macro migration (internal calls, .mappingStruct) + typed-IR SupportedStmtList proof"
     },
     {
@@ -148,6 +152,7 @@
       "operation": "accrueInterestPublic",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["externalWithReturn", "internalCall", "mappingStruct"],
       "blockedBy": "macro migration (internal calls, external contract calls) + typed-IR SupportedStmtList proof"
     },
     {

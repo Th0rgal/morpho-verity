@@ -66,6 +66,9 @@ cannot drift from the actual per-operation blocker inventory.
 `scripts/check_equivalence_obligations_doc.py` now also fail-closes the markdown summary table
 below against that derived cluster report, so the repo-facing blocker roadmap in this document
 cannot silently drift from the tracked issue inventory.
+`scripts/check_macro_migration_blockers_doc.py` also now fail-closes the remaining macro blocker
+table below against the false `macroMigrated` obligation inventory, so the aggregate blocker
+families and counts cannot silently drift from the tracked migration backlog.
 `scripts/check_verity_pin_provenance.py` also now requires the current-pin macro/frontend
 divergence record to name the live issue clusters for that blocker surface, so `docs/VERITY_PIN.md`
 cannot drift away from the open migration roadmap.
@@ -149,14 +152,17 @@ pure-expression `externalCall`, usable `blockTimestamp` values for
 
 | Blocker | Operations affected | Count |
 |---------|-------------------|:-----:|
-| Internal function calls (`Stmt.internalCall`) | supply, withdraw, borrow, repay, liquidate, setFee, accrueInterest, accrueInterestPublic | 8 |
-| ERC20 module (`ERC20.safeTransfer/From`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate, flashLoan | 8 |
-| 2D struct mapping read/write (`structMember2`) | supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate | 7 |
-| External callbacks (`Callbacks.callback`) | supply, supplyCollateral, repay, liquidate, flashLoan | 5 |
-| External contract calls (`Calls.withReturn`) | accrueInterest, accrueInterestPublic, withdrawCollateral, borrow, liquidate | 5 |
-| `.mappingStruct` storage field type declarations | setFee, accrueInterest, accrueInterestPublic, + all struct-accessing ops | 3+ |
-| Memory management (`mstore/mload`) | setAuthorizationWithSig, liquidate | 2 |
-| Precompile access (`ecrecover`) | setAuthorizationWithSig | 1 |
+| Internal function calls (`Stmt.internalCall`) | `accrueInterest`, `accrueInterestPublic`, `borrow`, `liquidate`, `repay`, `setFee`, `supply`, `withdraw`, `withdrawCollateral` | 9 |
+| ERC20 module (`ERC20.safeTransfer/From`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
+| 2D struct mapping read/write (`structMember2`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
+| External callbacks (`Callbacks.callback`) | `liquidate`, `repay`, `supply`, `supplyCollateral` | 4 |
+| External contract calls (`Calls.withReturn`) | `accrueInterest`, `accrueInterestPublic`, `borrow`, `liquidate`, `withdrawCollateral` | 5 |
+| `.mappingStruct` storage field type declarations | `accrueInterest`, `accrueInterestPublic`, `setFee` | 3 |
+| Memory management (`mstore/mload`) | `borrow`, `liquidate`, `repay`, `setAuthorizationWithSig`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 8 |
+| Precompile access (`ecrecover`) | `setAuthorizationWithSig` | 1 |
+| Tuple destructuring in macro bodies | `createMarket`, `setAuthorizationWithSig` | 2 |
+| Pure-expression external calls (`externalCall`) | `createMarket` | 1 |
+| Usable `blockTimestamp` values for `setMappingWord` | `createMarket` | 1 |
 
 **Note on createMarket**: Currently a hard stub (`require (0 == 1) "createMarket stub"`).
 A full implementation using `setMappingWord`/`getMappingWord` with manual word-offset
