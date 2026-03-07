@@ -19,6 +19,7 @@ from check_semantic_bridge_readiness_summary import (  # noqa: E402
   SemanticBridgeReadinessSummaryError,
   derive_summary,
   main,
+  parse_operation_list,
   validate_summary,
 )
 
@@ -113,8 +114,45 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
       },
     )
 
+  def test_parse_operation_list_allows_none_sentinel(self) -> None:
+    self.assertEqual(parse_operation_list("none"), [])
+
+  def test_parse_operation_list_rejects_empty_text(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "operation list is empty",
+    ):
+      parse_operation_list("   ")
+
+  def test_parse_operation_list_rejects_mixed_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "mixes the none sentinel",
+    ):
+      parse_operation_list("none, setOwner")
+
   def test_validate_summary_accepts_matching_text(self) -> None:
     validate_summary(make_readiness_text(), derive_summary(make_config()))
+
+  def test_validate_summary_accepts_zero_link1_operations(self) -> None:
+    summary = {
+      "total": 3,
+      "link1_count": 0,
+      "link1_operations": [],
+      "assumed_count": 3,
+      "macro_migrated_count": 0,
+      "macro_pending_count": 3,
+    }
+    validate_summary(
+      make_readiness_text(
+        link1_count=0,
+        assumed_count=3,
+        macro_migrated_count=0,
+        macro_pending_count=3,
+        link1_ops="none",
+      ),
+      summary,
+    )
 
   def test_validate_summary_rejects_link1_operation_list_drift(self) -> None:
     with self.assertRaisesRegex(

@@ -47,6 +47,13 @@ def extract_link1_operations(text: str) -> list[str]:
 
   ops_block = text[block_start:block_end]
   operations = re.findall(r"`([^`]+)`", ops_block)
+  has_none_sentinel = re.search(r"\bnone\b", ops_block, re.IGNORECASE) is not None
+  if has_none_sentinel and operations:
+    raise ReadmeSemanticBridgeSummaryError(
+      "README Link 1 operation list mixes the none sentinel with named operations"
+    )
+  if has_none_sentinel:
+    return []
   if not operations:
     raise ReadmeSemanticBridgeSummaryError("README Link 1 operation list is empty")
   if len(operations) != len(set(operations)):
@@ -68,6 +75,11 @@ def validate_summary(text: str, summary: dict[str, object]) -> None:
 
   actual_operations = extract_link1_operations(text)
   expected_operations = list(summary["link1_operations"])
+  if not expected_operations and actual_operations:
+    raise ReadmeSemanticBridgeSummaryError(
+      "README Link 1 operation list drift: expected no operations; found "
+      + ", ".join(actual_operations)
+    )
   if set(actual_operations) != set(expected_operations):
     raise ReadmeSemanticBridgeSummaryError(
       "README Link 1 operation list drift: expected "

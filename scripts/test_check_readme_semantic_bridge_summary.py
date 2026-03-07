@@ -75,8 +75,32 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
   def test_extract_link1_operations(self) -> None:
     self.assertEqual(extract_link1_operations(make_readme()), ["setOwner", "flashLoan"])
 
+  def test_extract_link1_operations_allows_none_sentinel(self) -> None:
+    self.assertEqual(
+      extract_link1_operations(make_readme(proven_count=0, assumed_count=3, operations="none")),
+      [],
+    )
+
   def test_validate_summary_accepts_matching_readme(self) -> None:
     validate_summary(make_readme(), derive_summary(make_config()))
+
+  def test_validate_summary_accepts_zero_link1_operations(self) -> None:
+    summary = {
+      "total": 3,
+      "link1_count": 0,
+      "link1_operations": [],
+      "assumed_count": 3,
+    }
+    validate_summary(make_readme(proven_count=0, assumed_count=3, operations="none"), summary)
+
+  def test_extract_link1_operations_rejects_mixed_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "mixes the none sentinel",
+    ):
+      extract_link1_operations(
+        make_readme(proven_count=0, assumed_count=3, operations="none, `setOwner`")
+      )
 
   def test_validate_summary_rejects_proven_count_drift(self) -> None:
     with self.assertRaisesRegex(
