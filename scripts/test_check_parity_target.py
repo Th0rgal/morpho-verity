@@ -5,16 +5,20 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_parity_target import (  # noqa: E402
   ParityTargetError,
   load_target,
+  parse_solc_version,
   parse_foundry_default,
   parse_yul_identity_gate_mode,
+  read_text,
 )
 
 
@@ -90,6 +94,15 @@ class LoadTargetTests(unittest.TestCase):
     with self.assertRaisesRegex(ParityTargetError, "is not valid JSON"):
       load_target(path)
 
+  def test_rejects_invalid_utf8(self) -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    self.addCleanup(temp_dir.cleanup)
+    path = pathlib.Path(temp_dir.name) / "parity-target.json"
+    path.write_bytes(b"\xff")
+
+    with self.assertRaisesRegex(ParityTargetError, "is not valid UTF-8"):
+      load_target(path)
+
   def test_rejects_non_object_root(self) -> None:
     path = self.write_target([])
 
@@ -155,6 +168,54 @@ class LoadTargetTests(unittest.TestCase):
 
     with self.assertRaisesRegex(ParityTargetError, "missing non-empty string `verity.parityPackId`"):
       load_target(path)
+
+
+class ReadTextTests(unittest.TestCase):
+  def test_rejects_invalid_utf8(self) -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    self.addCleanup(temp_dir.cleanup)
+    path = pathlib.Path(temp_dir.name) / "foundry.toml"
+    path.write_bytes(b"\xff")
+
+    with self.assertRaisesRegex(ParityTargetError, "failed to decode text file as UTF-8"):
+      read_text(path)
+
+
+class ParseSolcVersionTests(unittest.TestCase):
+  def test_wraps_unparseable_output(self) -> None:
+    with mock.patch("check_parity_target.subprocess.check_output", return_value="solc ???"):
+      with self.assertRaisesRegex(ParityTargetError, "unable to parse `solc --version` output"):
+        parse_solc_version()
+
+
+class CliTests(unittest.TestCase):
+  def test_cli_reports_invalid_utf8_foundry_without_traceback(self) -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    self.addCleanup(temp_dir.cleanup)
+    foundry_path = pathlib.Path(temp_dir.name) / "foundry.toml"
+    foundry_path.write_bytes(b"\xff")
+
+    proc = subprocess.run(
+      [
+        sys.executable,
+        "-c",
+        "\n".join([
+          "import pathlib, sys",
+          f"sys.path.insert(0, {str(pathlib.Path(__file__).resolve().parent)!r})",
+          "import check_parity_target",
+          f"check_parity_target.FOUNDRY_PATH = pathlib.Path({str(foundry_path)!r})",
+          "check_parity_target.parse_solc_version = lambda: ('0.8.24', 'deadbeef')",
+          "check_parity_target.main()",
+        ]),
+      ],
+      capture_output=True,
+      text=True,
+      check=False,
+    )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("parity-target check failed: failed to decode text file as UTF-8", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
