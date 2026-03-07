@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -16,6 +18,7 @@ from check_spec_correspondence import (  # noqa: E402
     extract_macro_slots,
     extract_spec_fields,
     extract_spec_functions,
+    load_migrated_operations,
     validate_correspondence,
 )
 
@@ -265,6 +268,63 @@ class BuildReportTests(unittest.TestCase):
         json.dumps(report)
 
 
+class LoadMigratedOperationsTests(unittest.TestCase):
+    def test_rejects_invalid_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text("{not json", encoding="utf-8")
+
+            with self.assertRaisesRegex(CorrespondenceError, "failed to parse JSON config"):
+                load_migrated_operations(config_path)
+
+    def test_rejects_non_object_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text("[]", encoding="utf-8")
+
+            with self.assertRaisesRegex(CorrespondenceError, "config root must be an object"):
+                load_migrated_operations(config_path)
+
+    def test_rejects_non_boolean_macro_migrated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {
+                                "operation": "setOwner",
+                                "macroMigrated": "yes",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                CorrespondenceError, "missing boolean 'macroMigrated'"
+            ):
+                load_migrated_operations(config_path)
+
+    def test_collects_only_migrated_operations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                            {"operation": "setFeeRecipient", "macroMigrated": False},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(load_migrated_operations(config_path), {"setOwner"})
+
+
 class IntegrationTests(unittest.TestCase):
     def test_real_files(self) -> None:
         """Validate that actual repo files pass correspondence check."""
@@ -284,16 +344,46 @@ class IntegrationTests(unittest.TestCase):
         spec_fields = extract_spec_fields(spec_text)
         macro_slots = extract_macro_slots(macro_text)
 
-        with config_path.open("r", encoding="utf-8") as f:
-            config = json.load(f)
-        migrated = {
-            o["operation"] for o in config["obligations"] if o.get("macroMigrated")
-        }
+        migrated = load_migrated_operations(config_path)
 
         errors = validate_correspondence(
             spec_fns, macro_fns, spec_fields, macro_slots, migrated
         )
         self.assertEqual(errors, [], f"Correspondence errors: {errors}")
+
+    def test_cli_reports_invalid_json_without_traceback(self) -> None:
+        root = pathlib.Path(__file__).resolve().parent.parent
+        script_path = root / "scripts" / "check_spec_correspondence.py"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            spec_path = tmp / "Spec.lean"
+            macro_path = tmp / "MacroSlice.lean"
+            config_path = tmp / "semantic-bridge-obligations.json"
+            spec_path.write_text(SAMPLE_SPEC, encoding="utf-8")
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text("{invalid", encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--spec",
+                    str(spec_path),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("spec correspondence check failed:", proc.stderr)
+        self.assertIn("failed to parse JSON config", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
