@@ -17,13 +17,26 @@ TARGET_GLOB = ROOT / "Morpho" / "Compiler"
 SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
 
 
+class MorphoGeneratedBoundaryError(RuntimeError):
+  pass
+
+
+def read_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise MorphoGeneratedBoundaryError(f"failed to read {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise MorphoGeneratedBoundaryError(f"{path} is not valid UTF-8: {exc}") from exc
+
+
 def main() -> None:
   offenders: list[str] = []
 
   for path in sorted(TARGET_GLOB.glob("*.lean")):
     if path in ALLOWED_FILES:
       continue
-    text = path.read_text(encoding="utf-8")
+    text = read_text(path)
     if SYMBOL_RE.search(text):
       offenders.append(str(path.relative_to(ROOT)))
 
@@ -41,4 +54,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-  main()
+  try:
+    main()
+  except MorphoGeneratedBoundaryError as exc:
+    print(f"morpho-generated-boundary check failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
