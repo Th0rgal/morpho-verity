@@ -62,7 +62,7 @@ class BaselineValidationTests(unittest.TestCase):
         obligations_path=obligations_path,
       )
 
-      self.assertEqual(report["source"], str(spec_path))
+      self.assertEqual(report["sourcePath"], str(spec_path))
       self.assertEqual(report["baselinePath"], str(baseline_path))
       self.assertEqual(report["obligationsPath"], str(obligations_path))
 
@@ -98,7 +98,7 @@ class BaselineValidationTests(unittest.TestCase):
     with tempfile.TemporaryDirectory() as tmp:
       baseline_path = pathlib.Path(tmp) / "baseline.json"
       baseline = {
-        "source": report["source"],
+        "sourcePath": report["sourcePath"],
         "expectedUnsupported": {
           "stmt": report["unsupported"]["stmt"],
           "expr": report["unsupported"]["expr"],
@@ -526,7 +526,7 @@ class MainFailureTests(unittest.TestCase):
 
       self.assertEqual(proc.returncode, 0, msg=proc.stderr)
       report = json.loads(json_out.read_text(encoding="utf-8"))
-      self.assertEqual(report["source"], str(spec_path))
+      self.assertEqual(report["sourcePath"], str(spec_path))
       self.assertEqual(report["baselinePath"], str(baseline_path))
       self.assertEqual(report["obligationsPath"], str(obligations_path))
 
@@ -577,7 +577,7 @@ class MainFailureTests(unittest.TestCase):
 
       self.assertEqual(proc.returncode, 0, msg=proc.stderr)
       report = json.loads(json_out.read_text(encoding="utf-8"))
-      self.assertEqual(report["source"], str(spec_path.resolve()))
+      self.assertEqual(report["sourcePath"], str(spec_path.resolve()))
       self.assertEqual(report["baselinePath"], str(baseline_path.resolve()))
       self.assertEqual(report["obligationsPath"], str(obligations_path.resolve()))
 

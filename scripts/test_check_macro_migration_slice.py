@@ -154,10 +154,10 @@ class BaselineValidationTests(unittest.TestCase):
 
   def test_validate_baseline_metadata_matches(self) -> None:
     validate_baseline_metadata(
-      baseline={
-        "contract": "MorphoViewSlice",
-        "source": "Morpho/Compiler/MacroSlice.lean",
-      },
+        baseline={
+          "contract": "MorphoViewSlice",
+          "macroPath": "Morpho/Compiler/MacroSlice.lean",
+        },
       macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
       contract_name="MorphoViewSlice",
     )
@@ -167,7 +167,7 @@ class BaselineValidationTests(unittest.TestCase):
       validate_baseline_metadata(
         baseline={
           "contract": "OtherSlice",
-          "source": "Morpho/Compiler/MacroSlice.lean",
+          "macroPath": "Morpho/Compiler/MacroSlice.lean",
         },
         macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
         contract_name="MorphoViewSlice",
@@ -178,7 +178,7 @@ class BaselineValidationTests(unittest.TestCase):
       validate_baseline_metadata(
         baseline={
           "contract": "MorphoViewSlice",
-          "source": "Morpho/Compiler/NotMacroSlice.lean",
+          "macroPath": "Morpho/Compiler/NotMacroSlice.lean",
         },
         macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
         contract_name="MorphoViewSlice",
@@ -267,11 +267,11 @@ class BaselineValidationTests(unittest.TestCase):
       macro_path.write_text((ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text(encoding="utf-8"), encoding="utf-8")
       baseline_path.write_text(
         json.dumps(
-          {
-            "source": str(macro_path),
-            "contract": "MorphoViewSlice",
-            "expectedMigrated": repo_report["migratedSignatures"],
-            "expectedBlocked": repo_report["blockedSignatures"],
+            {
+              "macroPath": str(macro_path),
+              "contract": "MorphoViewSlice",
+              "expectedMigrated": repo_report["migratedSignatures"],
+              "expectedBlocked": repo_report["blockedSignatures"],
           }
         ),
         encoding="utf-8",
@@ -332,11 +332,11 @@ verity_contract MorphoViewSlice where
       )
       baseline_path.write_text(
         json.dumps(
-          {
-            "source": str(macro_path),
-            "contract": "MorphoViewSlice",
-            "expectedMigrated": ["owner()"],
-            "expectedBlocked": {
+            {
+              "macroPath": str(macro_path),
+              "contract": "MorphoViewSlice",
+              "expectedMigrated": ["owner()"],
+              "expectedBlocked": {
               "nonce(address)": "still blocked on macro-native auth plumbing",
             },
           }
@@ -395,11 +395,11 @@ verity_contract MorphoViewSlice where
       )
       baseline_path.write_text(
         json.dumps(
-          {
-            "source": str(macro_path),
-            "contract": "MorphoViewSlice",
-            "expectedMigrated": ["owner()"],
-            "expectedBlocked": {},
+            {
+              "macroPath": str(macro_path),
+              "contract": "MorphoViewSlice",
+              "expectedMigrated": ["owner()"],
+              "expectedBlocked": {},
           }
         ),
         encoding="utf-8",
@@ -508,11 +508,11 @@ verity_contract MorphoViewSlice where
       )
       baseline_path.write_text(
         json.dumps(
-          {
-            "source": str(macro_path),
-            "contract": "MorphoViewSlice",
-            "expectedMigrated": repo_report["migratedSignatures"],
-            "expectedBlocked": repo_report["blockedSignatures"],
+            {
+              "macroPath": str(macro_path),
+              "contract": "MorphoViewSlice",
+              "expectedMigrated": repo_report["migratedSignatures"],
+              "expectedBlocked": repo_report["blockedSignatures"],
           }
         ),
         encoding="utf-8",
@@ -574,11 +574,11 @@ verity_contract MorphoViewSlice where
       )
       baseline_path.write_text(
         json.dumps(
-          {
-            "source": str(pathlib.Path("..") / "external" / "MacroSlice.lean"),
-            "contract": "MorphoViewSlice",
-            "expectedMigrated": ["owner()"],
-            "expectedBlocked": {},
+            {
+              "macroPath": str(pathlib.Path("..") / "external" / "MacroSlice.lean"),
+              "contract": "MorphoViewSlice",
+              "expectedMigrated": ["owner()"],
+              "expectedBlocked": {},
           }
         ),
         encoding="utf-8",
@@ -611,7 +611,7 @@ verity_contract MorphoViewSlice where
     self.assertEqual(report["specPath"], str(spec_path.resolve()))
     self.assertEqual(report["macroPath"], str(macro_path.resolve()))
     self.assertEqual(report["baselinePath"], str(baseline_path.resolve()))
-    self.assertEqual(updated["source"], str(macro_path.resolve()))
+    self.assertEqual(updated["macroPath"], str(macro_path.resolve()))
 
 
 if __name__ == "__main__":

@@ -203,13 +203,13 @@ def validate_baseline_metadata(
       f"baseline contract mismatch: expected {contract_name!r}, got {baseline_contract!r}"
     )
 
-  baseline_source = baseline.get("source")
-  if not isinstance(baseline_source, str) or not baseline_source.strip():
-    raise MigrationSliceError("baseline source must be a non-empty string")
-  expected_source = display_path(macro_path)
-  if baseline_source != expected_source:
+  baseline_macro_path = baseline.get("macroPath")
+  if not isinstance(baseline_macro_path, str) or not baseline_macro_path.strip():
+    raise MigrationSliceError("baseline macroPath must be a non-empty string")
+  expected_macro_path = display_path(macro_path)
+  if baseline_macro_path != expected_macro_path:
     raise MigrationSliceError(
-      f"baseline source mismatch: expected {expected_source!r}, got {baseline_source!r}"
+      f"baseline macroPath mismatch: expected {expected_macro_path!r}, got {baseline_macro_path!r}"
     )
 
 
@@ -305,7 +305,7 @@ def build_write_baseline(
     )
 
   return {
-    "source": display_path(macro_path),
+    "macroPath": display_path(macro_path),
     "contract": contract_name,
     "expectedMigrated": sorted(migrated_signatures),
     "expectedBlocked": {sig: blocked_reasons[sig] for sig in blocked},
