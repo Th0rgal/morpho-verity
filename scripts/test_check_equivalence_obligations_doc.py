@@ -192,6 +192,14 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     ):
       validate_status_summary(drifted_doc, derive_summary(config))
 
+  def test_validate_status_summary_allows_wrapped_upstream_bridge_summary(self) -> None:
+    summary = derive_summary(make_config())
+    wrapped_doc = make_doc([], summary=summary).replace(
+      "supported fragment\n  via",
+      "supported fragment\n  \n  via",
+    )
+    validate_status_summary(wrapped_doc, summary)
+
   def test_extract_issue_summary_table(self) -> None:
     table_lines = [
       "| Cluster | Operations | Blocker families | Coverage counts |",
