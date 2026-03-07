@@ -36,11 +36,24 @@ FORBIDDEN_FILES = [
 ]
 
 
+class ArtifactLayoutBoundaryError(RuntimeError):
+  pass
+
+
+def read_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise ArtifactLayoutBoundaryError(f"failed to read {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise ArtifactLayoutBoundaryError(f"{path} is not valid UTF-8: {exc}") from exc
+
+
 def main() -> None:
   offenders: list[tuple[str, int, str]] = []
 
   for path in TARGETS:
-    text = path.read_text(encoding="utf-8")
+    text = read_text(path)
     for lineno, line in enumerate(text.splitlines(), start=1):
       for pattern, reason in FORBIDDEN:
         if pattern.search(line):
@@ -71,4 +84,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-  main()
+  try:
+    main()
+  except ArtifactLayoutBoundaryError as exc:
+    print(f"artifact-layout-boundary check failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)

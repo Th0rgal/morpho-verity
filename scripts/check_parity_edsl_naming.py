@@ -24,11 +24,24 @@ FORBIDDEN = [
 ]
 
 
+class ParityEdslNamingError(RuntimeError):
+  pass
+
+
+def read_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise ParityEdslNamingError(f"failed to read {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise ParityEdslNamingError(f"{path} is not valid UTF-8: {exc}") from exc
+
+
 def main() -> None:
   offenders: list[tuple[str, int, str]] = []
 
   for path in TARGETS:
-    text = path.read_text(encoding="utf-8")
+    text = read_text(path)
     for lineno, line in enumerate(text.splitlines(), start=1):
       for pattern, reason in FORBIDDEN:
         if pattern.search(line):
@@ -45,4 +58,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-  main()
+  try:
+    main()
+  except ParityEdslNamingError as exc:
+    print(f"parity-edsl-naming check failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)

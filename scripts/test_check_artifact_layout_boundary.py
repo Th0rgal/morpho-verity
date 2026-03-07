@@ -87,6 +87,24 @@ class CheckArtifactLayoutBoundaryTests(unittest.TestCase):
       except OSError:
         pass
 
+  def test_reports_invalid_utf8_without_traceback(self) -> None:
+    original = README.read_bytes()
+    try:
+      README.write_bytes(b"\xff")
+      proc = subprocess.run(
+        ["python3", str(SCRIPT)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("artifact-layout-boundary check failed:", proc.stderr)
+      self.assertIn("README.md is not valid UTF-8", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+    finally:
+      README.write_bytes(original)
+
 
 if __name__ == "__main__":
   unittest.main()

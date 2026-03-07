@@ -44,6 +44,24 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
     finally:
       MAIN_PATH.write_text(original, encoding="utf-8")
 
+  def test_reports_invalid_utf8_without_traceback(self) -> None:
+    original = MAIN_PATH.read_bytes()
+    try:
+      MAIN_PATH.write_bytes(b"\xff")
+      proc = subprocess.run(
+        ["python3", str(SCRIPT)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("morpho-generated-boundary check failed:", proc.stderr)
+      self.assertIn("Main.lean is not valid UTF-8", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+    finally:
+      MAIN_PATH.write_bytes(original)
+
 
 if __name__ == "__main__":
   unittest.main()
