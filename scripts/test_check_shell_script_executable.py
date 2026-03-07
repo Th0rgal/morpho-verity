@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import tempfile
 import unittest
 
@@ -90,6 +91,19 @@ class CheckShellScriptExecutableTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
       finally:
         sys.argv = old_argv
+
+  def test_cli_uses_repo_scripts_dir_from_another_cwd_without_args(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      proc = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "check_shell_script_executable.py")],
+        cwd=tmp_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("shell-script-executable check: OK", proc.stdout)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,8 @@ import sys
 
 from workflow_run_parser import extract_workflow_run_text
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 WORKFLOW_CHECK_REF_RE = re.compile(
   r"\b(?:(?:python3|python|bash|sh)[ \t]+|env[ \t]+(?:python3|python|bash|sh)[ \t]+)?"
   r"[\"']?(?:\./)?scripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b[\"']?"
@@ -72,7 +74,7 @@ def main() -> int:
   parser.add_argument(
     "--workflow",
     type=pathlib.Path,
-    default=pathlib.Path(".github/workflows/verify.yml"),
+    default=ROOT / ".github/workflows/verify.yml",
     help="Path to workflow yaml",
   )
   parser.add_argument(
@@ -83,8 +85,10 @@ def main() -> int:
   )
   args = parser.parse_args()
 
+  workflow_path = args.workflow.resolve()
+
   try:
-    workflow_text = read_workflow_text(args.workflow)
+    workflow_text = read_workflow_text(workflow_path)
     workflow_checks = collect_workflow_check_scripts(workflow_text)
     wrapped_checks = collect_wrapped_check_scripts(workflow_text)
   except CiTimeoutWrapperCoverageError as exc:
