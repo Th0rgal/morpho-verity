@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import shutil
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_macro_migration_surface import (  # noqa: E402
+  MacroMigrationSurfaceError,
   ROOT,
   build_report,
   canonicalize_type,
@@ -38,6 +41,14 @@ class CheckMacroMigrationSurfaceTests(unittest.TestCase):
     )
     self.assertEqual(canonicalize_type("Id", structs), "bytes32")
     self.assertEqual(canonicalize_type("Signature calldata", structs), "(uint8,bytes32,bytes32)")
+
+  def test_split_top_level_csv_rejects_unbalanced_delimiters(self) -> None:
+    with self.assertRaisesRegex(MacroMigrationSurfaceError, "unbalanced delimiters"):
+      split_top_level_csv("(address,uint256")
+
+  def test_extract_spec_selector_entries_requires_selector_block(self) -> None:
+    with self.assertRaisesRegex(MacroMigrationSurfaceError, "unable to find morphoSelectors"):
+      extract_spec_selector_entries("def somethingElse : List Nat := []")
 
   def test_build_report_marks_mismatch(self) -> None:
     report = build_report({"a()", "b(uint256)"}, {"a()", "c()"})
@@ -84,6 +95,38 @@ def morphoSelectors : List Nat := [
 
   def test_root_constant_points_to_repo(self) -> None:
     self.assertTrue((ROOT / "Morpho" / "Compiler" / "Spec.lean").exists())
+
+  def test_cli_reports_checker_error_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      bad_repo = pathlib.Path(tmpdir)
+      (bad_repo / "scripts").mkdir()
+      (bad_repo / "Morpho" / "Compiler").mkdir(parents=True)
+      (bad_repo / "morpho-blue" / "src" / "interfaces").mkdir(parents=True)
+      (bad_repo / "scripts" / "check_macro_migration_surface.py").write_text(
+        (ROOT / "scripts" / "check_macro_migration_surface.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+      (bad_repo / "Morpho" / "Compiler" / "Spec.lean").write_text(
+        "def notMorphoSelectors : List Nat := []\n",
+        encoding="utf-8",
+      )
+      (bad_repo / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol").write_text(
+        "interface IMorpho {}\n",
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [sys.executable, str(bad_repo / "scripts" / "check_macro_migration_surface.py")],
+        cwd=bad_repo,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("macro-migration-surface check failed:", proc.stderr)
+    self.assertIn("unable to find morphoSelectors", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":

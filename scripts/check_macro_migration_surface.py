@@ -31,6 +31,10 @@ EXPECTED_ONLY_IN_SPEC = {
 }
 
 
+class MacroMigrationSurfaceError(RuntimeError):
+  """Raised when the macro migration surface check cannot validate its inputs."""
+
+
 def read_text(path: pathlib.Path) -> str:
   with path.open("r", encoding="utf-8") as f:
     return f.read()
@@ -63,13 +67,13 @@ def split_top_level_csv(text: str) -> list[str]:
     elif ch in ")]":
       depth -= 1
       if depth < 0:
-        raise RuntimeError("unbalanced delimiters while splitting parameter list")
+        raise MacroMigrationSurfaceError("unbalanced delimiters while splitting parameter list")
     current.append(ch)
   tail = "".join(current).strip()
   if tail:
     out.append(tail)
   if depth != 0:
-    raise RuntimeError("unbalanced delimiters while splitting parameter list")
+    raise MacroMigrationSurfaceError("unbalanced delimiters while splitting parameter list")
   return out
 
 
@@ -86,7 +90,7 @@ def parse_struct_fields(solidity_text: str) -> dict[str, list[str]]:
         continue
       parts = line.split()
       if len(parts) < 2:
-        raise RuntimeError(f"unable to parse struct field declaration: {line!r}")
+        raise MacroMigrationSurfaceError(f"unable to parse struct field declaration: {line!r}")
       fields.append(" ".join(parts[:-1]))
     structs[name] = fields
   return structs
@@ -121,7 +125,7 @@ def canonicalize_type(raw_type: str, structs: dict[str, list[str]], stack: tuple
 
   if base in structs:
     if base in stack:
-      raise RuntimeError(f"recursive struct definition detected for {base}")
+      raise MacroMigrationSurfaceError(f"recursive struct definition detected for {base}")
     tuple_types = [canonicalize_type(ft, structs, stack + (base,)) for ft in structs[base]]
     return f"({','.join(tuple_types)}){suffix}"
 
@@ -155,14 +159,14 @@ def extract_spec_selector_entries(spec_text: str) -> list[tuple[str, int]]:
       start_idx = idx
       break
   if start_idx is None:
-    raise RuntimeError("unable to find morphoSelectors in Morpho/Compiler/Spec.lean")
+    raise MacroMigrationSurfaceError("unable to find morphoSelectors in Morpho/Compiler/Spec.lean")
   block_lines: list[str] = []
   for line in lines[start_idx + 1:]:
     if re.match(r"^\s*\]\s*$", line):
       break
     block_lines.append(line)
   if not block_lines:
-    raise RuntimeError("unable to parse morphoSelectors list body in Morpho/Compiler/Spec.lean")
+    raise MacroMigrationSurfaceError("unable to parse morphoSelectors list body in Morpho/Compiler/Spec.lean")
   entries: list[tuple[str, int]] = []
   for line in block_lines:
     m = re.match(r"^\s*0x([0-9a-fA-F]+)\s*,?\s*--\s*(.+?)\s*$", line)
@@ -173,7 +177,7 @@ def extract_spec_selector_entries(spec_text: str) -> list[tuple[str, int]]:
     if re.match(r"^[A-Za-z_][A-Za-z0-9_]*\(.*\)$", candidate):
       entries.append((candidate, selector))
   if not entries:
-    raise RuntimeError("morphoSelectors comments did not contain any parseable signatures")
+    raise MacroMigrationSurfaceError("morphoSelectors comments did not contain any parseable signatures")
   return entries
 
 
@@ -189,7 +193,7 @@ def extract_solc_selector_map(interface_path: pathlib.Path, contract_name: str =
     text=True,
   )
   if proc.returncode != 0:
-    raise RuntimeError(f"solc --hashes failed for {interface_path}: {proc.stderr.strip()}")
+    raise MacroMigrationSurfaceError(f"solc --hashes failed for {interface_path}: {proc.stderr.strip()}")
 
   selector_map: dict[str, int] = {}
   in_contract_block = False
@@ -207,7 +211,9 @@ def extract_solc_selector_map(interface_path: pathlib.Path, contract_name: str =
     selector_map[m.group(2)] = int(m.group(1), 16)
 
   if not selector_map:
-    raise RuntimeError(f"failed to parse selector hashes for contract {contract_name} from solc output")
+    raise MacroMigrationSurfaceError(
+      f"failed to parse selector hashes for contract {contract_name} from solc output"
+    )
   return selector_map
 
 
@@ -276,7 +282,10 @@ def main() -> None:
   parser.add_argument("--json-out", type=pathlib.Path, default=None, help="Write report JSON to this path")
   args = parser.parse_args()
 
-  report = run_check()
+  try:
+    report = run_check()
+  except MacroMigrationSurfaceError as exc:
+    fail(str(exc))
   if args.json_out is not None:
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
