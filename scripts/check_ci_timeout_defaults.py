@@ -8,6 +8,8 @@ import pathlib
 import re
 import sys
 
+from workflow_run_parser import extract_workflow_run_text
+
 RUN_WITH_TIMEOUT_RE = re.compile(r"run_with_timeout\.sh\s+([A-Z0-9_]+)\s+([0-9]+)\b")
 ENV_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\s*:\s*\"([0-9]+)\"")
 SCRIPT_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\b")
@@ -52,7 +54,7 @@ def parse_timeout_env_file(path: pathlib.Path) -> dict[str, int]:
 
 
 def collect_run_timeout_defaults(workflow_text: str) -> dict[str, set[int]]:
-  normalized = LINE_CONTINUATION_RE.sub(" ", workflow_text)
+  normalized = LINE_CONTINUATION_RE.sub(" ", extract_workflow_run_text(workflow_text))
   seen: dict[str, set[int]] = {}
   for var, default in RUN_WITH_TIMEOUT_RE.findall(normalized):
     seen.setdefault(var, set()).add(int(default))

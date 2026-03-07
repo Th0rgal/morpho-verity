@@ -44,6 +44,18 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_run_timeout_defaults(workflow), {"A_TIMEOUT": {10}})
 
+  def test_collect_run_timeout_defaults_ignores_nested_non_step_run_mapping(self) -> None:
+    workflow = (
+      "jobs:\n"
+      "  test:\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        with:\n"
+      "          run: ./scripts/run_with_timeout.sh FAKE_TIMEOUT 99 \"fake\" -- cmd\n"
+      "        run: ./scripts/run_with_timeout.sh REAL_TIMEOUT 10 \"real\" -- cmd\n"
+    )
+    self.assertEqual(collect_run_timeout_defaults(workflow), {"REAL_TIMEOUT": {10}})
+
   def test_collect_timeout_env_literals(self) -> None:
     workflow = (
       "env:\n"
