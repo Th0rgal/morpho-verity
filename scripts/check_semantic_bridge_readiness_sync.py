@@ -42,6 +42,17 @@ class SemanticBridgeReadinessSyncError(RuntimeError):
   pass
 
 
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise SemanticBridgeReadinessSyncError(f"failed to read {context} {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise SemanticBridgeReadinessSyncError(
+      f"failed to decode {context} {path} as UTF-8: {exc}"
+    ) from exc
+
+
 def normalize_readiness_status(raw_status: str) -> str:
   if raw_status not in STATUS_MAP:
     raise SemanticBridgeReadinessSyncError(
@@ -73,8 +84,7 @@ def require_config_status(value: Any, *, context: str) -> str:
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
   try:
-    with path.open("r", encoding="utf-8") as f:
-      data = json.load(f)
+    data = json.loads(read_text(path, context="config"))
   except json.JSONDecodeError as exc:
     raise SemanticBridgeReadinessSyncError(
       f"failed to parse JSON config {path}: {exc}"
@@ -159,7 +169,7 @@ def extract_obligations_body(text: str) -> str:
 
 
 def parse_readiness_entries(path: pathlib.Path) -> list[dict[str, Any]]:
-  text = path.read_text(encoding="utf-8")
+  text = read_text(path, context="readiness file")
   obligations_body = extract_obligations_body(text)
 
   entries: list[dict[str, Any]] = []
@@ -293,8 +303,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except SemanticBridgeReadinessSyncError as e:
-    print(f"semantic-bridge-readiness-sync check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"semantic-bridge-readiness-sync check failed: {e}", file=sys.stderr)
     raise SystemExit(1)

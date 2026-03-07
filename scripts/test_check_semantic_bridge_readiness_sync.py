@@ -313,6 +313,16 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
       ):
         load_config(config_path)
 
+  def test_load_config_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "semantic-bridge-obligations.json"
+      config_path.write_bytes(b"\xff")
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "failed to decode config",
+      ):
+        load_config(config_path)
+
   def test_main_passes_on_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
@@ -387,6 +397,59 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
       self.assertEqual(proc.returncode, 1)
       self.assertIn("semantic-bridge-readiness-sync check failed:", proc.stderr)
       self.assertIn("failed to parse JSON config", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_readiness_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readiness_path = root / "SemanticBridgeReadiness.lean"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      readiness_path.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_readiness_sync.py"),
+          "--config",
+          str(config_path),
+          "--readiness",
+          str(readiness_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("semantic-bridge-readiness-sync check failed:", proc.stderr)
+      self.assertIn("failed to decode readiness file", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_missing_readiness_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readiness_path = root / "SemanticBridgeReadiness.lean"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_readiness_sync.py"),
+          "--config",
+          str(config_path),
+          "--readiness",
+          str(readiness_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("semantic-bridge-readiness-sync check failed:", proc.stderr)
+      self.assertIn("failed to read readiness file", proc.stderr)
       self.assertNotIn("Traceback", proc.stderr)
 
 
