@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed sync check for the open-issue summary in EQUIVALENCE_OBLIGATIONS.md."""
+"""Fail-closed sync check for the blocker-cluster summary in EQUIVALENCE_OBLIGATIONS.md."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from check_semantic_bridge_readiness_summary import derive_summary
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 DOC_PATH = ROOT / "docs" / "EQUIVALENCE_OBLIGATIONS.md"
-SECTION_HEADING = "### Open issue blocker summary"
-TABLE_HEADER = "| Issue | Operations | Blocker families | Coverage counts |"
+SECTION_HEADING = "### Blocker cluster summary"
+TABLE_HEADER = "| Cluster | Operations | Blocker families | Coverage counts |"
 TABLE_SEPARATOR = "|-------|------------|------------------|-----------------|"
 STATUS_HEADING = "## Status"
 LINK1_SUMMARY_RE = re.compile(
@@ -157,13 +157,13 @@ def validate_issue_summary_table(doc_text: str, clusters: list[dict[str, Any]]) 
   expected_lines = expected_table_lines(clusters)
   if actual_lines != expected_lines:
     raise EquivalenceObligationsDocError(
-      "open issue blocker summary table does not match derived issue-cluster report"
+      "blocker cluster summary table does not match derived issue-cluster report"
     )
 
 
 def main() -> int:
   parser = argparse.ArgumentParser(
-    description="Validate the open-issue blocker summary in EQUIVALENCE_OBLIGATIONS.md"
+    description="Validate the blocker-cluster summary in EQUIVALENCE_OBLIGATIONS.md"
   )
   parser.add_argument("--config", type=pathlib.Path, default=CONFIG_PATH)
   parser.add_argument("--doc", type=pathlib.Path, default=DOC_PATH)

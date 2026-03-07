@@ -85,9 +85,9 @@ def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None
     f"{summary['link1_count']}/{summary['total']} obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
     "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
     "",
-    f"`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065 lands. {summary['macro_migrated_count']}/{summary['total']} operations are macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream macro primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).",
+    f"`MacroSlice.lean` is the current macro-generated contract surface. {summary['macro_migrated_count']}/{summary['total']} operations are macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream macro primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).",
     "",
-    "### Open issue blocker summary",
+    "### Blocker cluster summary",
     "",
     *table_lines,
     "",
@@ -155,7 +155,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
 
   def test_extract_issue_summary_table(self) -> None:
     table_lines = [
-      "| Issue | Operations | Blocker families | Coverage counts |",
+      "| Cluster | Operations | Blocker families | Coverage counts |",
       "|-------|------------|------------------|-----------------|",
       "| `#123` | `supply` | `erc20` | erc20\u00d71 |",
     ]
@@ -168,7 +168,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
   def test_validate_issue_summary_table_rejects_drift(self) -> None:
     clusters = validate_issue_clusters(make_config())
     drifted_doc = make_doc([
-      "| Issue | Operations | Blocker families | Coverage counts |",
+      "| Cluster | Operations | Blocker families | Coverage counts |",
       "|-------|------------|------------------|-----------------|",
       "| `#123` | `supply` | `erc20` | erc20\u00d71 |",
       "| `#124` | `liquidate` | `erc20` | erc20\u00d71 |",
@@ -185,7 +185,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     self.assertEqual(clusters, [])
     validate_issue_summary_table(
       make_doc([
-        "| Issue | Operations | Blocker families | Coverage counts |",
+        "| Cluster | Operations | Blocker families | Coverage counts |",
         "|-------|------------|------------------|-----------------|",
       ]),
       clusters,
@@ -223,7 +223,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
       config_path = root / "config.json"
       doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
       config_path.write_text(json.dumps(config), encoding="utf-8")
-      doc_path.write_text(make_doc([], summary=summary).replace("### Open issue blocker summary\n", ""), encoding="utf-8")
+      doc_path.write_text(make_doc([], summary=summary).replace("### Blocker cluster summary\n", ""), encoding="utf-8")
 
       old_argv = sys.argv
       try:
@@ -236,7 +236,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
         ]
         with self.assertRaisesRegex(
           EquivalenceObligationsDocError,
-          "missing `### Open issue blocker summary` section",
+          "missing `### Blocker cluster summary` section",
         ):
           main()
       finally:
@@ -249,7 +249,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     ):
       extract_issue_summary_table(
         make_doc([
-          "| Issue | Operations | Blocker families | Coverage counts |",
+          "| Cluster | Operations | Blocker families | Coverage counts |",
           "| `#123` | `supply` | `erc20` | erc20×1 |",
         ])
       )

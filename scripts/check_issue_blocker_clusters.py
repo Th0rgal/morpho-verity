@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed tracker for issue-cluster macro blocker inventories."""
+"""Fail-closed tracker for blocker-cluster macro blocker inventories."""
 
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
       )
     if obligation.get("macroMigrated") is not False:
       raise IssueClusterError(
-        f"obligation '{operation}' cannot reference open issue #{issue} once macroMigrated!=false"
+        f"obligation '{operation}' cannot reference blocker cluster #{issue} once macroMigrated!=false"
       )
     blockers = obligation.get("macroSurfaceBlockers")
     if not isinstance(blockers, list) or not blockers or not all(isinstance(b, str) for b in blockers):
@@ -140,7 +140,7 @@ def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
 
 def parser() -> argparse.ArgumentParser:
   p = argparse.ArgumentParser(
-    description="Validate issue-cluster macro blocker inventories"
+    description="Validate blocker-cluster macro blocker inventories"
   )
   p.add_argument("--config", type=pathlib.Path, default=CONFIG_PATH)
   p.add_argument("--json-out", type=pathlib.Path)
