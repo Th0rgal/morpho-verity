@@ -240,6 +240,95 @@ class WorkflowRunParserTests(unittest.TestCase):
       },
     )
 
+  def test_extract_workflow_env_literals_handles_multiline_inline_flow_mapping_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'env: {TOP_TIMEOUT_SEC: "1',
+        '    0", TOP_LABEL: \'Don\'\'t',
+        "    drift'}",
+        "jobs:",
+        "  test:",
+        '    env: {JOB_TIMEOUT_SEC: "2',
+        '      0"}',
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env: {STEP_TIMEOUT_SEC: '3",
+        "            0'}",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["1 0"],
+        "TOP_LABEL": ["Don't drift"],
+        "JOB_TIMEOUT_SEC": ["2 0"],
+        "STEP_TIMEOUT_SEC": ["3 0"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_handles_multiline_inline_flow_mapping_tags_anchors_and_aliases(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'env: {TOP_TIMEOUT_SEC: !!str "1',
+        '    0", TOP_TIMEOUT_COPY: &top_timeout \'2',
+        "    0', TOP_TIMEOUT_ALIAS: *top_timeout}",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["1 0"],
+        "TOP_TIMEOUT_COPY": ["2 0"],
+        "TOP_TIMEOUT_ALIAS": ["2 0"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_supports_tagged_and_anchored_inline_env_mappings(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'env: !!map &workflow_env {TOP_TIMEOUT_SEC: "10"}',
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env: &step_env {STEP_TIMEOUT_SEC: '30'}",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_supports_mapping_properties_before_block_env(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env: &workflow_env",
+        '  TOP_TIMEOUT_SEC: "10"',
+        "jobs:",
+        "  test:",
+        "    env: !!map",
+        "      JOB_TIMEOUT_SEC: '20'",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env: &step_env",
+        '          STEP_TIMEOUT_SEC: "30"',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "JOB_TIMEOUT_SEC": ["20"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
   def test_extract_workflow_env_literals_handles_block_env_value_comments(self) -> None:
     workflow_text = "\n".join(
       [
@@ -291,6 +380,41 @@ class WorkflowRunParserTests(unittest.TestCase):
       ]
     )
     self.assertEqual(extract_workflow_env_literals(workflow_text), {"STEP_TIMEOUT_SEC": ["30"]})
+
+  def test_extract_workflow_env_literals_keeps_following_step_after_unparseable_inline_env_alias(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    env: *shared_defaults",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env:",
+        '          STEP_TIMEOUT_SEC: "30"',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(extract_workflow_env_literals(workflow_text), {"STEP_TIMEOUT_SEC": ["30"]})
+
+  def test_extract_workflow_env_literals_accepts_inline_flow_mapping_trailing_comma(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'env: {TOP_TIMEOUT_SEC: "10",}',
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env: {STEP_TIMEOUT_SEC: 30,}",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
 
   def test_extract_workflow_run_text_ignores_nested_run_field_within_step_mapping(self) -> None:
     workflow_text = "\n".join(

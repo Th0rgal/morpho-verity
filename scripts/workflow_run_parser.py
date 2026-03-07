@@ -14,22 +14,9 @@ ENV_LINE_RE = re.compile(r"^(\s*)env:\s*(.*?)\s*$")
 ENV_ENTRY_RE = re.compile(r"^(\s*)([A-Z_][A-Z0-9_]*):\s*(.+?)\s*$")
 RUN_FIELD_RE = re.compile(r"^(\s*)run:\s*(.*)$")
 RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>](?:[1-9][-+]?|[-+]?[1-9]|[-+])?(?:\s+#.*)?$")
-INLINE_ENV_ENTRY_RE = re.compile(r"""
-  \s*
-  ([A-Z_][A-Z0-9_]*)
-  \s*:\s*
-  (
-    "(?:[^"\\]|\\.)*"
-    |
-    '(?:[^']|'')*'
-    |
-    [^,{}]+
-  )
-  \s*
-  (?:,|$)
-""", re.VERBOSE)
-TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$", re.DOTALL)
-ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$", re.DOTALL)
+INLINE_ENV_KEY_RE = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?(?:\s+(.*))?$", re.DOTALL)
+ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)(?:\s+(.*))?$", re.DOTALL)
 ALIAS_SCALAR_RE = re.compile(r"^\*([^\s]+)$")
 SINGLE_QUOTED_SCALAR_RE = re.compile(r"^'(?:[^']|'')*'(?:\s+#.*)?\s*$", re.DOTALL)
 DOUBLE_QUOTED_SCALAR_RE = re.compile(r'^"(?:[^"\\]|\\.)*"(?:\s+#.*)?\s*$', re.DOTALL)
@@ -145,24 +132,24 @@ def _extract_block_scalar_indent(tail: str) -> int | None:
   return None
 
 
-def _strip_yaml_scalar_properties(value: str) -> tuple[str, list[str]]:
+def _strip_yaml_node_properties(value: str) -> tuple[str, list[str]]:
   anchors: list[str] = []
   previous = None
   while value and value != previous:
     previous = value
     tag_match = TAG_PROPERTY_RE.match(value)
     if tag_match is not None:
-      value = tag_match.group(1).lstrip()
+      value = (tag_match.group(1) or "").lstrip()
       continue
     anchor_match = ANCHOR_PROPERTY_RE.match(value)
     if anchor_match is not None:
       anchors.append(anchor_match.group(1))
-      value = anchor_match.group(2).lstrip()
+      value = (anchor_match.group(2) or "").lstrip()
   return value, anchors
 
 
 def _starts_quoted_yaml_scalar(raw: str) -> str | None:
-  value, _ = _strip_yaml_scalar_properties(raw.strip())
+  value, _ = _strip_yaml_node_properties(raw.strip())
   if value.startswith("'"):
     return "'"
   if value.startswith('"'):
@@ -171,7 +158,7 @@ def _starts_quoted_yaml_scalar(raw: str) -> str | None:
 
 
 def _is_complete_quoted_yaml_scalar(raw: str) -> bool:
-  value, _ = _strip_yaml_scalar_properties(raw.strip())
+  value, _ = _strip_yaml_node_properties(raw.strip())
   if value.startswith("'"):
     return SINGLE_QUOTED_SCALAR_RE.fullmatch(value) is not None
   if value.startswith('"'):
@@ -207,6 +194,34 @@ def _consume_multiline_quoted_scalar(
   return raw, start_index + 1
 
 
+def _consume_multiline_inline_env_mapping(
+  lines: list[str],
+  start_index: int,
+  raw: str,
+  field_indent: int,
+) -> tuple[str, int]:
+  if not raw.strip().startswith("{") or _extract_inline_env_mapping_body(raw) is not None:
+    return raw, start_index + 1
+
+  parts = [raw.rstrip()]
+  next_index = start_index + 1
+  while next_index < len(lines):
+    candidate = lines[next_index]
+    stripped = candidate.lstrip(" ")
+    if stripped:
+      indent = len(candidate) - len(stripped)
+      if indent <= field_indent:
+        break
+      parts.append(stripped)
+    else:
+      parts.append("")
+    combined = "\n".join(parts)
+    next_index += 1
+    if _extract_inline_env_mapping_body(combined) is not None:
+      return combined, next_index
+  return raw, start_index + 1
+
+
 def _fold_quoted_yaml_scalar_lines(inner: str, quote: str) -> str:
   if "\n" not in inner:
     return inner
@@ -219,7 +234,7 @@ def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> 
   value = _strip_yaml_comment(raw).strip()
   if not value:
     return None
-  value, declared_anchors = _strip_yaml_scalar_properties(value)
+  value, declared_anchors = _strip_yaml_node_properties(value)
   if not value:
     return None
   alias_match = ALIAS_SCALAR_RE.fullmatch(value)
@@ -312,42 +327,162 @@ def _extract_inline_env_mapping_body(raw: str) -> str | None:
   in_single_quote = False
   in_double_quote = False
   escape = False
-  for index, char in enumerate(value):
+  index = 0
+  while index < len(value):
+    char = value[index]
     if in_single_quote:
       if char == "'":
+        if index + 1 < len(value) and value[index + 1] == "'":
+          index += 2
+          continue
         in_single_quote = False
+      index += 1
       continue
     if in_double_quote:
       if escape:
         escape = False
+        index += 1
         continue
       if char == "\\":
         escape = True
+        index += 1
         continue
       if char == '"':
         in_double_quote = False
+      index += 1
       continue
 
     if char == "'":
       in_single_quote = True
+      index += 1
       continue
     if char == '"':
       in_double_quote = True
+      index += 1
       continue
     if char == "{":
       depth += 1
+      index += 1
       continue
     if char != "}":
+      index += 1
       continue
 
     depth -= 1
     if depth != 0:
+      index += 1
       continue
     remainder = value[index + 1:].strip()
     if remainder and not remainder.startswith("#"):
       return None
     return value[1:index]
+  return None
 
+
+def _split_inline_env_mapping_entries(body: str) -> list[str] | None:
+  entries: list[str] = []
+  start = 0
+  in_single_quote = False
+  in_double_quote = False
+  escape = False
+  index = 0
+  while index < len(body):
+    char = body[index]
+    if in_single_quote:
+      if char == "'":
+        if index + 1 < len(body) and body[index + 1] == "'":
+          index += 2
+          continue
+        in_single_quote = False
+      index += 1
+      continue
+    if in_double_quote:
+      if escape:
+        escape = False
+        index += 1
+        continue
+      if char == "\\":
+        escape = True
+        index += 1
+        continue
+      if char == '"':
+        in_double_quote = False
+      index += 1
+      continue
+
+    if char == "'":
+      in_single_quote = True
+      index += 1
+      continue
+    if char == '"':
+      in_double_quote = True
+      index += 1
+      continue
+    if char == ",":
+      entry = body[start:index].strip()
+      if not entry:
+        if entries:
+          start = index + 1
+          index += 1
+          continue
+        return None
+      entries.append(entry)
+      start = index + 1
+    index += 1
+
+  if in_single_quote or in_double_quote:
+    return None
+  entry = body[start:].strip()
+  if not entry:
+    return entries if entries else None
+  entries.append(entry)
+  return entries
+
+
+def _split_inline_env_entry(entry: str) -> tuple[str, str] | None:
+  in_single_quote = False
+  in_double_quote = False
+  escape = False
+  index = 0
+  while index < len(entry):
+    char = entry[index]
+    if in_single_quote:
+      if char == "'":
+        if index + 1 < len(entry) and entry[index + 1] == "'":
+          index += 2
+          continue
+        in_single_quote = False
+      index += 1
+      continue
+    if in_double_quote:
+      if escape:
+        escape = False
+        index += 1
+        continue
+      if char == "\\":
+        escape = True
+        index += 1
+        continue
+      if char == '"':
+        in_double_quote = False
+      index += 1
+      continue
+
+    if char == "'":
+      in_single_quote = True
+      index += 1
+      continue
+    if char == '"':
+      in_double_quote = True
+      index += 1
+      continue
+    if char == ":":
+      key = entry[:index].strip()
+      value = entry[index + 1:].strip()
+      if INLINE_ENV_KEY_RE.fullmatch(key) is None or not value:
+        return None
+      return key, value
+    index += 1
   return None
 
 
@@ -358,15 +493,17 @@ def _parse_inline_env_mapping(raw: str, anchors: dict[str, str] | None = None) -
   if not body.strip():
     return {}
   parsed: dict[str, list[str]] = {}
-  position = 0
-  while position < len(body):
-    match = INLINE_ENV_ENTRY_RE.match(body, position)
-    if match is None:
+  entries = _split_inline_env_mapping_entries(body)
+  if entries is None:
+    return None
+  for entry in entries:
+    split_entry = _split_inline_env_entry(entry)
+    if split_entry is None:
       return None
-    scalar = _parse_scalar_env_value(match.group(2), anchors)
+    key, raw_value = split_entry
+    scalar = _parse_scalar_env_value(raw_value, anchors)
     if scalar is not None:
-      parsed.setdefault(match.group(1), []).append(scalar)
-    position = match.end()
+      parsed.setdefault(key, []).append(scalar)
   return parsed
 
 
@@ -530,12 +667,14 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       i += 1
       continue
 
-    if env_tail:
-      env_values = _parse_inline_env_mapping(env_tail, anchors)
+    env_value, _ = _strip_yaml_node_properties(env_tail.strip())
+    if env_tail and env_value:
+      raw_inline_env, i = _consume_multiline_inline_env_mapping(lines, i, env_value, env_indent)
+      env_values = _parse_inline_env_mapping(raw_inline_env, anchors)
       if env_values is None:
-        i += 1
+        if i == len(lines):
+          i += 1
         continue
-      i += 1
     else:
       env_values, i = _consume_env_mapping(lines, i, env_indent, anchors)
     for key, extracted in env_values.items():
