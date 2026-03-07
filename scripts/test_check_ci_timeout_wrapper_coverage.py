@@ -44,6 +44,18 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
     )
     self.assertEqual(collect_workflow_check_scripts(workflow_text), {"check_alpha.py"})
 
+  def test_collect_workflow_check_scripts_supports_quoted_paths(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'run: python3 "./scripts/check_alpha.py"',
+        'run: "./scripts/check_beta.sh" --require solc',
+      ]
+    )
+    self.assertEqual(
+      collect_workflow_check_scripts(workflow_text),
+      {"check_alpha.py", "check_beta.sh"},
+    )
+
   def test_collect_wrapped_check_scripts(self) -> None:
     workflow_text = "\n".join(
       [
@@ -82,6 +94,18 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
       ]
     )
     self.assertEqual(collect_wrapped_check_scripts(workflow_text), {"check_alpha.py"})
+
+  def test_collect_wrapped_check_scripts_supports_quoted_paths(self) -> None:
+    workflow_text = "\n".join(
+      [
+        'run: ./scripts/run_with_timeout.sh M 1 desc -- python3 "./scripts/check_alpha.py"',
+        'run: ./scripts/run_with_timeout.sh M 1 desc -- "./scripts/check_beta.sh" --require solc',
+      ]
+    )
+    self.assertEqual(
+      collect_wrapped_check_scripts(workflow_text),
+      {"check_alpha.py", "check_beta.sh"},
+    )
 
   def test_main_passes_when_all_check_scripts_are_wrapped(self) -> None:
     workflow_text = (

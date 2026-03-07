@@ -12,12 +12,13 @@ from workflow_run_parser import extract_workflow_run_text
 
 WORKFLOW_SCRIPT_REF_RE = re.compile(
   r"\b(?:(?:python3|python|bash|sh)\s+|env\s+(?:python3|python|bash|sh)\s+)?"
-  r"(?:\./)?scripts/([A-Za-z0-9_]+\.(?:py|sh))\b"
+  r"[\"']?(?:\./)?scripts/([A-Za-z0-9_]+\.(?:py|sh))\b[\"']?"
 )
 RUN_WITH_TIMEOUT_TARGET_RE = re.compile(
   r"(?:\./|\.\./)?scripts/run_with_timeout\.sh[^\n]*[ \t]+--[ \t]+"
-  r"(?:(?:(?:python3|python|bash|sh)[ \t]+|env[ \t]+(?:python3|python|bash|sh)[ \t]+)?(?:\./)?scripts/)"
+  r"(?:(?:(?:python3|python|bash|sh)[ \t]+|env[ \t]+(?:python3|python|bash|sh)[ \t]+)?[\"']?(?:\./)?scripts/)"
   r"([A-Za-z0-9_]+\.(?:py|sh))\b"
+  r"[\"']?"
 )
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
 SHELL_TEST_LOOP_RE = re.compile(
