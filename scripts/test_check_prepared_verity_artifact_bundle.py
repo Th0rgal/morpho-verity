@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import pathlib
 import subprocess
 import sys
@@ -95,6 +96,29 @@ def write_bundle(
 
 
 class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
+  def test_compute_expected_input_digest_normalizes_relative_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      workspace = pathlib.Path(d)
+      previous_cwd = pathlib.Path.cwd()
+      try:
+        os.chdir(workspace)
+        self.assertEqual(
+          compute_expected_input_digest(
+            root=pathlib.Path("."),
+            artifact_mode="edsl",
+            skip_solc="1",
+            parity_pack="test-pack",
+          ),
+          compute_expected_input_digest(
+            root=workspace,
+            artifact_mode="edsl",
+            skip_solc="1",
+            parity_pack="test-pack",
+          ),
+        )
+      finally:
+        os.chdir(previous_cwd)
+
   def test_accepts_nested_edsl_bundle(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
@@ -120,6 +144,42 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       )
 
       self.assertEqual(resolved, root / "edsl")
+
+  def test_accepts_relative_external_paths_from_different_cwd(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      workspace = pathlib.Path(d)
+      inputs = workspace / "inputs"
+      caller = workspace / "caller"
+      inputs.mkdir()
+      caller.mkdir()
+      parity_target = inputs / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = inputs / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = inputs / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      artifact_root = inputs / "prepared"
+      write_bundle(
+        artifact_root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+
+      previous_cwd = pathlib.Path.cwd()
+      try:
+        os.chdir(caller)
+        resolved = validate_prepared_verity_artifact_bundle(
+          pathlib.Path("..") / "inputs" / "prepared",
+          require_bin=True,
+          require_rewrite=True,
+          parity_target_path=pathlib.Path("..") / "inputs" / "parity-target.json",
+          pipeline_manifest_path=pathlib.Path("..") / "inputs" / "pipeline.json",
+          proof_manifest_path=pathlib.Path("..") / "inputs" / "proof.json",
+        )
+      finally:
+        os.chdir(previous_cwd)
+
+      self.assertEqual(resolved, (artifact_root / "edsl").resolve())
 
   def test_rejects_parity_pack_mismatch(self) -> None:
     with tempfile.TemporaryDirectory() as d:

@@ -193,6 +193,7 @@ def _iter_input_digest_files(root: pathlib.Path) -> list[pathlib.Path]:
 def compute_expected_input_digest(
     *, root: pathlib.Path = ROOT, artifact_mode: str, skip_solc: str, parity_pack: str
 ) -> str | None:
+  root = root.resolve()
   files = _iter_input_digest_files(root)
   if not files:
     return None
@@ -215,6 +216,10 @@ def validate_prepared_verity_artifact_bundle(
     pipeline_manifest_path: pathlib.Path = DEFAULT_PIPELINE_MANIFEST,
     proof_manifest_path: pathlib.Path = DEFAULT_PROOF_MANIFEST,
 ) -> pathlib.Path:
+  artifact_dir = artifact_dir.resolve()
+  parity_target_path = parity_target_path.resolve()
+  pipeline_manifest_path = pipeline_manifest_path.resolve()
+  proof_manifest_path = proof_manifest_path.resolve()
   resolved_dir = resolve_artifact_dir(artifact_dir)
   if not resolved_dir.is_dir():
     raise PreparedArtifactBundleError(
