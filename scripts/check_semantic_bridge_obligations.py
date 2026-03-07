@@ -125,8 +125,24 @@ def validate_config(
     config: dict[str, Any],
     bridge_hypotheses: list[str],
     macro_functions: dict[str, bool] | None = None,
+    *,
+    bridge_path: pathlib.Path = BRIDGE_PATH,
 ) -> None:
     """Validate config structure and consistency with source files."""
+    if "source" in config:
+        raise ObligationError("config uses legacy 'source' field; use 'sourcePath'")
+
+    source_path = config.get("sourcePath")
+    if source_path is not None:
+        if not isinstance(source_path, str) or not source_path:
+            raise ObligationError("config field 'sourcePath' must be a non-empty string")
+        expected_source_path = display_path(bridge_path.resolve())
+        if source_path != expected_source_path:
+            raise ObligationError(
+                "config field 'sourcePath' does not match bridge input: "
+                f"expected {expected_source_path!r}, got {source_path!r}"
+            )
+
     obligations = config.get("obligations")
     if not isinstance(obligations, list):
         raise ObligationError("config missing 'obligations' array")
@@ -276,7 +292,12 @@ def main() -> None:
     macro_functions = extract_macro_functions(macro_text)
 
     config = load_config(config_path)
-    validate_config(config, bridge_hypotheses, macro_functions)
+    validate_config(
+        config,
+        bridge_hypotheses,
+        macro_functions,
+        bridge_path=bridge_path,
+    )
 
     report = build_report(
         config,
