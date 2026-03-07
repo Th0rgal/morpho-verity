@@ -15,6 +15,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_morpho_selectors_sync import (  # noqa: E402
   MorphoSelectorsSyncError,
   find_selector_block_bounds,
+  make_extra_selector_map,
   parse_selector_signatures,
   rewrite_selector_block,
   write_text,
@@ -142,56 +143,16 @@ def morphoSelectors : List Nat := [
     self.assertIn("unable to find morphoSelectors", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
-  def test_cli_reports_temp_selector_write_failure_without_traceback(self) -> None:
-    temp_selector_path = pathlib.Path("/tmp/morpho_extra_selectors.sol")
-    created_dir = False
-    if temp_selector_path.exists():
-      self.skipTest("/tmp/morpho_extra_selectors.sol already exists")
-
-    try:
-      temp_selector_path.mkdir()
-      created_dir = True
-      with tempfile.TemporaryDirectory() as tmpdir:
-        bad_repo = pathlib.Path(tmpdir)
-        (bad_repo / "scripts").mkdir()
-        (bad_repo / "Morpho" / "Compiler").mkdir(parents=True)
-        (bad_repo / "morpho-blue" / "src" / "interfaces").mkdir(parents=True)
-        (bad_repo / "scripts" / "check_morpho_selectors_sync.py").write_text(
-          (ROOT / "scripts" / "check_morpho_selectors_sync.py").read_text(encoding="utf-8"),
-          encoding="utf-8",
-        )
-        (bad_repo / "scripts" / "check_macro_migration_surface.py").write_text(
-          (ROOT / "scripts" / "check_macro_migration_surface.py").read_text(encoding="utf-8"),
-          encoding="utf-8",
-        )
-        (bad_repo / "Morpho" / "Compiler" / "Spec.lean").write_text(
-          "def morphoSelectors : List Nat := [\n"
-          "  0x11111111 -- fee(bytes32)\n"
-          "]\n",
-          encoding="utf-8",
-        )
-        (bad_repo / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol").write_text(
-          "interface IMorpho {\n"
-          "  function supply(address,uint256) external;\n"
-          "}\n",
-          encoding="utf-8",
-        )
-
-        proc = subprocess.run(
-          [sys.executable, str(bad_repo / "scripts" / "check_morpho_selectors_sync.py")],
-          cwd=bad_repo,
-          check=False,
-          capture_output=True,
-          text=True,
-        )
-    finally:
-      if created_dir:
-        temp_selector_path.rmdir()
-
-    self.assertEqual(proc.returncode, 1)
-    self.assertIn("morpho-selectors-sync check failed:", proc.stderr)
-    self.assertIn("failed to write temporary selector interface", proc.stderr)
-    self.assertNotIn("Traceback", proc.stderr)
+  def test_make_extra_selector_map_wraps_tempfile_write_failures(self) -> None:
+    with mock.patch(
+      "check_morpho_selectors_sync.tempfile.NamedTemporaryFile",
+      side_effect=OSError("boom"),
+    ):
+      with self.assertRaisesRegex(
+        MorphoSelectorsSyncError,
+        "failed to write temporary selector interface",
+      ):
+        make_extra_selector_map({"fee(bytes32)"})
 
 
 if __name__ == "__main__":
