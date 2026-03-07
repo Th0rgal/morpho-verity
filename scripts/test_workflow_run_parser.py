@@ -221,6 +221,25 @@ class WorkflowRunParserTests(unittest.TestCase):
       },
     )
 
+  def test_extract_workflow_env_literals_handles_inline_flow_mapping_single_quote_escape(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env: {ESCAPED_LABEL: 'Don''t drift'}",
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - env: {STEP_LABEL: 'Keep''s value'} # step label",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "ESCAPED_LABEL": ["Don't drift"],
+        "STEP_LABEL": ["Keep's value"],
+      },
+    )
+
   def test_extract_workflow_env_literals_handles_block_env_value_comments(self) -> None:
     workflow_text = "\n".join(
       [
