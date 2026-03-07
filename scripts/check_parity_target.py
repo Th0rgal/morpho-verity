@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import re
@@ -159,10 +160,30 @@ def parse_yul_identity_gate_mode(target: dict[str, Any]) -> str:
   )
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+  parser = argparse.ArgumentParser(description=__doc__)
+  parser.add_argument(
+    "--target",
+    type=pathlib.Path,
+    default=TARGET_PATH,
+    help="Path to config/parity-target.json",
+  )
+  parser.add_argument(
+    "--foundry",
+    type=pathlib.Path,
+    default=FOUNDRY_PATH,
+    help="Path to morpho-blue/foundry.toml",
+  )
+  return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+  args = parse_args(argv)
+  target_path = args.target.resolve()
+  foundry_path = args.foundry.resolve()
   try:
-    target = load_target(TARGET_PATH)
-    foundry = parse_foundry_default(read_text(FOUNDRY_PATH))
+    target = load_target(target_path)
+    foundry = parse_foundry_default(read_text(foundry_path))
     version, commit = parse_solc_version()
   except (ParityTargetError, RuntimeError) as exc:
     fail(str(exc))

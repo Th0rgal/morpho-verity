@@ -11,10 +11,13 @@ import tempfile
 import unittest
 from unittest import mock
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+  sys.path.insert(0, str(SCRIPT_DIR))
 from check_parity_target import (  # noqa: E402
   ParityTargetError,
   load_target,
+  parse_args,
   parse_solc_version,
   parse_foundry_default,
   parse_yul_identity_gate_mode,
@@ -189,6 +192,11 @@ class ParseSolcVersionTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+  def test_parse_args_accepts_explicit_paths(self) -> None:
+    args = parse_args(["--target", "custom-target.json", "--foundry", "custom-foundry.toml"])
+    self.assertEqual(args.target, pathlib.Path("custom-target.json"))
+    self.assertEqual(args.foundry, pathlib.Path("custom-foundry.toml"))
+
   def test_cli_reports_invalid_utf8_foundry_without_traceback(self) -> None:
     temp_dir = tempfile.TemporaryDirectory()
     self.addCleanup(temp_dir.cleanup)
@@ -197,18 +205,21 @@ class CliTests(unittest.TestCase):
 
     proc = subprocess.run(
       [
-        sys.executable,
-        "-c",
-        "\n".join([
-          "import pathlib, sys",
-          f"sys.path.insert(0, {str(pathlib.Path(__file__).resolve().parent)!r})",
-          "import check_parity_target",
-          f"check_parity_target.FOUNDRY_PATH = pathlib.Path({str(foundry_path)!r})",
-          "check_parity_target.parse_solc_version = lambda: ('0.8.24', 'deadbeef')",
-          "check_parity_target.main()",
-        ]),
-      ],
-      capture_output=True,
+          sys.executable,
+          "-c",
+          "\n".join([
+            "import pathlib, sys",
+            f"sys.path.insert(0, {str(SCRIPT_DIR)!r})",
+            "import check_parity_target",
+            "sys.argv = [",
+            "'check_parity_target.py',",
+            f"'--foundry', {str(foundry_path)!r},",
+            "]",
+            "check_parity_target.parse_solc_version = lambda: ('0.8.24', 'deadbeef')",
+            "check_parity_target.main()",
+          ]),
+        ],
+        capture_output=True,
       text=True,
       check=False,
     )
@@ -216,6 +227,68 @@ class CliTests(unittest.TestCase):
     self.assertEqual(proc.returncode, 1)
     self.assertIn("parity-target check failed: failed to decode text file as UTF-8", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_accepts_relative_external_inputs_from_other_working_directory(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      runner = root / "runner"
+      runner.mkdir()
+      inputs = runner / "inputs"
+      inputs.mkdir()
+      target_path = inputs / "parity-target.json"
+      target_path.write_text(json.dumps({
+        "id": "parity-target",
+        "solc": {"version": "0.8.24", "commit": "deadbeef"},
+        "foundryDefaultProfile": {
+          "optimizer": True,
+          "optimizerRuns": 200,
+          "viaIR": False,
+          "evmVersion": "shanghai",
+          "bytecodeHash": "none",
+        },
+        "verity": {"parityPackId": "pack-1"},
+        "yulIdentity": {"gateMode": "exact"},
+      }), encoding="utf-8")
+      foundry_path = inputs / "foundry.toml"
+      foundry_path.write_text(
+        "\n".join([
+          "[profile.default]",
+          "optimizer = true",
+          "optimizer_runs = 200",
+          "via_ir = false",
+          "evm_version = \"shanghai\"",
+          "bytecode_hash = \"none\"",
+          "",
+        ]),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          "-c",
+          "\n".join([
+            "import sys",
+            f"sys.path.insert(0, {str(SCRIPT_DIR)!r})",
+            "import check_parity_target",
+            "check_parity_target.parse_solc_version = lambda: ('0.8.24', 'deadbeef')",
+            "sys.argv = [",
+            "'check_parity_target.py',",
+            "'--target', 'inputs/parity-target.json',",
+            "'--foundry', 'inputs/foundry.toml',",
+            "]",
+            "check_parity_target.main()",
+          ]),
+        ],
+        cwd=runner,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0, proc.stderr)
+    self.assertIn("parity-target check: OK", proc.stdout)
+    self.assertEqual(proc.stderr, "")
 
 
 if __name__ == "__main__":
