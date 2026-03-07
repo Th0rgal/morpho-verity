@@ -40,6 +40,15 @@ class SemanticBridgeInstantiationStatusError(RuntimeError):
   pass
 
 
+def read_instantiation_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except (OSError, UnicodeDecodeError) as exc:
+    raise SemanticBridgeInstantiationStatusError(
+      f"failed to read SemanticBridgeInstantiation source `{path}`: {exc}"
+    ) from exc
+
+
 def normalize_text(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
@@ -247,7 +256,7 @@ def main() -> int:
   parser.add_argument("--instantiation", type=pathlib.Path, default=INSTANTIATION_PATH)
   args = parser.parse_args()
 
-  text = args.instantiation.read_text(encoding="utf-8")
+  text = read_instantiation_text(args.instantiation)
   validate_status(text)
 
   print("semantic-bridge-instantiation-status check: OK")
@@ -258,8 +267,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except SemanticBridgeInstantiationStatusError as e:
-    print(f"semantic-bridge-instantiation-status check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"semantic-bridge-instantiation-status check failed: {e}", file=sys.stderr)
     raise SystemExit(1)
