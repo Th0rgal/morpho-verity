@@ -84,6 +84,15 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     )
     self.assertIn(EXPECTED_INTRO_STATUS, extract_validates_section(text))
 
+  def test_extract_validates_section_ignores_inline_namespace_text(self) -> None:
+    text = make_text().replace(
+      EXPECTED_INTRO_STATUS,
+      EXPECTED_INTRO_STATUS
+      + "\n\nInline prose mentioning namespace Morpho.Proofs.SemanticBridgeInstantiation should not end the section.",
+      1,
+    )
+    self.assertIn(EXPECTED_INTRO_STATUS, extract_validates_section(text))
+
   def test_extract_summary_section_rejects_missing_header(self) -> None:
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
@@ -181,6 +190,24 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
       "missing `## What this validates` section",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_missing_namespace_boundary_hidden_by_inline_namespace_text(self) -> None:
+    text = make_text().replace(
+      "namespace Morpho.Proofs.SemanticBridgeInstantiation",
+      "namespace Morpho.Proofs.SemanticBridgeInstantiationBroken",
+      1,
+    )
+    masked_text = text.replace(
+      EXPECTED_INTRO_STATUS,
+      EXPECTED_INTRO_STATUS
+      + "\n\nInline prose mentioning namespace Morpho.Proofs.SemanticBridgeInstantiation.\n",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing namespace boundary after `## What this validates` section",
     ):
       validate_status(masked_text)
 

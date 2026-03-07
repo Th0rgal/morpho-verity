@@ -50,6 +50,7 @@ NAMESPACE_HEADER = "namespace Morpho.Proofs.SemanticBridgeInstantiation"
 CLOSING_DOCBLOCK_PATTERN = r"(?m)^\s*-/\s*$"
 VALIDATES_SECTION_PATTERN = r"(?m)^\s*## What this validates\s*$"
 SUMMARY_SECTION_PATTERN = r"(?m)^\s*/-!\s*## Summary\s*$"
+NAMESPACE_PATTERN = r"(?m)^\s*namespace Morpho\.Proofs\.SemanticBridgeInstantiation\s*$"
 
 
 def extract_section(
@@ -90,7 +91,7 @@ def extract_validates_section(text: str) -> str:
   section = extract_section(
     text=text,
     start_pattern=VALIDATES_SECTION_PATTERN,
-    end_marker=NAMESPACE_HEADER,
+    end_pattern=NAMESPACE_PATTERN,
     missing_error="SemanticBridgeInstantiation.lean status drift: missing `## What this validates` section",
     empty_error="SemanticBridgeInstantiation.lean status drift: empty `## What this validates` section",
     missing_end_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section",
