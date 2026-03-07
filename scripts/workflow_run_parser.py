@@ -55,8 +55,8 @@ def _consume_run_command(
     raise ValueError("expected run field at start_index")
 
   tail = match.group(2).strip()
-  if tail and not RUN_BLOCK_SCALAR_RE.fullmatch(tail):
-    line_parts = [tail]
+  if RUN_BLOCK_SCALAR_RE.fullmatch(tail) is None:
+    line_parts = [tail] if tail else []
     next_index = start_index + 1
     while next_index < len(lines):
       candidate = lines[next_index]
@@ -554,10 +554,12 @@ def _consume_env_mapping(
     block_scalar = _consume_block_scalar(lines, next_index - 1, env_indent + 2, raw_value)
     if block_scalar is not None:
       raw_value, next_index, declared_anchors = block_scalar
+      value = raw_value
       if anchors is not None:
         for anchor_name in declared_anchors:
-          anchors[anchor_name] = raw_value
-    value = _parse_scalar_env_value(raw_value, anchors)
+          anchors[anchor_name] = value
+    else:
+      value = _parse_scalar_env_value(raw_value, anchors)
     if value is not None:
       values.setdefault(entry_match.group(2), []).append(value)
   return values, next_index

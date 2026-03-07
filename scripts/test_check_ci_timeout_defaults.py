@@ -44,6 +44,18 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_run_timeout_defaults(workflow), {"A_TIMEOUT": {10}})
 
+  def test_collect_run_timeout_defaults_supports_empty_plain_multiline_scalar(self) -> None:
+    workflow = (
+      "jobs:\n"
+      "  test:\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        run:\n"
+      "          ./scripts/run_with_timeout.sh\n"
+      "          A_TIMEOUT 10 \"A\" -- cmd\n"
+    )
+    self.assertEqual(collect_run_timeout_defaults(workflow), {"A_TIMEOUT": {10}})
+
   def test_collect_run_timeout_defaults_ignores_nested_non_step_run_mapping(self) -> None:
     workflow = (
       "jobs:\n"
@@ -212,6 +224,14 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
         "MORPHO_STEP_TIMEOUT_SEC": {30},
       },
     )
+
+  def test_collect_timeout_env_literals_ignores_hashed_block_scalar_values(self) -> None:
+    workflow = (
+      "env:\n"
+      "  MORPHO_TOP_TIMEOUT_SEC: |\n"
+      "    10 # sec\n"
+    )
+    self.assertEqual(collect_timeout_env_literals(workflow), {})
 
   def test_collect_timeout_env_literals_handles_block_scalar_value_properties(self) -> None:
     workflow = (

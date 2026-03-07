@@ -118,7 +118,24 @@ class WorkflowRunParserTests(unittest.TestCase):
     )
     self.assertEqual(
       extract_workflow_run_text(workflow_text),
-      "python3 scripts/check_alpha.py \\\n--strict",
+        "python3 scripts/check_alpha.py \\\n--strict",
+      )
+
+  def test_extract_workflow_run_text_handles_empty_plain_multiline_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run:",
+        "          python3 scripts/check_alpha.py",
+        "          --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py\n--strict",
     )
 
   def test_extract_workflow_run_text_handles_inline_run_step_item(self) -> None:
@@ -744,6 +761,24 @@ class WorkflowRunParserTests(unittest.TestCase):
         "TOP_TIMEOUT_SEC": ["1 0"],
         "LABEL": ["alpha\nbeta"],
         "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_preserves_hashes_in_block_scalar_values(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  LABEL: |",
+        "    alpha # keep",
+        "  TOP_TIMEOUT_SEC: |",
+        "    10 # sec",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "LABEL": ["alpha # keep"],
+        "TOP_TIMEOUT_SEC": ["10 # sec"],
       },
     )
 
