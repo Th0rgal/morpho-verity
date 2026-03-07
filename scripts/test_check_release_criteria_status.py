@@ -216,6 +216,31 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
     ):
       validate_doc_status(f"{fake_section}{drifted_doc}")
 
+  def test_validate_doc_status_rejects_fake_status_block_masking_missing_real_labels(self) -> None:
+    drifted_doc = make_doc().replace("Partially enforced:\n", "", 1).replace(
+      "\nNot yet enforced:\n",
+      "\n",
+      1,
+    )
+    fake_status = "\n".join([
+      "## Status",
+      "",
+      "Partially enforced:",
+      *[
+        f"{index}. {item}"
+        for index, item in enumerate(EXPECTED_PARTIALLY_ENFORCED_ITEMS, start=1)
+      ],
+      "",
+      "Not yet enforced:",
+      "1. strict `yul-identity-check` (zero structural AST mismatch for supported fragment).",
+      "",
+    ])
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "missing `## Status` section|missing `Partially enforced:` section",
+    ):
+      validate_doc_status(f"{fake_status}{drifted_doc}")
+
   def test_validate_workflow_passes(self) -> None:
     validate_workflow(make_workflow())
 

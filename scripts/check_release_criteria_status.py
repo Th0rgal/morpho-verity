@@ -15,8 +15,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOC_PATH = ROOT / "docs" / "RELEASE_CRITERIA.md"
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
 
+STATUS_HEADING = "## Status"
 PARTIALLY_ENFORCED_HEADING = "Partially enforced:"
 NOT_YET_ENFORCED_HEADING = "Not yet enforced:"
+REQUIRED_GATES_HEADING = "## Required Gates (Target State)"
 
 EXPECTED_PARTIALLY_ENFORCED_ITEMS = [
   "README semantic-bridge proved-vs-assumed summary drift gate is enforced in CI (`scripts/check_readme_semantic_bridge_summary.py`).",
@@ -78,21 +80,23 @@ def require_unique_line(text: str, line: str, description: str) -> re.Match[str]
   return matches[0]
 
 
-def extract_section(text: str, heading: str, next_heading: str) -> str:
+def extract_section(text: str, heading: str, next_heading: str | None = None) -> str:
   try:
     start_match = require_unique_line(text, heading, heading)
   except ReleaseCriteriaStatusError as exc:
     raise ReleaseCriteriaStatusError(f"missing `{heading}` section in RELEASE_CRITERIA.md") from exc
 
-  try:
-    end_match = require_unique_line(text, next_heading, next_heading)
-  except ReleaseCriteriaStatusError as exc:
-    raise ReleaseCriteriaStatusError(
-      f"missing `{next_heading}` section after `{heading}` in RELEASE_CRITERIA.md"
-    ) from exc
-
   start = start_match.end() + 1
-  end = end_match.start()
+  if next_heading is None:
+    end = len(text)
+  else:
+    try:
+      end_match = require_unique_line(text, next_heading, next_heading)
+    except ReleaseCriteriaStatusError as exc:
+      raise ReleaseCriteriaStatusError(
+        f"missing `{next_heading}` section after `{heading}` in RELEASE_CRITERIA.md"
+      ) from exc
+    end = end_match.start()
   if end <= start:
     raise ReleaseCriteriaStatusError(
       f"`{heading}` has invalid boundary ordering in RELEASE_CRITERIA.md"
@@ -128,8 +132,9 @@ def filter_tracked_items(items: list[str]) -> list[str]:
   ]
 
 def validate_doc_status(text: str) -> None:
+  status_section = extract_section(text, STATUS_HEADING, REQUIRED_GATES_HEADING)
   partially_enforced = parse_numbered_items(
-    extract_section(text, PARTIALLY_ENFORCED_HEADING, NOT_YET_ENFORCED_HEADING)
+    extract_section(status_section, PARTIALLY_ENFORCED_HEADING, NOT_YET_ENFORCED_HEADING)
   )
   tracked_items = filter_tracked_items(partially_enforced)
   missing_items = [item for item in EXPECTED_PARTIALLY_ENFORCED_ITEMS if item not in tracked_items]
@@ -152,7 +157,7 @@ def validate_doc_status(text: str) -> None:
     )
 
   not_yet_enforced = parse_numbered_items(
-    extract_section(text, NOT_YET_ENFORCED_HEADING, "## Required Gates (Target State)")
+    extract_section(status_section, NOT_YET_ENFORCED_HEADING)
   )
   stale_items = [
     item for item in FORBIDDEN_NOT_YET_ENFORCED_ITEMS if item in not_yet_enforced
