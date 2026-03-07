@@ -27,6 +27,7 @@ FORBIDDEN_SNIPPETS = [
   "The remaining gap (Links 2+3) connects the EDSL",
   "execution to the compiled IR and then to EVMYulLean.",
 ]
+DISCHARGE_SECTION_HEADER = "/-! ## Discharge Status"
 
 
 class SemanticBridgeDischargeStatusError(RuntimeError):
@@ -37,8 +38,25 @@ def normalize_text(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
 
+def extract_discharge_section(text: str) -> str:
+  try:
+    _, after_header = text.split(DISCHARGE_SECTION_HEADER, 1)
+  except ValueError as exc:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing `## Discharge Status` section"
+    ) from exc
+
+  match = re.search(r"(?m)^\s*-/\s*$", after_header)
+  section = after_header[: match.start()] if match else after_header
+  if not section.strip():
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: empty `## Discharge Status` section"
+    )
+  return section
+
+
 def validate_status(text: str) -> None:
-  normalized_text = normalize_text(text)
+  normalized_text = normalize_text(extract_discharge_section(text))
   for expected in (EXPECTED_DISCHARGE_STATUS, EXPECTED_FLASHLOAN_ROW):
     if normalize_text(expected) not in normalized_text:
       raise SemanticBridgeDischargeStatusError(

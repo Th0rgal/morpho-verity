@@ -15,10 +15,12 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_semantic_bridge_discharge_status import (  # noqa: E402
+  DISCHARGE_SECTION_HEADER,
   EXPECTED_DISCHARGE_STATUS,
   EXPECTED_FLASHLOAN_ROW,
   FORBIDDEN_SNIPPETS,
   SemanticBridgeDischargeStatusError,
+  extract_discharge_section,
   main,
   normalize_text,
   validate_status,
@@ -30,6 +32,8 @@ def make_text() -> str:
     f"""\
     /-!
     # Semantic Bridge Discharge: Link 1 (Wrapper API ↔ EDSL)
+
+    {DISCHARGE_SECTION_HEADER}
 
     {EXPECTED_DISCHARGE_STATUS}
 
@@ -48,6 +52,16 @@ def make_text() -> str:
 class SemanticBridgeDischargeStatusTests(unittest.TestCase):
   def test_normalize_text_collapses_whitespace(self) -> None:
     self.assertEqual(normalize_text("alpha\n\n beta\tgamma"), "alpha beta gamma")
+
+  def test_extract_discharge_section_returns_target_block(self) -> None:
+    self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text()))
+
+  def test_extract_discharge_section_rejects_missing_header(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Discharge Status` section",
+    ):
+      extract_discharge_section(make_text().replace(DISCHARGE_SECTION_HEADER, "/-! ## Other"))
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
@@ -84,7 +98,12 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       SemanticBridgeDischargeStatusError,
       "stale bridge status text",
     ):
-      validate_status(make_text() + "\n" + FORBIDDEN_SNIPPETS[0])
+      validate_status(
+        make_text().replace(
+          EXPECTED_DISCHARGE_STATUS,
+          EXPECTED_DISCHARGE_STATUS + "\n" + FORBIDDEN_SNIPPETS[0],
+        )
+      )
 
   def test_validate_status_rejects_wrapped_stale_text(self) -> None:
     with self.assertRaisesRegex(
@@ -92,10 +111,22 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       "stale bridge status text",
     ):
       validate_status(
-        make_text()
-        + "\nThe remaining gap (Links 2+3) connects the EDSL\n\n"
-        + "execution to the compiled IR and then to EVMYulLean."
+        make_text().replace(
+          EXPECTED_DISCHARGE_STATUS,
+          EXPECTED_DISCHARGE_STATUS
+          + "\nThe remaining gap (Links 2+3) connects the EDSL\n\n"
+          + "execution to the compiled IR and then to EVMYulLean.",
+        )
       )
+
+  def test_validate_status_rejects_drift_hidden_by_duplicate_elsewhere(self) -> None:
+    stale_section = make_text().replace(EXPECTED_DISCHARGE_STATUS, "old status")
+    masked_text = stale_section + "\n" + EXPECTED_DISCHARGE_STATUS + "\n" + EXPECTED_FLASHLOAN_ROW
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing expected text",
+    ):
+      validate_status(masked_text)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
