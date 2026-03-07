@@ -23,6 +23,7 @@ from check_macro_migration_blockers_doc import (  # noqa: E402
   expected_table_lines,
   extract_macro_migration_section,
   extract_table,
+  load_config,
   main,
   validate_doc_table,
 )
@@ -216,6 +217,39 @@ class MacroMigrationBlockersDocTests(unittest.TestCase):
       "references unknown blocker",
     ):
       build_blocker_report(config)
+
+  def test_build_blocker_report_rejects_duplicate_operation(self) -> None:
+    config = make_config()
+    config["obligations"].append({
+      "operation": "supply",
+      "macroMigrated": False,
+      "macroSurfaceBlockers": ["callbacks"],
+    })
+    with self.assertRaisesRegex(
+      MacroMigrationBlockersDocError,
+      "duplicate obligation operation 'supply'",
+    ):
+      build_blocker_report(config)
+
+  def test_load_config_rejects_malformed_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "config.json"
+      path.write_text("{\n", encoding="utf-8")
+      with self.assertRaisesRegex(
+        MacroMigrationBlockersDocError,
+        "failed to parse JSON",
+      ):
+        load_config(path)
+
+  def test_load_config_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "config.json"
+      path.write_text("[]", encoding="utf-8")
+      with self.assertRaisesRegex(
+        MacroMigrationBlockersDocError,
+        "config root must be a JSON object",
+      ):
+        load_config(path)
 
 
 if __name__ == "__main__":

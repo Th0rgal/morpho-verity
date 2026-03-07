@@ -78,8 +78,14 @@ def extract_macro_migration_section(doc_text: str) -> str:
 
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      data = json.load(f)
+  except json.JSONDecodeError as exc:
+    raise MacroMigrationBlockersDocError(f"failed to parse JSON in {path}: {exc}") from exc
+  if not isinstance(data, dict):
+    raise MacroMigrationBlockersDocError(f"config root must be a JSON object: {path}")
+  return data
 
 
 def build_blocker_report(config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -88,14 +94,18 @@ def build_blocker_report(config: dict[str, Any]) -> list[dict[str, Any]]:
     raise MacroMigrationBlockersDocError("config missing 'obligations' array")
 
   operations_by_blocker: dict[str, list[str]] = {}
+  seen_operations: set[str] = set()
   for i, item in enumerate(obligations):
     if not isinstance(item, dict):
       raise MacroMigrationBlockersDocError(f"obligations[{i}] is not an object")
-    if item.get("macroMigrated") is not False:
-      continue
     operation = item.get("operation")
     if not isinstance(operation, str) or not operation:
       raise MacroMigrationBlockersDocError(f"obligations[{i}] missing non-empty 'operation'")
+    if operation in seen_operations:
+      raise MacroMigrationBlockersDocError(f"duplicate obligation operation '{operation}'")
+    seen_operations.add(operation)
+    if item.get("macroMigrated") is not False:
+      continue
     blockers = item.get("macroSurfaceBlockers")
     if not isinstance(blockers, list) or not blockers or not all(isinstance(b, str) and b for b in blockers):
       raise MacroMigrationBlockersDocError(
