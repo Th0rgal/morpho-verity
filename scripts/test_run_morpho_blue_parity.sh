@@ -139,17 +139,47 @@ EOF
 
 write_prepared_bundle() {
   local prepared_root="$1"
+  local repo_root="$2"
+  local input_digest
+  input_digest="$(
+    python3 - "${repo_root}" <<'PY'
+import pathlib
+import sys
+
+repo_root = pathlib.Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(repo_root / "scripts"))
+from check_prepared_verity_artifact_bundle import compute_expected_input_digest  # noqa: E402
+
+digest = compute_expected_input_digest(
+    root=repo_root,
+    artifact_mode="edsl",
+    skip_solc="0",
+    parity_pack="test-pack",
+)
+if digest is None:
+    raise SystemExit("missing expected input digest")
+print(digest)
+PY
+  )"
   mkdir -p "${prepared_root}/edsl"
   printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
   printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
   printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
   printf '%s\n' "stage=reuse-artifact status=ok elapsed_sec=0" > "${prepared_root}/edsl/Morpho.stage-times.log"
   cat > "${prepared_root}/edsl/Morpho.artifact-manifest.env" <<'EOF'
-input_digest=test
+input_digest=__INPUT_DIGEST__
 artifact_mode=edsl
 skip_solc=0
 parity_pack=test-pack
 EOF
+  python3 - "${prepared_root}/edsl/Morpho.artifact-manifest.env" "${input_digest}" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+digest = sys.argv[2]
+path.write_text(path.read_text(encoding="utf-8").replace("__INPUT_DIGEST__", digest), encoding="utf-8")
+PY
 }
 
 test_fail_closed_when_timeout_wrapper_dependency_missing_but_enabled() {
@@ -396,7 +426,7 @@ test_reuse_prepared_artifacts_skips_parity_preflight() {
   trap 'rm -rf "${fake_root}" "${sentinel}" "${prepared_root}"' RETURN
   make_fake_repo "${fake_root}"
 
-  write_prepared_bundle "${prepared_root}"
+  write_prepared_bundle "${prepared_root}" "${fake_root}"
 
   (
     cd "${fake_root}"
@@ -420,7 +450,7 @@ test_fail_closed_when_prepared_artifacts_missing_required_file() {
   trap 'rm -rf "${fake_root}" "${output_file}" "${prepared_root}"' RETURN
   make_fake_repo "${fake_root}"
 
-  write_prepared_bundle "${prepared_root}"
+  write_prepared_bundle "${prepared_root}" "${fake_root}"
   rm -f "${prepared_root}/edsl/Morpho.bin"
 
   set +e
@@ -449,7 +479,7 @@ test_clears_stale_rewritten_artifact_when_prepared_bundle_omits_it() {
   make_fake_repo "${fake_root}"
 
   mkdir -p "${fake_root}/artifacts/yul"
-  write_prepared_bundle "${prepared_root}"
+  write_prepared_bundle "${prepared_root}" "${fake_root}"
   stale_rewritten="${fake_root}/artifacts/yul/Morpho.rewritten.yul"
   printf '%s\n' "stale rewritten artifact" > "${stale_rewritten}"
 

@@ -48,13 +48,19 @@ from report_yul_identity_gap import (  # noqa: E402
 class ReportYulIdentityGapTests(unittest.TestCase):
   def test_prepared_artifact_dir_prefers_nested_edsl(self) -> None:
     old = os.environ.get("MORPHO_VERITY_PREPARED_ARTIFACT_DIR")
+    input_digest = prepared_bundle_module.compute_expected_input_digest(
+      artifact_mode="edsl",
+      skip_solc="1",
+      parity_pack="morpho-blue-0.8.28",
+    )
     with tempfile.TemporaryDirectory() as d:
       base = pathlib.Path(d)
       (base / "edsl").mkdir(parents=True, exist_ok=True)
       (base / "edsl" / "Morpho.yul").write_text("nested", encoding="utf-8")
       (base / "edsl" / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
       (base / "edsl" / "Morpho.artifact-manifest.env").write_text(
-        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=morpho-blue-0.8.28\n",
+        f"input_digest={input_digest}\nartifact_mode=edsl\nskip_solc=1\n"
+        "parity_pack=morpho-blue-0.8.28\n",
         encoding="utf-8",
       )
       (base / "edsl" / "Morpho.stage-times.log").write_text("stage=rewrite-yul status=ok elapsed_sec=0\n", encoding="utf-8")
@@ -70,6 +76,11 @@ class ReportYulIdentityGapTests(unittest.TestCase):
 
   def test_prepared_artifact_dir_rejects_rewrite_report_hash_drift(self) -> None:
     old = os.environ.get("MORPHO_VERITY_PREPARED_ARTIFACT_DIR")
+    input_digest = prepared_bundle_module.compute_expected_input_digest(
+      artifact_mode="edsl",
+      skip_solc="1",
+      parity_pack="morpho-blue-0.8.28",
+    )
     with tempfile.TemporaryDirectory() as d:
       base = pathlib.Path(d)
       prepared_dir = base / "edsl"
@@ -80,7 +91,8 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       (prepared_dir / "Morpho.rewritten.yul").write_text(rewritten_yul, encoding="utf-8")
       (prepared_dir / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
       (prepared_dir / "Morpho.artifact-manifest.env").write_text(
-        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=morpho-blue-0.8.28\n",
+        f"input_digest={input_digest}\nartifact_mode=edsl\nskip_solc=1\n"
+        "parity_pack=morpho-blue-0.8.28\n",
         encoding="utf-8",
       )
       (prepared_dir / "Morpho.stage-times.log").write_text(
@@ -156,6 +168,11 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       rewritten_yul = "prepared rewrite\n"
       pipeline_manifest_path = ROOT / "config" / "yul-rewrite-pipeline.json"
       proof_manifest_path = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+      input_digest = prepared_bundle_module.compute_expected_input_digest(
+        artifact_mode="edsl",
+        skip_solc="1",
+        parity_pack="morpho-blue-0.8.28",
+      )
       prepared_dir.mkdir(parents=True, exist_ok=True)
       (prepared_dir / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
       (prepared_dir / "Morpho.rewritten.yul").write_text(rewritten_yul, encoding="utf-8")
@@ -165,7 +182,8 @@ class ReportYulIdentityGapTests(unittest.TestCase):
         encoding="utf-8",
       )
       (prepared_dir / "Morpho.artifact-manifest.env").write_text(
-        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=morpho-blue-0.8.28\n",
+        f"input_digest={input_digest}\nartifact_mode=edsl\nskip_solc=1\n"
+        "parity_pack=morpho-blue-0.8.28\n",
         encoding="utf-8",
       )
       prepared_report = {
@@ -222,6 +240,11 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       rewritten_yul = "rewritten-yul\n"
       pipeline_manifest_path = tmp / "rewrite-pipeline.json"
       proof_manifest_path = tmp / "rewrite-proof.json"
+      input_digest = prepared_bundle_module.compute_expected_input_digest(
+        artifact_mode="edsl",
+        skip_solc="1",
+        parity_pack="test-pack",
+      )
       pipeline_manifest_path.write_text('{"version":"v1","stages":[]}\n', encoding="utf-8")
       proof_manifest_path.write_text('{"version":"v1","families":[]}\n', encoding="utf-8")
       (prepared_dir / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
@@ -232,7 +255,7 @@ class ReportYulIdentityGapTests(unittest.TestCase):
         encoding="utf-8",
       )
       (prepared_dir / "Morpho.artifact-manifest.env").write_text(
-        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=test-pack\n",
+        f"input_digest={input_digest}\nartifact_mode=edsl\nskip_solc=1\nparity_pack=test-pack\n",
         encoding="utf-8",
       )
       (prepared_dir / "Morpho.rewrite-report.json").write_text(
@@ -307,6 +330,11 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       rewritten_yul = "stale prepared rewrite\n"
       pipeline_manifest_path = tmp / "rewrite-pipeline.json"
       proof_manifest_path = tmp / "rewrite-proof.json"
+      input_digest = prepared_bundle_module.compute_expected_input_digest(
+        artifact_mode="edsl",
+        skip_solc="1",
+        parity_pack="test-pack",
+      )
       prepared_dir.mkdir(parents=True, exist_ok=True)
       pipeline_manifest_path.write_text('{"version":"v1","stages":[]}\n', encoding="utf-8")
       proof_manifest_path.write_text('{"version":"v1","families":[]}\n', encoding="utf-8")
@@ -318,7 +346,7 @@ class ReportYulIdentityGapTests(unittest.TestCase):
         encoding="utf-8",
       )
       (prepared_dir / "Morpho.artifact-manifest.env").write_text(
-        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=test-pack\n",
+        f"input_digest={input_digest}\nartifact_mode=edsl\nskip_solc=1\nparity_pack=test-pack\n",
         encoding="utf-8",
       )
       (prepared_dir / "Morpho.rewrite-report.json").write_text(
