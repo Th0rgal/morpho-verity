@@ -133,8 +133,14 @@ def extract_macro_signatures(text: str, contract_name: str = DEFAULT_CONTRACT) -
 
 
 def load_baseline(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      data = json.load(f)
+  except json.JSONDecodeError as exc:
+    raise MigrationSliceError(f"baseline file is not valid JSON: {path}") from exc
+  if not isinstance(data, dict):
+    raise MigrationSliceError("baseline file must contain a JSON object")
+  return data
 
 
 def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
@@ -145,7 +151,14 @@ def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
 
 
 def validate_against_baseline(actual: set[str], baseline: dict[str, Any]) -> None:
-  expected = set(baseline.get("expectedMigrated", []))
+  expected_migrated = baseline.get("expectedMigrated")
+  if not isinstance(expected_migrated, list):
+    raise MigrationSliceError("baseline expectedMigrated must be a list of non-empty signatures")
+  if any(not isinstance(signature, str) or not signature.strip() for signature in expected_migrated):
+    raise MigrationSliceError("baseline expectedMigrated must contain only non-empty signatures")
+  if len(expected_migrated) != len(set(expected_migrated)):
+    raise MigrationSliceError("baseline expectedMigrated contains duplicate signatures")
+  expected = set(expected_migrated)
   if actual != expected:
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
@@ -186,6 +199,15 @@ def validate_blocked_against_baseline(
   blocked = baseline.get("expectedBlocked")
   if not isinstance(blocked, dict):
     raise MigrationSliceError("baseline expectedBlocked must be a map of signature -> reason")
+  invalid_signature = [
+    sig for sig in blocked
+    if not isinstance(sig, str) or not sig.strip()
+  ]
+  if invalid_signature:
+    raise MigrationSliceError(
+      "baseline expectedBlocked contains invalid signature key(s): "
+      f"{sorted(repr(sig) for sig in invalid_signature)}"
+    )
 
   invalid_reason = [sig for sig, reason in blocked.items() if not isinstance(reason, str) or not reason.strip()]
   if invalid_reason:
