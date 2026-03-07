@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from check_issue_blocker_clusters import (  # noqa: E402
   IssueClusterError,
+  display_path,
   derive_cluster_blockers,
   load_config,
   load_obligations_by_operation,
@@ -59,6 +60,13 @@ def make_config() -> dict:
 
 
 class LoadObligationsTests(unittest.TestCase):
+  def test_load_config_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "config.json"
+      path.write_bytes(b"\x80")
+      with self.assertRaisesRegex(IssueClusterError, "is not valid UTF-8"):
+        load_config(path)
+
   def test_load_config_rejects_malformed_json(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       path = pathlib.Path(d) / "config.json"
@@ -104,6 +112,12 @@ class DeriveClusterBlockersTests(unittest.TestCase):
     by_operation = load_obligations_by_operation(config)
     with self.assertRaisesRegex(IssueClusterError, "duplicate macroSurfaceBlockers entries"):
       derive_cluster_blockers(["supply"], by_operation)
+
+
+class DisplayPathTests(unittest.TestCase):
+  def test_display_path_keeps_external_absolute_paths(self) -> None:
+    path = pathlib.Path("/tmp/config.json")
+    self.assertEqual(display_path(path), path)
 
 
 class ValidateIssueClustersTests(unittest.TestCase):
@@ -167,6 +181,28 @@ class ValidateIssueClustersTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+  def test_cli_reports_invalid_utf8_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "config.json"
+      config_path.write_bytes(b"\x80")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_issue_blocker_clusters.py"),
+          "--config",
+          str(config_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("issue blocker clusters check failed:", proc.stderr)
+    self.assertIn("is not valid UTF-8", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
   def test_cli_reports_invalid_json_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       config_path = pathlib.Path(d) / "config.json"
@@ -186,6 +222,31 @@ class CliTests(unittest.TestCase):
 
     self.assertEqual(proc.returncode, 1)
     self.assertIn("issue blocker clusters check failed: failed to parse JSON config", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_json_out_write_failure_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "config.json"
+      json_out = pathlib.Path(d) / "occupied"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      json_out.write_text("not a directory", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_issue_blocker_clusters.py"),
+          "--config",
+          str(config_path),
+          "--json-out",
+          str(json_out / "report.json"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("issue blocker clusters check failed: failed to write JSON report", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
 

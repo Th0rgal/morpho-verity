@@ -26,6 +26,10 @@ def load_config(path: pathlib.Path) -> dict[str, Any]:
   try:
     with path.open("r", encoding="utf-8") as f:
       data = json.load(f)
+  except OSError as exc:
+    raise IssueClusterError(f"failed to read config {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise IssueClusterError(f"config {path} is not valid UTF-8: {exc}") from exc
   except json.JSONDecodeError as exc:
     raise IssueClusterError(f"failed to parse JSON config {path}: {exc}") from exc
   if not isinstance(data, dict):
@@ -165,22 +169,34 @@ def parser() -> argparse.ArgumentParser:
   return p
 
 
+def display_path(path: pathlib.Path) -> pathlib.Path:
+  if not path.is_absolute():
+    return path
+  try:
+    return path.relative_to(ROOT)
+  except ValueError:
+    return path
+
+
 def main() -> None:
   args = parser().parse_args()
   config = load_config(args.config)
   clusters = validate_issue_clusters(config)
 
   report = {
-    "config": str(args.config.relative_to(ROOT) if args.config.is_absolute() else args.config),
+    "config": str(display_path(args.config)),
     "clusterCount": len(clusters),
     "issueClusters": clusters,
   }
 
   if args.json_out:
-    args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    with args.json_out.open("w", encoding="utf-8") as f:
-      json.dump(report, f, indent=2, sort_keys=True)
-      f.write("\n")
+    try:
+      args.json_out.parent.mkdir(parents=True, exist_ok=True)
+      with args.json_out.open("w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, sort_keys=True)
+        f.write("\n")
+    except OSError as exc:
+      raise IssueClusterError(f"failed to write JSON report {args.json_out}: {exc}") from exc
 
   print("issue blocker clusters check: OK")
   print(f"clusters: {len(clusters)}")
@@ -196,8 +212,5 @@ if __name__ == "__main__":
   try:
     main()
   except IssueClusterError as e:
-    print(f"issue blocker clusters check failed: {e}", file=sys.stderr)
-    sys.exit(1)
-  except FileNotFoundError as e:
     print(f"issue blocker clusters check failed: {e}", file=sys.stderr)
     sys.exit(1)
