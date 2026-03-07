@@ -47,8 +47,8 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065
-lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
+`MacroSlice.lean`, which is the current macro-generated contract surface. 6/18 operations are
+macro-migrated; the remaining 12 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
 For the 7 core/collateral flow stubs tracked under blocker-cluster labels `#123`/`#124`,
 `config/semantic-bridge-obligations.json` now also

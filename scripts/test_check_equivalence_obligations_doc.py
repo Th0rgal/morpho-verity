@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_equivalence_obligations_doc import (  # noqa: E402
+  MACRO_STATUS_PREFIX,
   EquivalenceObligationsDocError,
   expected_table_lines,
   extract_issue_summary_table,
@@ -85,7 +86,7 @@ def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None
     f"{summary['link1_count']}/{summary['total']} obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
     "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
     "",
-    f"`MacroSlice.lean` is the current macro-generated contract surface. {summary['macro_migrated_count']}/{summary['total']} operations are macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream macro primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).",
+    f"{MACRO_STATUS_PREFIX} {summary['macro_migrated_count']}/{summary['total']} operations are macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream macro primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).",
     "",
     "### Blocker cluster summary",
     "",
@@ -116,6 +117,14 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
       "macro_pending_count": 3,
     }
     validate_status_summary(make_doc([], summary=summary), summary)
+
+  def test_validate_status_summary_allows_wrapped_macro_summary(self) -> None:
+    summary = derive_summary(make_config())
+    wrapped_doc = make_doc([], summary=summary).replace(
+      "operations are macro-migrated; the remaining",
+      "operations are\nmacro-migrated; the remaining",
+    )
+    validate_status_summary(wrapped_doc, summary)
 
   def test_validate_status_summary_rejects_link1_count_drift(self) -> None:
     config = make_config()
@@ -150,6 +159,20 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     with self.assertRaisesRegex(
       EquivalenceObligationsDocError,
       "macro migration summary drift",
+    ):
+      validate_status_summary(drifted_doc, derive_summary(config))
+
+  def test_validate_status_summary_rejects_macro_intro_drift(self) -> None:
+    config = make_config()
+    drifted_doc = make_doc([], summary=derive_summary(config)).replace(
+      MACRO_STATUS_PREFIX,
+      "**Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in\n"
+      "`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065\n"
+      "lands.",
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "macro migration intro drift",
     ):
       validate_status_summary(drifted_doc, derive_summary(config))
 

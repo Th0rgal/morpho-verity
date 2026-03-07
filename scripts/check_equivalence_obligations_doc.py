@@ -20,6 +20,10 @@ SECTION_HEADING = "### Blocker cluster summary"
 TABLE_HEADER = "| Cluster | Operations | Blocker families | Coverage counts |"
 TABLE_SEPARATOR = "|-------|------------|------------------|-----------------|"
 STATUS_HEADING = "## Status"
+MACRO_STATUS_PREFIX = (
+  "**Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in\n"
+  "`MacroSlice.lean`, which is the current macro-generated contract surface."
+)
 LINK1_SUMMARY_RE = re.compile(
   r"(?P<count>\d+)/(?P<total>\d+)\s+obligations have Link 1 "
   r"\(stable `Morpho\.\*` wrapper API ↔ EDSL\) proven:\s*(?P<ops>.*?)\.\s+The proofs are in\s+"
@@ -27,7 +31,7 @@ LINK1_SUMMARY_RE = re.compile(
   re.DOTALL,
 )
 MACRO_MIGRATED_RE = re.compile(
-  r"(?P<count>\d+)/(?P<total>\d+)\s+operations are macro-migrated; the remaining "
+  r"(?P<count>\d+)/(?P<total>\d+)\s+operations\s+are\s+macro-migrated; the remaining "
   r"(?P<pending>\d+)\s+are blocked on upstream macro",
   re.DOTALL,
 )
@@ -73,6 +77,11 @@ def parse_operation_list(raw_ops: str) -> list[str]:
 def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
   if STATUS_HEADING not in doc_text:
     raise EquivalenceObligationsDocError("missing `## Status` section in EQUIVALENCE_OBLIGATIONS.md")
+  if MACRO_STATUS_PREFIX not in doc_text:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations macro migration intro drift: "
+      f"expected `{MACRO_STATUS_PREFIX}`"
+    )
 
   link1_match = require_match(LINK1_SUMMARY_RE, doc_text, "Link 1 status summary")
   actual_count = int(link1_match.group("count"))
