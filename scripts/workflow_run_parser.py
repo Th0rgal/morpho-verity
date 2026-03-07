@@ -421,6 +421,10 @@ def _split_inline_env_mapping_entries(body: str) -> list[str] | None:
     if char == ",":
       entry = body[start:index].strip()
       if not entry:
+        if entries:
+          start = index + 1
+          index += 1
+          continue
         return None
       entries.append(entry)
       start = index + 1
@@ -430,7 +434,7 @@ def _split_inline_env_mapping_entries(body: str) -> list[str] | None:
     return None
   entry = body[start:].strip()
   if not entry:
-    return None
+    return entries if entries else None
   entries.append(entry)
   return entries
 
@@ -668,7 +672,7 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       raw_inline_env, i = _consume_multiline_inline_env_mapping(lines, i, env_value, env_indent)
       env_values = _parse_inline_env_mapping(raw_inline_env, anchors)
       if env_values is None:
-        if i == len(lines) or raw_inline_env == env_value:
+        if i == len(lines):
           i += 1
         continue
     else:

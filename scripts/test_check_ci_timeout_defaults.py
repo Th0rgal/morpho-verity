@@ -197,6 +197,37 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_timeout_env_literals(workflow), {"MORPHO_STEP_TIMEOUT_SEC": {30}})
 
+  def test_collect_timeout_env_literals_keeps_following_step_after_unparseable_inline_env_alias(self) -> None:
+    workflow = (
+      "jobs:\n"
+      "  test:\n"
+      "    env: *shared_defaults\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        env:\n"
+      '          MORPHO_STEP_TIMEOUT_SEC: "30"\n'
+      "        run: ./scripts/run_with_timeout.sh MORPHO_STEP_TIMEOUT_SEC 30 \"real\" -- cmd\n"
+    )
+    self.assertEqual(collect_timeout_env_literals(workflow), {"MORPHO_STEP_TIMEOUT_SEC": {30}})
+
+  def test_collect_timeout_env_literals_accepts_inline_flow_mapping_trailing_comma(self) -> None:
+    workflow = (
+      'env: {MORPHO_TOP_TIMEOUT_SEC: "10",}\n'
+      "jobs:\n"
+      "  test:\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        env: {MORPHO_STEP_TIMEOUT_SEC: 30,}\n"
+      "        run: ./scripts/run_with_timeout.sh MORPHO_STEP_TIMEOUT_SEC 30 \"real\" -- cmd\n"
+    )
+    self.assertEqual(
+      collect_timeout_env_literals(workflow),
+      {
+        "MORPHO_TOP_TIMEOUT_SEC": {10},
+        "MORPHO_STEP_TIMEOUT_SEC": {30},
+      },
+    )
+
   def test_collect_timeout_env_literals_supports_yaml_scalar_tags_and_anchors(self) -> None:
     workflow = (
       "env:\n"
