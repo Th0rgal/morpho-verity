@@ -13,7 +13,7 @@ ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
-from workflow_run_parser import extract_workflow_run_text  # noqa: E402
+from workflow_run_parser import extract_named_step_runs, extract_workflow_run_text  # noqa: E402
 
 
 class WorkflowRunParserTests(unittest.TestCase):
@@ -133,6 +133,26 @@ class WorkflowRunParserTests(unittest.TestCase):
       ]
     )
     self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_real.py")
+
+  def test_extract_named_step_runs_ignores_nested_run_field_within_step_mapping(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        with:",
+        "          run: python3 scripts/check_fake.py",
+        "        run: python3 scripts/check_real.py",
+        "      - env:",
+        "          run: python3 scripts/check_helper.py",
+        "        run: echo helper",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_real.py"]}),
+    )
 
   def test_extract_workflow_run_text_covers_real_verify_workflow(self) -> None:
     workflow_text = (ROOT / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")

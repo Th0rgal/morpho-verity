@@ -8,6 +8,8 @@ import json
 import pathlib
 import re
 import sys
+
+from workflow_run_parser import extract_named_step_runs
 from typing import Any
 
 from check_verity_pin_sync import parse_lakefile_verity, parse_manifest_verity
@@ -421,22 +423,7 @@ def validate_workflow(
   workflow_text: str,
   workflow_path: pathlib.Path,
 ) -> None:
-  step_name_counts: dict[str, int] = {}
-  step_run_lines: dict[str, list[str]] = {}
-  current_step_name: str | None = None
-  for line in workflow_text.splitlines():
-    step_match = re.fullmatch(r"\s*-\s+name:\s+(.+?)\s*", line)
-    if step_match is not None:
-      current_step_name = step_match.group(1)
-      step_name_counts[current_step_name] = step_name_counts.get(current_step_name, 0) + 1
-      step_run_lines.setdefault(current_step_name, [])
-      continue
-    if re.fullmatch(r"\s*-\s+\S.*", line) is not None:
-      current_step_name = None
-      continue
-    run_match = re.fullmatch(r"\s+run:\s+(.+?)\s*", line)
-    if run_match is not None and current_step_name is not None:
-      step_run_lines.setdefault(current_step_name, []).append(run_match.group(1))
+  step_name_counts, step_run_lines = extract_named_step_runs(workflow_text)
   missing = [step for step in EXPECTED_WORKFLOW_STEPS if step_name_counts.get(step, 0) == 0]
   if missing:
     fail(

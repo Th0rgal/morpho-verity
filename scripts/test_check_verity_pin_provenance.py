@@ -338,6 +338,23 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       workflow_path=pathlib.Path(".github/workflows/verify.yml"),
     )
 
+  def test_validate_workflow_ignores_nested_run_mapping_under_tracked_step(self) -> None:
+    validate_workflow(
+      workflow_text="\n".join([
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - name: Validate verity pin sync",
+        "        with:",
+        "          run: echo helper metadata",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES['Validate verity pin sync']}",
+        "      - name: Validate verity pin provenance",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES['Validate verity pin provenance']}",
+        "",
+      ]),
+      workflow_path=pathlib.Path(".github/workflows/verify.yml"),
+    )
+
   def test_accepts_synced_provenance(self) -> None:
     rc = self.run_check(
       lakefile_text="""
