@@ -7,6 +7,7 @@ import argparse
 import pathlib
 import re
 import sys
+import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_macro_migration_surface import (  # noqa: E402
@@ -69,8 +70,6 @@ def parse_selector_signatures(spec_text: str) -> list[str]:
 def make_extra_selector_map(signatures: set[str]) -> dict[str, int]:
   if not signatures:
     return {}
-  temp_dir = pathlib.Path("/tmp")
-  temp_path = temp_dir / "morpho_extra_selectors.sol"
   sorted_sigs = sorted(signatures)
   declarations = "\n".join(f"  function {sig} external view;" for sig in sorted_sigs)
   source = (
@@ -79,7 +78,21 @@ def make_extra_selector_map(signatures: set[str]) -> dict[str, int]:
     f"{declarations}\n"
     "}\n"
   )
-  write_text(temp_path, source, context="temporary selector interface")
+  try:
+    with tempfile.NamedTemporaryFile(
+      mode="w",
+      encoding="utf-8",
+      suffix=".sol",
+      prefix="morpho_extra_selectors_",
+      delete=False,
+    ) as temp_file:
+      temp_path = pathlib.Path(temp_file.name)
+      temp_file.write(source)
+  except OSError as exc:
+    raise MorphoSelectorsSyncError(
+      f"failed to write temporary selector interface: {exc}"
+    ) from exc
+
   try:
     return extract_solc_selector_map(temp_path, "IExtraMorphoSelectors")
   finally:
