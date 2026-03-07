@@ -289,34 +289,78 @@ def extract_summary_text(section_text: str) -> str:
   return "\n".join(summary_lines).strip()
 
 
-def build_expected_section_text(item: dict[str, object]) -> str:
-  lines = [str(item["summary"])]
+def build_expected_section_lists(item: dict[str, object]) -> list[tuple[str, list[str]]]:
+  expected_lists: list[tuple[str, list[str]]] = []
 
   blockers = item.get("blockers")
   if isinstance(blockers, list):
-    lines.extend([
-      "",
-      MACRO_BLOCKERS_LABEL,
-      *[f"- {blocker}" for blocker in blockers],
-    ])
+    expected_lists.append((MACRO_BLOCKERS_LABEL, [str(blocker) for blocker in blockers]))
 
   issue_clusters = item.get("issueClusters")
   if isinstance(issue_clusters, list):
-    lines.extend([
-      "",
-      MACRO_ISSUE_CLUSTERS_LABEL,
-      *[f"- {issue}" for issue in issue_clusters],
-    ])
+    expected_lists.append((MACRO_ISSUE_CLUSTERS_LABEL, [str(issue) for issue in issue_clusters]))
 
   files = item.get("files")
   if isinstance(files, list):
-    lines.extend([
-      "",
-      FILES_LABEL,
-      *[f"- `{file_path}`" for file_path in files],
-    ])
+    expected_lists.append((FILES_LABEL, [str(file_path) for file_path in files]))
 
-  return "\n".join(lines)
+  return expected_lists
+
+
+def parse_section_lists(
+  section_text: str,
+  doc_path: pathlib.Path,
+) -> list[tuple[str, list[str]]]:
+  lines = section_text.splitlines()
+  lists: list[tuple[str, list[str]]] = []
+  seen_labels: set[str] = set()
+  in_summary = True
+  index = 0
+
+  while index < len(lines):
+    stripped = lines[index].strip()
+    if in_summary:
+      if not stripped:
+        index += 1
+        continue
+      if stripped in SECTION_LIST_LABELS:
+        in_summary = False
+      else:
+        index += 1
+        continue
+
+    if not stripped:
+      index += 1
+      continue
+    if stripped.startswith("#"):
+      break
+    if stripped not in SECTION_LIST_LABELS:
+      fail(f"documentation {doc_path} has unexpected content in divergence section: {stripped}")
+    if stripped in seen_labels:
+      fail(f"documentation {doc_path} has duplicate list label: {stripped}")
+
+    label = stripped
+    seen_labels.add(label)
+    index += 1
+    bullets: list[str] = []
+    while index < len(lines):
+      stripped = lines[index].strip()
+      if not stripped:
+        index += 1
+        if bullets:
+          break
+        continue
+      if stripped in SECTION_LIST_LABELS or stripped.startswith("#"):
+        break
+      if not stripped.startswith("- "):
+        fail(f"documentation {doc_path} has malformed bullet under `{label}`: {stripped}")
+      bullets.append(stripped[2:].strip())
+      index += 1
+    if not bullets:
+      fail(f"documentation {doc_path} missing bullets under `{label}`")
+    lists.append((label, bullets))
+
+  return lists
 
 def validate_doc_section(
   section_text: str,
@@ -330,13 +374,24 @@ def validate_doc_section(
       f"documentation {doc_path} `{item['area']}` summary drift: "
       f"expected {expected_summary!r}; found {actual_summary!r}"
     )
-  normalized_section = normalize_doc_token(section_text)
-  normalized_expected_section = normalize_doc_token(build_expected_section_text(item))
-  if normalized_section != normalized_expected_section:
+
+  expected_lists = build_expected_section_lists(item)
+  actual_lists = parse_section_lists(section_text, doc_path)
+  actual_labels = [label for label, _ in actual_lists]
+  expected_labels = [label for label, _ in expected_lists]
+  if actual_labels != expected_labels:
     fail(
-      f"documentation {doc_path} `{item['area']}` section drift: "
-      f"expected {normalized_expected_section!r}; found {normalized_section!r}"
+      f"documentation {doc_path} `{item['area']}` section label drift: "
+      f"expected {expected_labels}; found {actual_labels}"
     )
+  for (label, actual_items_raw), (_, expected_items) in zip(actual_lists, expected_lists):
+    actual_items = [normalize_doc_token(item_text) for item_text in actual_items_raw]
+    normalized_expected_items = [normalize_doc_token(item_text) for item_text in expected_items]
+    if actual_items != normalized_expected_items:
+      fail(
+        f"documentation {doc_path} `{item['area']}` `{label}` drift: "
+        f"expected {normalized_expected_items}; found {actual_items}"
+      )
 
 
 def validate_doc_metadata(

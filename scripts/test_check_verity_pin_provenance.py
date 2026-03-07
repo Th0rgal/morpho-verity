@@ -2174,6 +2174,74 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         """,
       )
 
+  def test_rejects_collapsed_file_list_into_single_bullet(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Local generated-contract boundary",
+              "summary": "Repo-local generated boundary remains.",
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean",
+                "Morpho/Compiler/Generated.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text="""
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
+        Current deterministic base.
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Local generated-contract boundary
+
+        Repo-local generated boundary remains.
+
+        Relevant files:
+        - `Morpho/Compiler/MacroSlice.lean` - `Morpho/Compiler/Generated.lean`
+
+        ## Enforcement
+
+        The machine-readable source of truth is
+        `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+        `lakefile.lean` and `lake-manifest.json` via
+        `scripts/check_verity_pin_provenance.py`.
+        """,
+      )
+
   def test_rejects_extra_stale_prose_after_expected_divergence_body(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):
       self.run_check(
