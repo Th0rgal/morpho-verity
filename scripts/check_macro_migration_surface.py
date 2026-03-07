@@ -269,7 +269,7 @@ def build_report(
     "specSignatureCount": len(spec_signatures),
     "interfaceSignatureCount": len(interface_signatures),
     "matchedSignatureCount": len(shared),
-    "selectorComparableCount": len(shared) - len(only_in_spec),
+    "selectorComparableCount": len(shared),
     "onlyInSpec": only_in_spec,
     "onlyInInterface": only_in_interface,
     "allowedOnlyInSpec": sorted(EXPECTED_ONLY_IN_SPEC),

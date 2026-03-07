@@ -60,6 +60,7 @@ class CheckMacroMigrationSurfaceTests(unittest.TestCase):
     self.assertEqual(report["unexpectedOnlyInSpec"], ["b(uint256)"])
     self.assertEqual(report["onlyInInterface"], ["c()"])
     self.assertEqual(report["selectorMismatchCount"], 0)
+    self.assertEqual(report["selectorComparableCount"], 1)
 
   def test_build_report_marks_selector_mismatch(self) -> None:
     report = build_report(
@@ -70,6 +71,7 @@ class CheckMacroMigrationSurfaceTests(unittest.TestCase):
     )
     self.assertEqual(report["status"], "mismatch")
     self.assertEqual(report["selectorMismatchCount"], 1)
+    self.assertEqual(report["selectorComparableCount"], 2)
     self.assertEqual(report["selectorMismatches"][0]["signature"], "b(uint256)")
 
   def test_extract_spec_selector_entries_parses_hex_and_signature(self) -> None:
@@ -92,6 +94,7 @@ def morphoSelectors : List Nat := [
     self.assertEqual(report["specPath"], "Morpho/Compiler/Spec.lean")
     self.assertEqual(report["interfacePath"], "morpho-blue/src/interfaces/IMorpho.sol")
     self.assertGreater(report["matchedSignatureCount"], 0)
+    self.assertEqual(report["selectorComparableCount"], report["matchedSignatureCount"])
     self.assertEqual(report["specSignatureCount"], report["interfaceSignatureCount"] + len(report["allowedOnlyInSpec"]))
     self.assertEqual(sorted(report["onlyInSpec"]), report["allowedOnlyInSpec"])
     self.assertEqual(report["selectorMismatchCount"], 0)
