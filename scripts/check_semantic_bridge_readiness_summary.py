@@ -95,9 +95,20 @@ def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.M
 
 
 def parse_operation_list(raw_ops: str) -> list[str]:
+  stripped = raw_ops.strip()
+  if not stripped:
+    raise SemanticBridgeReadinessSummaryError("Link 1 operation list is empty")
+  if stripped.lower() == "none":
+    return []
+
   operations = [item.strip().strip("`") for item in raw_ops.replace("\n", " ").split(",")]
-  normalized = [item for item in operations if item and item.lower() != "none"]
-  return normalized
+  if any(not item for item in operations):
+    raise SemanticBridgeReadinessSummaryError("Link 1 operation list contains an empty entry")
+  if any(item.lower() == "none" for item in operations):
+    raise SemanticBridgeReadinessSummaryError(
+      "Link 1 operation list mixes the none sentinel with named operations"
+    )
+  return operations
 
 
 def require_count(

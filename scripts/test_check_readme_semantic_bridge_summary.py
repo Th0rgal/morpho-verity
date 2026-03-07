@@ -93,6 +93,15 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
     }
     validate_summary(make_readme(proven_count=0, assumed_count=3, operations="none"), summary)
 
+  def test_extract_link1_operations_rejects_mixed_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "mixes the none sentinel",
+    ):
+      extract_link1_operations(
+        make_readme(proven_count=0, assumed_count=3, operations="none, `setOwner`")
+      )
+
   def test_validate_summary_rejects_proven_count_drift(self) -> None:
     with self.assertRaisesRegex(
       ReadmeSemanticBridgeSummaryError,

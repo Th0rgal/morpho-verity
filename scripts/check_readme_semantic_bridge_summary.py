@@ -47,14 +47,18 @@ def extract_link1_operations(text: str) -> list[str]:
 
   ops_block = text[block_start:block_end]
   operations = re.findall(r"`([^`]+)`", ops_block)
-  nonempty_operations = [operation for operation in operations if operation.lower() != "none"]
-  if not nonempty_operations and re.search(r"\bnone\b", ops_block, re.IGNORECASE):
+  has_none_sentinel = re.search(r"\bnone\b", ops_block, re.IGNORECASE) is not None
+  if has_none_sentinel and operations:
+    raise ReadmeSemanticBridgeSummaryError(
+      "README Link 1 operation list mixes the none sentinel with named operations"
+    )
+  if has_none_sentinel:
     return []
-  if not nonempty_operations:
+  if not operations:
     raise ReadmeSemanticBridgeSummaryError("README Link 1 operation list is empty")
-  if len(nonempty_operations) != len(set(nonempty_operations)):
+  if len(operations) != len(set(operations)):
     raise ReadmeSemanticBridgeSummaryError("README Link 1 operation list contains duplicate operations")
-  return nonempty_operations
+  return operations
 
 
 def validate_summary(text: str, summary: dict[str, object]) -> None:

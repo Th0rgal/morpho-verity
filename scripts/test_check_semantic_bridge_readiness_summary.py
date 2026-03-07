@@ -117,6 +117,20 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
   def test_parse_operation_list_allows_none_sentinel(self) -> None:
     self.assertEqual(parse_operation_list("none"), [])
 
+  def test_parse_operation_list_rejects_empty_text(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "operation list is empty",
+    ):
+      parse_operation_list("   ")
+
+  def test_parse_operation_list_rejects_mixed_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "mixes the none sentinel",
+    ):
+      parse_operation_list("none, setOwner")
+
   def test_validate_summary_accepts_matching_text(self) -> None:
     validate_summary(make_readiness_text(), derive_summary(make_config()))
 
