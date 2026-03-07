@@ -38,6 +38,19 @@ class CollectJobContinueOnErrorValuesTests(unittest.TestCase):
 
     self.assertEqual(collect_job_continue_on_error_values(job_text), ["true"])
 
+  def test_preserves_quoted_hash_literal(self) -> None:
+    job_text = "\n".join(
+      [
+        "  yul-identity-report:",
+        "    runs-on: ubuntu-latest",
+        '    continue-on-error: "true#literal" # trailing comment',
+        "    steps:",
+        "      - run: echo hi",
+      ]
+    )
+
+    self.assertEqual(collect_job_continue_on_error_values(job_text), ["true#literal"])
+
   def test_ignores_step_level_field(self) -> None:
     job_text = "\n".join(
       [
@@ -147,6 +160,26 @@ class ValidateContinueOnErrorTests(unittest.TestCase):
     self.assertEqual(
       validate_continue_on_error(job_blocks),
       ["job yul-identity-report continue-on-error must be literal true when present, found: false"],
+    )
+
+  def test_rejects_quoted_hash_literal_without_truncating(self) -> None:
+    job_blocks = {
+      "yul-identity-report": "\n".join(
+        [
+          "  yul-identity-report:",
+          '    continue-on-error: "true#literal"',
+          "    steps:",
+          "      - run: echo hi",
+        ]
+      )
+    }
+
+    self.assertEqual(
+      validate_continue_on_error(job_blocks),
+      [
+        "job yul-identity-report continue-on-error must be literal true when present, "
+        "found: true#literal"
+      ],
     )
 
   def test_rejects_multiple_values(self) -> None:
