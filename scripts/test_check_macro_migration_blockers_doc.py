@@ -15,9 +15,13 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_macro_migration_blockers_doc import (  # noqa: E402
+  NEXT_SECTION_HEADING,
+  SECTION_HEADING,
+  SECTION_MARKER,
   MacroMigrationBlockersDocError,
   build_blocker_report,
   expected_table_lines,
+  extract_macro_migration_section,
   extract_table,
   main,
   validate_doc_table,
@@ -61,9 +65,15 @@ def make_doc(table_lines: list[str]) -> str:
     "",
     "Preamble.",
     "",
-    "**Remaining blockers**:",
+    SECTION_HEADING,
+    "",
+    "Macro blockers prelude.",
+    "",
+    SECTION_MARKER,
     "",
     *table_lines,
+    "",
+    NEXT_SECTION_HEADING,
     "",
     "Next section.",
     "",
@@ -121,6 +131,59 @@ class MacroMigrationBlockersDocTests(unittest.TestCase):
           "| Internal function calls (`Stmt.internalCall`) | `supply` | 1 |",
         ])
       )
+
+  def test_extract_macro_migration_section_returns_target_block(self) -> None:
+    section = extract_macro_migration_section(make_doc(expected_table_lines(build_blocker_report(make_config()))))
+    self.assertIn("**Remaining blockers**:", section)
+
+  def test_extract_macro_migration_section_rejects_fake_heading_outside_section(self) -> None:
+    doc = "\n".join([
+      SECTION_HEADING,
+      "",
+      "Fake prelude.",
+      "",
+      NEXT_SECTION_HEADING,
+      "",
+      make_doc(expected_table_lines(build_blocker_report(make_config()))),
+    ])
+    with self.assertRaisesRegex(
+      MacroMigrationBlockersDocError,
+      "found multiple `## Macro Migration Blockers` section markers",
+    ):
+      extract_macro_migration_section(doc)
+
+  def test_validate_doc_table_rejects_drift_hidden_behind_fake_marker_outside_section(self) -> None:
+    report = build_blocker_report(make_config())
+    wrong_table = [
+      "| Blocker | Operations affected | Count |",
+      "|---------|-------------------|:-----:|",
+      "| Internal function calls (`Stmt.internalCall`) | `supply`, `withdrawCollateral` | 2 |",
+    ]
+    drifted_doc = make_doc(expected_table_lines(report)).replace(
+      "| Internal function calls (`Stmt.internalCall`) | `supply`, `withdrawCollateral` | 2 |",
+      "| Internal function calls (`Stmt.internalCall`) | `supply` | 1 |",
+      1,
+    )
+    masked_doc = "\n".join([
+      "# Notes",
+      "",
+      SECTION_MARKER,
+      "",
+      *wrong_table,
+      "",
+      drifted_doc,
+    ])
+    with self.assertRaisesRegex(
+      MacroMigrationBlockersDocError,
+      "does not match derived macro blocker inventory",
+    ):
+      validate_doc_table(masked_doc, report)
+
+  def test_extract_macro_migration_section_accepts_crlf_heading_lines(self) -> None:
+    report = build_blocker_report(make_config())
+    doc = make_doc(expected_table_lines(report)).replace("\n", "\r\n")
+    section = extract_macro_migration_section(doc)
+    self.assertIn(SECTION_MARKER, section)
 
   def test_main_passes_on_synced_files(self) -> None:
     config = make_config()
