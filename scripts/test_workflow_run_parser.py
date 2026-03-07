@@ -747,6 +747,26 @@ class WorkflowRunParserTests(unittest.TestCase):
       },
     )
 
+  def test_extract_workflow_env_literals_handles_block_scalar_values_with_properties(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  TOP_TIMEOUT_SEC: !!str |",
+        "    10",
+        "  TOP_TIMEOUT_COPY: &top_timeout |",
+        "    20",
+        "  TOP_TIMEOUT_ALIAS: *top_timeout",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "TOP_TIMEOUT_COPY": ["20"],
+        "TOP_TIMEOUT_ALIAS": ["20"],
+      },
+    )
+
   def test_extract_workflow_env_literals_preserves_single_quoted_multiline_backslashes(self) -> None:
     workflow_text = "\n".join(
       [

@@ -213,6 +213,24 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
       },
     )
 
+  def test_collect_timeout_env_literals_handles_block_scalar_value_properties(self) -> None:
+    workflow = (
+      "env:\n"
+      "  MORPHO_TOP_TIMEOUT_SEC: !!str |\n"
+      "    10\n"
+      "  MORPHO_TOP_TIMEOUT_COPY: &top_timeout |\n"
+      "    20\n"
+      "  MORPHO_TOP_TIMEOUT_ALIAS: *top_timeout\n"
+    )
+    self.assertEqual(
+      collect_timeout_env_literals(workflow),
+      {
+        "MORPHO_TOP_TIMEOUT_SEC": {10},
+        "MORPHO_TOP_TIMEOUT_COPY": {20},
+        "MORPHO_TOP_TIMEOUT_ALIAS": {20},
+      },
+    )
+
   def test_collect_timeout_env_literals_handles_inline_step_item_env_mapping(self) -> None:
     workflow = (
       "jobs:\n"

@@ -73,7 +73,8 @@ def _consume_run_command(
   block_scalar = _consume_block_scalar(lines, start_index, run_indent, tail)
   if block_scalar is None:
     raise ValueError("expected block scalar run field")
-  return block_scalar
+  command, next_index, _ = block_scalar
+  return command, next_index
 
 
 def _fold_block_scalar_lines(lines: list[str]) -> str:
@@ -203,8 +204,9 @@ def _consume_block_scalar(
   start_index: int,
   field_indent: int,
   tail: str,
-) -> tuple[str, int] | None:
-  if RUN_BLOCK_SCALAR_RE.fullmatch(tail.strip()) is None:
+) -> tuple[str, int, list[str]] | None:
+  normalized_tail, declared_anchors = _strip_yaml_node_properties(tail.strip())
+  if RUN_BLOCK_SCALAR_RE.fullmatch(normalized_tail) is None:
     return None
 
   next_index = start_index + 1
@@ -221,8 +223,8 @@ def _consume_block_scalar(
       block_lines.append(("", None))
     next_index += 1
   if not any(indent is not None for _, indent in block_lines):
-    return "", next_index
-  explicit_indent = _extract_block_scalar_indent(tail)
+    return "", next_index, declared_anchors
+  explicit_indent = _extract_block_scalar_indent(normalized_tail)
   content_indent = (
     field_indent + explicit_indent
     if explicit_indent is not None
@@ -232,9 +234,9 @@ def _consume_block_scalar(
     line[content_indent:] if indent is not None else ""
     for line, indent in block_lines
   ]
-  if tail.lstrip().startswith(">"):
-    return _fold_block_scalar_lines(normalized_lines), next_index
-  return "\n".join(normalized_lines), next_index
+  if normalized_tail.startswith(">"):
+    return _fold_block_scalar_lines(normalized_lines), next_index, declared_anchors
+  return "\n".join(normalized_lines), next_index, declared_anchors
 
 
 def _fold_quoted_yaml_scalar_lines(inner: str, quote: str) -> str:
@@ -551,7 +553,10 @@ def _consume_env_mapping(
     )
     block_scalar = _consume_block_scalar(lines, next_index - 1, env_indent + 2, raw_value)
     if block_scalar is not None:
-      raw_value, next_index = block_scalar
+      raw_value, next_index, declared_anchors = block_scalar
+      if anchors is not None:
+        for anchor_name in declared_anchors:
+          anchors[anchor_name] = raw_value
     value = _parse_scalar_env_value(raw_value, anchors)
     if value is not None:
       values.setdefault(entry_match.group(2), []).append(value)
