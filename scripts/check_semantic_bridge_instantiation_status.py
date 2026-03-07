@@ -53,19 +53,38 @@ SUMMARY_SECTION_PATTERN = r"(?m)^\s*/-!\s*## Summary\s*$"
 NAMESPACE_PATTERN = r"(?m)^\s*namespace Morpho\.Proofs\.SemanticBridgeInstantiation\s*$"
 
 
+def require_unique_match(
+  *,
+  text: str,
+  pattern: str,
+  missing_error: str,
+  duplicate_error: str,
+) -> re.Match[str]:
+  matches = list(re.finditer(pattern, text))
+  if not matches:
+    raise SemanticBridgeInstantiationStatusError(missing_error)
+  if len(matches) > 1:
+    raise SemanticBridgeInstantiationStatusError(duplicate_error)
+  return matches[0]
+
+
 def extract_section(
   *,
   text: str,
   start_pattern: str,
+  start_label: str,
   missing_error: str,
   empty_error: str,
   missing_end_error: str,
   end_marker: str | None = None,
   end_pattern: str | None = None,
 ) -> str:
-  start_match = re.search(start_pattern, text)
-  if start_match is None:
-    raise SemanticBridgeInstantiationStatusError(missing_error)
+  start_match = require_unique_match(
+    text=text,
+    pattern=start_pattern,
+    missing_error=missing_error,
+    duplicate_error=f"SemanticBridgeInstantiation.lean status drift: multiple `{start_label}` section markers",
+  )
 
   after_start = text[start_match.end() :]
 
@@ -88,9 +107,16 @@ def extract_section(
 
 
 def extract_validates_section(text: str) -> str:
+  require_unique_match(
+    text=text,
+    pattern=NAMESPACE_PATTERN,
+    missing_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section",
+    duplicate_error="SemanticBridgeInstantiation.lean status drift: multiple namespace boundaries for `## What this validates` section",
+  )
   section = extract_section(
     text=text,
     start_pattern=VALIDATES_SECTION_PATTERN,
+    start_label=VALIDATES_SECTION_HEADER,
     end_pattern=NAMESPACE_PATTERN,
     missing_error="SemanticBridgeInstantiation.lean status drift: missing `## What this validates` section",
     empty_error="SemanticBridgeInstantiation.lean status drift: empty `## What this validates` section",
@@ -107,6 +133,7 @@ def extract_summary_section(text: str) -> str:
   return extract_section(
     text=text,
     start_pattern=SUMMARY_SECTION_PATTERN,
+    start_label=SUMMARY_SECTION_HEADER,
     end_pattern=CLOSING_DOCBLOCK_PATTERN,
     missing_error="SemanticBridgeInstantiation.lean status drift: missing `## Summary` section",
     empty_error="SemanticBridgeInstantiation.lean status drift: empty `## Summary` section",

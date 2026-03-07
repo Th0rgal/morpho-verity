@@ -21,6 +21,8 @@ from check_semantic_bridge_instantiation_status import (  # noqa: E402
   EXPECTED_SUMMARY_STATUS,
   FORBIDDEN_SNIPPETS,
   NAMESPACE_HEADER,
+  SUMMARY_SECTION_HEADER,
+  VALIDATES_SECTION_HEADER,
   SemanticBridgeInstantiationStatusError,
   extract_summary_section,
   extract_validates_section,
@@ -76,6 +78,18 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     ):
       extract_validates_section(make_text().replace("## What this validates", "## Validation"))
 
+  def test_extract_validates_section_rejects_duplicate_header(self) -> None:
+    text = make_text().replace(
+      EXPECTED_INTRO_STATUS,
+      f"{VALIDATES_SECTION_HEADER}\n\n{EXPECTED_INTRO_STATUS}",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "multiple `## What this validates` section markers",
+    ):
+      extract_validates_section(text)
+
   def test_extract_validates_section_ignores_marker_text_inside_prose(self) -> None:
     text = make_text().replace(
       "# Semantic Bridge Instantiation\n",
@@ -99,6 +113,18 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       "missing `## Summary` section",
     ):
       extract_summary_section(make_text().replace("/-! ## Summary", "/-! ## Closing"))
+
+  def test_extract_summary_section_rejects_duplicate_header(self) -> None:
+    text = make_text().replace(
+      EXPECTED_SUMMARY_STATUS,
+      f"{SUMMARY_SECTION_HEADER}\n\n{EXPECTED_SUMMARY_STATUS}",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "multiple `/-! ## Summary` section markers",
+    ):
+      extract_summary_section(text)
 
   def test_extract_summary_section_ignores_marker_text_inside_prose(self) -> None:
     text = make_text().replace(
@@ -208,6 +234,30 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
       "missing namespace boundary after `## What this validates` section",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_duplicate_intro_header(self) -> None:
+    masked_text = make_text().replace(
+      EXPECTED_INTRO_STATUS,
+      f"{VALIDATES_SECTION_HEADER}\n\n{EXPECTED_INTRO_STATUS}",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "multiple `## What this validates` section markers",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_duplicate_summary_header(self) -> None:
+    masked_text = make_text().replace(
+      EXPECTED_SUMMARY_STATUS,
+      f"{SUMMARY_SECTION_HEADER}\n\n{EXPECTED_SUMMARY_STATUS}",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "multiple `/-! ## Summary` section markers",
     ):
       validate_status(masked_text)
 
