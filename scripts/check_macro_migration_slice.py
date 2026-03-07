@@ -218,23 +218,26 @@ def validate_blocked_against_baseline(
   migrated_signatures: set[str],
   baseline: dict[str, Any],
 ) -> dict[str, str]:
-  blocked = baseline.get("expectedBlocked")
+  blocked = validate_blocked_reasons(baseline.get("expectedBlocked"), context="baseline")
+
+
+def validate_blocked_reasons(blocked: Any, *, context: str) -> dict[str, str]:
   if not isinstance(blocked, dict):
-    raise MigrationSliceError("baseline expectedBlocked must be a map of signature -> reason")
+    raise MigrationSliceError(f"{context} expectedBlocked must be a map of signature -> reason")
   invalid_signature = [
     sig for sig in blocked
     if not isinstance(sig, str) or not sig.strip()
   ]
   if invalid_signature:
     raise MigrationSliceError(
-      "baseline expectedBlocked contains invalid signature key(s): "
+      f"{context} expectedBlocked contains invalid signature key(s): "
       f"{sorted(repr(sig) for sig in invalid_signature)}"
     )
 
   invalid_reason = [sig for sig, reason in blocked.items() if not isinstance(reason, str) or not reason.strip()]
   if invalid_reason:
     raise MigrationSliceError(
-      "baseline expectedBlocked contains empty/invalid reason(s): "
+      f"{context} expectedBlocked contains empty/invalid reason(s): "
       f"{sorted(invalid_reason)}"
     )
   placeholder_reason = [
@@ -244,9 +247,19 @@ def validate_blocked_against_baseline(
   ]
   if placeholder_reason:
     raise MigrationSliceError(
-      "baseline expectedBlocked contains placeholder reason(s); use explicit blocker categories: "
+      f"{context} expectedBlocked contains placeholder reason(s); use explicit blocker categories: "
       f"{sorted(placeholder_reason)}"
     )
+
+  return {sig: str(blocked[sig]).strip() for sig in sorted(blocked)}
+
+
+def validate_blocked_against_baseline(
+  spec_signatures: set[str],
+  migrated_signatures: set[str],
+  baseline: dict[str, Any],
+) -> dict[str, str]:
+  blocked = validate_blocked_reasons(baseline.get("expectedBlocked"), context="baseline")
 
   expected_blocked = set(blocked)
   actual_blocked = spec_signatures - migrated_signatures
@@ -265,7 +278,43 @@ def validate_blocked_against_baseline(
       f"missing={missing} extra={extra}"
     )
 
-  return {sig: str(blocked[sig]).strip() for sig in sorted(expected_blocked)}
+  return {sig: blocked[sig] for sig in sorted(expected_blocked)}
+
+
+def build_write_baseline(
+  spec_signatures: set[str],
+  migrated_signatures: set[str],
+  *,
+  macro_path: pathlib.Path,
+  contract_name: str,
+  existing_baseline: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+  blocked = sorted(spec_signatures - migrated_signatures)
+  blocked_reasons: dict[str, str] = {}
+  if existing_baseline is not None:
+    blocked_reasons = validate_blocked_reasons(
+      existing_baseline.get("expectedBlocked"),
+      context="existing baseline",
+    )
+
+  missing_reasons = sorted(sig for sig in blocked if sig not in blocked_reasons)
+  if missing_reasons:
+    raise MigrationSliceError(
+      "cannot --write baseline with newly blocked signatures lacking explicit reasons: "
+      f"{missing_reasons}"
+    )
+
+  return {
+    "source": display_path(macro_path),
+    "contract": contract_name,
+    "expectedMigrated": sorted(migrated_signatures),
+    "expectedBlocked": {sig: blocked_reasons[sig] for sig in blocked},
+    "notes": (
+      "Fail-closed macro-native migration slice tracker. "
+      "Changes require explicit reviewed baseline updates; "
+      "every non-migrated signature must stay explicitly classified with a blocker reason."
+    ),
+  }
 
 
 def run_check(
@@ -334,18 +383,14 @@ def main() -> None:
   macro_signatures = extract_macro_signatures(read_text(args.macro), contract_name=args.contract)
   if args.write:
     spec_signatures = extract_spec_signatures(read_text(args.spec))
-    blocked = sorted(spec_signatures - macro_signatures)
-    baseline = {
-      "source": display_path(args.macro),
-      "contract": args.contract,
-      "expectedMigrated": sorted(macro_signatures),
-      "expectedBlocked": {sig: "pending macro migration (tracked blocker)" for sig in blocked},
-      "notes": (
-        "Fail-closed macro-native migration slice tracker. "
-        "Changes require explicit reviewed baseline updates; "
-        "every non-migrated signature must stay explicitly classified with a blocker reason."
-      ),
-    }
+    existing_baseline = load_baseline(args.baseline) if args.baseline.exists() else None
+    baseline = build_write_baseline(
+      spec_signatures=spec_signatures,
+      migrated_signatures=macro_signatures,
+      macro_path=args.macro,
+      contract_name=args.contract,
+      existing_baseline=existing_baseline,
+    )
     write_baseline(args.baseline, baseline)
 
   report = run_check(
