@@ -263,9 +263,10 @@ the Morpho event path logs `caller` and `token` as dynamic topics.
 ### Remaining gaps
 
 - **EDSL → IR → Yul bridge**: verity's `compileFunctionToTBlock` + `interpretIR` +
-  `layer3_contract_preserves_semantics` pipeline is not yet instantiated for external
-  contracts. The `SupportedStmtList` proof gives source/compiled equivalence within
-  the typed-IR domain but the full per-contract IR bridge remains future work.
+  `layer3_contract_preserves_semantics` pipeline is now available upstream for the
+  supported `verity_contract` fragment. The remaining gaps here are Morpho-side:
+  dynamic-topic `rawLog` support for `flashLoan`, plus macro frontend coverage for
+  complex operations that still do not lower cleanly.
 - **createMarket**: `getMappingWord`/`setMappingWord` stubs in MacroSlice.lean
 - **12 remaining operations**: blocked on external call / loop / struct mapping support
 -/

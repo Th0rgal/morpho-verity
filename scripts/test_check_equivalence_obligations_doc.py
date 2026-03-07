@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from check_equivalence_obligations_doc import (  # noqa: E402
   MACRO_STATUS_PREFIX,
+  UPSTREAM_BRIDGE_PREFIX,
   EquivalenceObligationsDocError,
   expected_table_lines,
   extract_issue_summary_table,
@@ -82,6 +83,8 @@ def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None
     "Some intro.",
     "",
     "## Status",
+    "",
+    f"{UPSTREAM_BRIDGE_PREFIX} This eliminates the hand-rolled `interpretSpec` from the TCB where the macro frontend can lower the contract successfully.",
     "",
     f"{summary['link1_count']}/{summary['total']} obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
     "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
@@ -175,6 +178,27 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
       "macro migration intro drift",
     ):
       validate_status_summary(drifted_doc, derive_summary(config))
+
+  def test_validate_status_summary_rejects_upstream_bridge_status_drift(self) -> None:
+    config = make_config()
+    drifted_doc = make_doc([], summary=derive_summary(config)).replace(
+      UPSTREAM_BRIDGE_PREFIX,
+      "- **Link 2** (EDSL ↔ EVMYulLean): provided by the verity semantic bridge once\n"
+      "  Layers 2+3 are composed into per-function theorems.",
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "upstream bridge status drift",
+    ):
+      validate_status_summary(drifted_doc, derive_summary(config))
+
+  def test_validate_status_summary_allows_wrapped_upstream_bridge_summary(self) -> None:
+    summary = derive_summary(make_config())
+    wrapped_doc = make_doc([], summary=summary).replace(
+      "supported fragment\n  via",
+      "supported fragment\n  \n  via",
+    )
+    validate_status_summary(wrapped_doc, summary)
 
   def test_extract_issue_summary_table(self) -> None:
     table_lines = [

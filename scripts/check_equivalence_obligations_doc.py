@@ -24,6 +24,15 @@ MACRO_STATUS_PREFIX = (
   "**Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in\n"
   "`MacroSlice.lean`, which is the current macro-generated contract surface."
 )
+UPSTREAM_BRIDGE_PREFIX = (
+  "- **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment\n"
+  "  via verity's typed-IR / canonical-semantics bridge."
+)
+UPSTREAM_BRIDGE_STATUS_RE = re.compile(
+  r"- \*\*Link 2\*\* \(EDSL ↔ EVMYulLean\): provided upstream for the supported fragment\s+"
+  r"via verity's typed-IR / canonical-semantics bridge\.",
+  re.DOTALL,
+)
 LINK1_SUMMARY_RE = re.compile(
   r"(?P<count>\d+)/(?P<total>\d+)\s+obligations have Link 1 "
   r"\(stable `Morpho\.\*` wrapper API ↔ EDSL\) proven:\s*(?P<ops>.*?)\.\s+The proofs are in\s+"
@@ -81,6 +90,11 @@ def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
     raise EquivalenceObligationsDocError(
       "equivalence obligations macro migration intro drift: "
       f"expected `{MACRO_STATUS_PREFIX}`"
+    )
+  if UPSTREAM_BRIDGE_STATUS_RE.search(doc_text) is None:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations upstream bridge status drift: "
+      f"expected `{UPSTREAM_BRIDGE_PREFIX}`"
     )
 
   link1_match = require_match(LINK1_SUMMARY_RE, doc_text, "Link 1 status summary")
