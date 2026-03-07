@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from check_issue_blocker_clusters import (  # noqa: E402
   IssueClusterError,
+  ROOT,
   display_path,
   derive_cluster_blockers,
   load_config,
@@ -115,6 +116,10 @@ class DeriveClusterBlockersTests(unittest.TestCase):
 
 
 class DisplayPathTests(unittest.TestCase):
+  def test_display_path_renders_repo_absolute_paths_relative_to_root(self) -> None:
+    path = ROOT / "config" / "semantic-bridge-obligations.json"
+    self.assertEqual(display_path(path), pathlib.Path("config/semantic-bridge-obligations.json"))
+
   def test_display_path_keeps_external_absolute_paths(self) -> None:
     path = pathlib.Path("/tmp/config.json")
     self.assertEqual(display_path(path), path)
@@ -248,6 +253,35 @@ class CliTests(unittest.TestCase):
     self.assertEqual(proc.returncode, 1)
     self.assertIn("issue blocker clusters check failed: failed to write JSON report", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_json_out_records_actual_config_path(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_dir = root / "external"
+      config_dir.mkdir()
+      config_path = config_dir / "config.json"
+      json_out = root / "report.json"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_issue_blocker_clusters.py"),
+          "--config",
+          str(config_path),
+          "--json-out",
+          str(json_out),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 0)
+      report = json.loads(json_out.read_text(encoding="utf-8"))
+
+    self.assertEqual(report["configPath"], str(config_path.resolve()))
+    self.assertEqual(report["clusterCount"], 2)
 
 
 if __name__ == "__main__":

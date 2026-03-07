@@ -180,11 +180,12 @@ def display_path(path: pathlib.Path) -> pathlib.Path:
 
 def main() -> None:
   args = parser().parse_args()
-  config = load_config(args.config)
+  config_path = args.config.resolve()
+  config = load_config(config_path)
   clusters = validate_issue_clusters(config)
 
   report = {
-    "config": str(display_path(args.config)),
+    "configPath": str(display_path(config_path)),
     "clusterCount": len(clusters),
     "issueClusters": clusters,
   }
