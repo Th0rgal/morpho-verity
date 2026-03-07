@@ -138,6 +138,24 @@ class WorkflowRunParserTests(unittest.TestCase):
       "python3 scripts/check_alpha.py\n--strict",
     )
 
+  def test_extract_workflow_run_text_handles_property_only_prefix_before_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: !!str",
+        "          |",
+        "            python3 scripts/check_alpha.py",
+        "            --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py\n--strict",
+    )
+
   def test_extract_workflow_run_text_supports_yaml_scalar_tags_anchors_and_aliases(self) -> None:
     workflow_text = "\n".join(
       [
@@ -593,6 +611,27 @@ class WorkflowRunParserTests(unittest.TestCase):
           "Anchored run": ["./scripts/check_beta.sh"],
           "Alias run": ["./scripts/check_beta.sh"],
         },
+      ),
+    )
+
+  def test_extract_named_step_runs_handles_property_only_prefix_before_block_scalar_run(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: !!str",
+        "          |",
+        "            python3 scripts/check_alpha.py",
+        "            --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1},
+        {"Validate alpha": ["python3 scripts/check_alpha.py\n--strict"]},
       ),
     )
 

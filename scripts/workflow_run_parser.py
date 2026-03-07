@@ -57,6 +57,24 @@ def _consume_run_command(
 
   tail = match.group(2).strip()
   normalized_tail, _ = _strip_yaml_node_properties(tail)
+  if not normalized_tail and start_index + 1 < len(lines):
+    candidate = lines[start_index + 1]
+    stripped = candidate.lstrip(" ")
+    if stripped:
+      indent = len(candidate) - len(stripped)
+      if indent > run_indent:
+        block_scalar = _consume_block_scalar(
+          lines,
+          start_index + 1,
+          run_indent,
+          f"{tail} {stripped}".strip(),
+        )
+        if block_scalar is not None:
+          command, next_index, declared_anchors = block_scalar
+          if anchors is not None:
+            for anchor_name in declared_anchors:
+              anchors[anchor_name] = command
+          return command, next_index
   if RUN_BLOCK_SCALAR_RE.fullmatch(normalized_tail) is None:
     line_parts = [tail] if tail else []
     next_index = start_index + 1
