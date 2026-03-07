@@ -27,34 +27,51 @@ NESTED_TIMEOUT_INVARIANTS = {
 }
 
 
+class CiTimeoutDefaultsError(RuntimeError):
+  pass
+
+
 def fail(msg: str) -> None:
   print(f"ci-timeout-defaults check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
 
 
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except UnicodeDecodeError as exc:
+    raise CiTimeoutDefaultsError(f"{context} {path} is not valid UTF-8: {exc}") from exc
+  except OSError as exc:
+    raise CiTimeoutDefaultsError(f"failed to read {context} {path}: {exc}") from exc
+
+
 def parse_timeout_env_file(path: pathlib.Path) -> dict[str, int]:
   values: dict[str, int] = {}
-  for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+  for lineno, raw in enumerate(read_text(path, context="defaults file").splitlines(), start=1):
     line = raw.strip()
     if not line or line.startswith("#"):
       continue
     if "=" not in line:
-      fail(f"{path}:{lineno}: expected KEY=VALUE format")
+      raise CiTimeoutDefaultsError(f"{path}:{lineno}: expected KEY=VALUE format")
     key, value = line.split("=", 1)
     key = key.strip()
     value = value.strip()
     if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", key):
-      fail(f"{path}:{lineno}: invalid key {key!r}")
+      raise CiTimeoutDefaultsError(f"{path}:{lineno}: invalid key {key!r}")
     if not re.fullmatch(r"[0-9]+", value):
-      fail(f"{path}:{lineno}: value for {key} must be an integer (got {value!r})")
+      raise CiTimeoutDefaultsError(f"{path}:{lineno}: value for {key} must be an integer (got {value!r})")
     values[key] = int(value)
   if not values:
-    fail(f"{path}: no values parsed")
+    raise CiTimeoutDefaultsError(f"{path}: no values parsed")
   return values
 
 
 def collect_run_timeout_defaults(workflow_text: str) -> dict[str, set[int]]:
-  normalized = LINE_CONTINUATION_RE.sub(" ", extract_workflow_run_text(workflow_text))
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiTimeoutDefaultsError(f"failed to parse workflow run steps: {exc}") from exc
+  normalized = LINE_CONTINUATION_RE.sub(" ", run_text)
   seen: dict[str, set[int]] = {}
   for var, default in RUN_WITH_TIMEOUT_RE.findall(normalized):
     seen.setdefault(var, set()).add(int(default))
@@ -77,7 +94,7 @@ def collect_script_timeout_refs(scripts_dir: pathlib.Path) -> set[str]:
   for path in scripts_dir.glob("*"):
     if not path.is_file() or path.name.startswith("test_") or path.suffix not in {".py", ".sh"}:
       continue
-    text = path.read_text(encoding="utf-8")
+    text = read_text(path, context="script file")
     seen.update(SCRIPT_TIMEOUT_RE.findall(text))
   return seen
 
@@ -104,11 +121,14 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  workflow_text = args.workflow.read_text(encoding="utf-8")
-  timeout_defaults = parse_timeout_env_file(args.defaults)
-  run_defaults = collect_run_timeout_defaults(workflow_text)
-  env_literals = collect_timeout_env_literals(workflow_text)
-  script_refs = collect_script_timeout_refs(args.scripts_dir)
+  try:
+    workflow_text = read_text(args.workflow, context="workflow")
+    timeout_defaults = parse_timeout_env_file(args.defaults)
+    run_defaults = collect_run_timeout_defaults(workflow_text)
+    env_literals = collect_timeout_env_literals(workflow_text)
+    script_refs = collect_script_timeout_refs(args.scripts_dir)
+  except CiTimeoutDefaultsError as exc:
+    fail(str(exc))
 
   missing_in_defaults = sorted(var for var in run_defaults if var not in timeout_defaults)
   if missing_in_defaults:

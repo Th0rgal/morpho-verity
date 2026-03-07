@@ -4,21 +4,25 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import tempfile
 import unittest
 
 import sys
+from unittest import mock
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_timeout_defaults import (  # noqa: E402
+  CiTimeoutDefaultsError,
   collect_script_timeout_refs,
   collect_run_timeout_defaults,
   collect_timeout_env_literals,
   main,
   parse_timeout_env_file,
+  read_text,
 )
 
 
@@ -335,6 +339,25 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
         {"ALPHA_TIMEOUT_SEC", "BETA_TIMEOUT_SEC"},
       )
 
+  def test_read_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      path = pathlib.Path(tmp_dir) / "verify.yml"
+      path.write_bytes(b"\x80")
+
+      with self.assertRaisesRegex(CiTimeoutDefaultsError, "is not valid UTF-8"):
+        read_text(path, context="workflow")
+
+  def test_collect_run_timeout_defaults_wraps_parser_errors(self) -> None:
+    with mock.patch(
+      "check_ci_timeout_defaults.extract_workflow_run_text",
+      side_effect=ValueError("bad workflow"),
+    ):
+      with self.assertRaisesRegex(
+        CiTimeoutDefaultsError,
+        "failed to parse workflow run steps: bad workflow",
+      ):
+        collect_run_timeout_defaults("jobs:\n")
+
   def test_repo_files_are_in_sync(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
       workflow = pathlib.Path(tmp_dir) / "verify.yml"
@@ -468,6 +491,33 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
       finally:
         sys.argv = old_argv
+
+  def test_cli_reports_invalid_utf8_workflow_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      root = pathlib.Path(tmp_dir)
+      workflow = root / "verify.yml"
+      defaults = root / "defaults.env"
+      workflow.write_bytes(b"\x80")
+      defaults.write_text("ALPHA_TIMEOUT=10\n", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_timeout_defaults.py"),
+          "--workflow",
+          str(workflow),
+          "--defaults",
+          str(defaults),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("ci-timeout-defaults check failed:", proc.stderr)
+    self.assertIn("is not valid UTF-8", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
