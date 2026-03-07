@@ -15,6 +15,21 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_PARITY_TARGET = ROOT / "config" / "parity-target.json"
 DEFAULT_PIPELINE_MANIFEST = ROOT / "config" / "yul-rewrite-pipeline.json"
 DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+INPUT_DIGEST_PATHS = (
+  pathlib.Path("lean-toolchain"),
+  pathlib.Path("lake-manifest.json"),
+  pathlib.Path("lakefile.lean"),
+  pathlib.Path("Morpho.lean"),
+  pathlib.Path("MorphoCompiler.lean"),
+  pathlib.Path("scripts/prepare_verity_morpho_artifact.sh"),
+  pathlib.Path("scripts/apply_yul_rewrite_pipeline.py"),
+  pathlib.Path("scripts/check_yul_rewrite_proof_obligations.py"),
+  pathlib.Path("config/parity-target.json"),
+  pathlib.Path("config/yul-rewrite-pipeline.json"),
+  pathlib.Path("config/yul-rewrite-proof-obligations.json"),
+  pathlib.Path("artifacts/inputs/MarketParamsHash.yul"),
+  pathlib.Path("Morpho"),
+)
 
 
 class PreparedArtifactBundleError(RuntimeError):
@@ -162,6 +177,35 @@ def _expected_manifest_sha256(path: pathlib.Path) -> str | None:
   return _sha256_file(path)
 
 
+def _iter_input_digest_files(root: pathlib.Path) -> list[pathlib.Path]:
+  files: list[pathlib.Path] = []
+  for relative_path in INPUT_DIGEST_PATHS:
+    path = root / relative_path
+    if path.is_file():
+      files.append(path)
+      continue
+    if not path.is_dir():
+      continue
+    files.extend(sorted(candidate for candidate in path.rglob("*") if candidate.is_file()))
+  return files
+
+
+def compute_expected_input_digest(
+    *, root: pathlib.Path = ROOT, artifact_mode: str, skip_solc: str, parity_pack: str
+) -> str | None:
+  files = _iter_input_digest_files(root)
+  if not files:
+    return None
+  digest_input = "".join(
+    f"{_sha256_file(path)}  {path}\n" for path in files
+  ) + (
+    f"artifact_mode={artifact_mode}\n"
+    f"skip_solc={skip_solc}\n"
+    f"parity_pack={parity_pack}\n"
+  )
+  return _sha256_text(digest_input)
+
+
 def validate_prepared_verity_artifact_bundle(
     artifact_dir: pathlib.Path,
     *,
@@ -208,6 +252,16 @@ def validate_prepared_verity_artifact_bundle(
     raise PreparedArtifactBundleError(
       f"Prepared artifact manifest parity pack mismatch: expected {expected_parity_pack}, got "
       f"{parity_pack or '<missing>'}"
+    )
+  expected_input_digest = compute_expected_input_digest(
+    artifact_mode=artifact_mode,
+    skip_solc=skip_solc,
+    parity_pack=parity_pack,
+  )
+  if expected_input_digest is not None and input_digest != expected_input_digest:
+    raise PreparedArtifactBundleError(
+      "Prepared artifact manifest input digest mismatch: expected "
+      f"{expected_input_digest}, got {input_digest}"
     )
 
   bin_path = resolved_dir / "Morpho.bin"

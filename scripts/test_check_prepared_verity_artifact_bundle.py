@@ -16,6 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from check_prepared_verity_artifact_bundle import (  # noqa: E402
   PreparedArtifactBundleError,
+  compute_expected_input_digest,
   validate_prepared_verity_artifact_bundle,
 )
 
@@ -34,16 +35,23 @@ def write_bundle(
   bundle.mkdir(parents=True, exist_ok=True)
   raw_yul = "raw-yul\n"
   rewritten_yul = "rewritten-yul\n"
+  input_digest = compute_expected_input_digest(
+    artifact_mode="edsl",
+    skip_solc=skip_solc,
+    parity_pack=parity_pack,
+  )
+  if input_digest is None:
+    raise AssertionError("expected non-empty repo input digest for test bundle")
   (bundle / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
   (bundle / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
   (bundle / "Morpho.stage-times.log").write_text("stage=rewrite-yul status=ok elapsed_sec=1\n", encoding="utf-8")
   (bundle / "Morpho.artifact-manifest.env").write_text(
     "\n".join(
-      [
-        "input_digest=abc123",
-        "artifact_mode=edsl",
-        f"skip_solc={skip_solc}",
-        f"parity_pack={parity_pack}",
+        [
+          f"input_digest={input_digest}",
+          "artifact_mode=edsl",
+          f"skip_solc={skip_solc}",
+          f"parity_pack={parity_pack}",
       ]
     )
     + "\n",
@@ -182,6 +190,44 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       )
 
       with self.assertRaisesRegex(RuntimeError, "pipeline manifest mismatch"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=True,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_manifest_input_digest_mismatch(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      manifest_path = bundle / "Morpho.artifact-manifest.env"
+      manifest_path.write_text(
+        "\n".join(
+          [
+            f"input_digest={'0' * 64}",
+            "artifact_mode=edsl",
+            "skip_solc=0",
+            "parity_pack=test-pack",
+          ]
+        )
+        + "\n",
+        encoding="utf-8",
+      )
+
+      with self.assertRaisesRegex(RuntimeError, "manifest input digest mismatch"):
         validate_prepared_verity_artifact_bundle(
           root,
           require_bin=True,
@@ -396,7 +442,7 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       (bundle / "Morpho.artifact-manifest.env").write_text(
         "\n".join(
           [
-            "input_digest=abc123",
+            f"input_digest={compute_expected_input_digest(artifact_mode='edsl', skip_solc='0', parity_pack='test-pack')}",
             "artifact_mode=edsl",
             "skip_solc=0",
             "parity_pack=test-pack",
