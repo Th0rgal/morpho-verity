@@ -15,10 +15,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_macro_migration_slice import (  # noqa: E402
   MigrationSliceError,
   ROOT,
+  build_write_baseline,
   extract_macro_signatures,
   load_baseline,
   validate_baseline_metadata,
   run_check,
+  validate_blocked_reasons,
   validate_blocked_against_baseline,
   validate_against_baseline,
 )
@@ -194,6 +196,42 @@ class BaselineValidationTests(unittest.TestCase):
         },
       )
 
+  def test_validate_blocked_reasons_rejects_placeholder_reason(self) -> None:
+    with self.assertRaisesRegex(MigrationSliceError, "placeholder reason"):
+      validate_blocked_reasons(
+        {"nonce(address)": "pending macro migration (tracked blocker)"},
+        context="existing baseline",
+      )
+
+  def test_build_write_baseline_preserves_existing_blocker_reasons(self) -> None:
+    baseline = build_write_baseline(
+      spec_signatures={"owner()", "nonce(address)"},
+      migrated_signatures={"owner()"},
+      macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
+      contract_name="MorphoViewSlice",
+      existing_baseline={
+        "expectedBlocked": {
+          "nonce(address)": "auth path still pending proof rewrite",
+          "owner()": "stale reason to drop",
+        }
+      },
+    )
+
+    self.assertEqual(
+      baseline["expectedBlocked"],
+      {"nonce(address)": "auth path still pending proof rewrite"},
+    )
+
+  def test_build_write_baseline_rejects_new_blocked_signature_without_reason(self) -> None:
+    with self.assertRaisesRegex(MigrationSliceError, "lacking explicit reasons"):
+      build_write_baseline(
+        spec_signatures={"owner()", "nonce(address)"},
+        migrated_signatures={"owner()"},
+        macro_path=ROOT / "Morpho" / "Compiler" / "MacroSlice.lean",
+        contract_name="MorphoViewSlice",
+        existing_baseline={"expectedBlocked": {}},
+      )
+
   def test_load_baseline_rejects_malformed_json(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       path = pathlib.Path(d) / "baseline.json"
@@ -269,6 +307,127 @@ class RepoCheckTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+  def test_cli_write_preserves_existing_blocker_reasons(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      spec_path = pathlib.Path(d) / "Spec.lean"
+      macro_path = pathlib.Path(d) / "MacroSlice.lean"
+      baseline_path = pathlib.Path(d) / "baseline.json"
+      spec_path.write_text(
+        """
+def morphoSelectors : List Nat := [
+  0x8da5cb5b, -- owner()
+  0x7ecebe00  -- nonce(address)
+]
+""",
+        encoding="utf-8",
+      )
+      macro_path.write_text(
+        """
+verity_contract MorphoViewSlice where
+  function owner () : Address := do
+    return 0
+""",
+        encoding="utf-8",
+      )
+      baseline_path.write_text(
+        json.dumps(
+          {
+            "source": str(macro_path),
+            "contract": "MorphoViewSlice",
+            "expectedMigrated": ["owner()"],
+            "expectedBlocked": {
+              "nonce(address)": "still blocked on macro-native auth plumbing",
+            },
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_slice.py"),
+          "--spec",
+          str(spec_path),
+          "--macro",
+          str(macro_path),
+          "--baseline",
+          str(baseline_path),
+          "--contract",
+          "MorphoViewSlice",
+          "--write",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+      updated = json.loads(baseline_path.read_text(encoding="utf-8"))
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("macro-migration-slice check: OK", proc.stdout)
+    self.assertEqual(
+      updated["expectedBlocked"],
+      {"nonce(address)": "still blocked on macro-native auth plumbing"},
+    )
+
+  def test_cli_write_rejects_new_blocked_signature_without_reason(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      spec_path = pathlib.Path(d) / "Spec.lean"
+      macro_path = pathlib.Path(d) / "MacroSlice.lean"
+      baseline_path = pathlib.Path(d) / "baseline.json"
+      spec_path.write_text(
+        """
+def morphoSelectors : List Nat := [
+  0x8da5cb5b, -- owner()
+  0x7ecebe00  -- nonce(address)
+]
+""",
+        encoding="utf-8",
+      )
+      macro_path.write_text(
+        """
+verity_contract MorphoViewSlice where
+  function owner () : Address := do
+    return 0
+""",
+        encoding="utf-8",
+      )
+      baseline_path.write_text(
+        json.dumps(
+          {
+            "source": str(macro_path),
+            "contract": "MorphoViewSlice",
+            "expectedMigrated": ["owner()"],
+            "expectedBlocked": {},
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_slice.py"),
+          "--spec",
+          str(spec_path),
+          "--macro",
+          str(macro_path),
+          "--baseline",
+          str(baseline_path),
+          "--contract",
+          "MorphoViewSlice",
+          "--write",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("macro-migration-slice check failed:", proc.stderr)
+    self.assertIn("lacking explicit reasons", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
   def test_cli_reports_invalid_utf8_macro_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       spec_path = pathlib.Path(d) / "Spec.lean"
