@@ -128,6 +128,9 @@ jobs:
       - name: Validate duplicate top-level Python defs
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate duplicate top-level Python defs" -- python3 scripts/check_duplicate_top_level_defs.py
 
+      - name: Validate no-arg Python check scripts from another cwd
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate no-arg Python check scripts from another cwd" -- python3 scripts/check_no_arg_check_scripts.py
+
       - name: Validate script-test pairing
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate script-test pairing" -- python3 scripts/check_script_test_pairs.py
 
