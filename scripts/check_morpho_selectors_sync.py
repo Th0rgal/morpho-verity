@@ -33,6 +33,13 @@ def fail(msg: str) -> None:
   sys.exit(1)
 
 
+def write_text(path: pathlib.Path, text: str, *, context: str) -> None:
+  try:
+    path.write_text(text, encoding="utf-8")
+  except OSError as exc:
+    raise MorphoSelectorsSyncError(f"failed to write {context} {path}: {exc}") from exc
+
+
 def find_selector_block_bounds(lines: list[str]) -> tuple[int, int]:
   start_idx = None
   for idx, line in enumerate(lines):
@@ -72,7 +79,7 @@ def make_extra_selector_map(signatures: set[str]) -> dict[str, int]:
     f"{declarations}\n"
     "}\n"
   )
-  temp_path.write_text(source, encoding="utf-8")
+  write_text(temp_path, source, context="temporary selector interface")
   try:
     return extract_solc_selector_map(temp_path, "IExtraMorphoSelectors")
   finally:
@@ -144,7 +151,7 @@ def main() -> None:
     return
 
   if args.write:
-    spec_path.write_text(rewritten, encoding="utf-8")
+    write_text(spec_path, rewritten, context="spec file")
     print(f"morpho-selectors-sync: updated {spec_path}")
     return
 
