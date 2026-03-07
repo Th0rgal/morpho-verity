@@ -16,6 +16,7 @@ Partially enforced:
 7. Long differential and Yul identity lanes reuse a verified EDSL artifact bundle from `verity-compiled-tests` (reduced duplicate prep/timeout surface), and CI validates that bundle's manifest/rewrite metadata before reuse.
 8. EDSL-only parity naming gate is enforced in CI (`scripts/check_parity_edsl_naming.py`).
 9. Artifact layout boundary gate is enforced in CI (`scripts/check_artifact_layout_boundary.py`).
+10. README semantic-bridge proved-vs-assumed summary drift gate is enforced in CI (`scripts/check_readme_semantic_bridge_summary.py`).
 
 Not yet enforced:
 1. strict `yul-identity-check` (zero structural AST mismatch for supported fragment).
