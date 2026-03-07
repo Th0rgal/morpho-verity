@@ -539,6 +539,48 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(report["macroSlice"], str(macro_path))
             self.assertEqual(report["config"], str(config_path))
 
+    def test_cli_json_report_normalizes_relative_external_input_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            macro_path = inputs / "MacroSlice.lean"
+            config_path = inputs / "semantic-bridge-obligations.json"
+            json_out = root / "report.json"
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_primitive_coverage.py"),
+                    "--macro-slice",
+                    str(pathlib.Path("inputs") / "MacroSlice.lean"),
+                    "--config",
+                    str(pathlib.Path("inputs") / "semantic-bridge-obligations.json"),
+                    "--json-out",
+                    str(json_out),
+                ],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(proc.returncode, 0)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+            self.assertEqual(report["macroSlice"], str(macro_path.resolve()))
+            self.assertEqual(report["config"], str(config_path.resolve()))
+
 
 if __name__ == "__main__":
     unittest.main()

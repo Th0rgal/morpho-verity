@@ -570,6 +570,45 @@ class CliTests(unittest.TestCase):
             self.assertEqual(report["manifest"], str(manifest))
             self.assertEqual(report["proofFile"], str(proof_file))
 
+    def test_cli_json_report_normalizes_relative_external_input_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(tmpdir)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            manifest = inputs / "manifest.json"
+            proof_file = inputs / "YulRewriteProofs.lean"
+            json_out = root / "report.json"
+            manifest.write_text(
+                "{"
+                "\"defaults\":{\"renameOnly\":{\"rewritePass\":\"rename-pass\",\"proofRefs\":[\"rewrite.rename_only.alpha_equiv\"]}},"
+                "\"families\":[{\"family\":\"checked_add\",\"rewritePass\":\"pass\",\"proofRefs\":[\"rewrite.checked_add.width_alignment\"]}]"
+                "}\n",
+                encoding="utf-8",
+            )
+            proof_file.write_text(SAMPLE_LEAN, encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_yul_rewrite_proof_obligations.py"),
+                    "--manifest",
+                    str(pathlib.Path("inputs") / "manifest.json"),
+                    "--proof-file",
+                    str(pathlib.Path("inputs") / "YulRewriteProofs.lean"),
+                    "--json-out",
+                    str(json_out),
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(proc.returncode, 0)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+            self.assertEqual(report["manifest"], str(manifest.resolve()))
+            self.assertEqual(report["proofFile"], str(proof_file.resolve()))
+
 
 if __name__ == "__main__":
     unittest.main()

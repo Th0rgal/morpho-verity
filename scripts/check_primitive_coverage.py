@@ -339,12 +339,14 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
+    macro_slice_path = args.macro_slice.resolve()
+    config_path = args.config.resolve()
 
-    macro_text = read_text(args.macro_slice)
-    migrated_ops = load_migrated_operations(args.config)
+    macro_text = read_text(macro_slice_path)
+    migrated_ops = load_migrated_operations(config_path)
 
     coverage = analyze_coverage(macro_text, migrated_ops)
-    report = build_report(coverage, args.macro_slice, args.config)
+    report = build_report(coverage, macro_slice_path, config_path)
 
     if args.json_out:
         write_json_report(args.json_out, report)
