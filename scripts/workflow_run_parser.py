@@ -41,7 +41,7 @@ def _consume_run_command(
     return "\n".join(line_parts), next_index
 
   next_index = start_index + 1
-  block_lines: list[str] = []
+  block_lines: list[tuple[str, int | None]] = []
   while next_index < len(lines):
     candidate = lines[next_index]
     stripped = candidate.lstrip(" ")
@@ -49,11 +49,18 @@ def _consume_run_command(
       indent = len(candidate) - len(stripped)
       if indent <= run_indent:
         break
-      block_lines.append(stripped)
+      block_lines.append((candidate, indent))
     else:
-      block_lines.append("")
+      block_lines.append(("", None))
     next_index += 1
-  return "\n".join(block_lines), next_index
+  content_indent = min(
+    indent for _, indent in block_lines if indent is not None
+  )
+  normalized_lines = [
+    line[content_indent:] if indent is not None else ""
+    for line, indent in block_lines
+  ]
+  return "\n".join(normalized_lines), next_index
 
 
 def extract_workflow_run_text(workflow_text: str) -> str:
