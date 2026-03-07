@@ -19,8 +19,14 @@ class IssueClusterError(RuntimeError):
 
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      data = json.load(f)
+  except json.JSONDecodeError as exc:
+    raise IssueClusterError(f"failed to parse JSON config {path}: {exc}") from exc
+  if not isinstance(data, dict):
+    raise IssueClusterError(f"config root must be an object in {path}")
+  return data
 
 
 def load_obligations_by_operation(config: dict[str, Any]) -> dict[str, dict[str, Any]]:

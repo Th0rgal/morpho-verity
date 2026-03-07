@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
+import tempfile
 import unittest
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -14,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from check_issue_blocker_clusters import (  # noqa: E402
   IssueClusterError,
   derive_cluster_blockers,
+  load_config,
   load_obligations_by_operation,
   validate_issue_clusters,
 )
@@ -55,6 +58,20 @@ def make_config() -> dict:
 
 
 class LoadObligationsTests(unittest.TestCase):
+  def test_load_config_rejects_malformed_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "config.json"
+      path.write_text("{not json", encoding="utf-8")
+      with self.assertRaisesRegex(IssueClusterError, "failed to parse JSON config"):
+        load_config(path)
+
+  def test_load_config_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "config.json"
+      path.write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
+      with self.assertRaisesRegex(IssueClusterError, "config root must be an object"):
+        load_config(path)
+
   def test_loads_by_operation(self) -> None:
     by_operation = load_obligations_by_operation(make_config())
     self.assertEqual(sorted(by_operation), ["liquidate", "supply", "withdraw"])
