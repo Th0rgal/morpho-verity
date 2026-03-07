@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -15,6 +16,7 @@ from check_yul_rewrite_proof_obligations import (  # noqa: E402
     extract_manifest_proof_plans,
     extract_declared_proof_refs,
     extract_manifest_proof_refs,
+    load_manifest,
     validate_manifest_against_proofs,
 )
 
@@ -101,6 +103,22 @@ class ExtractManifestProofRefsTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(RewriteProofError, "duplicated across entries"):
             extract_manifest_proof_plans(manifest)
+
+
+class LoadManifestTests(unittest.TestCase):
+    def test_rejects_invalid_json_with_checker_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "manifest.json"
+            path.write_text("{\n", encoding="utf-8")
+            with self.assertRaisesRegex(RewriteProofError, "invalid JSON"):
+                load_manifest(path)
+
+    def test_rejects_non_object_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "manifest.json"
+            path.write_text("[]\n", encoding="utf-8")
+            with self.assertRaisesRegex(RewriteProofError, "must be a JSON object"):
+                load_manifest(path)
 
 
 class ExtractDeclaredProofRefsTests(unittest.TestCase):

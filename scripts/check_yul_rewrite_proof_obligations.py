@@ -40,8 +40,18 @@ def read_text(path: pathlib.Path) -> str:
 
 
 def read_json(path: pathlib.Path) -> Any:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as exc:
+        raise RewriteProofError(f"invalid JSON in {path}: {exc}") from exc
+
+
+def load_manifest(path: pathlib.Path) -> dict[str, Any]:
+    manifest = read_json(path)
+    if not isinstance(manifest, dict):
+        raise RewriteProofError("rewrite proof manifest must be a JSON object")
+    return manifest
 
 
 def extract_manifest_proof_plans(manifest: dict[str, Any]) -> dict[str, dict[str, str]]:
@@ -296,9 +306,7 @@ def parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
 
-    manifest = read_json(args.manifest)
-    if not isinstance(manifest, dict):
-        raise RewriteProofError("rewrite proof manifest must be a JSON object")
+    manifest = load_manifest(args.manifest)
     manifest_proof_plans = extract_manifest_proof_plans(manifest)
     validate_manifest_against_proofs(
         manifest_proof_plans,
