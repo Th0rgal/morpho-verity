@@ -59,6 +59,24 @@ class CollectUploadArtifactPoliciesTests(unittest.TestCase):
 
     self.assertEqual(collect_upload_artifact_policies(workflow_text), [])
 
+  def test_preserves_hash_inside_quoted_artifact_name(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - uses: actions/upload-artifact@v4",
+        "        with:",
+        '          name: "logs#snapshot"',
+        "          if-no-files-found: error",
+      ]
+    )
+
+    self.assertEqual(
+      collect_upload_artifact_policies(workflow_text),
+      [("logs#snapshot", "error")],
+    )
+
 
 class ValidateUploadArtifactPolicyTests(unittest.TestCase):
   def test_rejects_missing_policy(self) -> None:

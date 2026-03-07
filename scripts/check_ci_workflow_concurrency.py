@@ -7,6 +7,8 @@ import argparse
 import pathlib
 import sys
 
+from ci_workflow_helpers import read_text, strip_yaml_scalar
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -25,28 +27,8 @@ def fail(message: str) -> None:
   raise SystemExit(1)
 
 
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowConcurrencyError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowConcurrencyError(f"failed to read workflow {path}: {exc}") from exc
-
-
 def _indent_of(line: str) -> int:
   return len(line) - len(line.lstrip())
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
 
 
 def collect_top_level_concurrency(workflow_text: str) -> dict[str, str]:
@@ -88,12 +70,12 @@ def collect_top_level_concurrency(workflow_text: str) -> dict[str, str]:
           "workflow top-level concurrency: must contain simple key: value mappings"
         )
       field, raw_setting = candidate_stripped.split(":", 1)
-      setting = _strip_yaml_scalar(raw_setting)
+      setting = strip_yaml_scalar(raw_setting)
       if not setting:
         raise CiWorkflowConcurrencyError(
           f"workflow concurrency field {field.strip()} must have a non-empty literal value"
         )
-      concurrency[_strip_yaml_scalar(field)] = setting
+      concurrency[strip_yaml_scalar(field)] = setting
       cursor += 1
 
   if concurrency is None:
@@ -130,7 +112,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowConcurrencyError)
     concurrency = collect_top_level_concurrency(workflow_text)
   except CiWorkflowConcurrencyError as exc:
     fail(str(exc))

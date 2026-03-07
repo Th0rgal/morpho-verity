@@ -45,6 +45,24 @@ class CollectTopLevelConcurrencyTests(unittest.TestCase):
       },
     )
 
+  def test_preserves_hash_inside_quoted_value(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "concurrency:",
+        '  group: "ci#group"',
+        "  cancel-in-progress: true",
+        "jobs:",
+        "  build:",
+        "    steps:",
+        "      - run: echo hi",
+      ]
+    )
+
+    self.assertEqual(
+      collect_top_level_concurrency(workflow_text),
+      {"group": "ci#group", "cancel-in-progress": "true"},
+    )
+
   def test_rejects_scalar_concurrency_value(self) -> None:
     workflow_text = "\n".join(["concurrency: ci", "jobs:", "  build:", "    steps:"])
 
