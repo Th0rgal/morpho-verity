@@ -145,8 +145,14 @@ def total_occurrences(counts: dict[str, int], keys: set[str]) -> int:
 
 
 def load_baseline(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      data = json.load(f)
+  except json.JSONDecodeError as exc:
+    raise MigrationGateError(f"invalid JSON in {path}: {exc}") from exc
+  if not isinstance(data, dict):
+    raise MigrationGateError(f"expected top-level object in {path}")
+  return data
 
 
 def extract_spec_function_blocks(text: str) -> list[str]:

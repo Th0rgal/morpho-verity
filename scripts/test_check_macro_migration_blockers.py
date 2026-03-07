@@ -17,6 +17,7 @@ from check_macro_migration_blockers import (  # noqa: E402
   MigrationGateError,
   build_report,
   build_operation_blocker_report,
+  load_baseline,
   load_obligations,
   parse_constructor_usage,
   validate_operation_blockers,
@@ -406,6 +407,22 @@ class BaselineValidationTests(unittest.TestCase):
 
 
 class OperationBlockerTests(unittest.TestCase):
+  def test_load_baseline_rejects_invalid_json(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      path = pathlib.Path(tmp) / "macro-migration-blockers.json"
+      path.write_text("{\n", encoding="utf-8")
+
+      with self.assertRaisesRegex(MigrationGateError, "invalid JSON"):
+        load_baseline(path)
+
+  def test_load_obligations_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      path = pathlib.Path(tmp) / "semantic-bridge-obligations.json"
+      path.write_text("[]\n", encoding="utf-8")
+
+      with self.assertRaisesRegex(MigrationGateError, "expected top-level object"):
+        load_obligations(path)
+
   def test_load_obligations_rejects_duplicate_operations(self) -> None:
     with tempfile.TemporaryDirectory() as tmp:
       path = pathlib.Path(tmp) / "semantic-bridge-obligations.json"
@@ -662,6 +679,57 @@ verity_contract Tmp where
         proc = self.compile_contract(case["source"])
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn(case["expected"], proc.stdout + proc.stderr)
+
+
+class MainFailureTests(unittest.TestCase):
+  def test_cli_reports_invalid_baseline_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      tmp_path = pathlib.Path(tmp)
+      baseline_path = tmp_path / "macro-migration-blockers.json"
+      baseline_path.write_text("{\n", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_blockers.py"),
+          "--baseline",
+          str(baseline_path),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("macro-migration blockers check failed: invalid JSON", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_non_object_obligations_root_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      tmp_path = pathlib.Path(tmp)
+      obligations_path = tmp_path / "semantic-bridge-obligations.json"
+      obligations_path.write_text("[]\n", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_blockers.py"),
+          "--obligations",
+          str(obligations_path),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn(
+        "macro-migration blockers check failed: expected top-level object",
+        proc.stderr,
+      )
+      self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
