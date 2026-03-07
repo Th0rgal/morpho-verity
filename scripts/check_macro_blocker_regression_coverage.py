@@ -43,7 +43,7 @@ def load_obligations(path: pathlib.Path) -> list[dict[str, Any]]:
     if not isinstance(macro_migrated, bool):
       raise RegressionCoverageError(f"obligation[{i}] missing boolean 'macroMigrated' in {path}")
     issue = item.get("issue")
-    if issue is not None and not isinstance(issue, int):
+    if issue is not None and (not isinstance(issue, int) or isinstance(issue, bool)):
       raise RegressionCoverageError(f"obligation[{i}] has non-integer 'issue' in {path}")
     result.append(item)
   return result
@@ -147,4 +147,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-  raise SystemExit(main())
+  try:
+    raise SystemExit(main())
+  except RegressionCoverageError as exc:
+    print(f"macro-blocker-regression-coverage check failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+  except FileNotFoundError as exc:
+    print(f"macro-blocker-regression-coverage check failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
