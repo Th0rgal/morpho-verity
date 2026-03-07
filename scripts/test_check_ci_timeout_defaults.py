@@ -44,6 +44,18 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_run_timeout_defaults(workflow), {"A_TIMEOUT": {10}})
 
+  def test_collect_run_timeout_defaults_ignores_nested_non_step_run_mapping(self) -> None:
+    workflow = (
+      "jobs:\n"
+      "  test:\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        with:\n"
+      "          run: ./scripts/run_with_timeout.sh FAKE_TIMEOUT 99 \"fake\" -- cmd\n"
+      "        run: ./scripts/run_with_timeout.sh REAL_TIMEOUT 10 \"real\" -- cmd\n"
+    )
+    self.assertEqual(collect_run_timeout_defaults(workflow), {"REAL_TIMEOUT": {10}})
+
   def test_collect_timeout_env_literals(self) -> None:
     workflow = (
       "env:\n"
@@ -175,11 +187,17 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
       scripts_dir = pathlib.Path(tmp_dir) / "scripts"
       scripts_dir.mkdir()
       workflow.write_text(
-        "run: ./scripts/run_with_timeout.sh MORPHO_ACTIVE_TIMEOUT_SEC 10 \"active\" -- cmd\n",
+        "run: ./scripts/run_with_timeout.sh MORPHO_ACTIVE_TIMEOUT_SEC 10 \"active\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PREP_TIMEOUT_SEC 10 \"prep\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 10 \"outer1\" -- cmd\n"
+        "run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC 10 \"outer2\" -- cmd\n",
         encoding="utf-8",
       )
       defaults.write_text(
         "MORPHO_ACTIVE_TIMEOUT_SEC=10\n"
+        "MORPHO_VERITY_PREP_TIMEOUT_SEC=10\n"
+        "MORPHO_YUL_IDENTITY_TIMEOUT_SEC=10\n"
+        "MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=10\n"
         "MORPHO_STALE_TIMEOUT_SEC=42\n",
         encoding="utf-8",
       )
