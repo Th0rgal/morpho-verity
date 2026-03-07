@@ -34,6 +34,12 @@ EXPECTED_WORKFLOW_STEPS = (
   "Validate verity pin sync",
   "Validate verity pin provenance",
 )
+EXPECTED_WORKFLOW_RUN_LINES = {
+  "Validate verity pin sync":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin sync" -- python3 scripts/check_verity_pin_sync.py',
+  "Validate verity pin provenance":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin provenance" -- python3 scripts/check_verity_pin_provenance.py',
+}
 
 
 def fail(msg: str) -> None:
@@ -375,12 +381,18 @@ def validate_workflow(
   workflow_path: pathlib.Path,
 ) -> None:
   step_name_counts: dict[str, int] = {}
+  step_run_lines: dict[str, list[str]] = {}
+  current_step_name: str | None = None
   for line in workflow_text.splitlines():
-    match = re.fullmatch(r"\s*-\s+name:\s+(.+?)\s*", line)
-    if match is None:
+    step_match = re.fullmatch(r"\s*-\s+name:\s+(.+?)\s*", line)
+    if step_match is not None:
+      current_step_name = step_match.group(1)
+      step_name_counts[current_step_name] = step_name_counts.get(current_step_name, 0) + 1
+      step_run_lines.setdefault(current_step_name, [])
       continue
-    step_name = match.group(1)
-    step_name_counts[step_name] = step_name_counts.get(step_name, 0) + 1
+    run_match = re.fullmatch(r"\s+run:\s+(.+?)\s*", line)
+    if run_match is not None and current_step_name is not None:
+      step_run_lines.setdefault(current_step_name, []).append(run_match.group(1))
   missing = [step for step in EXPECTED_WORKFLOW_STEPS if step_name_counts.get(step, 0) == 0]
   if missing:
     fail(
@@ -390,6 +402,16 @@ def validate_workflow(
   if duplicate:
     fail(
       f"workflow {workflow_path} duplicates Verity pin enforcement step(s): {', '.join(duplicate)}"
+    )
+  mismatched_run = []
+  for step, expected_run_line in EXPECTED_WORKFLOW_RUN_LINES.items():
+    actual_run_lines = step_run_lines.get(step, [])
+    if actual_run_lines != [expected_run_line]:
+      mismatched_run.append(step)
+  if mismatched_run:
+    fail(
+      "workflow "
+      f"{workflow_path} has drifted Verity pin enforcement command(s): {', '.join(mismatched_run)}"
     )
 
 

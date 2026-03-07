@@ -13,6 +13,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from check_verity_pin_provenance import (  # noqa: E402
   EXPECTED_ENFORCEMENT_TEXT,
+  EXPECTED_WORKFLOW_RUN_LINES,
   EXPECTED_WORKFLOW_STEPS,
   main as check_main,
   validate_enforcement_section,
@@ -79,7 +80,13 @@ def make_verify_workflow(*, steps: list[str] | None = None) -> str:
     "jobs:",
     "  verify:",
     "    steps:",
-    *[f"      - name: {step}" for step in steps],
+    *[
+      "\n".join([
+        f"      - name: {step}",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES.get(step, 'echo placeholder')}",
+      ])
+      for step in steps
+    ],
     "",
   ])
 
@@ -233,6 +240,22 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             EXPECTED_WORKFLOW_STEPS[1],
           ]
         ),
+        workflow_path=pathlib.Path(".github/workflows/verify.yml"),
+      )
+
+  def test_validate_workflow_rejects_wrong_run_command(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      validate_workflow(
+        workflow_text="\n".join([
+          "jobs:",
+          "  verify:",
+          "    steps:",
+          "      - name: Validate verity pin sync",
+          "        run: echo noop",
+          "      - name: Validate verity pin provenance",
+          f"        run: {EXPECTED_WORKFLOW_RUN_LINES['Validate verity pin provenance']}",
+          "",
+        ]),
         workflow_path=pathlib.Path(".github/workflows/verify.yml"),
       )
 
@@ -1102,6 +1125,67 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             EXPECTED_WORKFLOW_STEPS[1],
           ]
         ),
+      )
+
+  def test_rejects_wrong_workflow_enforcement_command(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ),
+        workflow_text="\n".join([
+          "jobs:",
+          "  verify:",
+          "    steps:",
+          "      - name: Validate verity pin sync",
+          "        run: echo noop",
+          "      - name: Validate verity pin provenance",
+          f"        run: {EXPECTED_WORKFLOW_RUN_LINES['Validate verity pin provenance']}",
+          "",
+        ]),
       )
 
   def test_rejects_full_rev_mismatch(self) -> None:
