@@ -6,6 +6,7 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -13,6 +14,7 @@ from check_macro_migration_slice import (  # noqa: E402
   MigrationSliceError,
   ROOT,
   extract_macro_signatures,
+  load_baseline,
   validate_baseline_metadata,
   run_check,
   validate_blocked_against_baseline,
@@ -93,6 +95,27 @@ class BaselineValidationTests(unittest.TestCase):
         {"expectedMigrated": ["owner()"]},
       )
 
+  def test_validate_against_baseline_rejects_non_list_expected_migrated(self) -> None:
+    with self.assertRaisesRegex(MigrationSliceError, "expectedMigrated must be a list"):
+      validate_against_baseline(
+        {"owner()"},
+        {"expectedMigrated": "owner()"},
+      )
+
+  def test_validate_against_baseline_rejects_invalid_signature_entry(self) -> None:
+    with self.assertRaisesRegex(MigrationSliceError, "contain only non-empty signatures"):
+      validate_against_baseline(
+        {"owner()"},
+        {"expectedMigrated": ["owner()", ""]},
+      )
+
+  def test_validate_against_baseline_rejects_duplicate_signatures(self) -> None:
+    with self.assertRaisesRegex(MigrationSliceError, "duplicate signatures"):
+      validate_against_baseline(
+        {"owner()"},
+        {"expectedMigrated": ["owner()", "owner()"]},
+      )
+
   def test_validate_blocked_against_baseline_matches(self) -> None:
     out = validate_blocked_against_baseline(
       spec_signatures={"owner()", "nonce(address)"},
@@ -115,6 +138,14 @@ class BaselineValidationTests(unittest.TestCase):
         spec_signatures={"owner()"},
         migrated_signatures={"owner()"},
         baseline={"expectedBlocked": {"owner()": "invalid"}},
+      )
+
+  def test_validate_blocked_against_baseline_rejects_invalid_signature_key(self) -> None:
+    with self.assertRaisesRegex(MigrationSliceError, "invalid signature key"):
+      validate_blocked_against_baseline(
+        spec_signatures={"owner()", "nonce(address)"},
+        migrated_signatures={"owner()"},
+        baseline={"expectedBlocked": {"": "tracked"}},
       )
 
   def test_validate_baseline_metadata_matches(self) -> None:
@@ -160,6 +191,22 @@ class BaselineValidationTests(unittest.TestCase):
           }
         },
       )
+
+  def test_load_baseline_rejects_malformed_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "baseline.json"
+      path.write_text("{invalid\n", encoding="utf-8")
+
+      with self.assertRaisesRegex(MigrationSliceError, "not valid JSON"):
+        load_baseline(path)
+
+  def test_load_baseline_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "baseline.json"
+      path.write_text('["owner()"]\n', encoding="utf-8")
+
+      with self.assertRaisesRegex(MigrationSliceError, "must contain a JSON object"):
+        load_baseline(path)
 
 
 class RepoCheckTests(unittest.TestCase):
