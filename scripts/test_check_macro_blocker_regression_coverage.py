@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import sys
@@ -182,6 +183,27 @@ class RegressionCaseCoverageTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+  def test_cli_does_not_depend_on_test_module_being_present(self) -> None:
+    script_dir = pathlib.Path(__file__).resolve().parent
+    checker = script_dir / "check_macro_blocker_regression_coverage.py"
+    shared_cases = script_dir / "macro_blocker_regression_cases.py"
+    obligations = script_dir.parent / "config" / "semantic-bridge-obligations.json"
+    with tempfile.TemporaryDirectory() as d:
+      sandbox = pathlib.Path(d)
+      shutil.copy2(checker, sandbox / checker.name)
+      shutil.copy2(shared_cases, sandbox / shared_cases.name)
+      proc = subprocess.run(
+        [sys.executable, str(sandbox / checker.name), "--obligations", str(obligations)],
+        capture_output=True,
+        text=True,
+        cwd=sandbox,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("macro-blocker-regression-coverage check: OK", proc.stdout)
+    self.assertEqual(proc.stderr, "")
+
   def test_cli_reports_invalid_json_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       obligations = pathlib.Path(d) / "semantic-bridge-obligations.json"

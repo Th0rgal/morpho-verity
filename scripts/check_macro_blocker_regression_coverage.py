@@ -14,7 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OBLIGATIONS_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from test_check_macro_migration_blockers import ISSUE_FRONTEND_REGRESSION_CASES  # noqa: E402
+from macro_blocker_regression_cases import ISSUE_FRONTEND_REGRESSION_CASES  # noqa: E402
 
 
 class RegressionCoverageError(RuntimeError):
