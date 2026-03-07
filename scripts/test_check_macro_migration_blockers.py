@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import shutil
 import subprocess
@@ -364,6 +365,17 @@ Stmt.internalCall "foo" []
 
 
 class BaselineValidationTests(unittest.TestCase):
+  def test_build_report_uses_provided_source_path(self) -> None:
+    text = "Stmt.letVar \"x\" (Expr.literal 1)\n"
+    with tempfile.TemporaryDirectory() as tmp:
+      spec_path = pathlib.Path(tmp) / "external" / "Spec.lean"
+      report = build_report(
+        parse_constructor_usage(text),
+        source_path=spec_path,
+      )
+
+    self.assertEqual(report["source"], str(spec_path))
+
   def test_validation_passes_when_sets_match(self) -> None:
     text = "Stmt.letVar \"x\" (Expr.literal 1)\nStmt.internalCall \"foo\" []\n"
     report = build_report(parse_constructor_usage(text))
@@ -784,6 +796,46 @@ class MainFailureTests(unittest.TestCase):
       self.assertNotEqual(proc.returncode, 0)
       self.assertIn("macro-migration blockers check failed: failed to write", proc.stderr)
       self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_json_report_uses_explicit_spec_path(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      tmp_path = pathlib.Path(tmp)
+      spec_path = tmp_path / "Spec.lean"
+      baseline_path = tmp_path / "macro-migration-blockers.json"
+      obligations_path = tmp_path / "semantic-bridge-obligations.json"
+      json_out = tmp_path / "report.json"
+
+      spec_path.write_text((ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text(encoding="utf-8"), encoding="utf-8")
+      baseline_path.write_text(
+        (ROOT / "config" / "macro-migration-blockers.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+      obligations_path.write_text(
+        (ROOT / "config" / "semantic-bridge-obligations.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_blockers.py"),
+          "--spec",
+          str(spec_path),
+          "--baseline",
+          str(baseline_path),
+          "--obligations",
+          str(obligations_path),
+          "--json-out",
+          str(json_out),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+      self.assertEqual(json.loads(json_out.read_text(encoding="utf-8"))["source"], str(spec_path))
 
 
 if __name__ == "__main__":
