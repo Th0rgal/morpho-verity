@@ -123,8 +123,13 @@ class MigrationGateError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-  with path.open("r", encoding="utf-8") as f:
-    return f.read()
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return f.read()
+  except UnicodeDecodeError as exc:
+    raise MigrationGateError(f"failed to decode {path} as UTF-8: {exc}") from exc
+  except OSError as exc:
+    raise MigrationGateError(f"failed to read {path}: {exc}") from exc
 
 
 def parse_constructor_usage(text: str) -> ConstructorUsage:
@@ -146,8 +151,7 @@ def total_occurrences(counts: dict[str, int], keys: set[str]) -> int:
 
 def load_baseline(path: pathlib.Path) -> dict[str, Any]:
   try:
-    with path.open("r", encoding="utf-8") as f:
-      data = json.load(f)
+    data = json.loads(read_text(path))
   except json.JSONDecodeError as exc:
     raise MigrationGateError(f"invalid JSON in {path}: {exc}") from exc
   if not isinstance(data, dict):
@@ -234,10 +238,13 @@ def load_obligations(path: pathlib.Path) -> dict[str, dict[str, Any]]:
 
 
 def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
-  path.parent.mkdir(parents=True, exist_ok=True)
-  with path.open("w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2, sort_keys=True)
-    f.write("\n")
+  try:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+      json.dump(data, f, indent=2, sort_keys=True)
+      f.write("\n")
+  except OSError as exc:
+    raise MigrationGateError(f"failed to write {path}: {exc}") from exc
 
 
 def build_report(usage: ConstructorUsage) -> dict[str, Any]:
@@ -409,10 +416,13 @@ def main() -> None:
   report["operationBlockers"] = operation_blockers
 
   if args.json_out:
-    args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    with args.json_out.open("w", encoding="utf-8") as f:
-      json.dump(report, f, indent=2, sort_keys=True)
-      f.write("\n")
+    try:
+      args.json_out.parent.mkdir(parents=True, exist_ok=True)
+      with args.json_out.open("w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, sort_keys=True)
+        f.write("\n")
+    except OSError as exc:
+      raise MigrationGateError(f"failed to write {args.json_out}: {exc}") from exc
 
   stmt_cov = report["coverage"]["unique"]["stmt"]
   expr_cov = report["coverage"]["unique"]["expr"]
@@ -431,8 +441,5 @@ if __name__ == "__main__":
   try:
     main()
   except MigrationGateError as e:
-    print(f"macro-migration blockers check failed: {e}", file=sys.stderr)
-    sys.exit(1)
-  except FileNotFoundError as e:
     print(f"macro-migration blockers check failed: {e}", file=sys.stderr)
     sys.exit(1)
