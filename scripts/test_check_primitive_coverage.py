@@ -19,6 +19,7 @@ from check_primitive_coverage import (  # noqa: E402
     load_migrated_operations,
     PRIMITIVE_BRIDGE_STATUS,
     PrimitiveCoverageError,
+    write_json_report,
 )
 
 
@@ -275,6 +276,20 @@ class LoadMigratedOperationsTests(unittest.TestCase):
             load_migrated_operations(path)
 
 
+class WriteJsonReportTests(unittest.TestCase):
+    def test_wraps_write_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            target = root / "report-dir"
+            target.mkdir()
+
+            with self.assertRaisesRegex(
+                PrimitiveCoverageError,
+                "failed to write primitive coverage JSON report",
+            ):
+                write_json_report(target, {"total": 0})
+
+
 class IntegrationTests(unittest.TestCase):
     def test_real_files(self) -> None:
         """Run against actual repo files."""
@@ -378,6 +393,82 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(proc.returncode, 1)
             self.assertIn("primitive coverage analysis failed:", proc.stderr)
             self.assertIn("failed to read text file", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_invalid_utf8_macro_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            macro_path = root / "MacroSlice.lean"
+            config_path = root / "semantic-bridge-obligations.json"
+            macro_path.write_bytes(b"\xff")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_primitive_coverage.py"),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("primitive coverage analysis failed:", proc.stderr)
+            self.assertIn("failed to decode UTF-8 text file", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_json_out_write_failure_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            macro_path = root / "MacroSlice.lean"
+            config_path = root / "semantic-bridge-obligations.json"
+            json_out = root / "report-dir"
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            json_out.mkdir()
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_primitive_coverage.py"),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                    "--json-out",
+                    str(json_out),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("primitive coverage analysis failed:", proc.stderr)
+            self.assertIn("failed to write primitive coverage JSON report", proc.stderr)
             self.assertNotIn("Traceback", proc.stderr)
 
 

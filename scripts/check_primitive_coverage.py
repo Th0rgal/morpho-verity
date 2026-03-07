@@ -190,6 +190,18 @@ def load_migrated_operations(path: pathlib.Path) -> set[str]:
     return migrated_ops
 
 
+def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, sort_keys=True)
+            f.write("\n")
+    except OSError as exc:
+        raise PrimitiveCoverageError(
+            f"failed to write primitive coverage JSON report {path}: {exc}"
+        ) from exc
+
+
 # ---------------------------------------------------------------------------
 # MacroSlice function splitting (reused from check_spec_correspondence.py)
 # ---------------------------------------------------------------------------
@@ -324,10 +336,7 @@ def main() -> None:
     report = build_report(coverage)
 
     if args.json_out:
-        args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        with args.json_out.open("w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, sort_keys=True)
-            f.write("\n")
+        write_json_report(args.json_out, report)
 
     print("primitive coverage analysis: OK")
     print(f"migrated operations: {report['total']}")
@@ -361,8 +370,5 @@ if __name__ == "__main__":
     try:
         main()
     except PrimitiveCoverageError as e:
-        print(f"primitive coverage analysis failed: {e}", file=sys.stderr)
-        sys.exit(1)
-    except OSError as e:
         print(f"primitive coverage analysis failed: {e}", file=sys.stderr)
         sys.exit(1)
