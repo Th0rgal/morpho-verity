@@ -45,8 +45,13 @@ class ObligationError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-    with path.open("r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return f.read()
+    except OSError as exc:
+        raise ObligationError(f"failed to read text file {path}: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise ObligationError(f"failed to decode text file {path}: {exc}") from exc
 
 
 def extract_sem_eq_definitions(bridge_text: str) -> list[str]:
@@ -86,13 +91,27 @@ def load_config(path: pathlib.Path) -> dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as f:
             raw = json.load(f)
+    except OSError as exc:
+        raise ObligationError(f"failed to read JSON config {path}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise ObligationError(
             f"{path} contains invalid JSON: {exc.msg} at line {exc.lineno} column {exc.colno}"
         ) from exc
+    except UnicodeDecodeError as exc:
+        raise ObligationError(f"failed to decode JSON config {path}: {exc}") from exc
     if not isinstance(raw, dict):
         raise ObligationError(f"{path} must contain a JSON object at the top level")
     return raw
+
+
+def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, sort_keys=True)
+            f.write("\n")
+    except OSError as exc:
+        raise ObligationError(f"failed to write JSON report {path}: {exc}") from exc
 
 
 def validate_config(
@@ -244,10 +263,7 @@ def main() -> None:
     report = build_report(config)
 
     if args.json_out:
-        args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        with args.json_out.open("w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, sort_keys=True)
-            f.write("\n")
+        write_json_report(args.json_out, report)
 
     print("semantic bridge obligations check: OK")
     print(f"source: {report['source']}")
@@ -262,8 +278,5 @@ if __name__ == "__main__":
     try:
         main()
     except ObligationError as e:
-        print(f"semantic bridge obligations check failed: {e}", file=sys.stderr)
-        sys.exit(1)
-    except FileNotFoundError as e:
         print(f"semantic bridge obligations check failed: {e}", file=sys.stderr)
         sys.exit(1)
