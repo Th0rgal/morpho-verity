@@ -59,6 +59,8 @@ for morpho-verity's discharge.
 **Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 6/18 operations:**
 `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`,
 `flashLoan`.
+The remaining 12/18 operations still have assumed Link 1 status in
+`config/semantic-bridge-obligations.json`.
 See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
 Of those 6, the 5 admin operations also have typed-IR `SupportedStmtList`
