@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 
 JOBS_FIELD_RE = re.compile(r"^(\s*)jobs:\s*$")
@@ -29,6 +28,26 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   (?:,|$)
 """, re.VERBOSE)
+
+DOUBLE_QUOTED_ESCAPES = {
+  "0": "\0",
+  "a": "\a",
+  "b": "\b",
+  "t": "\t",
+  "n": "\n",
+  "v": "\v",
+  "f": "\f",
+  "r": "\r",
+  "e": "\x1b",
+  " ": " ",
+  '"': '"',
+  "/": "/",
+  "\\": "\\",
+  "N": "\x85",
+  "_": "\xa0",
+  "L": "\u2028",
+  "P": "\u2029",
+}
 
 
 def _consume_run_command(
@@ -131,12 +150,37 @@ def _parse_scalar_env_value(raw: str) -> str | None:
     inner = value[1:-1]
     if value[0] == "'":
       return inner.replace("''", "'")
-    try:
-      parsed = json.loads(value)
-    except json.JSONDecodeError:
-      return None
-    return parsed if isinstance(parsed, str) else None
+    return _parse_double_quoted_yaml_scalar(inner)
   return value
+
+
+def _parse_double_quoted_yaml_scalar(inner: str) -> str | None:
+  parsed: list[str] = []
+  i = 0
+  while i < len(inner):
+    char = inner[i]
+    if char != "\\":
+      parsed.append(char)
+      i += 1
+      continue
+    i += 1
+    if i >= len(inner):
+      return None
+    escape = inner[i]
+    if escape in DOUBLE_QUOTED_ESCAPES:
+      parsed.append(DOUBLE_QUOTED_ESCAPES[escape])
+      i += 1
+      continue
+    if escape in {"x", "u", "U"}:
+      width = {"x": 2, "u": 4, "U": 8}[escape]
+      digits = inner[i + 1:i + 1 + width]
+      if len(digits) != width or re.fullmatch(rf"[0-9A-Fa-f]{{{width}}}", digits) is None:
+        return None
+      parsed.append(chr(int(digits, 16)))
+      i += 1 + width
+      continue
+    return None
+  return "".join(parsed)
 
 
 def _strip_yaml_comment(raw: str) -> str:

@@ -412,6 +412,36 @@ class WorkflowRunParserTests(unittest.TestCase):
       {"ESCAPED_PATH": ["C:\\temp\\file"]},
     )
 
+  def test_extract_named_step_runs_unescapes_yaml_hex_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: "Validate\\x20alpha"',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1},
+        {"Validate alpha": ["python3 scripts/check_alpha.py"]},
+      ),
+    )
+
+  def test_extract_workflow_env_literals_unescapes_yaml_hex_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        '  ESCAPED_LABEL: "alpha\\x2fbeta"',
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"ESCAPED_LABEL": ["alpha/beta"]},
+    )
+
   def test_extract_named_step_runs_handles_block_scalar(self) -> None:
     workflow_text = "\n".join(
       [
