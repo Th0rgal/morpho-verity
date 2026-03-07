@@ -131,11 +131,58 @@ def _parse_scalar_env_value(raw: str) -> str | None:
   return value
 
 
-def _parse_inline_env_mapping(raw: str) -> dict[str, list[str]] | None:
+def _extract_inline_env_mapping_body(raw: str) -> str | None:
   value = raw.strip()
-  if not value.startswith("{") or not value.endswith("}"):
+  if not value.startswith("{"):
     return None
-  body = value[1:-1]
+
+  depth = 0
+  in_single_quote = False
+  in_double_quote = False
+  escape = False
+  for index, char in enumerate(value):
+    if in_single_quote:
+      if char == "'":
+        in_single_quote = False
+      continue
+    if in_double_quote:
+      if escape:
+        escape = False
+        continue
+      if char == "\\":
+        escape = True
+        continue
+      if char == '"':
+        in_double_quote = False
+      continue
+
+    if char == "'":
+      in_single_quote = True
+      continue
+    if char == '"':
+      in_double_quote = True
+      continue
+    if char == "{":
+      depth += 1
+      continue
+    if char != "}":
+      continue
+
+    depth -= 1
+    if depth != 0:
+      continue
+    remainder = value[index + 1:].strip()
+    if remainder and not remainder.startswith("#"):
+      return None
+    return value[1:index]
+
+  return None
+
+
+def _parse_inline_env_mapping(raw: str) -> dict[str, list[str]] | None:
+  body = _extract_inline_env_mapping_body(raw)
+  if body is None:
+    return None
   if not body.strip():
     return {}
   parsed: dict[str, list[str]] = {}

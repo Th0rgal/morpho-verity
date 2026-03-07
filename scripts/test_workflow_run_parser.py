@@ -199,6 +199,28 @@ class WorkflowRunParserTests(unittest.TestCase):
       },
     )
 
+  def test_extract_workflow_env_literals_handles_inline_flow_mapping_comment(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env: {TOP_TIMEOUT_SEC: \"10\"} # workflow timeout",
+        "jobs:",
+        "  test:",
+        "    env: {JOB_TIMEOUT_SEC: '20'} # job timeout",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env: {STEP_TIMEOUT_SEC: 30} # step timeout",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "JOB_TIMEOUT_SEC": ["20"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
   def test_extract_workflow_env_literals_ignores_nested_inline_non_env_metadata(self) -> None:
     workflow_text = "\n".join(
       [
