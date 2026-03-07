@@ -46,7 +46,7 @@ def validate_status(text: str) -> None:
         f"`{expected}`"
       )
 
-  stale = [snippet for snippet in FORBIDDEN_SNIPPETS if snippet in text]
+  stale = [snippet for snippet in FORBIDDEN_SNIPPETS if normalize_text(snippet) in normalized_text]
   if stale:
     raise SemanticBridgeDischargeStatusError(
       "SemanticBridgeDischarge.lean still contains stale bridge status text: "

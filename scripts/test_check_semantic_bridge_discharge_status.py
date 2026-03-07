@@ -86,6 +86,17 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
     ):
       validate_status(make_text() + "\n" + FORBIDDEN_SNIPPETS[0])
 
+  def test_validate_status_rejects_wrapped_stale_text(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "stale bridge status text",
+    ):
+      validate_status(
+        make_text()
+        + "\nThe remaining gap (Links 2+3) connects the EDSL\n\n"
+        + "execution to the compiled IR and then to EVMYulLean."
+      )
+
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
