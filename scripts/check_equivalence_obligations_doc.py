@@ -60,9 +60,13 @@ def extract_issue_summary_table(doc_text: str) -> list[str]:
     table_lines.append(stripped)
 
   lines = table_lines
-  if len(lines) < 3:
+  if len(lines) < 2:
     raise EquivalenceObligationsDocError(
-      f"`{SECTION_HEADING}` table must include header, separator, and at least one data row"
+      f"`{SECTION_HEADING}` table must include markdown header and separator rows"
+    )
+  if lines[0] != TABLE_HEADER or lines[1] != TABLE_SEPARATOR:
+    raise EquivalenceObligationsDocError(
+      f"`{SECTION_HEADING}` table must start with the expected markdown header and separator"
     )
   return lines
 

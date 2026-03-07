@@ -95,6 +95,18 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     ):
       validate_issue_summary_table(drifted_doc, clusters)
 
+  def test_validate_issue_summary_table_allows_empty_cluster_table(self) -> None:
+    empty_config = {"obligations": [], "issueClusters": []}
+    clusters = validate_issue_clusters(empty_config)
+    self.assertEqual(clusters, [])
+    validate_issue_summary_table(
+      make_doc([
+        "| Issue | Operations | Blocker families | Coverage counts |",
+        "|-------|------------|------------------|-----------------|",
+      ]),
+      clusters,
+    )
+
   def test_main_passes_on_synced_files(self) -> None:
     config = make_config()
     clusters = validate_issue_clusters(config)
@@ -143,6 +155,18 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
           main()
       finally:
         sys.argv = old_argv
+
+  def test_extract_issue_summary_table_rejects_missing_separator(self) -> None:
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "must start with the expected markdown header and separator",
+    ):
+      extract_issue_summary_table(
+        make_doc([
+          "| Issue | Operations | Blocker families | Coverage counts |",
+          "| `#123` | `supply` | `erc20` | erc20×1 |",
+        ])
+      )
 
 
 if __name__ == "__main__":
