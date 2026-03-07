@@ -431,6 +431,9 @@ def validate_workflow(
       step_name_counts[current_step_name] = step_name_counts.get(current_step_name, 0) + 1
       step_run_lines.setdefault(current_step_name, [])
       continue
+    if re.fullmatch(r"\s*-\s+\S.*", line) is not None:
+      current_step_name = None
+      continue
     run_match = re.fullmatch(r"\s+run:\s+(.+?)\s*", line)
     if run_match is not None and current_step_name is not None:
       step_run_lines.setdefault(current_step_name, []).append(run_match.group(1))
