@@ -9,7 +9,10 @@ import re
 import sys
 
 from check_semantic_bridge_readiness_summary import derive_summary
-from check_semantic_bridge_readiness_sync import load_config
+from check_semantic_bridge_readiness_sync import (
+  SemanticBridgeReadinessSyncError,
+  load_config,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -37,6 +40,24 @@ SECTION_END_PATTERN = re.compile(r"(?m)^\s*Machine-readable parity target artifa
 
 class ReadmeSemanticBridgeSummaryError(RuntimeError):
   pass
+
+
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise ReadmeSemanticBridgeSummaryError(f"failed to read {context} {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise ReadmeSemanticBridgeSummaryError(
+      f"failed to decode {context} {path} as UTF-8: {exc}"
+    ) from exc
+
+
+def load_summary(path: pathlib.Path) -> dict[str, object]:
+  try:
+    return derive_summary(load_config(path))
+  except SemanticBridgeReadinessSyncError as exc:
+    raise ReadmeSemanticBridgeSummaryError(str(exc)) from exc
 
 
 def normalize_text(text: str) -> str:
@@ -177,8 +198,8 @@ def main() -> int:
   parser.add_argument("--readme", type=pathlib.Path, default=README_PATH)
   args = parser.parse_args()
 
-  summary = derive_summary(load_config(args.config))
-  text = args.readme.read_text(encoding="utf-8")
+  summary = load_summary(args.config)
+  text = read_text(args.readme, context="README file")
   validate_summary(text, summary)
 
   print("readme-semantic-bridge-summary check: OK")
@@ -192,8 +213,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except ReadmeSemanticBridgeSummaryError as e:
-    print(f"readme-semantic-bridge-summary check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"readme-semantic-bridge-summary check failed: {e}", file=sys.stderr)
     raise SystemExit(1)
