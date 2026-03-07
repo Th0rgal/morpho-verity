@@ -565,17 +565,25 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  lakefile_url, lakefile_rev = parse_lakefile_verity(args.lakefile)
-  manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(args.manifest)
-  provenance = load_provenance(args.provenance)
-  issue_clusters = load_issue_clusters(args.obligations)
+  lakefile_path = args.lakefile.resolve()
+  manifest_path = args.manifest.resolve()
+  provenance_path = args.provenance.resolve()
+  doc_path = args.doc.resolve()
+  readme_path = args.readme.resolve()
+  obligations_path = args.obligations.resolve()
+  workflow_path = args.workflow.resolve()
 
-  upstream_repo = require_str(provenance, "upstreamRepo", args.provenance)
-  input_rev = require_str(provenance, "inputRev", args.provenance)
-  full_rev = require_str(provenance, "fullRev", args.provenance)
-  tracked_issue = require_str(provenance, "trackedIssue", args.provenance)
-  why_pinned = require_str(provenance, "whyPinned", args.provenance)
-  divergences = require_divergences(provenance, args.provenance)
+  lakefile_url, lakefile_rev = parse_lakefile_verity(lakefile_path)
+  manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(manifest_path)
+  provenance = load_provenance(provenance_path)
+  issue_clusters = load_issue_clusters(obligations_path)
+
+  upstream_repo = require_str(provenance, "upstreamRepo", provenance_path)
+  input_rev = require_str(provenance, "inputRev", provenance_path)
+  full_rev = require_str(provenance, "fullRev", provenance_path)
+  tracked_issue = require_str(provenance, "trackedIssue", provenance_path)
+  why_pinned = require_str(provenance, "whyPinned", provenance_path)
+  divergences = require_divergences(provenance, provenance_path)
 
   if upstream_repo != lakefile_url or upstream_repo != manifest_url:
     fail(
@@ -592,62 +600,62 @@ def main() -> int:
   if not full_rev.startswith(input_rev):
     fail(f"provenance fullRev does not start with inputRev: {full_rev} / {input_rev}")
 
-  repo_root = args.provenance.resolve().parent.parent
+  repo_root = provenance_path.parent.parent
   for item in divergences:
     for raw_path in item["files"]:
       file_path = repo_root / raw_path
       if not file_path.exists():
         fail(f"documented divergence file does not exist: {raw_path}")
 
-  doc_text = read_text(args.doc, context="documentation file")
+  doc_text = read_text(doc_path, context="documentation file")
   validate_doc_metadata(
     doc_text=doc_text,
     upstream_repo=upstream_repo,
     input_rev=input_rev,
     full_rev=full_rev,
     tracked_issue=tracked_issue,
-    doc_path=args.doc,
+    doc_path=doc_path,
   )
   validate_why_pinned(
     doc_text=doc_text,
     why_pinned=why_pinned,
-    doc_path=args.doc,
+    doc_path=doc_path,
   )
   validate_divergence_section_headings(
     doc_text=doc_text,
     divergences=divergences,
-    doc_path=args.doc,
+    doc_path=doc_path,
   )
-  validate_enforcement_section(doc_text=doc_text, doc_path=args.doc)
-  require_doc_mentions(doc_text, upstream_repo, args.doc)
-  require_doc_mentions(doc_text, input_rev, args.doc)
-  require_doc_mentions(doc_text, full_rev, args.doc)
-  require_doc_mentions(doc_text, tracked_issue, args.doc)
-  require_doc_mentions(doc_text, why_pinned, args.doc)
+  validate_enforcement_section(doc_text=doc_text, doc_path=doc_path)
+  require_doc_mentions(doc_text, upstream_repo, doc_path)
+  require_doc_mentions(doc_text, input_rev, doc_path)
+  require_doc_mentions(doc_text, full_rev, doc_path)
+  require_doc_mentions(doc_text, tracked_issue, doc_path)
+  require_doc_mentions(doc_text, why_pinned, doc_path)
   for item in divergences:
-    require_doc_mentions(doc_text, item["area"], args.doc)
-    require_doc_mentions(doc_text, item["summary"], args.doc)
-    section_text = extract_markdown_section(doc_text, item["area"], args.doc)
-    validate_doc_section(section_text, item, args.doc)
+    require_doc_mentions(doc_text, item["area"], doc_path)
+    require_doc_mentions(doc_text, item["summary"], doc_path)
+    section_text = extract_markdown_section(doc_text, item["area"], doc_path)
+    validate_doc_section(section_text, item, doc_path)
     blockers = item.get("blockers")
     if isinstance(blockers, list):
       for blocker in blockers:
-        require_doc_mentions(doc_text, blocker, args.doc)
+        require_doc_mentions(doc_text, blocker, doc_path)
     tracked_issue_clusters = item.get("issueClusters")
     if isinstance(tracked_issue_clusters, list):
       for issue in tracked_issue_clusters:
         if issue not in issue_clusters:
           fail(
-            f"documented divergence references unknown issue cluster {issue}: {args.obligations}"
+            f"documented divergence references unknown issue cluster {issue}: {obligations_path}"
           )
-        require_doc_mentions(doc_text, issue, args.doc)
+        require_doc_mentions(doc_text, issue, doc_path)
     for raw_path in item["files"]:
-      require_doc_mentions(doc_text, raw_path, args.doc)
+      require_doc_mentions(doc_text, raw_path, doc_path)
 
-  readme_text = read_text(args.readme, context="README file")
-  require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)
-  workflow_text = read_text(args.workflow, context="workflow file")
-  validate_workflow(workflow_text=workflow_text, workflow_path=args.workflow)
+  readme_text = read_text(readme_path, context="README file")
+  require_doc_mentions(readme_text, "docs/VERITY_PIN.md", readme_path)
+  workflow_text = read_text(workflow_path, context="workflow file")
+  validate_workflow(workflow_text=workflow_text, workflow_path=workflow_path)
 
   print(
     "verity-pin-provenance: "

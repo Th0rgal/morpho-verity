@@ -218,8 +218,11 @@ def main() -> int:
   parser.add_argument("--workflow", type=pathlib.Path, default=WORKFLOW_PATH)
   args = parser.parse_args()
 
-  doc_text = read_text(args.doc, context="release criteria document")
-  workflow_text = read_text(args.workflow, context="workflow")
+  doc_path = args.doc.resolve()
+  workflow_path = args.workflow.resolve()
+
+  doc_text = read_text(doc_path, context="release criteria document")
+  workflow_text = read_text(workflow_path, context="workflow")
   validate_doc_status(doc_text)
   validate_workflow(workflow_text)
 
