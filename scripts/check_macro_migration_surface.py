@@ -299,17 +299,27 @@ def run_check(spec_path: pathlib.Path = SPEC_PATH, interface_path: pathlib.Path 
 
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
+  parser.add_argument("--spec", type=pathlib.Path, default=SPEC_PATH, help="Path to Spec.lean")
+  parser.add_argument(
+    "--interface",
+    type=pathlib.Path,
+    default=INTERFACE_PATH,
+    help="Path to IMorpho.sol",
+  )
   parser.add_argument("--json-out", type=pathlib.Path, default=None, help="Write report JSON to this path")
   args = parser.parse_args()
+  spec_path = args.spec.resolve()
+  interface_path = args.interface.resolve()
+  json_out = args.json_out.resolve() if args.json_out is not None else None
 
   try:
-    report = run_check()
-    if args.json_out is not None:
-      write_json_report(args.json_out, report)
+    report = run_check(spec_path, interface_path)
+    if json_out is not None:
+      write_json_report(json_out, report)
   except MacroMigrationSurfaceError as exc:
     fail(str(exc))
-  if args.json_out is not None:
-    print(f"wrote migration-surface report: {args.json_out}")
+  if json_out is not None:
+    print(f"wrote migration-surface report: {display_path(json_out)}")
 
   print(
     "macro-migration-surface: "
