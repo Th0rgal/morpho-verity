@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -82,6 +83,9 @@ class BaselineValidationTests(unittest.TestCase):
 
 class CreateMarketFrontendRegressionTests(unittest.TestCase):
   def test_create_market_frontend_blockers_still_fail_at_current_pin(self) -> None:
+    if shutil.which("lake") is None:
+      self.skipTest("lake is not available in this test environment")
+
     source = """\
 import Verity.Core
 import Verity.Macro
