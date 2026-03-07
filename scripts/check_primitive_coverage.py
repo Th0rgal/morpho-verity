@@ -125,6 +125,13 @@ class PrimitiveCoverageError(RuntimeError):
     pass
 
 
+def display_path(path: pathlib.Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def read_text(path: pathlib.Path) -> str:
     try:
         with path.open("r", encoding="utf-8") as f:
@@ -297,6 +304,8 @@ def analyze_coverage(
 
 def build_report(
     coverage: dict[str, dict[str, Any]],
+    macro_slice_path: pathlib.Path,
+    config_path: pathlib.Path,
 ) -> dict[str, Any]:
     fully_covered = sum(
         1 for v in coverage.values()
@@ -308,6 +317,8 @@ def build_report(
     )
     total = len(coverage)
     return {
+        "macroSlice": display_path(macro_slice_path),
+        "config": display_path(config_path),
         "total": total,
         "fully_covered": fully_covered,
         "edsl_ready": edsl_ready,
@@ -333,7 +344,7 @@ def main() -> None:
     migrated_ops = load_migrated_operations(args.config)
 
     coverage = analyze_coverage(macro_text, migrated_ops)
-    report = build_report(coverage)
+    report = build_report(coverage, args.macro_slice, args.config)
 
     if args.json_out:
         write_json_report(args.json_out, report)

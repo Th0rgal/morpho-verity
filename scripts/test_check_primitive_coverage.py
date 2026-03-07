@@ -14,6 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_primitive_coverage import (  # noqa: E402
     analyze_coverage,
     build_report,
+    display_path,
     extract_primitives,
     is_stub,
     load_migrated_operations,
@@ -160,7 +161,11 @@ class AnalyzeCoverageTests(unittest.TestCase):
 class BuildReportTests(unittest.TestCase):
     def test_report_counts(self) -> None:
         coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner", "enableIrm"})
-        report = build_report(coverage)
+        report = build_report(
+            coverage,
+            pathlib.Path("Morpho/Compiler/MacroSlice.lean"),
+            pathlib.Path("config/semantic-bridge-obligations.json"),
+        )
         self.assertEqual(report["total"], 2)
         self.assertEqual(report["fully_covered"], 1)
         self.assertEqual(report["edsl_ready"], 1)
@@ -168,15 +173,39 @@ class BuildReportTests(unittest.TestCase):
 
     def test_report_json_serializable(self) -> None:
         coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
-        report = build_report(coverage)
+        report = build_report(
+            coverage,
+            pathlib.Path("Morpho/Compiler/MacroSlice.lean"),
+            pathlib.Path("config/semantic-bridge-obligations.json"),
+        )
         json.dumps(report)
 
     def test_all_ready(self) -> None:
         coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
-        report = build_report(coverage)
+        report = build_report(
+            coverage,
+            pathlib.Path("Morpho/Compiler/MacroSlice.lean"),
+            pathlib.Path("config/semantic-bridge-obligations.json"),
+        )
         self.assertEqual(report["fully_covered"], 1)
         self.assertEqual(report["edsl_ready"], 0)
         self.assertEqual(report["gaps_remaining"], 0)
+
+    def test_report_records_actual_input_paths(self) -> None:
+        coverage = analyze_coverage(SAMPLE_MACRO, {"setOwner"})
+        report = build_report(
+            coverage,
+            pathlib.Path("/tmp/MacroSlice.lean"),
+            pathlib.Path("/tmp/semantic-bridge-obligations.json"),
+        )
+        self.assertEqual(report["macroSlice"], "/tmp/MacroSlice.lean")
+        self.assertEqual(report["config"], "/tmp/semantic-bridge-obligations.json")
+
+
+class DisplayPathTests(unittest.TestCase):
+    def test_display_path_keeps_external_absolute_paths(self) -> None:
+        path = pathlib.Path("/tmp/config.json")
+        self.assertEqual(display_path(path), "/tmp/config.json")
 
 
 class PrimitiveBridgeStatusTests(unittest.TestCase):
@@ -304,7 +333,7 @@ class IntegrationTests(unittest.TestCase):
         migrated_ops = load_migrated_operations(config_path)
 
         coverage = analyze_coverage(macro_text, migrated_ops)
-        report = build_report(coverage)
+        report = build_report(coverage, macro_path, config_path)
 
         # 6 migrated operations (admin cluster + flashLoan)
         self.assertEqual(report["total"], 6)
@@ -470,6 +499,45 @@ class IntegrationTests(unittest.TestCase):
             self.assertIn("primitive coverage analysis failed:", proc.stderr)
             self.assertIn("failed to write primitive coverage JSON report", proc.stderr)
             self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_json_report_records_actual_input_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            macro_path = root / "MacroSlice.lean"
+            config_path = root / "semantic-bridge-obligations.json"
+            json_out = root / "report.json"
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_primitive_coverage.py"),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                    "--json-out",
+                    str(json_out),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(proc.returncode, 0)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+            self.assertEqual(report["macroSlice"], str(macro_path))
+            self.assertEqual(report["config"], str(config_path))
 
 
 if __name__ == "__main__":
