@@ -251,6 +251,46 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
     ):
       build_config_projection(config)
 
+  def test_parse_readiness_entries_rejects_unknown_status(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      readiness_path = pathlib.Path(d) / "SemanticBridgeReadiness.lean"
+      readiness_path.write_text(
+        make_readiness_text().replace("status := .inProgress", "status := .unsupported", 1),
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "supported status",
+      ):
+        parse_readiness_entries(readiness_path)
+
+  def test_build_config_projection_rejects_unknown_status(self) -> None:
+    config = make_config()
+    config["obligations"][0]["status"] = "unsupported"
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSyncError,
+      "unsupported status",
+    ):
+      build_config_projection(config)
+
+  def test_build_config_projection_rejects_non_string_hypothesis(self) -> None:
+    config = make_config()
+    config["obligations"][0]["hypothesis"] = 7
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSyncError,
+      "missing non-empty string field 'hypothesis'",
+    ):
+      build_config_projection(config)
+
+  def test_build_config_projection_rejects_non_boolean_macro_migrated(self) -> None:
+    config = make_config()
+    config["obligations"][0]["macroMigrated"] = "false"
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSyncError,
+      "missing boolean field 'macroMigrated'",
+    ):
+      build_config_projection(config)
+
   def test_main_passes_on_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
