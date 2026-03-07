@@ -90,6 +90,12 @@ class ValidateIssueClustersTests(unittest.TestCase):
     with self.assertRaisesRegex(IssueClusterError, "unknown issue cluster"):
       validate_issue_clusters(config)
 
+  def test_rejects_issue_tag_once_obligation_is_migrated(self) -> None:
+    config = make_config()
+    config["obligations"][0]["macroMigrated"] = True
+    with self.assertRaisesRegex(IssueClusterError, "cannot reference open issue"):
+      validate_issue_clusters(config)
+
   def test_rejects_missing_macro_surface_blockers(self) -> None:
     config = make_config()
     del config["obligations"][0]["macroSurfaceBlockers"]
