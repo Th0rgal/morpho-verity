@@ -187,6 +187,32 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
       },
     )
 
+  def test_collect_timeout_env_literals_handles_block_scalar_values(self) -> None:
+    workflow = (
+      "env:\n"
+      "  MORPHO_TOP_TIMEOUT_SEC: |\n"
+      "    10\n"
+      "jobs:\n"
+      "  test:\n"
+      "    env:\n"
+      "      MORPHO_JOB_TIMEOUT_SEC: |\n"
+      "        20\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        env:\n"
+      "          MORPHO_STEP_TIMEOUT_SEC: >\n"
+      "            30\n"
+      "        run: ./scripts/run_with_timeout.sh MORPHO_STEP_TIMEOUT_SEC 30 \"real\" -- cmd\n"
+    )
+    self.assertEqual(
+      collect_timeout_env_literals(workflow),
+      {
+        "MORPHO_TOP_TIMEOUT_SEC": {10},
+        "MORPHO_JOB_TIMEOUT_SEC": {20},
+        "MORPHO_STEP_TIMEOUT_SEC": {30},
+      },
+    )
+
   def test_collect_timeout_env_literals_handles_inline_step_item_env_mapping(self) -> None:
     workflow = (
       "jobs:\n"

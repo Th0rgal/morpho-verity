@@ -70,34 +70,10 @@ def _consume_run_command(
       next_index += 1
     return "\n".join(line_parts), next_index
 
-  next_index = start_index + 1
-  block_lines: list[tuple[str, int | None]] = []
-  while next_index < len(lines):
-    candidate = lines[next_index]
-    stripped = candidate.lstrip(" ")
-    if stripped:
-      indent = len(candidate) - len(stripped)
-      if indent <= run_indent:
-        break
-      block_lines.append((candidate, indent))
-    else:
-      block_lines.append(("", None))
-    next_index += 1
-  if not any(indent is not None for _, indent in block_lines):
-    return "", next_index
-  explicit_indent = _extract_block_scalar_indent(tail)
-  content_indent = (
-    run_indent + explicit_indent
-    if explicit_indent is not None
-    else min(indent for _, indent in block_lines if indent is not None)
-  )
-  normalized_lines = [
-    line[content_indent:] if indent is not None else ""
-    for line, indent in block_lines
-  ]
-  if tail.startswith(">"):
-    return _fold_block_scalar_lines(normalized_lines), next_index
-  return "\n".join(normalized_lines), next_index
+  block_scalar = _consume_block_scalar(lines, start_index, run_indent, tail)
+  if block_scalar is None:
+    raise ValueError("expected block scalar run field")
+  return block_scalar
 
 
 def _fold_block_scalar_lines(lines: list[str]) -> str:
@@ -220,6 +196,45 @@ def _consume_multiline_inline_env_mapping(
     if _extract_inline_env_mapping_body(combined) is not None:
       return combined, next_index
   return raw, start_index + 1
+
+
+def _consume_block_scalar(
+  lines: list[str],
+  start_index: int,
+  field_indent: int,
+  tail: str,
+) -> tuple[str, int] | None:
+  if RUN_BLOCK_SCALAR_RE.fullmatch(tail.strip()) is None:
+    return None
+
+  next_index = start_index + 1
+  block_lines: list[tuple[str, int | None]] = []
+  while next_index < len(lines):
+    candidate = lines[next_index]
+    stripped = candidate.lstrip(" ")
+    if stripped:
+      indent = len(candidate) - len(stripped)
+      if indent <= field_indent:
+        break
+      block_lines.append((candidate, indent))
+    else:
+      block_lines.append(("", None))
+    next_index += 1
+  if not any(indent is not None for _, indent in block_lines):
+    return "", next_index
+  explicit_indent = _extract_block_scalar_indent(tail)
+  content_indent = (
+    field_indent + explicit_indent
+    if explicit_indent is not None
+    else min(indent for _, indent in block_lines if indent is not None)
+  )
+  normalized_lines = [
+    line[content_indent:] if indent is not None else ""
+    for line, indent in block_lines
+  ]
+  if tail.lstrip().startswith(">"):
+    return _fold_block_scalar_lines(normalized_lines), next_index
+  return "\n".join(normalized_lines), next_index
 
 
 def _fold_quoted_yaml_scalar_lines(inner: str, quote: str) -> str:
@@ -534,6 +549,9 @@ def _consume_env_mapping(
       entry_match.group(3),
       env_indent + 2,
     )
+    block_scalar = _consume_block_scalar(lines, next_index - 1, env_indent + 2, raw_value)
+    if block_scalar is not None:
+      raw_value, next_index = block_scalar
     value = _parse_scalar_env_value(raw_value, anchors)
     if value is not None:
       values.setdefault(entry_match.group(2), []).append(value)

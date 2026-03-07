@@ -718,6 +718,35 @@ class WorkflowRunParserTests(unittest.TestCase):
       },
     )
 
+  def test_extract_workflow_env_literals_handles_block_scalar_values(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  TOP_TIMEOUT_SEC: >",
+        "    1",
+        "    0",
+        "  LABEL: |",
+        "    alpha",
+        "    beta",
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env:",
+        "          STEP_TIMEOUT_SEC: |",
+        "            30",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["1 0"],
+        "LABEL": ["alpha\nbeta"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
   def test_extract_workflow_env_literals_preserves_single_quoted_multiline_backslashes(self) -> None:
     workflow_text = "\n".join(
       [
