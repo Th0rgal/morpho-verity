@@ -121,9 +121,10 @@ Morpho.f args                        -- stable wrapper surface (this repo)
   complex operations (supply, borrow, liquidate, etc.) are stub/noop — these
   must be completed as macro primitive support grows in verity.
 
-- **Link 2** (EDSL ↔ EVMYulLean): provided by the verity semantic bridge once
-  Layers 2+3 are composed into per-function theorems. This eliminates the
-  hand-rolled `interpretSpec` from the TCB.
+- **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment
+  via verity's typed-IR / canonical-semantics bridge. This eliminates the
+  hand-rolled `interpretSpec` from the TCB where the macro frontend can lower
+  the contract successfully.
 
 Once both links are established, each `*SemEq` hypothesis in
 `SolidityBridge.lean` becomes a provable lemma and the 67 bridge theorems
