@@ -130,6 +130,15 @@ def _require_optional_string_field(report: dict[str, Any], path: pathlib.Path, k
   return value
 
 
+def _require_sha256_field(report: dict[str, Any], path: pathlib.Path, key: str) -> str:
+  value = report.get(key)
+  if not isinstance(value, str) or len(value) != 64 or any(ch not in "0123456789abcdef" for ch in value):
+    raise PreparedArtifactBundleError(
+      f"Prepared rewrite report requires lowercase 64-hex `{key}` in {_display_path(path)}"
+    )
+  return value
+
+
 def _required_parity_pack(path: pathlib.Path) -> str:
   data = _read_json(path)
   verity = data.get("verity")
@@ -268,6 +277,20 @@ def validate_prepared_verity_artifact_bundle(
     if rewritten_path.exists() and rewritten_path.stat().st_size <= 0:
       raise PreparedArtifactBundleError(
         f"Prepared rewritten artifact is empty: {_display_path(rewritten_path)}"
+      )
+    input_sha256 = _require_sha256_field(report, rewrite_report_path, "inputSha256")
+    expected_input_sha256 = _sha256_file(resolved_dir / "Morpho.yul")
+    if input_sha256 != expected_input_sha256:
+      raise PreparedArtifactBundleError(
+        "Prepared rewrite report input digest mismatch: expected "
+        f"{expected_input_sha256}, got {input_sha256}"
+      )
+    output_sha256 = _require_sha256_field(report, rewrite_report_path, "outputSha256")
+    expected_output_sha256 = _sha256_file(rewritten_path)
+    if output_sha256 != expected_output_sha256:
+      raise PreparedArtifactBundleError(
+        "Prepared rewrite report output digest mismatch: expected "
+        f"{expected_output_sha256}, got {output_sha256}"
       )
   elif rewritten_path.exists():
     raise PreparedArtifactBundleError(
