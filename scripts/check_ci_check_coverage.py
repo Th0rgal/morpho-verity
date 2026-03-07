@@ -13,9 +13,24 @@ from workflow_run_parser import extract_workflow_run_text
 WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b")
 
 
+class CiCheckCoverageError(RuntimeError):
+  """Raised when the CI check coverage checker cannot complete safely."""
+
+
 def fail(msg: str) -> None:
   print(f"ci-check-coverage check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
+
+
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise CiCheckCoverageError(f"failed to read {context} {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise CiCheckCoverageError(
+      f"failed to decode {context} {path} as UTF-8: {exc}"
+    ) from exc
 
 
 def collect_repo_check_scripts(scripts_dir: pathlib.Path) -> set[str]:
@@ -28,7 +43,10 @@ def collect_repo_check_scripts(scripts_dir: pathlib.Path) -> set[str]:
 
 
 def collect_workflow_check_scripts(workflow_text: str) -> set[str]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiCheckCoverageError(f"failed to parse workflow run commands: {exc}") from exc
   return {match.group(1) for match in WORKFLOW_CHECK_REF_RE.finditer(run_text)}
 
 
@@ -50,9 +68,12 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  workflow_text = args.workflow.read_text(encoding="utf-8")
-  repo_checks = collect_repo_check_scripts(args.scripts_dir)
-  workflow_checks = collect_workflow_check_scripts(workflow_text)
+  try:
+    workflow_text = read_text(args.workflow, context="workflow")
+    repo_checks = collect_repo_check_scripts(args.scripts_dir)
+    workflow_checks = collect_workflow_check_scripts(workflow_text)
+  except CiCheckCoverageError as exc:
+    fail(str(exc))
 
   missing_from_workflow = sorted(repo_checks - workflow_checks)
   if missing_from_workflow:
