@@ -175,10 +175,6 @@ def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[st
         "failed to locate SemanticBridgeReadiness namespace end boundary in SemanticBridgeReadiness.lean"
       )
     end_match = end_matches[end_index]
-    if end_match.start() <= namespace_match.end():
-      raise SemanticBridgeReadinessSummaryError(
-        "SemanticBridgeReadiness namespace body has an invalid boundary ordering"
-      )
     namespace_body = text[namespace_match.end() : end_match.start()]
     if not namespace_body.strip():
       raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness namespace body is empty")
