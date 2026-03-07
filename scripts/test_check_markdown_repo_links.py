@@ -60,6 +60,18 @@ class CollectMissingRepoLinksTests(unittest.TestCase):
 
       self.assertEqual(collect_missing_repo_links(doc_path, root=root), [])
 
+  def test_accepts_standard_markdown_link_titles(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      docs_dir = root / "docs"
+      docs_dir.mkdir()
+      target_path = root / "config.json"
+      target_path.write_text("{}\n", encoding="utf-8")
+      doc_path = docs_dir / "guide.md"
+      doc_path.write_text('[Config](../config.json "config file")\n', encoding="utf-8")
+
+      self.assertEqual(collect_missing_repo_links(doc_path, root=root), [])
+
   def test_reports_missing_repo_local_targets(self) -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
       root = pathlib.Path(temp_dir)

@@ -12,6 +12,9 @@ from urllib.parse import urlsplit
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MARKDOWN_LINK_RE = re.compile(r"!?(?:\[[^\]]*\])\(([^)]+)\)")
+MARKDOWN_LINK_TITLE_RE = re.compile(
+  r"""^(?P<path>\S+?)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]+\)))?\s*$"""
+)
 
 
 class MarkdownRepoLinksError(RuntimeError):
@@ -57,6 +60,13 @@ def normalize_link_target(raw_target: str) -> str:
   return target
 
 
+def extract_link_path_text(target: str) -> str:
+  match = MARKDOWN_LINK_TITLE_RE.fullmatch(target)
+  if match is not None:
+    return match.group("path")
+  return target
+
+
 def is_external_target(target: str) -> bool:
   if target.startswith("//"):
     return True
@@ -68,7 +78,7 @@ def resolve_repo_link(doc_path: pathlib.Path, target: str, *, root: pathlib.Path
   normalized = normalize_link_target(target)
   if not normalized or normalized.startswith("#") or is_external_target(normalized):
     return None
-  path_text = normalized.split("#", 1)[0]
+  path_text = extract_link_path_text(normalized).split("#", 1)[0]
   if not path_text:
     return None
   candidate = (doc_path.parent / path_text).resolve()
