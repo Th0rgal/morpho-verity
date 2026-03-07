@@ -13,6 +13,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from check_prepared_verity_artifact_bundle import (  # noqa: E402
+  PreparedArtifactBundleError,
   validate_prepared_verity_artifact_bundle,
 )
 
@@ -258,6 +259,108 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
           root,
           require_bin=True,
           require_rewrite=False,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_invalid_parity_target_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text("{\n", encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+
+      with self.assertRaisesRegex(PreparedArtifactBundleError, "Invalid JSON"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=True,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_duplicate_artifact_manifest_keys(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      (bundle / "Morpho.artifact-manifest.env").write_text(
+        "\n".join(
+          [
+            "input_digest=abc123",
+            "artifact_mode=edsl",
+            "skip_solc=0",
+            "parity_pack=test-pack",
+            "parity_pack=duplicate-pack",
+          ]
+        )
+        + "\n",
+        encoding="utf-8",
+      )
+
+      with self.assertRaisesRegex(PreparedArtifactBundleError, "Duplicate artifact manifest key `parity_pack`"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=True,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_non_string_pipeline_manifest_digest(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      (bundle / "Morpho.rewrite-report.json").write_text(
+        json.dumps(
+          {
+            "pipelineManifest": str(pipeline_manifest.resolve()),
+            "pipelineManifestSha256": 7,
+            "proofManifest": str(proof_manifest.resolve()),
+            "proofManifestSha256": hashlib.sha256(
+              proof_manifest.read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest(),
+          }
+        )
+        + "\n",
+        encoding="utf-8",
+      )
+
+      with self.assertRaisesRegex(PreparedArtifactBundleError, "pipelineManifestSha256"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=True,
           parity_target_path=parity_target,
           pipeline_manifest_path=pipeline_manifest,
           proof_manifest_path=proof_manifest,
