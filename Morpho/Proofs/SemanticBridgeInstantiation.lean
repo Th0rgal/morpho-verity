@@ -27,9 +27,11 @@ This is the **first real validation of the semantic bridge pipeline**:
 2. `SolidityBridge.lean` proves: any impl satisfying SemEq preserves invariants
 3. This file combines them: EDSL impl preserves all invariants
 
-The remaining gap (Links 2+3) will eventually show that the compiled EVM
-bytecode behaves identically to the EDSL. Once that lands, these theorems
-extend to the on-chain Morpho contract automatically.
+Links 2+3 are already provided upstream for the supported fragment, so for the
+operations instantiated here the remaining repo-local work is Link 1 discharge
+plus macro/frontend unblockings on the unsupported surface. Composing these
+theorems with the upstream typed-IR/compiler results extends them to the
+compiled on-chain Morpho contract for the supported operations.
 -/
 
 namespace Morpho.Proofs.SemanticBridgeInstantiation
@@ -240,20 +242,20 @@ implementation preserves:
 For `flashLoan`, we also instantiate the direct semantic-bridge theorem that
 the EDSL rejects zero-asset calls.
 
-### Remaining gap: Links 2+3
+### Upstream bridge composition
 
 These theorems prove that the EDSL execution preserves Morpho invariants.
-The full semantic bridge additionally requires:
+The supported-fragment semantic bridge already has:
 
 - **Link 2**: EDSL ≡ compiled CompilationModel IR
   (available via typed-IR framework at verity pin `ad03fc64`)
 - **Link 3**: compiled IR ≡ EVMYulLean(Yul)
   (proven in verity `Compiler/Proofs/EndToEnd.lean`)
 
-Once Links 2+3 are composed, these 21 theorems extend to the compiled
-EVM bytecode automatically: if `edslSetOwner` preserves `borrowLeSupply`,
-and the compiled bytecode behaves identically to `edslSetOwner`, then the
-compiled bytecode also preserves `borrowLeSupply`.
+Composing those upstream results with these 21 instantiation theorems yields
+compiled-bytecode invariant preservation for the operations above. The
+remaining repo-local work is proving Link 1 and completing macro/frontend
+migration for the other Morpho operations.
 -/
 
 end Morpho.Proofs.SemanticBridgeInstantiation
