@@ -199,3 +199,80 @@ class CheckVerityPinSyncTests(unittest.TestCase):
     self.assertIn("verity-pin-sync check failed:", proc.stderr)
     self.assertIn("failed to parse JSON manifest", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_manifest_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      lakefile = root / "lakefile.lean"
+      manifest = root / "lake-manifest.json"
+      lakefile.write_text(
+        textwrap.dedent(
+          """
+          require verity from git
+            "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          """
+        ),
+        encoding="utf-8",
+      )
+      manifest.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "check_verity_pin_sync.py"),
+          "--lakefile",
+          str(lakefile),
+          "--manifest",
+          str(manifest),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("verity-pin-sync check failed:", proc.stderr)
+    self.assertIn("failed to read manifest", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_missing_lakefile_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      lakefile = root / "lakefile.lean"
+      manifest = root / "lake-manifest.json"
+      manifest.write_text(
+        textwrap.dedent(
+          """
+          {
+            "packages": [
+              {
+                "name": "verity",
+                "url": "https://github.com/Th0rgal/verity.git",
+                "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+                "inputRev": "ad03fc64"
+              }
+            ]
+          }
+          """
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "check_verity_pin_sync.py"),
+          "--lakefile",
+          str(lakefile),
+          "--manifest",
+          str(manifest),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("verity-pin-sync check failed:", proc.stderr)
+    self.assertIn("failed to read lakefile", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
