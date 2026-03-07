@@ -22,13 +22,14 @@ EXPECTED_PARTIALLY_ENFORCED_ITEMS = [
   "README semantic-bridge proved-vs-assumed summary drift gate is enforced in CI (`scripts/check_readme_semantic_bridge_summary.py`).",
   "Proof-facing semantic-bridge readiness registry and summary drift gates are enforced in CI (`scripts/check_semantic_bridge_readiness_sync.py`, `scripts/check_semantic_bridge_readiness_summary.py`).",
   "Machine-tracked `equivalence-obligations` status summary and blocker-cluster drift gates are enforced in CI (`scripts/check_equivalence_obligations_doc.py`, `scripts/check_issue_blocker_clusters.py`).",
-  "Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); until all 18 obligations are discharged via the upstream verity hybrid migration path (verity#1060 / verity#1065), Solidity equivalence status remains \"Conditional\" rather than \"Proved\".",
+  "Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); Links 2+3 are already provided upstream for the supported fragment, and Solidity equivalence status remains \"Conditional\" rather than \"Proved\" until all 18 obligations are discharged across the remaining repo-local Link 1 proofs and macro/frontend blockers.",
   "Release-criteria semantic-bridge/equivalence status drift gate is enforced in CI (`scripts/check_release_criteria_status.py`).",
 ]
 
 FORBIDDEN_NOT_YET_ENFORCED_ITEMS = [
   "machine-tracked `equivalence-obligations` status in CI output.",
   "`semantic-bridge-obligations` status in CI output (`config/semantic-bridge-obligations.json`). Once all 18 obligations are discharged via the upstream verity hybrid migration path (verity#1060 / verity#1065), Solidity equivalence status upgrades from \"Conditional\" to \"Proved\".",
+  "Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); until all 18 obligations are discharged via the upstream verity hybrid migration path (verity#1060 / verity#1065), Solidity equivalence status remains \"Conditional\" rather than \"Proved\".",
 ]
 
 EXPECTED_WORKFLOW_STEPS = [
@@ -86,10 +87,23 @@ def extract_section(text: str, heading: str, next_heading: str) -> str:
 
 def parse_numbered_items(section: str) -> list[str]:
   items: list[str] = []
+  current_item: str | None = None
   for line in section.splitlines():
     match = re.match(r"\s*\d+\.\s+(.*\S)\s*$", line)
     if match is not None:
-      items.append(match.group(1))
+      if current_item is not None:
+        items.append(current_item)
+      current_item = match.group(1)
+      continue
+    continuation = re.match(r"\s{2,}(.*\S)\s*$", line)
+    if continuation is not None and current_item is not None:
+      current_item = f"{current_item} {continuation.group(1)}"
+      continue
+    if current_item is not None:
+      items.append(current_item)
+      current_item = None
+  if current_item is not None:
+    items.append(current_item)
   return items
 
 
