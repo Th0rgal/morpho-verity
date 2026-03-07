@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import tempfile
 import sys
 import unittest
@@ -112,6 +113,11 @@ class LoadObligationsTests(unittest.TestCase):
     with self.assertRaisesRegex(RegressionCoverageError, "obligation\\[0\\] has non-integer 'issue'"):
       load_obligations(path)
 
+  def test_load_obligations_rejects_boolean_tracked_issue(self) -> None:
+    path = self.write_config('{"obligations":[{"issue":true,"operation":"supply","macroMigrated":false}]}')
+    with self.assertRaisesRegex(RegressionCoverageError, "obligation\\[0\\] has non-integer 'issue'"):
+      load_obligations(path)
+
 
 class RegressionCaseCoverageTests(unittest.TestCase):
   def test_build_regression_case_coverage_tracks_case_names_by_blocker(self) -> None:
@@ -165,6 +171,30 @@ class RegressionCaseCoverageTests(unittest.TestCase):
       }
     }
     validate_issue_blocker_regression_coverage(required, covered)
+
+
+class CliTests(unittest.TestCase):
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      obligations = pathlib.Path(d) / "semantic-bridge-obligations.json"
+      obligations.write_text("{\n", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "check_macro_blocker_regression_coverage.py"),
+          "--obligations",
+          str(obligations),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertNotEqual(proc.returncode, 0)
+    self.assertIn("macro-blocker-regression-coverage check failed:", proc.stderr)
+    self.assertIn("failed to parse JSON config", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
