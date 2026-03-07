@@ -9,6 +9,7 @@ import unittest
 import sys
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -118,6 +119,18 @@ class WorkflowRunParserTests(unittest.TestCase):
       ]
     )
     self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_real.py")
+
+  def test_extract_workflow_run_text_covers_real_verify_workflow(self) -> None:
+    workflow_text = (ROOT / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
+    run_text = extract_workflow_run_text(workflow_text)
+    self.assertIn("python3 scripts/check_ci_check_coverage.py", run_text)
+    self.assertIn("python3 -m unittest discover -s scripts -p 'test_*.py'", run_text)
+    self.assertIn("./scripts/install_solc.sh 0.8.28", run_text)
+    self.assertIn("set -euo pipefail", run_text)
+    self.assertIn('for t in scripts/test_*.sh; do', run_text)
+    self.assertIn('python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-configured-gate', run_text)
+    self.assertNotIn("actions/cache@v4", run_text)
+    self.assertNotIn("${{ hashFiles('config/parity-target.json') }}", run_text)
 
 
 if __name__ == "__main__":
