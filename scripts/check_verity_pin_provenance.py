@@ -77,7 +77,7 @@ def load_issue_clusters(path: pathlib.Path) -> dict[str, dict[str, Any]]:
       fail(f"`issueClusters[{i}]` must be an object in {path}")
     issue = item.get("issue")
     title = item.get("title")
-    if not isinstance(issue, int):
+    if isinstance(issue, bool) or not isinstance(issue, int):
       fail(f"`issueClusters[{i}].issue` must be an integer in {path}")
     if not isinstance(title, str) or not title:
       fail(f"`issueClusters[{i}].title` must be a non-empty string in {path}")
