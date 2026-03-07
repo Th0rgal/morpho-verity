@@ -2,7 +2,6 @@
   Proofs of Morpho Blue invariants.
 -/
 import Morpho.Morpho
-import Morpho.Specs.ContractSemantics
 import Morpho.Specs.Invariants
 
 namespace Morpho.Proofs.Invariants
@@ -17,19 +16,19 @@ open Morpho.Specs.Invariants
   The new state's isIrmEnabled/isLltvEnabled is a superset of the old one. -/
 
 theorem enableIrm_monotone (s : MorphoState) (irm irm' : Address)
-    (h : Morpho.Specs.ContractSemantics.enableIrm s irm = some s')
+    (h : Morpho.enableIrm s irm = some s')
     (h_enabled : s.isIrmEnabled irm') :
     s'.isIrmEnabled irm' := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm).1 h
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h
   by_cases h_eq : irm' = irm
   · simp [h_eq]
   · simp [h_eq, h_enabled]
 
 theorem enableLltv_monotone (s : MorphoState) (lltv lltv' : Uint256)
-    (h : Morpho.Specs.ContractSemantics.enableLltv s lltv = some s')
+    (h : Morpho.enableLltv s lltv = some s')
     (h_enabled : s.isLltvEnabled lltv') :
     s'.isLltvEnabled lltv' := by
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv).1 h
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h
   by_cases h_eq : lltv' = lltv
   · simp [h_eq]
   · simp [h_eq, h_enabled]
@@ -37,9 +36,9 @@ theorem enableLltv_monotone (s : MorphoState) (lltv lltv' : Uint256)
 /-! ## LLTV < WAD -/
 
 theorem enableLltv_lt_wad (s : MorphoState) (lltv : Uint256)
-    (h : Morpho.Specs.ContractSemantics.enableLltv s lltv = some s') :
+    (h : Morpho.enableLltv s lltv = some s') :
     s'.isLltvEnabled lltv → lltv.val < Libraries.MathLib.WAD := by
-  obtain ⟨_, _, h_wad, _⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv).1 h
+  obtain ⟨_, _, h_wad, _⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h
   intro _
   exact h_wad
 
@@ -310,34 +309,33 @@ theorem withdrawCollateral_preserves_borrowLeSupply (s : MorphoState) (id : Id)
 /-- enableIrm doesn't touch market records, so solvency is trivially preserved. -/
 theorem enableIrm_preserves_borrowLeSupply (s : MorphoState) (irm : Address) (id : Id)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : Morpho.Specs.ContractSemantics.enableIrm s irm = some s') :
+    (h_ok : Morpho.enableIrm s irm = some s') :
     borrowLeSupply s' id := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
   exact h_solvent
 
 /-- enableLltv doesn't touch market records, so solvency is trivially preserved. -/
 theorem enableLltv_preserves_borrowLeSupply (s : MorphoState) (lltv : Uint256) (id : Id)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : Morpho.Specs.ContractSemantics.enableLltv s lltv = some s') :
+    (h_ok : Morpho.enableLltv s lltv = some s') :
     borrowLeSupply s' id := by
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv).1 h_ok
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h_ok
   exact h_solvent
 
 /-- setOwner doesn't touch market records, so solvency is trivially preserved. -/
 theorem setOwner_preserves_borrowLeSupply (s : MorphoState) (newOwner : Address) (id : Id)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : Morpho.Specs.ContractSemantics.setOwner s newOwner = some s') :
+    (h_ok : Morpho.setOwner s newOwner = some s') :
     borrowLeSupply s' id := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
   exact h_solvent
 
 /-- setFeeRecipient doesn't touch market records, so solvency is trivially preserved. -/
 theorem setFeeRecipient_preserves_borrowLeSupply (s : MorphoState) (newRecipient : Address)
     (id : Id) (h_solvent : borrowLeSupply s id)
-    (h_ok : Morpho.Specs.ContractSemantics.setFeeRecipient s newRecipient = some s') :
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
     borrowLeSupply s' id := by
-  obtain ⟨_, _, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
   exact h_solvent
 
 /-- setFee accrues interest (preserving solvency) then changes only the fee field,
@@ -381,10 +379,9 @@ theorem createMarket_preserves_borrowLeSupply (s : MorphoState) (params : Market
 theorem setAuthorization_preserves_borrowLeSupply (s : MorphoState) (authorized : Address)
     (newIsAuth : Bool) (id : Id)
     (h_solvent : borrowLeSupply s id)
-    (h_ok : Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuth = some s') :
+    (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     borrowLeSupply s' id := by
-  obtain ⟨_, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_solvent
 
 /-- setAuthorizationWithSig doesn't touch market records, so solvency is trivially preserved. -/
@@ -669,28 +666,28 @@ theorem accrueInterest_preserves_alwaysCollateralized (s : MorphoState) (id : Id
 /-- enableIrm doesn't touch positions. -/
 theorem enableIrm_preserves_alwaysCollateralized (s : MorphoState) (irm : Address) (id : Id)
     (user : Address) (h_collat : alwaysCollateralized s id user)
-    (h_ok : Morpho.Specs.ContractSemantics.enableIrm s irm = some s') :
+    (h_ok : Morpho.enableIrm s irm = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
   exact h_collat h_borrow
 
 /-- enableLltv doesn't touch positions. -/
 theorem enableLltv_preserves_alwaysCollateralized (s : MorphoState) (lltv : Uint256) (id : Id)
     (user : Address) (h_collat : alwaysCollateralized s id user)
-    (h_ok : Morpho.Specs.ContractSemantics.enableLltv s lltv = some s') :
+    (h_ok : Morpho.enableLltv s lltv = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltv).1 h_ok
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltv).1 h_ok
   exact h_collat h_borrow
 
 /-- setOwner doesn't touch positions. -/
 theorem setOwner_preserves_alwaysCollateralized (s : MorphoState) (newOwner : Address) (id : Id)
     (user : Address) (h_collat : alwaysCollateralized s id user)
-    (h_ok : Morpho.Specs.ContractSemantics.setOwner s newOwner = some s') :
+    (h_ok : Morpho.setOwner s newOwner = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
   exact h_collat h_borrow
 
 /-- setFee accrues interest (preserving positions for non-fee-recipients)
@@ -712,11 +709,10 @@ theorem setFee_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
 theorem setFeeRecipient_preserves_alwaysCollateralized (s : MorphoState)
     (newRecipient : Address) (id : Id) (user : Address)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : Morpho.Specs.ContractSemantics.setFeeRecipient s newRecipient = some s') :
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  obtain ⟨_, _, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
   exact h_collat h_borrow
 
 /-- createMarket doesn't touch positions. -/
@@ -732,11 +728,10 @@ theorem createMarket_preserves_alwaysCollateralized (s : MorphoState) (params : 
 theorem setAuthorization_preserves_alwaysCollateralized (s : MorphoState)
     (authorized : Address) (newIsAuth : Bool) (id : Id) (user : Address)
     (h_collat : alwaysCollateralized s id user)
-    (h_ok : Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuth = some s') :
+    (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  obtain ⟨_, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_collat h_borrow
 
 /-- setAuthorizationWithSig doesn't touch positions. -/
@@ -1059,13 +1054,12 @@ theorem liquidate_crossMarket_position_isolated (s : MorphoState) (id id' : Id)
 
 /-- Flash loans reject zero assets. -/
 theorem flashLoan_rejects_zero_assets (s : MorphoState) :
-    Morpho.Specs.ContractSemantics.flashLoan s 0 = none := by
-  cases h : Morpho.Specs.ContractSemantics.flashLoan s 0 with
+    Morpho.flashLoan s 0 = none := by
+  cases h : Morpho.flashLoan s 0 with
   | none => rfl
   | some result =>
       cases result
-      have hz : (0 : Uint256) ≠ 0 :=
-        (Morpho.Specs.ContractSemantics.flashLoan_success_iff s 0).1 h
+      have hz : (0 : Uint256) ≠ 0 := (Morpho.flashLoan_success_iff s 0).1 h
       simp at hz
 
 /-! ## Public accrueInterest
@@ -1376,9 +1370,9 @@ theorem liquidate_preserves_irmMonotone (s : MorphoState) (id : Id)
 
 theorem setOwner_preserves_irmMonotone (s : MorphoState) (newOwner : Address) (irm : Address)
     (h_enabled : s.isIrmEnabled irm)
-    (h_ok : Morpho.Specs.ContractSemantics.setOwner s newOwner = some s') :
+    (h_ok : Morpho.setOwner s newOwner = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
   exact h_enabled
 
 theorem setFee_preserves_irmMonotone (s : MorphoState) (id : Id) (newFee borrowRate : Uint256)
@@ -1393,10 +1387,9 @@ theorem setFee_preserves_irmMonotone (s : MorphoState) (id : Id) (newFee borrowR
 
 theorem setFeeRecipient_preserves_irmMonotone (s : MorphoState) (newRecipient : Address)
     (irm : Address) (h_enabled : s.isIrmEnabled irm)
-    (h_ok : Morpho.Specs.ContractSemantics.setFeeRecipient s newRecipient = some s') :
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, _, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
   exact h_enabled
 
 theorem createMarket_preserves_irmMonotone (s : MorphoState) (params : MarketParams)
@@ -1408,10 +1401,9 @@ theorem createMarket_preserves_irmMonotone (s : MorphoState) (params : MarketPar
 
 theorem setAuthorization_preserves_irmMonotone (s : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) (irm : Address) (h_enabled : s.isIrmEnabled irm)
-    (h_ok : Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem setAuthorizationWithSig_preserves_irmMonotone (s : MorphoState)
@@ -1509,9 +1501,9 @@ theorem liquidate_preserves_lltvMonotone (s : MorphoState) (id : Id)
 
 theorem setOwner_preserves_lltvMonotone (s : MorphoState) (newOwner : Address)
     (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : Morpho.Specs.ContractSemantics.setOwner s newOwner = some s') :
+    (h_ok : Morpho.setOwner s newOwner = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.setOwner_success_iff s s' newOwner).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setOwner_success_iff s s' newOwner).1 h_ok
   exact h_enabled
 
 theorem setFee_preserves_lltvMonotone (s : MorphoState) (id : Id) (newFee borrowRate : Uint256)
@@ -1526,10 +1518,9 @@ theorem setFee_preserves_lltvMonotone (s : MorphoState) (id : Id) (newFee borrow
 
 theorem setFeeRecipient_preserves_lltvMonotone (s : MorphoState) (newRecipient : Address)
     (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : Morpho.Specs.ContractSemantics.setFeeRecipient s newRecipient = some s') :
+    (h_ok : Morpho.setFeeRecipient s newRecipient = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, _, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.setFeeRecipient_success_iff s s' newRecipient).1 h_ok
   exact h_enabled
 
 theorem createMarket_preserves_lltvMonotone (s : MorphoState) (params : MarketParams)
@@ -1541,10 +1532,9 @@ theorem createMarket_preserves_lltvMonotone (s : MorphoState) (params : MarketPa
 
 theorem setAuthorization_preserves_lltvMonotone (s : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
-    (h_ok : Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuthorized = some s') :
+    (h_ok : Morpho.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem setAuthorizationWithSig_preserves_lltvMonotone (s : MorphoState)
