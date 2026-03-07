@@ -19,6 +19,9 @@ DISCHARGE_PATH_PREFIX = (
   "The upstream Verity semantic bridge now provides, for each supported function\n"
   "`f` in a `verity_contract`:"
 )
+NAMESPACE_PATTERN = re.compile(
+  r"(?m)^\s*namespace\s+Morpho\.Proofs\.SemanticBridgeReadiness\s*$"
+)
 
 
 class SemanticBridgeReadinessSummaryError(RuntimeError):
@@ -98,6 +101,51 @@ def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.M
   return match
 
 
+def require_unique_match(
+  pattern: re.Pattern[str],
+  text: str,
+  description: str,
+) -> re.Match[str]:
+  matches = list(pattern.finditer(text))
+  if not matches:
+    raise SemanticBridgeReadinessSummaryError(
+      f"failed to locate {description} in SemanticBridgeReadiness.lean"
+    )
+  if len(matches) > 1:
+    raise SemanticBridgeReadinessSummaryError(
+      f"found multiple {description} matches in SemanticBridgeReadiness.lean"
+    )
+  return matches[0]
+
+
+def extract_intro_section(text: str) -> str:
+  namespace_match = require_unique_match(
+    NAMESPACE_PATTERN,
+    text,
+    "SemanticBridgeReadiness namespace boundary",
+  )
+  intro = text[: namespace_match.start()]
+  if not intro.strip():
+    raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness intro section is empty")
+  if not intro.strip().endswith("-/"):
+    raise SemanticBridgeReadinessSummaryError(
+      "SemanticBridgeReadiness intro section is missing its closing `-/`"
+    )
+  return intro
+
+
+def extract_namespace_body(text: str) -> str:
+  namespace_match = require_unique_match(
+    NAMESPACE_PATTERN,
+    text,
+    "SemanticBridgeReadiness namespace boundary",
+  )
+  namespace_body = text[namespace_match.end() :]
+  if not namespace_body.strip():
+    raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness namespace body is empty")
+  return namespace_body
+
+
 def parse_operation_list(raw_ops: str) -> list[str]:
   stripped = raw_ops.strip()
   if not stripped:
@@ -127,20 +175,23 @@ def require_count(
 
 
 def validate_summary(text: str, summary: dict[str, Any]) -> None:
-  if DISCHARGE_PATH_PREFIX not in text:
+  intro_text = extract_intro_section(text)
+  namespace_body = extract_namespace_body(text)
+
+  if DISCHARGE_PATH_PREFIX not in intro_text:
     raise SemanticBridgeReadinessSummaryError(
       "discharge-path upstream status drift: "
       f"expected `{DISCHARGE_PATH_PREFIX}`"
     )
 
-  total_comment = require_match(TOTAL_COMMENT_RE, text, "obligation summary comment")
+  total_comment = require_unique_match(TOTAL_COMMENT_RE, namespace_body, "obligation summary comment")
   require_count(int(total_comment.group("count")), summary["total"], "obligation summary comment count")
 
-  link1_comment = require_match(LINK1_COMMENT_RE, text, "Link 1 summary comment")
+  link1_comment = require_unique_match(LINK1_COMMENT_RE, namespace_body, "Link 1 summary comment")
   require_count(int(link1_comment.group("count")), summary["link1_count"], "Link 1 summary comment count")
   require_count(int(link1_comment.group("total")), summary["total"], "Link 1 summary total")
 
-  link1_list = require_match(LINK1_LIST_RE, text, "Link 1 operation list")
+  link1_list = require_unique_match(LINK1_LIST_RE, namespace_body, "Link 1 operation list")
   require_count(int(link1_list.group("count")), summary["link1_count"], "Link 1 operation list count")
   actual_operations = parse_operation_list(link1_list.group("ops"))
   if not summary["link1_operations"] and actual_operations:
@@ -160,10 +211,10 @@ def validate_summary(text: str, summary: dict[str, Any]) -> None:
       + ", ".join(actual_operations)
     )
 
-  assumed_comment = require_match(ASSUMED_COMMENT_RE, text, "assumed-count comment")
+  assumed_comment = require_unique_match(ASSUMED_COMMENT_RE, namespace_body, "assumed-count comment")
   require_count(int(assumed_comment.group("count")), summary["assumed_count"], "assumed-count comment")
 
-  migrated_comment = require_match(MIGRATED_COMMENT_RE, text, "macro-migrated comment")
+  migrated_comment = require_unique_match(MIGRATED_COMMENT_RE, namespace_body, "macro-migrated comment")
   require_count(
     int(migrated_comment.group("count")),
     summary["macro_migrated_count"],
@@ -175,7 +226,7 @@ def validate_summary(text: str, summary: dict[str, Any]) -> None:
     "macro-migrated comment total",
   )
 
-  pending_comment = require_match(PENDING_COMMENT_RE, text, "macro-pending comment")
+  pending_comment = require_unique_match(PENDING_COMMENT_RE, namespace_body, "macro-pending comment")
   require_count(
     int(pending_comment.group("count")),
     summary["macro_pending_count"],
@@ -190,7 +241,11 @@ def validate_summary(text: str, summary: dict[str, Any]) -> None:
     "macro_pending_count": summary["macro_pending_count"],
   }
   for theorem_name, expected in theorem_expectations.items():
-    match = require_match(THEOREM_PATTERNS[theorem_name], text, f"{theorem_name} theorem")
+    match = require_unique_match(
+      THEOREM_PATTERNS[theorem_name],
+      namespace_body,
+      f"{theorem_name} theorem",
+    )
     require_count(int(match.group("count")), expected, f"{theorem_name} theorem")
 
 

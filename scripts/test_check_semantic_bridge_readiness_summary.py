@@ -19,6 +19,8 @@ from check_semantic_bridge_readiness_summary import (  # noqa: E402
   DISCHARGE_PATH_PREFIX,
   SemanticBridgeReadinessSummaryError,
   derive_summary,
+  extract_intro_section,
+  extract_namespace_body,
   main,
   parse_operation_list,
   validate_summary,
@@ -63,9 +65,18 @@ def make_readiness_text(
 ) -> str:
   return textwrap.dedent(
     f"""\
-    namespace Morpho.Proofs.SemanticBridgeReadiness
+    /-!
+    # Semantic Bridge Readiness
+
+    This module tracks the semantic equivalence obligations that must be discharged
+    to connect morpho-verity's invariant proofs to formally verified EVM semantics.
+
+    ## Discharge Path (verity#1060 / #1065)
 
     {DISCHARGE_PATH_PREFIX}
+    -/
+
+    namespace Morpho.Proofs.SemanticBridgeReadiness
 
     /-- All {total} semantic equivalence obligations from SolidityBridge.lean.
 
@@ -137,6 +148,12 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
   def test_validate_summary_accepts_matching_text(self) -> None:
     validate_summary(make_readiness_text(), derive_summary(make_config()))
 
+  def test_extract_intro_section_returns_text_before_namespace(self) -> None:
+    self.assertIn(DISCHARGE_PATH_PREFIX, extract_intro_section(make_readiness_text()))
+
+  def test_extract_namespace_body_returns_text_after_namespace(self) -> None:
+    self.assertIn("theorem obligation_count", extract_namespace_body(make_readiness_text()))
+
   def test_validate_summary_accepts_zero_link1_operations(self) -> None:
     summary = {
       "total": 3,
@@ -192,6 +209,49 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
         ),
         derive_summary(make_config()),
       )
+
+  def test_validate_summary_rejects_discharge_path_drift_hidden_after_namespace(self) -> None:
+    readiness_text = make_readiness_text().replace(DISCHARGE_PATH_PREFIX, "old prefix", 1)
+    readiness_text = readiness_text.replace(
+      "/-- All 3 semantic equivalence obligations from SolidityBridge.lean.",
+      DISCHARGE_PATH_PREFIX + "\n\n/-- All 3 semantic equivalence obligations from SolidityBridge.lean.",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "discharge-path upstream status drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_theorem_drift_hidden_by_duplicate_match(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "(obligations.filter (fun o => o.status != .assumed)).length = 2",
+      "(obligations.filter (fun o => o.status != .assumed)).length = 1",
+      1,
+    )
+    readiness_text += (
+      "\n/-- copied theorem text outside the real section -/\n"
+      "theorem link1_proven_count :\n"
+      "    (obligations.filter (fun o => o.status != .assumed)).length = 2 := by\n"
+      "  native_decide\n"
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "found multiple link1_proven_count theorem matches",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_missing_intro_closure(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "    -/\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+      "\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "intro section is missing its closing `-/`",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
 
   def test_main_passes_for_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
