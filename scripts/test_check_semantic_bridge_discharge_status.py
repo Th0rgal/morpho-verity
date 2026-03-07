@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import pathlib
+import re
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -29,6 +31,7 @@ from check_semantic_bridge_discharge_status import (  # noqa: E402
   extract_discharge_section,
   main,
   normalize_text,
+  read_text,
   validate_status,
 )
 
@@ -344,6 +347,55 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
         self.assertEqual(main(), 0)
       finally:
         sys.argv = old_argv
+
+  def test_read_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      discharge_path = pathlib.Path(d) / "SemanticBridgeDischarge.lean"
+      discharge_path.write_bytes(b"\xff")
+      with self.assertRaisesRegex(
+        SemanticBridgeDischargeStatusError,
+        f"failed to read {re.escape(str(discharge_path))}",
+      ):
+        read_text(discharge_path)
+
+  def test_cli_rejects_invalid_utf8_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      discharge_path = pathlib.Path(d) / "SemanticBridgeDischarge.lean"
+      discharge_path.write_bytes(b"\xff")
+      result = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_discharge_status.py"),
+          "--discharge",
+          str(discharge_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+    self.assertEqual(result.returncode, 1)
+    self.assertIn("semantic-bridge-discharge-status check failed:", result.stderr)
+    self.assertIn(str(discharge_path), result.stderr)
+    self.assertNotIn("Traceback", result.stderr)
+
+  def test_cli_rejects_missing_file_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      discharge_path = pathlib.Path(d) / "missing.lean"
+      result = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_discharge_status.py"),
+          "--discharge",
+          str(discharge_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+    self.assertEqual(result.returncode, 1)
+    self.assertIn("semantic-bridge-discharge-status check failed:", result.stderr)
+    self.assertIn(str(discharge_path), result.stderr)
+    self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":

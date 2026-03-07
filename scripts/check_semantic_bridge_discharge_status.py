@@ -55,6 +55,17 @@ class SemanticBridgeDischargeStatusError(RuntimeError):
   pass
 
 
+def read_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except FileNotFoundError as exc:
+    raise SemanticBridgeDischargeStatusError(f"failed to read {path}: {exc}") from exc
+  except OSError as exc:
+    raise SemanticBridgeDischargeStatusError(f"failed to read {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise SemanticBridgeDischargeStatusError(f"failed to read {path}: {exc}") from exc
+
+
 def normalize_text(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
@@ -227,7 +238,7 @@ def main() -> int:
   parser.add_argument("--discharge", type=pathlib.Path, default=DISCHARGE_PATH)
   args = parser.parse_args()
 
-  text = args.discharge.read_text(encoding="utf-8")
+  text = read_text(args.discharge)
   validate_status(text)
 
   print("semantic-bridge-discharge-status check: OK")
@@ -238,8 +249,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except SemanticBridgeDischargeStatusError as e:
-    print(f"semantic-bridge-discharge-status check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"semantic-bridge-discharge-status check failed: {e}", file=sys.stderr)
     raise SystemExit(1)
