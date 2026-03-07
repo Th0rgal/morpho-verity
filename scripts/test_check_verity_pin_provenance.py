@@ -11,7 +11,13 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from check_verity_pin_provenance import main as check_main  # noqa: E402
+from check_verity_pin_provenance import (  # noqa: E402
+  EXPECTED_ENFORCEMENT_TEXT,
+  EXPECTED_WORKFLOW_STEPS,
+  main as check_main,
+  validate_enforcement_section,
+  validate_workflow,
+)
 
 
 def make_macro_frontend_doc(
@@ -59,9 +65,23 @@ def make_macro_frontend_doc(
 
     ## Enforcement
 
-    `config/verity-pin-provenance.json`
+    The machine-readable source of truth is
+    `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+    `lakefile.lean` and `lake-manifest.json` via
+    `scripts/check_verity_pin_provenance.py`.
     """
   ).strip()
+
+
+def make_verify_workflow(*, steps: list[str] | None = None) -> str:
+  steps = list(EXPECTED_WORKFLOW_STEPS) if steps is None else steps
+  return "\n".join([
+    "jobs:",
+    "  verify:",
+    "    steps:",
+    *[f"      - name: {step}" for step in steps],
+    "",
+  ])
 
 
 class CheckVerityPinProvenanceTests(unittest.TestCase):
@@ -87,11 +107,13 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
     }
     """,
     readme_text: str = "See docs/VERITY_PIN.md for the pinned Verity revision.\n",
+    workflow_text: str | None = None,
   ) -> int:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
       (root / "config").mkdir()
       (root / "docs").mkdir()
+      (root / ".github/workflows").mkdir(parents=True)
       (root / "Morpho/Compiler").mkdir(parents=True)
       (root / "Morpho/Proofs").mkdir(parents=True)
       (root / "scripts").mkdir()
@@ -107,6 +129,10 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       )
       (root / "docs/VERITY_PIN.md").write_text(textwrap.dedent(doc_text), encoding="utf-8")
       (root / "README.md").write_text(readme_text, encoding="utf-8")
+      (root / ".github/workflows/verify.yml").write_text(
+        make_verify_workflow() if workflow_text is None else textwrap.dedent(workflow_text),
+        encoding="utf-8",
+      )
       for rel in (
         "Morpho/Compiler/MacroSlice.lean",
         "Morpho/Compiler/Generated.lean",
@@ -133,10 +159,55 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           str(root / "README.md"),
           "--obligations",
           str(root / "config/semantic-bridge-obligations.json"),
+          "--workflow",
+          str(root / ".github/workflows/verify.yml"),
         ]
         return check_main()
       finally:
         sys.argv = argv
+
+  def test_validate_enforcement_section_passes(self) -> None:
+    validate_enforcement_section(
+      doc_text="\n".join([
+        "# Verity Pin",
+        "",
+        "## Enforcement",
+        "",
+        "The machine-readable source of truth is",
+        "`config/verity-pin-provenance.json`. CI checks that it stays in sync with",
+        "`lakefile.lean` and `lake-manifest.json` via",
+        "`scripts/check_verity_pin_provenance.py`.",
+      ]),
+      doc_path=pathlib.Path("docs/VERITY_PIN.md"),
+    )
+
+  def test_validate_enforcement_section_rejects_stale_text(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      validate_enforcement_section(
+        doc_text="\n".join([
+          "# Verity Pin",
+          "",
+          "## Enforcement",
+          "",
+          EXPECTED_ENFORCEMENT_TEXT,
+          "",
+          "Extra stale note.",
+        ]),
+        doc_path=pathlib.Path("docs/VERITY_PIN.md"),
+      )
+
+  def test_validate_workflow_passes(self) -> None:
+    validate_workflow(
+      workflow_text=make_verify_workflow(),
+      workflow_path=pathlib.Path(".github/workflows/verify.yml"),
+    )
+
+  def test_validate_workflow_rejects_missing_step(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      validate_workflow(
+        workflow_text=make_verify_workflow(steps=list(EXPECTED_WORKFLOW_STEPS[:-1])),
+        workflow_path=pathlib.Path(".github/workflows/verify.yml"),
+      )
 
   def test_accepts_synced_provenance(self) -> None:
     rc = self.run_check(
@@ -263,7 +334,10 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
 
       ## Enforcement
 
-      `config/verity-pin-provenance.json`
+      The machine-readable source of truth is
+      `config/verity-pin-provenance.json`. CI checks that it stays in sync with
+      `lakefile.lean` and `lake-manifest.json` via
+      `scripts/check_verity_pin_provenance.py`.
       """,
       )
     self.assertEqual(rc, 0)
@@ -779,6 +853,112 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           issue_clusters=["#999"],
           files=["Morpho/Compiler/MacroSlice.lean"],
         ),
+      )
+
+  def test_rejects_stale_enforcement_summary(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ).replace(
+          "`scripts/check_verity_pin_provenance.py`.",
+          "`scripts/check_verity_pin_provenance.py`.\n\nExtra stale note.",
+        ),
+      )
+
+  def test_rejects_missing_workflow_enforcement_step(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ),
+        workflow_text=make_verify_workflow(steps=list(EXPECTED_WORKFLOW_STEPS[:-1])),
       )
 
   def test_rejects_full_rev_mismatch(self) -> None:

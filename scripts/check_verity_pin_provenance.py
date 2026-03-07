@@ -18,12 +18,22 @@ MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
 MACRO_ISSUE_CLUSTERS_LABEL = "Tracked migration issue clusters:"
 FILES_LABEL = "Relevant files:"
 WHY_THIS_PIN_HEADING = "## Why this pin"
+ENFORCEMENT_HEADING = "## Enforcement"
 SECTION_LIST_LABELS = {
   FILES_LABEL,
   MACRO_BLOCKERS_LABEL,
   MACRO_ISSUE_CLUSTERS_LABEL,
 }
 ALLOWED_METADATA_PREAMBLE = "morpho-verity currently pins Verity to:"
+EXPECTED_ENFORCEMENT_TEXT = (
+  "The machine-readable source of truth is `config/verity-pin-provenance.json`. "
+  "CI checks that it stays in sync with `lakefile.lean` and `lake-manifest.json` "
+  "via `scripts/check_verity_pin_provenance.py`."
+)
+EXPECTED_WORKFLOW_STEPS = (
+  "Validate verity pin sync",
+  "Validate verity pin provenance",
+)
 
 
 def fail(msg: str) -> None:
@@ -345,6 +355,32 @@ def validate_why_pinned(
     )
 
 
+def validate_enforcement_section(
+  *,
+  doc_text: str,
+  doc_path: pathlib.Path,
+) -> None:
+  actual = normalize_doc_token(extract_section_body(doc_text, ENFORCEMENT_HEADING, doc_path))
+  expected = normalize_doc_token(EXPECTED_ENFORCEMENT_TEXT)
+  if actual != expected:
+    fail(
+      f"documentation {doc_path} enforcement summary drift: "
+      f"expected {expected!r}; found {actual!r}"
+    )
+
+
+def validate_workflow(
+  *,
+  workflow_text: str,
+  workflow_path: pathlib.Path,
+) -> None:
+  missing = [step for step in EXPECTED_WORKFLOW_STEPS if f"- name: {step}" not in workflow_text]
+  if missing:
+    fail(
+      f"workflow {workflow_path} missing Verity pin enforcement step(s): {', '.join(missing)}"
+    )
+
+
 def main() -> int:
   parser = argparse.ArgumentParser(
     description="Validate the documented Verity pin provenance against lake metadata"
@@ -384,6 +420,12 @@ def main() -> int:
     type=pathlib.Path,
     default=pathlib.Path("config/semantic-bridge-obligations.json"),
     help="Path to the semantic-bridge obligation tracker",
+  )
+  parser.add_argument(
+    "--workflow",
+    type=pathlib.Path,
+    default=pathlib.Path(".github/workflows/verify.yml"),
+    help="Path to the verify workflow",
   )
   args = parser.parse_args()
 
@@ -435,6 +477,7 @@ def main() -> int:
     why_pinned=why_pinned,
     doc_path=args.doc,
   )
+  validate_enforcement_section(doc_text=doc_text, doc_path=args.doc)
   require_doc_mentions(doc_text, upstream_repo, args.doc)
   require_doc_mentions(doc_text, input_rev, args.doc)
   require_doc_mentions(doc_text, full_rev, args.doc)
@@ -464,6 +507,8 @@ def main() -> int:
 
   readme_text = args.readme.read_text(encoding="utf-8")
   require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)
+  workflow_text = args.workflow.read_text(encoding="utf-8")
+  validate_workflow(workflow_text=workflow_text, workflow_path=args.workflow)
 
   print(
     "verity-pin-provenance: "
