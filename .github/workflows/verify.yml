@@ -43,7 +43,7 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check Lean toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean
 
       - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/clear_stale_verity_lake_state.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Build and check proofs
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build and check Lean proofs" -- lake build
@@ -188,7 +188,7 @@ jobs:
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/clear_stale_verity_lake_state.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -320,7 +320,7 @@ jobs:
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/clear_stale_verity_lake_state.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -408,7 +408,7 @@ jobs:
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/clear_stale_verity_lake_state.sh
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
