@@ -9,7 +9,7 @@ import re
 import sys
 from typing import Any
 
-from check_issue_blocker_clusters import load_config, validate_issue_clusters
+from check_issue_blocker_clusters import IssueClusterError, load_config, validate_issue_clusters
 from check_semantic_bridge_readiness_summary import derive_summary
 
 
@@ -51,6 +51,28 @@ MACRO_MIGRATED_RE = re.compile(
 
 class EquivalenceObligationsDocError(RuntimeError):
   pass
+
+
+def load_tracker_config(path: pathlib.Path) -> dict[str, Any]:
+  try:
+    return load_config(path)
+  except IssueClusterError as exc:
+    raise EquivalenceObligationsDocError(str(exc)) from exc
+  except OSError as exc:
+    raise EquivalenceObligationsDocError(f"failed to read config {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise EquivalenceObligationsDocError(f"config {path} is not valid UTF-8: {exc}") from exc
+
+
+def read_doc_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise EquivalenceObligationsDocError(f"failed to read document {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise EquivalenceObligationsDocError(
+      f"document {path} is not valid UTF-8: {exc}"
+    ) from exc
 
 
 def normalize_text(text: str) -> str:
@@ -292,10 +314,10 @@ def main() -> int:
   parser.add_argument("--doc", type=pathlib.Path, default=DOC_PATH)
   args = parser.parse_args()
 
-  config = load_config(args.config)
+  config = load_tracker_config(args.config)
   clusters = validate_issue_clusters(config)
   summary = derive_summary(config)
-  doc_text = args.doc.read_text(encoding="utf-8")
+  doc_text = read_doc_text(args.doc)
 
   validate_status_summary(doc_text, summary)
   validate_issue_summary_table(doc_text, clusters)
@@ -313,8 +335,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except EquivalenceObligationsDocError as e:
-    print(f"equivalence-obligations-doc check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"equivalence-obligations-doc check failed: {e}", file=sys.stderr)
     raise SystemExit(1)
