@@ -235,6 +235,18 @@ private def liquidateBody : List Stmt := [
 
 
 class CreateMarketFrontendRegressionTests(unittest.TestCase):
+  def compile_contract(self, source: str) -> subprocess.CompletedProcess[str]:
+    with tempfile.TemporaryDirectory() as tmp:
+      path = pathlib.Path(tmp) / "MacroFrontendRegression.lean"
+      path.write_text(source, encoding="utf-8")
+      return subprocess.run(
+        ["lake", "env", "lean", str(path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
   def test_create_market_frontend_blockers_still_fail_at_current_pin(self) -> None:
     if shutil.which("lake") is None:
       self.skipTest("lake is not available in this test environment")
@@ -258,22 +270,99 @@ verity_contract Tmp where
     let ts := blockTimestamp
     setMappingWord marketSlot id 0 ts
 """
-    with tempfile.TemporaryDirectory() as tmp:
-      path = pathlib.Path(tmp) / "CreateMarketFrontendRegression.lean"
-      path.write_text(source, encoding="utf-8")
-      proc = subprocess.run(
-        ["lake", "env", "lean", str(path)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-      )
+    proc = self.compile_contract(source)
 
     self.assertNotEqual(proc.returncode, 0)
     output = proc.stdout + proc.stderr
     self.assertIn("unknown identifier 'marketParams_0'", output)
     self.assertIn("unknown identifier 'externalCall'", output)
     self.assertIn("Contract Uint256", output)
+
+  def test_core_flow_frontend_blockers_still_fail_at_current_pin(self) -> None:
+    if shutil.which("lake") is None:
+      self.skipTest("lake is not available in this test environment")
+
+    cases = [
+      (
+        "calls_with_return",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (oracle : Address) : Unit := do
+    let _ <- Calls.withReturn oracle 0 []
+    pure ()
+""",
+        "unsupported do element",
+      ),
+      (
+        "internal_call",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f () : Unit := do
+    let _ <- call g()
+    pure ()
+
+  function g () : Unit := do
+    pure ()
+""",
+        "unsupported do element",
+      ),
+      (
+        "callback",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (onBehalf : Address, data : Bytes) : Unit := do
+    Callbacks.callback onBehalf 0 [] data
+""",
+        "unsupported statement in do block",
+      ),
+      (
+        "erc20_transfer",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransfer token receiver amount
+""",
+        "unsupported statement in do block",
+      ),
+    ]
+
+    for name, source, expected in cases:
+      with self.subTest(name=name):
+        proc = self.compile_contract(source)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn(expected, proc.stdout + proc.stderr)
 
 
 if __name__ == "__main__":
