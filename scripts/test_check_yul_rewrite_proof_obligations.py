@@ -18,7 +18,10 @@ from check_yul_rewrite_proof_obligations import (  # noqa: E402
     extract_declared_proof_refs,
     extract_manifest_proof_refs,
     load_manifest,
+    read_json,
+    read_text,
     validate_manifest_against_proofs,
+    write_json_report,
 )
 
 
@@ -119,6 +122,13 @@ class LoadManifestTests(unittest.TestCase):
             path.write_text("{\n", encoding="utf-8")
             with self.assertRaisesRegex(RewriteProofError, "invalid JSON"):
                 load_manifest(path)
+
+    def test_rejects_invalid_utf8_with_checker_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "manifest.json"
+            path.write_bytes(b"\xff")
+            with self.assertRaisesRegex(RewriteProofError, "failed to decode"):
+                read_json(path)
 
     def test_rejects_non_object_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -285,6 +295,13 @@ end rewrite
         with self.assertRaisesRegex(RewriteProofError, "unterminated namespace `Morpho.Proofs.YulRewriteProofs`"):
             extract_declared_proof_obligations(lean)
 
+    def test_read_text_rejects_invalid_utf8(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "YulRewriteProofs.lean"
+            path.write_bytes(b"\xff")
+            with self.assertRaisesRegex(RewriteProofError, "failed to decode"):
+                read_text(path)
+
 
 class ValidateManifestAgainstProofsTests(unittest.TestCase):
     def test_matching_sets_pass(self) -> None:
@@ -366,6 +383,16 @@ class BuildReportTests(unittest.TestCase):
         )
 
 
+class IoHelperTests(unittest.TestCase):
+    def test_write_json_report_wraps_os_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = pathlib.Path(tmpdir) / "missing-parent" / "child" / "report.json"
+            report_path.parent.parent.mkdir()
+            report_path.parent.write_text("not a directory", encoding="utf-8")
+            with self.assertRaisesRegex(RewriteProofError, "failed to write JSON report"):
+                write_json_report(report_path, {"ok": True})
+
+
 class CliTests(unittest.TestCase):
     def test_cli_reports_invalid_manifest_json_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -422,6 +449,69 @@ class CliTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertIn("yul-rewrite-proof-obligations check failed:", proc.stderr)
         self.assertIn("failed to read", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_invalid_utf8_manifest_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = pathlib.Path(tmpdir) / "manifest.json"
+            proof_file = pathlib.Path(tmpdir) / "YulRewriteProofs.lean"
+            manifest.write_bytes(b"\xff")
+            proof_file.write_text(SAMPLE_LEAN, encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_yul_rewrite_proof_obligations.py"),
+                    "--manifest",
+                    str(manifest),
+                    "--proof-file",
+                    str(proof_file),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("yul-rewrite-proof-obligations check failed:", proc.stderr)
+        self.assertIn("failed to decode", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_json_out_write_failure_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = pathlib.Path(tmpdir) / "manifest.json"
+            proof_file = pathlib.Path(tmpdir) / "YulRewriteProofs.lean"
+            json_out = pathlib.Path(tmpdir) / "missing-parent" / "child" / "report.json"
+            manifest.write_text(
+                "{"
+                "\"defaults\":{\"renameOnly\":{\"rewritePass\":\"rename-pass\",\"proofRefs\":[\"rewrite.rename_only.alpha_equiv\"]}},"
+                "\"families\":[{\"family\":\"checked_add\",\"rewritePass\":\"pass\",\"proofRefs\":[\"rewrite.checked_add.width_alignment\"]}]"
+                "}\n",
+                encoding="utf-8",
+            )
+            proof_file.write_text(SAMPLE_LEAN, encoding="utf-8")
+            json_out.parent.parent.mkdir()
+            json_out.parent.write_text("not a directory", encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_yul_rewrite_proof_obligations.py"),
+                    "--manifest",
+                    str(manifest),
+                    "--proof-file",
+                    str(proof_file),
+                    "--json-out",
+                    str(json_out),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("yul-rewrite-proof-obligations check failed:", proc.stderr)
+        self.assertIn("failed to write JSON report", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
 

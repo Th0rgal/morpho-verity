@@ -38,6 +38,8 @@ def read_text(path: pathlib.Path) -> str:
     try:
         with path.open("r", encoding="utf-8") as f:
             return f.read()
+    except UnicodeDecodeError as exc:
+        raise RewriteProofError(f"failed to decode {path} as UTF-8: {exc}") from exc
     except OSError as exc:
         raise RewriteProofError(f"failed to read {path}: {exc}") from exc
 
@@ -46,10 +48,20 @@ def read_json(path: pathlib.Path) -> Any:
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
+    except UnicodeDecodeError as exc:
+        raise RewriteProofError(f"failed to decode {path} as UTF-8: {exc}") from exc
     except OSError as exc:
         raise RewriteProofError(f"failed to read {path}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise RewriteProofError(f"invalid JSON in {path}: {exc}") from exc
+
+
+def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise RewriteProofError(f"failed to write JSON report {path}: {exc}") from exc
 
 
 def load_manifest(path: pathlib.Path) -> dict[str, Any]:
@@ -320,8 +332,7 @@ def main() -> None:
 
     report = build_report(list(manifest_proof_plans))
     if args.json_out:
-        args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        args.json_out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        write_json_report(args.json_out, report)
 
     print("yul-rewrite-proof-obligations check: OK")
     print(f"trackedProofRefs: {report['trackedProofRefCount']}")
