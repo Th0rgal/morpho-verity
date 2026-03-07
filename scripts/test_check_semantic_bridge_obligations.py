@@ -185,6 +185,31 @@ class ValidateConfigTests(unittest.TestCase):
             validate_config(config, bridge_hyps)
         self.assertIn("missing 'obligations' array", str(ctx.exception))
 
+    def test_non_object_obligation_fails_closed(self) -> None:
+        bridge_hyps = ["supplySemEq"]
+        config = make_config([1])
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps)
+        self.assertIn("obligation[0] is not an object", str(ctx.exception))
+
+    def test_non_string_id_fails(self) -> None:
+        bridge_hyps = ["supplySemEq"]
+        obligation = make_obligation("supplySemEq")
+        obligation["id"] = 7
+        config = make_config([obligation])
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps)
+        self.assertIn("field 'id' must be a non-empty string", str(ctx.exception))
+
+    def test_empty_operation_fails(self) -> None:
+        bridge_hyps = ["supplySemEq"]
+        obligation = make_obligation("supplySemEq")
+        obligation["operation"] = ""
+        config = make_config([obligation])
+        with self.assertRaises(ObligationError) as ctx:
+            validate_config(config, bridge_hyps)
+        self.assertIn("field 'operation' must be a non-empty string", str(ctx.exception))
+
 
 class MacroMigrationValidationTests(unittest.TestCase):
     def test_correct_macro_migrated_passes(self) -> None:

@@ -99,14 +99,23 @@ def validate_config(
 
     # Check each obligation has required fields
     for i, obl in enumerate(obligations):
+        if not isinstance(obl, dict):
+            raise ObligationError(f"obligation[{i}] is not an object")
         for field in ("id", "hypothesis", "operation", "status"):
             if field not in obl:
                 raise ObligationError(
                     f"obligation[{i}] missing required field '{field}'"
                 )
-        if obl["status"] not in VALID_STATUSES:
+        for field in ("id", "hypothesis", "operation"):
+            value = obl[field]
+            if not isinstance(value, str) or not value:
+                raise ObligationError(
+                    f"obligation[{i}] field '{field}' must be a non-empty string"
+                )
+        status = obl["status"]
+        if not isinstance(status, str) or status not in VALID_STATUSES:
             raise ObligationError(
-                f"obligation[{i}] has invalid status '{obl['status']}' "
+                f"obligation[{i}] has invalid status '{status}' "
                 f"(valid: {sorted(VALID_STATUSES)})"
             )
 
