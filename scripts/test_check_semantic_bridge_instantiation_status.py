@@ -22,6 +22,7 @@ from check_semantic_bridge_instantiation_status import (  # noqa: E402
   FORBIDDEN_SNIPPETS,
   SemanticBridgeInstantiationStatusError,
   main,
+  normalize_text,
   validate_status,
 )
 
@@ -54,8 +55,24 @@ def make_text() -> str:
 
 
 class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
+  def test_normalize_text_collapses_whitespace(self) -> None:
+    self.assertEqual(normalize_text("alpha\n\n beta\tgamma"), "alpha beta gamma")
+
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
+
+  def test_validate_status_accepts_wrapped_intro_and_summary_text(self) -> None:
+    validate_status(
+      make_text()
+      .replace(
+        "supported fragment, so for the\noperations instantiated here",
+        "supported fragment, so for the\n\noperations instantiated here",
+      )
+      .replace(
+        "the operations above. The\nremaining repo-local work",
+        "the operations above.\nThe\nremaining repo-local work",
+      )
+    )
 
   def test_validate_status_rejects_missing_intro_status(self) -> None:
     with self.assertRaisesRegex(

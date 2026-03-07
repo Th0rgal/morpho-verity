@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import sys
 
 
@@ -39,14 +40,19 @@ class SemanticBridgeInstantiationStatusError(RuntimeError):
   pass
 
 
+def normalize_text(text: str) -> str:
+  return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
 def validate_status(text: str) -> None:
+  normalized_text = normalize_text(text)
   for expected in (
     EXPECTED_INTRO_STATUS,
     EXPECTED_SUMMARY_HEADING,
     EXPECTED_SUMMARY_STATUS,
     EXPECTED_SUMMARY_COMPOSITION,
   ):
-    if expected not in text:
+    if normalize_text(expected) not in normalized_text:
       raise SemanticBridgeInstantiationStatusError(
         "SemanticBridgeInstantiation.lean status drift: missing expected text "
         f"`{expected}`"
