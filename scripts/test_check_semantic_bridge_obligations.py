@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -14,6 +16,7 @@ from check_semantic_bridge_obligations import (  # noqa: E402
     build_report,
     extract_macro_functions,
     extract_sem_eq_definitions,
+    load_config,
     validate_config,
 )
 
@@ -211,6 +214,24 @@ class ValidateConfigTests(unittest.TestCase):
         self.assertIn("field 'operation' must be a non-empty string", str(ctx.exception))
 
 
+class LoadConfigTests(unittest.TestCase):
+    def test_invalid_json_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text("{bad json", encoding="utf-8")
+            with self.assertRaises(ObligationError) as ctx:
+                load_config(config_path)
+        self.assertIn("contains invalid JSON", str(ctx.exception))
+
+    def test_non_object_root_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text('["not", "an", "object"]', encoding="utf-8")
+            with self.assertRaises(ObligationError) as ctx:
+                load_config(config_path)
+        self.assertIn("must contain a JSON object at the top level", str(ctx.exception))
+
+
 class MacroMigrationValidationTests(unittest.TestCase):
     def test_correct_macro_migrated_passes(self) -> None:
         """macroMigrated=true for real impl, false for stub: passes."""
@@ -346,6 +367,30 @@ class IntegrationTests(unittest.TestCase):
             migrated_ops,
             ["enableIrm", "enableLltv", "flashLoan", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
+
+
+class CliFailureTests(unittest.TestCase):
+    def test_invalid_json_reports_checker_error_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(__file__).resolve().parent.parent
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_text("{bad json", encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "check_semantic_bridge_obligations.py"),
+                    "--config",
+                    str(config_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=root,
+            )
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("semantic bridge obligations check failed:", proc.stderr)
+        self.assertIn("contains invalid JSON", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
