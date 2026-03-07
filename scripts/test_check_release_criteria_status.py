@@ -538,6 +538,34 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
     self.assertIn("failed to read workflow", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
+  def test_main_accepts_relative_external_inputs_from_different_working_directory(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      workspace = pathlib.Path(d)
+      external = workspace / "external"
+      runner = workspace / "runner" / "nested"
+      external.mkdir()
+      runner.mkdir(parents=True)
+      (external / "RELEASE_CRITERIA.md").write_text(make_doc(), encoding="utf-8")
+      (external / "verify.yml").write_text(make_workflow(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_release_criteria_status.py"),
+          "--doc",
+          "../../external/RELEASE_CRITERIA.md",
+          "--workflow",
+          "../../external/verify.yml",
+        ],
+        cwd=runner,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("release-criteria-status check: OK", proc.stdout)
+
 
 if __name__ == "__main__":
   unittest.main()
