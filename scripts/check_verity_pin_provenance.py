@@ -374,10 +374,22 @@ def validate_workflow(
   workflow_text: str,
   workflow_path: pathlib.Path,
 ) -> None:
-  missing = [step for step in EXPECTED_WORKFLOW_STEPS if f"- name: {step}" not in workflow_text]
+  step_name_counts: dict[str, int] = {}
+  for line in workflow_text.splitlines():
+    match = re.fullmatch(r"\s*-\s+name:\s+(.+?)\s*", line)
+    if match is None:
+      continue
+    step_name = match.group(1)
+    step_name_counts[step_name] = step_name_counts.get(step_name, 0) + 1
+  missing = [step for step in EXPECTED_WORKFLOW_STEPS if step_name_counts.get(step, 0) == 0]
   if missing:
     fail(
       f"workflow {workflow_path} missing Verity pin enforcement step(s): {', '.join(missing)}"
+    )
+  duplicate = [step for step in EXPECTED_WORKFLOW_STEPS if step_name_counts.get(step, 0) > 1]
+  if duplicate:
+    fail(
+      f"workflow {workflow_path} duplicates Verity pin enforcement step(s): {', '.join(duplicate)}"
     )
 
 
