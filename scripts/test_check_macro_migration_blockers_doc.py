@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -25,6 +27,7 @@ from check_macro_migration_blockers_doc import (  # noqa: E402
   extract_table,
   load_config,
   main,
+  read_text,
   validate_doc_table,
 )
 
@@ -250,6 +253,72 @@ class MacroMigrationBlockersDocTests(unittest.TestCase):
         "config root must be a JSON object",
       ):
         load_config(path)
+
+  def test_read_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "EQUIVALENCE_OBLIGATIONS.md"
+      path.write_bytes(b"\xff")
+      with self.assertRaisesRegex(
+        MacroMigrationBlockersDocError,
+        "failed to decode UTF-8 in document file",
+      ):
+        read_text(path, context="document file")
+
+  def test_load_config_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "config.json"
+      path.write_bytes(b"\xff")
+      with self.assertRaisesRegex(
+        MacroMigrationBlockersDocError,
+        "failed to decode UTF-8 in config file",
+      ):
+        load_config(path)
+
+  def test_main_reports_invalid_utf8_config_without_traceback(self) -> None:
+    report = build_blocker_report(make_config())
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "config.json"
+      doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
+      config_path.write_bytes(b"\xff")
+      doc_path.write_text(make_doc(expected_table_lines(report)), encoding="utf-8")
+
+      result = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "check_macro_migration_blockers_doc.py"),
+         "--config", os.fspath(config_path),
+         "--doc", os.fspath(doc_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(result.returncode, 1)
+      self.assertIn("macro-migration-blockers-doc check failed:", result.stderr)
+      self.assertIn("failed to decode UTF-8 in config file", result.stderr)
+      self.assertNotIn("Traceback", result.stderr)
+
+  def test_main_reports_invalid_utf8_doc_without_traceback(self) -> None:
+    config = make_config()
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "config.json"
+      doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
+      config_path.write_text(json.dumps(config), encoding="utf-8")
+      doc_path.write_bytes(b"\xff")
+
+      result = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "check_macro_migration_blockers_doc.py"),
+         "--config", os.fspath(config_path),
+         "--doc", os.fspath(doc_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(result.returncode, 1)
+      self.assertIn("macro-migration-blockers-doc check failed:", result.stderr)
+      self.assertIn("failed to decode UTF-8 in document file", result.stderr)
+      self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
