@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import sys
 
@@ -14,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_test_coverage import (  # noqa: E402
+  CiTestCoverageError,
   collect_repo_python_script_tests,
   collect_repo_script_tests,
   collect_repo_shell_script_tests,
@@ -68,6 +71,11 @@ class CheckCiTestCoverageTests(unittest.TestCase):
     )
     self.assertFalse(has_workflow_python_discovery(workflow))
     self.assertFalse(has_workflow_shell_glob(workflow))
+
+  def test_collect_workflow_script_tests_wraps_workflow_parser_error(self) -> None:
+    with patch("check_ci_test_coverage.extract_workflow_run_text", side_effect=ValueError("boom")):
+      with self.assertRaisesRegex(CiTestCoverageError, "failed to parse workflow run text: boom"):
+        collect_workflow_script_tests("run: python3 scripts/test_alpha.py\n")
 
   def test_main_passes_when_repo_and_workflow_match(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -204,6 +212,59 @@ class CheckCiTestCoverageTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
       finally:
         sys.argv = old_argv
+
+  def test_cli_fails_closed_for_invalid_utf8_workflow(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      root = pathlib.Path(tmp_dir)
+      workflow = root / "verify.yml"
+      scripts_dir = root / "scripts"
+      scripts_dir.mkdir()
+      (scripts_dir / "test_alpha.py").write_text("", encoding="utf-8")
+      workflow.write_bytes(b"\xff\xfeinvalid workflow")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_test_coverage.py"),
+          "--workflow",
+          str(workflow),
+          "--scripts-dir",
+          str(scripts_dir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("ci-test-coverage check failed: failed to decode workflow", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_fails_closed_for_missing_workflow(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      root = pathlib.Path(tmp_dir)
+      workflow = root / "missing.yml"
+      scripts_dir = root / "scripts"
+      scripts_dir.mkdir()
+      (scripts_dir / "test_alpha.py").write_text("", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_test_coverage.py"),
+          "--workflow",
+          str(workflow),
+          "--scripts-dir",
+          str(scripts_dir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("ci-test-coverage check failed: failed to read workflow", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":

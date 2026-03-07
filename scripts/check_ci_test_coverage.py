@@ -17,9 +17,22 @@ WORKFLOW_PY_DISCOVER_RE = re.compile(
 WORKFLOW_SH_GLOB_RE = re.compile(r"\bscripts/test_\*\.sh\b")
 
 
+class CiTestCoverageError(RuntimeError):
+  pass
+
+
 def fail(msg: str) -> None:
   print(f"ci-test-coverage check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
+
+
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise CiTestCoverageError(f"failed to read {context} {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise CiTestCoverageError(f"failed to decode {context} {path}: {exc}") from exc
 
 
 def collect_repo_script_tests(scripts_dir: pathlib.Path) -> set[str]:
@@ -43,17 +56,26 @@ def collect_repo_shell_script_tests(scripts_dir: pathlib.Path) -> set[str]:
 
 
 def collect_workflow_script_tests(workflow_text: str) -> set[str]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiTestCoverageError(f"failed to parse workflow run text: {exc}") from exc
   return {match.group(1) for match in WORKFLOW_TEST_REF_RE.finditer(run_text)}
 
 
 def has_workflow_python_discovery(workflow_text: str) -> bool:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiTestCoverageError(f"failed to parse workflow run text: {exc}") from exc
   return bool(WORKFLOW_PY_DISCOVER_RE.search(run_text))
 
 
 def has_workflow_shell_glob(workflow_text: str) -> bool:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiTestCoverageError(f"failed to parse workflow run text: {exc}") from exc
   return bool(WORKFLOW_SH_GLOB_RE.search(run_text))
 
 
@@ -75,7 +97,7 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  workflow_text = args.workflow.read_text(encoding="utf-8")
+  workflow_text = read_text(args.workflow, context="workflow")
   repo_py_tests = collect_repo_python_script_tests(args.scripts_dir)
   repo_sh_tests = collect_repo_shell_script_tests(args.scripts_dir)
   repo_tests = repo_py_tests | repo_sh_tests
@@ -104,4 +126,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-  raise SystemExit(main())
+  try:
+    raise SystemExit(main())
+  except CiTestCoverageError as exc:
+    fail(str(exc))
