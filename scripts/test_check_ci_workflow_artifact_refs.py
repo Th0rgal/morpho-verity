@@ -74,6 +74,31 @@ class CollectWorkflowArtifactReferencesTests(unittest.TestCase):
       ),
     )
 
+  def test_preserves_plain_hash_without_treating_it_as_comment(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - uses: actions/upload-artifact@v4",
+        "        with:",
+        "          name: verity#bundle",
+        "      - uses: actions/download-artifact@v4",
+        "        with:",
+        "          name: verity#bundle",
+      ]
+    )
+
+    self.assertEqual(
+      collect_workflow_artifact_references(workflow_text),
+      (
+        ["verity#bundle"],
+        ["verity#bundle"],
+        {"verify": ["verity#bundle"]},
+        {"verify": ["verity#bundle"]},
+      ),
+    )
+
   def test_rejects_download_steps_without_explicit_name(self) -> None:
     workflow_text = "\n".join(
       [
