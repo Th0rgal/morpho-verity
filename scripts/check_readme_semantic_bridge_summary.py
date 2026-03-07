@@ -90,13 +90,30 @@ def extract_link1_operations(section_text: str) -> list[str]:
       "README Link 1 operation list has an invalid boundary ordering"
     )
   ops_block = section_text[block_start:block_end]
-  operations = re.findall(r"`([^`]+)`", ops_block)
-  has_none_sentinel = re.search(r"\bnone\b", ops_block, re.IGNORECASE) is not None
-  if has_none_sentinel and operations:
+  raw_items = [item.strip() for item in ops_block.replace("\n", " ").split(",")]
+  operations: list[str] = []
+  none_count = 0
+  for item in raw_items:
+    if not item:
+      continue
+    if item.lower() == "none":
+      none_count += 1
+      continue
+    operation_match = re.fullmatch(r"`([^`]+)`\.?", item)
+    if operation_match is None:
+      raise ReadmeSemanticBridgeSummaryError(
+        "README Link 1 operation list contains malformed entries"
+      )
+    operations.append(operation_match.group(1))
+  if none_count > 1:
+    raise ReadmeSemanticBridgeSummaryError(
+      "README Link 1 operation list repeats the none sentinel"
+    )
+  if none_count and operations:
     raise ReadmeSemanticBridgeSummaryError(
       "README Link 1 operation list mixes the none sentinel with named operations"
     )
-  if has_none_sentinel:
+  if none_count:
     return []
   if not operations:
     raise ReadmeSemanticBridgeSummaryError("README Link 1 operation list is empty")

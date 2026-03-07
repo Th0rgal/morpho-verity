@@ -99,6 +99,16 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
       ["setOwner", "flashLoan"],
     )
 
+  def test_extract_link1_operations_allows_trailing_period_on_last_item(self) -> None:
+    self.assertEqual(
+      extract_link1_operations(
+        extract_semantic_bridge_section(
+          make_readme(operations="`setOwner`, `flashLoan`.")
+        )
+      ),
+      ["setOwner", "flashLoan"],
+    )
+
   def test_extract_link1_operations_allows_none_sentinel(self) -> None:
     self.assertEqual(
       extract_link1_operations(
@@ -128,6 +138,28 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
     ):
       extract_link1_operations(
         make_readme(proven_count=0, assumed_count=3, operations="none, `setOwner`")
+      )
+
+  def test_extract_link1_operations_rejects_repeated_none_sentinel(self) -> None:
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "repeats the none sentinel",
+    ):
+      extract_link1_operations(
+        extract_semantic_bridge_section(
+          make_readme(proven_count=0, assumed_count=3, operations="none, none")
+        )
+      )
+
+  def test_extract_link1_operations_rejects_unquoted_named_operation(self) -> None:
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "contains malformed entries",
+    ):
+      extract_link1_operations(
+        extract_semantic_bridge_section(
+          make_readme(proven_count=0, assumed_count=3, operations="none, setOwner")
+        )
       )
 
   def test_validate_summary_rejects_proven_count_drift(self) -> None:
