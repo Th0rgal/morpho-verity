@@ -744,6 +744,26 @@ class WorkflowRunParserTests(unittest.TestCase):
       ),
     )
 
+  def test_extract_named_step_runs_handles_property_only_prefix_before_multiline_quoted_name(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: !!str",
+        '          "Validate',
+        '          alpha"',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1},
+        {"Validate alpha": ["python3 scripts/check_alpha.py"]},
+      ),
+    )
+
   def test_extract_workflow_env_literals_handles_multiline_quoted_scalars(self) -> None:
     workflow_text = "\n".join(
       [
@@ -760,6 +780,20 @@ class WorkflowRunParserTests(unittest.TestCase):
         "TOP_TIMEOUT_SEC": ["1 0"],
         "LABEL": ["Don't drift"],
       },
+    )
+
+  def test_extract_workflow_env_literals_handles_property_only_prefix_before_multiline_quoted_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  TOP_TIMEOUT_SEC: !!str",
+        '    "1',
+        '    0"',
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"TOP_TIMEOUT_SEC": ["1 0"]},
     )
 
   def test_extract_workflow_env_literals_handles_tagged_multiline_quoted_scalars(self) -> None:
