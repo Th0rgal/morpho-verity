@@ -39,6 +39,12 @@ EXPECTED_WORKFLOW_STEPS = [
   "Validate release criteria status sync",
 ]
 
+TRACKED_STATUS_ITEM_MARKERS = (
+  "semantic-bridge",
+  "`equivalence-obligations`",
+  "`semantic-bridge-obligations`",
+)
+
 
 class ReleaseCriteriaStatusError(RuntimeError):
   pass
@@ -69,17 +75,34 @@ def parse_numbered_items(section: str) -> list[str]:
   return items
 
 
+def filter_tracked_items(items: list[str]) -> list[str]:
+  return [
+    item for item in items if any(marker in item for marker in TRACKED_STATUS_ITEM_MARKERS)
+  ]
+
+
 def validate_doc_status(text: str) -> None:
   partially_enforced = parse_numbered_items(
     extract_section(text, PARTIALLY_ENFORCED_HEADING, NOT_YET_ENFORCED_HEADING)
   )
-  missing_items = [
-    item for item in EXPECTED_PARTIALLY_ENFORCED_ITEMS if item not in partially_enforced
-  ]
+  tracked_items = filter_tracked_items(partially_enforced)
+  missing_items = [item for item in EXPECTED_PARTIALLY_ENFORCED_ITEMS if item not in tracked_items]
   if missing_items:
     raise ReleaseCriteriaStatusError(
       "RELEASE_CRITERIA.md is missing expected partially-enforced status items: "
       + "; ".join(missing_items)
+    )
+  unexpected_items = [item for item in tracked_items if item not in EXPECTED_PARTIALLY_ENFORCED_ITEMS]
+  if unexpected_items:
+    raise ReleaseCriteriaStatusError(
+      "RELEASE_CRITERIA.md has unexpected semantic-bridge/equivalence partially-enforced items: "
+      + "; ".join(unexpected_items)
+    )
+  duplicate_items = {item for item in tracked_items if tracked_items.count(item) > 1}
+  if duplicate_items:
+    raise ReleaseCriteriaStatusError(
+      "RELEASE_CRITERIA.md has duplicate semantic-bridge/equivalence partially-enforced items: "
+      + "; ".join(sorted(duplicate_items))
     )
 
   not_yet_enforced = parse_numbered_items(

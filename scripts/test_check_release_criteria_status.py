@@ -18,6 +18,7 @@ from check_release_criteria_status import (  # noqa: E402
   EXPECTED_WORKFLOW_STEPS,
   FORBIDDEN_NOT_YET_ENFORCED_ITEMS,
   ReleaseCriteriaStatusError,
+  filter_tracked_items,
   main,
   parse_numbered_items,
   validate_doc_status,
@@ -75,6 +76,19 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
   def test_parse_numbered_items(self) -> None:
     self.assertEqual(parse_numbered_items("1. alpha\n2. beta\n"), ["alpha", "beta"])
 
+  def test_filter_tracked_items(self) -> None:
+    self.assertEqual(
+      filter_tracked_items([
+        "parity-target tuple drift gate is enforced in CI.",
+        EXPECTED_PARTIALLY_ENFORCED_ITEMS[0],
+        EXPECTED_PARTIALLY_ENFORCED_ITEMS[-1],
+      ]),
+      [
+        EXPECTED_PARTIALLY_ENFORCED_ITEMS[0],
+        EXPECTED_PARTIALLY_ENFORCED_ITEMS[-1],
+      ],
+    )
+
   def test_validate_doc_status_passes(self) -> None:
     validate_doc_status(make_doc())
 
@@ -95,6 +109,34 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
           not_yet_enforced_items=[
             "strict `yul-identity-check` (zero structural AST mismatch for supported fragment).",
             FORBIDDEN_NOT_YET_ENFORCED_ITEMS[0],
+          ]
+        )
+      )
+
+  def test_validate_doc_status_rejects_unexpected_tracked_partial_item(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "unexpected semantic-bridge/equivalence partially-enforced items",
+    ):
+      validate_doc_status(
+        make_doc(
+          partially_enforced_items=[
+            *EXPECTED_PARTIALLY_ENFORCED_ITEMS,
+            "Legacy semantic-bridge status bullet that should no longer appear.",
+          ]
+        )
+      )
+
+  def test_validate_doc_status_rejects_duplicate_tracked_partial_item(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "duplicate semantic-bridge/equivalence partially-enforced items",
+    ):
+      validate_doc_status(
+        make_doc(
+          partially_enforced_items=[
+            *EXPECTED_PARTIALLY_ENFORCED_ITEMS,
+            EXPECTED_PARTIALLY_ENFORCED_ITEMS[0],
           ]
         )
       )
