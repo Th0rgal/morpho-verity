@@ -10,6 +10,10 @@ import sys
 
 from workflow_run_parser import extract_workflow_run_text
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+SCRIPTS_DIR = ROOT / "scripts"
+
 WORKFLOW_TEST_REF_RE = re.compile(r"\bscripts/(test_[A-Za-z0-9_]+\.(?:py|sh))\b")
 WORKFLOW_PY_DISCOVER_RE = re.compile(
   r"python3\s+-m\s+unittest\s+discover[^\n]*-s\s+scripts[^\n]*-p\s+['\"]test_\*\.py['\"]"
@@ -86,20 +90,22 @@ def main() -> int:
   parser.add_argument(
     "--workflow",
     type=pathlib.Path,
-    default=pathlib.Path(".github/workflows/verify.yml"),
+    default=WORKFLOW_PATH,
     help="Path to workflow yaml",
   )
   parser.add_argument(
     "--scripts-dir",
     type=pathlib.Path,
-    default=pathlib.Path("scripts"),
+    default=SCRIPTS_DIR,
     help="Path to scripts directory",
   )
   args = parser.parse_args()
+  workflow_path = args.workflow.resolve()
+  scripts_dir = args.scripts_dir.resolve()
 
-  workflow_text = read_text(args.workflow, context="workflow")
-  repo_py_tests = collect_repo_python_script_tests(args.scripts_dir)
-  repo_sh_tests = collect_repo_shell_script_tests(args.scripts_dir)
+  workflow_text = read_text(workflow_path, context="workflow")
+  repo_py_tests = collect_repo_python_script_tests(scripts_dir)
+  repo_sh_tests = collect_repo_shell_script_tests(scripts_dir)
   repo_tests = repo_py_tests | repo_sh_tests
   workflow_explicit_tests = collect_workflow_script_tests(workflow_text)
 

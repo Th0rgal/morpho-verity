@@ -10,6 +10,11 @@ import sys
 
 from workflow_run_parser import extract_workflow_env_literals, extract_workflow_run_text
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+DEFAULTS_PATH = ROOT / "config" / "ci-timeout-defaults.env"
+SCRIPTS_DIR = ROOT / "scripts"
+
 RUN_WITH_TIMEOUT_RE = re.compile(r"run_with_timeout\.sh\s+([A-Z0-9_]+)\s+([0-9]+)\b")
 SCRIPT_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\b")
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
@@ -104,29 +109,32 @@ def main() -> int:
   parser.add_argument(
     "--workflow",
     type=pathlib.Path,
-    default=pathlib.Path(".github/workflows/verify.yml"),
+    default=WORKFLOW_PATH,
     help="Path to workflow yaml",
   )
   parser.add_argument(
     "--defaults",
     type=pathlib.Path,
-    default=pathlib.Path("config/ci-timeout-defaults.env"),
+    default=DEFAULTS_PATH,
     help="Path to timeout defaults env file",
   )
   parser.add_argument(
     "--scripts-dir",
     type=pathlib.Path,
-    default=pathlib.Path("scripts"),
+    default=SCRIPTS_DIR,
     help="Path to scripts directory",
   )
   args = parser.parse_args()
+  workflow_path = args.workflow.resolve()
+  defaults_path = args.defaults.resolve()
+  scripts_dir = args.scripts_dir.resolve()
 
   try:
-    workflow_text = read_text(args.workflow, context="workflow")
-    timeout_defaults = parse_timeout_env_file(args.defaults)
+    workflow_text = read_text(workflow_path, context="workflow")
+    timeout_defaults = parse_timeout_env_file(defaults_path)
     run_defaults = collect_run_timeout_defaults(workflow_text)
     env_literals = collect_timeout_env_literals(workflow_text)
-    script_refs = collect_script_timeout_refs(args.scripts_dir)
+    script_refs = collect_script_timeout_refs(scripts_dir)
   except CiTimeoutDefaultsError as exc:
     fail(str(exc))
 

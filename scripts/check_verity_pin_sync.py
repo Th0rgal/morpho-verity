@@ -11,6 +11,11 @@ import sys
 from typing import Any
 
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+LAKEFILE_PATH = ROOT / "lakefile.lean"
+MANIFEST_PATH = ROOT / "lake-manifest.json"
+
+
 REQUIRE_VERITY_RE = re.compile(
   r'require\s+verity\s+from\s+git\s+"(?P<url>[^"]+)"\s+@\s+"(?P<rev>[^"]+)"',
   re.MULTILINE,
@@ -69,20 +74,22 @@ def main() -> int:
   parser.add_argument(
     "--lakefile",
     type=pathlib.Path,
-    default=pathlib.Path("lakefile.lean"),
+    default=LAKEFILE_PATH,
     help="Path to lakefile.lean",
   )
   parser.add_argument(
     "--manifest",
     type=pathlib.Path,
-    default=pathlib.Path("lake-manifest.json"),
+    default=MANIFEST_PATH,
     help="Path to lake-manifest.json",
   )
   args = parser.parse_args()
+  lakefile_path = args.lakefile.resolve()
+  manifest_path = args.manifest.resolve()
 
   try:
-    lakefile_url, lakefile_rev = parse_lakefile_verity(args.lakefile)
-    manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(args.manifest)
+    lakefile_url, lakefile_rev = parse_lakefile_verity(lakefile_path)
+    manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(manifest_path)
 
     if lakefile_url != manifest_url:
       raise VerityPinSyncError(

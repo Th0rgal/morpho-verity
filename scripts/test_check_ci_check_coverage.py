@@ -217,6 +217,23 @@ class CheckCiCheckCoverageTests(unittest.TestCase):
       self.assertIn("failed to decode workflow", result.stderr)
       self.assertNotIn("Traceback", result.stderr)
 
+  def test_cli_uses_repo_relative_defaults_from_another_working_directory(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      result = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_check_coverage.py"),
+        ],
+        cwd=tmp_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(result.returncode, 0)
+      self.assertIn("ci-check-coverage check: OK", result.stdout)
+      self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
   unittest.main()
