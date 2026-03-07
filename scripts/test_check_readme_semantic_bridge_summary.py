@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -279,6 +280,86 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
         self.assertEqual(main(), 0)
       finally:
         sys.argv = old_argv
+
+  def test_cli_reports_invalid_json_config_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readme_path = root / "README.md"
+      config_path.write_text("{not json", encoding="utf-8")
+      readme_path.write_text(make_readme(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_readme_semantic_bridge_summary.py"),
+          "--config",
+          str(config_path),
+          "--readme",
+          str(readme_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("readme-semantic-bridge-summary check failed:", proc.stderr)
+    self.assertIn("failed to parse JSON config", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_readme_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readme_path = root / "README.md"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      readme_path.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_readme_semantic_bridge_summary.py"),
+          "--config",
+          str(config_path),
+          "--readme",
+          str(readme_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("readme-semantic-bridge-summary check failed:", proc.stderr)
+    self.assertIn("failed to decode README file", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_missing_readme_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readme_path = root / "README.md"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_readme_semantic_bridge_summary.py"),
+          "--config",
+          str(config_path),
+          "--readme",
+          str(readme_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("readme-semantic-bridge-summary check failed:", proc.stderr)
+    self.assertIn("failed to read README file", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
