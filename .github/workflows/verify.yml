@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
@@ -66,6 +69,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          fetch-depth: 1
+          persist-credentials: false
           submodules: recursive
 
       - name: Load CI timeout defaults
@@ -154,6 +159,9 @@ jobs:
 
       - name: Validate CI workflow uses references
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow uses references" -- python3 scripts/check_ci_workflow_uses_refs.py
+
+      - name: Validate CI workflow checkout policy
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow checkout policy" -- python3 scripts/check_ci_workflow_checkout_policy.py
 
       - name: Validate CI workflow cache restore-keys
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow cache restore-keys" -- python3 scripts/check_ci_workflow_cache_restore_keys.py
@@ -253,6 +261,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          fetch-depth: 1
+          persist-credentials: false
           submodules: recursive
 
       - name: Load CI timeout defaults
@@ -341,6 +351,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          fetch-depth: 1
+          persist-credentials: false
           submodules: recursive
 
       - name: Load CI timeout defaults
@@ -385,6 +397,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          fetch-depth: 1
+          persist-credentials: false
           submodules: recursive
 
       - name: Load CI timeout defaults
@@ -473,6 +487,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          fetch-depth: 1
+          persist-credentials: false
           submodules: recursive
 
       - name: Load CI timeout defaults
