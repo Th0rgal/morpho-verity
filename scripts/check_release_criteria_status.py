@@ -170,7 +170,10 @@ def validate_doc_status(text: str) -> None:
 
 
 def validate_workflow(text: str) -> None:
-  step_counts, step_runs = extract_named_step_runs(text)
+  try:
+    step_counts, step_runs = extract_named_step_runs(text)
+  except ValueError as exc:
+    raise ReleaseCriteriaStatusError(f"failed to parse verify workflow: {exc}") from exc
   missing_steps = [step for step in EXPECTED_WORKFLOW_STEPS if step not in step_runs]
   if missing_steps:
     raise ReleaseCriteriaStatusError(
@@ -204,8 +207,14 @@ def main() -> int:
   parser.add_argument("--workflow", type=pathlib.Path, default=WORKFLOW_PATH)
   args = parser.parse_args()
 
-  doc_text = args.doc.read_text(encoding="utf-8")
-  workflow_text = args.workflow.read_text(encoding="utf-8")
+  try:
+    doc_text = args.doc.read_text(encoding="utf-8")
+  except (OSError, UnicodeDecodeError) as exc:
+    raise ReleaseCriteriaStatusError(f"failed to read {args.doc}: {exc}") from exc
+  try:
+    workflow_text = args.workflow.read_text(encoding="utf-8")
+  except (OSError, UnicodeDecodeError) as exc:
+    raise ReleaseCriteriaStatusError(f"failed to read {args.workflow}: {exc}") from exc
   validate_doc_status(doc_text)
   validate_workflow(workflow_text)
 
@@ -220,8 +229,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except ReleaseCriteriaStatusError as e:
-    print(f"release-criteria-status check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"release-criteria-status check failed: {e}", file=sys.stderr)
     raise SystemExit(1)

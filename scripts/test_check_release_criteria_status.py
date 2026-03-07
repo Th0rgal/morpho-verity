@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -375,6 +377,17 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
         "",
       ]))
 
+  def test_validate_workflow_wraps_parser_errors(self) -> None:
+    with mock.patch(
+      "check_release_criteria_status.extract_named_step_runs",
+      side_effect=ValueError("bad workflow"),
+    ):
+      with self.assertRaisesRegex(
+        ReleaseCriteriaStatusError,
+        "failed to parse verify workflow: bad workflow",
+      ):
+        validate_workflow(make_workflow())
+
   def test_validate_workflow_ignores_unnamed_run_step_after_tracked_step(self) -> None:
     validate_workflow("\n".join([
       "jobs:",
@@ -432,6 +445,33 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
         self.assertEqual(main(), 0)
       finally:
         sys.argv = old_argv
+
+  def test_main_rejects_invalid_utf8_doc_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      doc_path = root / "RELEASE_CRITERIA.md"
+      workflow_path = root / "verify.yml"
+      doc_path.write_bytes(b"\xff")
+      workflow_path.write_text(make_workflow(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_release_criteria_status.py"),
+          "--doc",
+          str(doc_path),
+          "--workflow",
+          str(workflow_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("release-criteria-status check failed:", proc.stderr)
+    self.assertIn("failed to read", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
