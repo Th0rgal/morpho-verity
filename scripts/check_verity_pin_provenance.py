@@ -14,6 +14,9 @@ from check_verity_pin_sync import parse_lakefile_verity, parse_manifest_verity
 
 
 MACRO_FRONTEND_AREA = "Upstream macro/frontend gaps still block operation migration"
+MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
+MACRO_ISSUE_CLUSTERS_LABEL = "Tracked migration issue clusters:"
+MACRO_FILES_LABEL = "Relevant files:"
 
 
 def fail(msg: str) -> None:
@@ -109,6 +112,108 @@ def require_doc_mentions(doc_text: str, needle: str, doc_path: pathlib.Path) -> 
   normalized_needle = re.sub(r"\s+", " ", needle.replace("`", "")).strip()
   if normalized_needle not in normalized_doc:
     fail(f"documentation {doc_path} missing expected text: {needle}")
+
+
+def normalize_doc_token(text: str) -> str:
+  return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
+def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
+  marker = f"### {heading}"
+  lines = doc_text.splitlines()
+  start_index = None
+  for index, line in enumerate(lines):
+    if line.strip() == marker:
+      start_index = index + 1
+      break
+  if start_index is None:
+    fail(f"documentation {doc_path} missing expected section heading: {marker}")
+
+  section_lines: list[str] = []
+  for line in lines[start_index:]:
+    stripped = line.strip()
+    if stripped.startswith("## ") or stripped.startswith("### "):
+      break
+    section_lines.append(line)
+  return "\n".join(section_lines)
+
+
+def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
+  lines = section_text.splitlines()
+  start_index = None
+  for index, line in enumerate(lines):
+    if line.strip() == label:
+      start_index = index + 1
+      break
+  if start_index is None:
+    fail(f"documentation {doc_path} missing expected list label: {label}")
+
+  bullets: list[str] = []
+  for line in lines[start_index:]:
+    stripped = line.strip()
+    if not stripped:
+      break
+    if stripped.endswith(":"):
+      break
+    if stripped.startswith("#"):
+      break
+    if not stripped.startswith("- "):
+      fail(f"documentation {doc_path} has malformed bullet under `{label}`: {line.strip()}")
+    bullets.append(stripped[2:].strip())
+  if not bullets:
+    fail(f"documentation {doc_path} missing bullets under `{label}`")
+  return bullets
+
+
+def validate_exact_doc_list(
+  *,
+  section_text: str,
+  label: str,
+  expected: list[str],
+  doc_path: pathlib.Path,
+  description: str,
+) -> None:
+  actual = [normalize_doc_token(item) for item in extract_labeled_bullets(section_text, label, doc_path)]
+  normalized_expected = [normalize_doc_token(item) for item in expected]
+  if actual != normalized_expected:
+    fail(
+      f"documentation {doc_path} {description} drift: expected {normalized_expected}; found {actual}"
+    )
+
+
+def validate_macro_frontend_doc_section(
+  doc_text: str,
+  item: dict[str, object],
+  doc_path: pathlib.Path,
+) -> None:
+  section_text = extract_markdown_section(doc_text, MACRO_FRONTEND_AREA, doc_path)
+  blockers = item.get("blockers")
+  if isinstance(blockers, list):
+    validate_exact_doc_list(
+      section_text=section_text,
+      label=MACRO_BLOCKERS_LABEL,
+      expected=blockers,
+      doc_path=doc_path,
+      description="macro/frontend blocker list",
+    )
+  issue_clusters = item.get("issueClusters")
+  if isinstance(issue_clusters, list):
+    validate_exact_doc_list(
+      section_text=section_text,
+      label=MACRO_ISSUE_CLUSTERS_LABEL,
+      expected=issue_clusters,
+      doc_path=doc_path,
+      description="macro/frontend issue cluster list",
+    )
+  files = item.get("files")
+  if isinstance(files, list):
+    validate_exact_doc_list(
+      section_text=section_text,
+      label=MACRO_FILES_LABEL,
+      expected=files,
+      doc_path=doc_path,
+      description="macro/frontend file list",
+    )
 
 
 def main() -> int:
@@ -210,6 +315,8 @@ def main() -> int:
         require_doc_mentions(doc_text, issue, args.doc)
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
+    if item["area"] == MACRO_FRONTEND_AREA:
+      validate_macro_frontend_doc_section(doc_text, item, args.doc)
 
   readme_text = args.readme.read_text(encoding="utf-8")
   require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)

@@ -82,9 +82,10 @@ so status and `macroMigrated` flips cannot silently diverge across proof-facing 
 `scripts/check_semantic_bridge_readiness_summary.py` also fail-closes the proof-facing summary
 counts and Link 1 operation list in that Lean file, so future `discharged` flips cannot leave
 the readiness narrative claiming fewer proved operations than the tracker actually records.
-`scripts/check_verity_pin_provenance.py` also now requires the current-pin macro/frontend
-divergence record to name the live issue clusters for that blocker surface, so `docs/VERITY_PIN.md`
-cannot drift away from the open migration roadmap.
+`scripts/check_verity_pin_provenance.py` also now fail-closes the current-pin macro/frontend
+divergence section in `docs/VERITY_PIN.md` against `config/verity-pin-provenance.json`, including
+the exact blocker-family, issue-cluster, and relevant-file bullet lists, so that surface cannot
+silently drift away from the open migration roadmap.
 
 ### Open issue blocker summary
 
