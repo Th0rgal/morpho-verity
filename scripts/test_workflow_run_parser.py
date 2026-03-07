@@ -205,6 +205,28 @@ class WorkflowRunParserTests(unittest.TestCase):
     )
     self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_alpha.py")
 
+  def test_extract_workflow_run_text_strips_yaml_comment_from_plain_inline_run(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - run: python3 scripts/check_alpha.py # yaml comment",
+      ]
+    )
+    self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_alpha.py")
+
+  def test_extract_workflow_run_text_preserves_plain_hash_in_inline_run(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - run: printf '%s\\n' artifact#bundle",
+      ]
+    )
+    self.assertEqual(extract_workflow_run_text(workflow_text), "printf '%s\\n' artifact#bundle")
+
   def test_extract_workflow_run_text_keeps_top_level_run_fixtures(self) -> None:
     workflow_text = "\n".join(
       [
@@ -538,6 +560,21 @@ class WorkflowRunParserTests(unittest.TestCase):
     self.assertEqual(
       extract_named_step_runs(workflow_text),
       ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py \\\n--strict"]}),
+    )
+
+  def test_extract_named_step_runs_strips_yaml_comment_from_plain_inline_run(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: python3 scripts/check_alpha.py # yaml comment",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py"]}),
     )
 
   def test_extract_named_step_runs_supports_yaml_scalar_tags_and_anchors(self) -> None:
