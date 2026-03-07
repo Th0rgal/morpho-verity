@@ -540,9 +540,8 @@ theorem setFee_preserves_borrowSharesConsistent (s : MorphoState) (fid : Id)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.setFee s fid newFee borrowRate hasIrm = some s') :
     borrowSharesConsistent s' id allUsers := by
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' fid newFee borrowRate hasIrm).1 h_ok
+  rw [h_eq]
   have h_ai := accrueInterest_preserves_borrowSharesConsistent s fid borrowRate hasIrm id allUsers
     h_consistent
   apply borrowConsistent_of_eq_market_position _ _ h_ai
@@ -576,9 +575,8 @@ theorem setFee_preserves_supplySharesConsistent (s : MorphoState) (fid : Id)
         (s.market fid).totalSupplyShares
       (s.market fid).totalSupplyShares.val + feeShares.val < Core.Uint256.modulus) :
     supplySharesConsistent s' fid allUsers := by
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' fid newFee borrowRate hasIrm).1 h_ok
+  rw [h_eq]
   have h_ai := accrueInterest_preserves_supplySharesConsistent s fid borrowRate hasIrm allUsers
     h_nodup h_mem_fee h_consistent h_pos_no_overflow h_total_no_overflow
   apply supplyConsistent_of_eq_market_position _ _ h_ai
