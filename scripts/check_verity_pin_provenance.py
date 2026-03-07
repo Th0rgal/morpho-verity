@@ -260,13 +260,12 @@ def extract_section_subheadings(
 
 def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
   lines = section_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == label:
-      start_index = index + 1
-      break
-  if start_index is None:
+  matches = [index for index, line in enumerate(lines) if line.strip() == label]
+  if not matches:
     fail(f"documentation {doc_path} missing expected list label: {label}")
+  if len(matches) > 1:
+    fail(f"documentation {doc_path} has duplicate list label: {label}")
+  start_index = matches[0] + 1
 
   bullets: list[str] = []
   for line in lines[start_index:]:
