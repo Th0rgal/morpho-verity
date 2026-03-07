@@ -271,7 +271,7 @@ def build_report(
   supported_expr_used = used_expr & SUPPORTED_EXPR
 
   return {
-    "source": display_path(source_path),
+    "sourcePath": display_path(source_path),
     "baselinePath": display_path(baseline_path),
     "obligationsPath": display_path(obligations_path),
     "supportedSurface": {
@@ -420,7 +420,7 @@ def main() -> None:
 
   if args.write:
     baseline = {
-      "source": report["source"],
+      "sourcePath": report["sourcePath"],
       "expectedUnsupported": {
         "stmt": report["unsupported"]["stmt"],
         "expr": report["unsupported"]["expr"],
@@ -451,7 +451,7 @@ def main() -> None:
   stmt_cov = report["coverage"]["unique"]["stmt"]
   expr_cov = report["coverage"]["unique"]["expr"]
   print("macro-migration blockers check: OK")
-  print(f"source: {report['source']}")
+  print(f"source: {report['sourcePath']}")
   print(
     "unique coverage: "
     f"Stmt {stmt_cov['supported']}/{stmt_cov['total']} ({stmt_cov['pct']}%), "

@@ -38,5 +38,5 @@
     "withdrawCollateral((address,address,address,address,uint256),uint256,address,address)"
   ],
   "notes": "Fail-closed macro-native migration slice tracker. Changes require explicit reviewed baseline updates; every non-migrated signature must stay explicitly classified with a blocker reason.",
-  "source": "Morpho/Compiler/MacroSlice.lean"
+  "macroPath": "Morpho/Compiler/MacroSlice.lean"
 }
