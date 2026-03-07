@@ -390,10 +390,9 @@ theorem setAuthorizationWithSig_preserves_borrowLeSupply (s : MorphoState)
     (h_solvent : borrowLeSupply s id)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     borrowLeSupply s' id := by
-  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
   unfold borrowLeSupply at h_solvent ⊢
-  rw [← h_eq]; exact h_solvent
+  rw [h_eq]; exact h_solvent
 
 /-! ## Collateralization preserved by all operations
 
@@ -741,9 +740,8 @@ theorem setAuthorizationWithSig_preserves_alwaysCollateralized (s : MorphoState)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq] at h_borrow ⊢; exact h_collat h_borrow
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
+  rw [h_eq] at h_borrow ⊢; exact h_collat h_borrow
 
 /-! ## Market isolation
 
@@ -1408,9 +1406,8 @@ theorem setAuthorizationWithSig_preserves_irmMonotone (s : MorphoState)
     (h_enabled : s.isIrmEnabled irm)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     s'.isIrmEnabled irm := by
-  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; exact h_enabled
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
+  rw [h_eq]; exact h_enabled
 
 theorem accrueInterestPublic_preserves_irmMonotone (s : MorphoState) (id : Id)
     (borrowRate : Uint256) (hasIrm : Bool) (irm : Address)
@@ -1541,9 +1538,8 @@ theorem setAuthorizationWithSig_preserves_lltvMonotone (s : MorphoState)
     (h_enabled : s.isLltvEnabled lltv)
     (h_ok : Morpho.setAuthorizationWithSig s auth sig = some s') :
     s'.isLltvEnabled lltv := by
-  unfold Morpho.setAuthorizationWithSig at h_ok; simp at h_ok
-  obtain ⟨_, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; exact h_enabled
+  obtain ⟨_, _, _, h_eq⟩ := (Morpho.setAuthorizationWithSig_success_iff s s' auth sig).1 h_ok
+  rw [h_eq]; exact h_enabled
 
 theorem accrueInterestPublic_preserves_lltvMonotone (s : MorphoState) (id : Id)
     (borrowRate : Uint256) (hasIrm : Bool) (lltv : Uint256)
