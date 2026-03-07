@@ -577,6 +577,158 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       )
     self.assertEqual(rc, 0)
 
+  def test_rejects_invalid_provenance_json(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text='{"upstreamRepo": ',
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ),
+      )
+
+  def test_rejects_non_object_issue_cluster_root(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        obligations_text="""
+        [
+          {
+            "issue": 123,
+            "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL"
+          }
+        ]
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ),
+      )
+
+  def test_rejects_duplicate_issue_cluster_numbers(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        obligations_text="""
+        {
+          "issueClusters": [
+            {
+              "issue": 123,
+              "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL"
+            },
+            {
+              "issue": 123,
+              "title": "Conflicting duplicate issue cluster"
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ),
+      )
+
   def test_rejects_stale_verity_pin_metadata_bullet(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):
       self.run_check(
