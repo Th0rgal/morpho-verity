@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import json
-import pathlib
 import os
+import pathlib
+import subprocess
 import tempfile
 import sys
 import unittest
@@ -30,8 +31,10 @@ from report_yul_identity_gap import (  # noqa: E402
   function_family_for_key,
   function_ast_digests,
   load_prepared_rewrite_pipeline_report,
+  load_parity_target,
   prepared_rewrite_pipeline_report_matches_request,
   load_rewrite_proof_manifest,
+  load_unsupported_manifest,
   normalize_yul,
   prepared_verity_artifact_dir,
   resolve_rewrite_pipeline_report,
@@ -76,6 +79,13 @@ class ReportYulIdentityGapTests(unittest.TestCase):
   def test_load_prepared_rewrite_pipeline_report_returns_none_when_missing(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       self.assertIsNone(load_prepared_rewrite_pipeline_report(pathlib.Path(d)))
+
+  def test_load_prepared_rewrite_pipeline_report_rejects_malformed_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      prepared_dir = pathlib.Path(d)
+      (prepared_dir / "Morpho.rewrite-report.json").write_text("{", encoding="utf-8")
+      with self.assertRaisesRegex(RuntimeError, "failed to parse JSON file"):
+        load_prepared_rewrite_pipeline_report(prepared_dir)
 
   def test_resolve_rewrite_pipeline_report_reuses_prepared_report(self) -> None:
     with tempfile.TemporaryDirectory() as d:
@@ -411,6 +421,13 @@ object "M" {
         encoding="utf-8",
       )
       with self.assertRaisesRegex(RuntimeError, "default kind `hashMismatch` is unsupported"):
+        load_rewrite_proof_manifest(path)
+
+  def test_load_rewrite_proof_manifest_rejects_malformed_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "rewrite-proof.json"
+      path.write_text("{", encoding="utf-8")
+      with self.assertRaisesRegex(RuntimeError, "failed to parse JSON file"):
         load_rewrite_proof_manifest(path)
 
   def test_load_rewrite_proof_manifest_rejects_duplicate_family_entries(self) -> None:
@@ -751,6 +768,46 @@ object "M" {
     check = evaluate_unsupported_manifest(deltas, manifest, "target-v2")
     self.assertFalse(check["ok"])
     self.assertFalse(check["parityTarget"]["ok"])
+
+  def test_load_unsupported_manifest_rejects_malformed_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "unsupported.json"
+      path.write_text("{", encoding="utf-8")
+      with self.assertRaisesRegex(RuntimeError, "failed to parse JSON file"):
+        load_unsupported_manifest(path)
+
+  def test_load_parity_target_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "parity-target.json"
+      path.write_text("[]", encoding="utf-8")
+      with self.assertRaisesRegex(RuntimeError, "Parity target config must be a JSON object"):
+        load_parity_target(path)
+
+  def test_cli_reports_invalid_rewrite_proof_manifest_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      out_dir = tmp / "out"
+      proof_manifest = tmp / "bad-rewrite-proof.json"
+      proof_manifest.write_text("{", encoding="utf-8")
+      proc = subprocess.run(
+        [
+          "python3",
+          "scripts/report_yul_identity_gap.py",
+          "--skip-build",
+          "--out-dir",
+          str(out_dir),
+          "--rewrite-proof-manifest",
+          str(proof_manifest),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("yul identity gap report failed:", proc.stderr)
+      self.assertIn("invalid JSON", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
