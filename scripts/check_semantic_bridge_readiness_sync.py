@@ -35,10 +35,40 @@ STATUS_MAP = {
   "inProgress": "in_progress",
   "discharged": "discharged",
 }
+VALID_CONFIG_STATUSES = set(STATUS_MAP.values())
 
 
 class SemanticBridgeReadinessSyncError(RuntimeError):
   pass
+
+
+def normalize_readiness_status(raw_status: str) -> str:
+  if raw_status not in STATUS_MAP:
+    raise SemanticBridgeReadinessSyncError(
+      "failed to parse supported status from SemanticBridgeReadiness.lean entry"
+    )
+  return STATUS_MAP[raw_status]
+
+
+def require_non_empty_string(value: Any, *, field: str, context: str) -> str:
+  if not isinstance(value, str) or not value:
+    raise SemanticBridgeReadinessSyncError(f"{context} missing non-empty string field '{field}'")
+  return value
+
+
+def require_boolean(value: Any, *, field: str, context: str) -> bool:
+  if not isinstance(value, bool):
+    raise SemanticBridgeReadinessSyncError(f"{context} missing boolean field '{field}'")
+  return value
+
+
+def require_config_status(value: Any, *, context: str) -> str:
+  status = require_non_empty_string(value, field="status", context=context)
+  if status not in VALID_CONFIG_STATUSES:
+    raise SemanticBridgeReadinessSyncError(
+      f"{context} has unsupported status {status!r}"
+    )
+  return status
 
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
@@ -140,7 +170,7 @@ def parse_readiness_entries(path: pathlib.Path) -> list[dict[str, Any]]:
         "id": values["id"],
         "hypothesis": values["hypothesis"],
         "operation": values["operation"],
-        "status": STATUS_MAP[values["status"]],
+        "status": normalize_readiness_status(values["status"]),
         "macroMigrated": values["macroMigrated"] == "true",
       }
     )
@@ -166,11 +196,8 @@ def build_config_projection(config: dict[str, Any]) -> list[dict[str, Any]]:
         raise SemanticBridgeReadinessSyncError(
           f"obligations[{i}] missing required field '{field}'"
         )
-    obligation_id = obligation["id"]
-    if not isinstance(obligation_id, str) or not obligation_id:
-      raise SemanticBridgeReadinessSyncError(
-        f"obligations[{i}] missing non-empty string field 'id'"
-      )
+    context = f"obligations[{i}]"
+    obligation_id = require_non_empty_string(obligation["id"], field="id", context=context)
     if obligation_id in seen_ids:
       raise SemanticBridgeReadinessSyncError(
         f"config contains duplicate obligation id '{obligation_id}'"
@@ -179,10 +206,16 @@ def build_config_projection(config: dict[str, Any]) -> list[dict[str, Any]]:
     projection.append(
       {
         "id": obligation_id,
-        "hypothesis": obligation["hypothesis"],
-        "operation": obligation["operation"],
-        "status": obligation["status"],
-        "macroMigrated": obligation["macroMigrated"],
+        "hypothesis": require_non_empty_string(
+          obligation["hypothesis"], field="hypothesis", context=context
+        ),
+        "operation": require_non_empty_string(
+          obligation["operation"], field="operation", context=context
+        ),
+        "status": require_config_status(obligation["status"], context=context),
+        "macroMigrated": require_boolean(
+          obligation["macroMigrated"], field="macroMigrated", context=context
+        ),
       }
     )
   return projection
