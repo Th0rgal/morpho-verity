@@ -53,6 +53,8 @@ def _consume_run_command(
     else:
       block_lines.append(("", None))
     next_index += 1
+  if not any(indent is not None for _, indent in block_lines):
+    return "", next_index
   content_indent = min(
     indent for _, indent in block_lines if indent is not None
   )
