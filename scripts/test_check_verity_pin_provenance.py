@@ -290,6 +290,21 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       workflow_path=pathlib.Path(".github/workflows/verify.yml"),
     )
 
+  def test_validate_workflow_accepts_tagged_and_anchored_run_scalars(self) -> None:
+    validate_workflow(
+      workflow_text="\n".join([
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+        f'        run: !!str {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[0]]}',
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[1]}",
+        f"        run: &shared_run {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[1]]}",
+        "",
+      ]),
+      workflow_path=pathlib.Path(".github/workflows/verify.yml"),
+    )
+
   def test_validate_workflow_rejects_missing_step(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):
       validate_workflow(

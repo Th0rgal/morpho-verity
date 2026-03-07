@@ -46,6 +46,7 @@ def _consume_run_command(
   lines: list[str],
   start_index: int,
   run_indent: int,
+  anchors: dict[str, str] | None = None,
   *,
   first_line: str | None = None,
 ) -> tuple[str, int]:
@@ -55,7 +56,8 @@ def _consume_run_command(
     raise ValueError("expected run field at start_index")
 
   tail = match.group(2).strip()
-  if RUN_BLOCK_SCALAR_RE.fullmatch(tail) is None:
+  normalized_tail, _ = _strip_yaml_node_properties(tail)
+  if RUN_BLOCK_SCALAR_RE.fullmatch(normalized_tail) is None:
     line_parts = [tail] if tail else []
     next_index = start_index + 1
     while next_index < len(lines):
@@ -68,12 +70,17 @@ def _consume_run_command(
         break
       line_parts.append(stripped)
       next_index += 1
-    return "\n".join(line_parts), next_index
+    raw_command = "\n".join(line_parts)
+    parsed_command = _parse_run_scalar(raw_command, anchors)
+    return (parsed_command if parsed_command is not None else raw_command), next_index
 
   block_scalar = _consume_block_scalar(lines, start_index, run_indent, tail)
   if block_scalar is None:
     raise ValueError("expected block scalar run field")
-  command, next_index, _ = block_scalar
+  command, next_index, declared_anchors = block_scalar
+  if anchors is not None:
+    for anchor_name in declared_anchors:
+      anchors[anchor_name] = command
   return command, next_index
 
 
@@ -274,6 +281,16 @@ def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> 
     for anchor_name in declared_anchors:
       anchors[anchor_name] = parsed
   return parsed
+
+
+def _parse_run_scalar(raw: str, anchors: dict[str, str] | None = None) -> str | None:
+  stripped = raw.strip()
+  normalized, _ = _strip_yaml_node_properties(stripped)
+  if not stripped:
+    return ""
+  if normalized != stripped or normalized.startswith(("'", '"', "*")):
+    return _parse_scalar_env_value(raw, anchors)
+  return raw
 
 
 def _parse_double_quoted_yaml_scalar(inner: str) -> str | None:
@@ -568,6 +585,7 @@ def _consume_env_mapping(
 def extract_workflow_run_text(workflow_text: str) -> str:
   """Return concatenated command text from workflow `run:` steps only."""
   commands: list[str] = []
+  anchors: dict[str, str] = {}
   lines = workflow_text.splitlines()
   i = 0
   steps_indent: int | None = None
@@ -613,7 +631,7 @@ def extract_workflow_run_text(workflow_text: str) -> str:
       i += 1
       continue
 
-    command, i = _consume_run_command(lines, i, run_indent, first_line=line)
+    command, i = _consume_run_command(lines, i, run_indent, anchors, first_line=line)
     commands.append(command)
   return "\n".join(commands)
 
@@ -771,7 +789,7 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
       and current_step_name is not None
       and len(run_match.group(1)) == current_step_indent + 2
     ):
-      command, i = _consume_run_command(lines, i, len(run_match.group(1)))
+      command, i = _consume_run_command(lines, i, len(run_match.group(1)), anchors)
       step_runs[current_step_name].append(command)
       continue
 

@@ -181,6 +181,25 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
       "",
     ]))
 
+  def test_validate_workflow_accepts_tagged_and_anchored_run_scalars(self) -> None:
+    validate_workflow("\n".join([
+      "jobs:",
+      "  parity-target:",
+      "    steps:",
+      f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+      f'        run: !!str {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[0]]}',
+      f"      - name: {EXPECTED_WORKFLOW_STEPS[1]}",
+      f"        run: &shared_run {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[1]]}",
+      *[
+        "\n".join([
+          f"      - name: {step}",
+          f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+        ])
+        for step in EXPECTED_WORKFLOW_STEPS[2:]
+      ],
+      "",
+    ]))
+
   def test_validate_workflow_rejects_missing_step(self) -> None:
     with self.assertRaisesRegex(
       ReleaseCriteriaStatusError,

@@ -138,6 +138,25 @@ class WorkflowRunParserTests(unittest.TestCase):
       "python3 scripts/check_alpha.py\n--strict",
     )
 
+  def test_extract_workflow_run_text_supports_yaml_scalar_tags_anchors_and_aliases(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: Tagged run',
+        "        run: !!str python3 scripts/check_alpha.py",
+        "      - name: Anchored run",
+        "        run: &shared_run ./scripts/check_beta.sh",
+        "      - name: Alias run",
+        "        run: *shared_run",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py\n./scripts/check_beta.sh\n./scripts/check_beta.sh",
+    )
+
   def test_extract_workflow_run_text_handles_inline_run_step_item(self) -> None:
     workflow_text = "\n".join(
       [
@@ -547,6 +566,32 @@ class WorkflowRunParserTests(unittest.TestCase):
             "python3 scripts/check_alpha.py",
             "python3 scripts/check_beta.py",
           ],
+        },
+      ),
+    )
+
+  def test_extract_named_step_runs_supports_run_scalar_tags_anchors_and_aliases(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Tagged run",
+        "        run: !!str python3 scripts/check_alpha.py",
+        "      - name: Anchored run",
+        "        run: &shared_run ./scripts/check_beta.sh",
+        "      - name: Alias run",
+        "        run: *shared_run",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Tagged run": 1, "Anchored run": 1, "Alias run": 1},
+        {
+          "Tagged run": ["python3 scripts/check_alpha.py"],
+          "Anchored run": ["./scripts/check_beta.sh"],
+          "Alias run": ["./scripts/check_beta.sh"],
         },
       ),
     )
