@@ -22,8 +22,13 @@ class RegressionCoverageError(RuntimeError):
 
 
 def load_obligations(path: pathlib.Path) -> list[dict[str, Any]]:
-  with path.open("r", encoding="utf-8") as f:
-    raw = json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      raw = json.load(f)
+  except json.JSONDecodeError as exc:
+    raise RegressionCoverageError(f"failed to parse JSON config {path}: {exc}") from exc
+  if not isinstance(raw, dict):
+    raise RegressionCoverageError(f"config root must be an object in {path}")
   obligations = raw.get("obligations")
   if not isinstance(obligations, list):
     raise RegressionCoverageError(f"missing `obligations` list in {path}")
@@ -31,6 +36,15 @@ def load_obligations(path: pathlib.Path) -> list[dict[str, Any]]:
   for i, item in enumerate(obligations):
     if not isinstance(item, dict):
       raise RegressionCoverageError(f"obligation[{i}] is not an object in {path}")
+    operation = item.get("operation")
+    if not isinstance(operation, str) or not operation:
+      raise RegressionCoverageError(f"obligation[{i}] missing non-empty 'operation' in {path}")
+    macro_migrated = item.get("macroMigrated")
+    if not isinstance(macro_migrated, bool):
+      raise RegressionCoverageError(f"obligation[{i}] missing boolean 'macroMigrated' in {path}")
+    issue = item.get("issue")
+    if issue is not None and not isinstance(issue, int):
+      raise RegressionCoverageError(f"obligation[{i}] has non-integer 'issue' in {path}")
     result.append(item)
   return result
 
@@ -44,11 +58,13 @@ def build_required_issue_blockers(obligations: list[dict[str, Any]]) -> dict[int
     if item.get("macroMigrated") is not False:
       continue
     blockers = item.get("macroSurfaceBlockers")
-    operation = item.get("operation", "<unknown>")
+    operation = item["operation"]
     if not isinstance(blockers, list) or not blockers or not all(isinstance(x, str) and x for x in blockers):
       raise RegressionCoverageError(
         f"obligation '{operation}' missing non-empty string-list 'macroSurfaceBlockers'"
       )
+    if len(set(blockers)) != len(blockers):
+      raise RegressionCoverageError(f"obligation '{operation}' contains duplicate macro blocker entries")
     required.setdefault(issue, set()).update(blockers)
   return required
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import tempfile
 import sys
 import unittest
 
@@ -12,6 +13,7 @@ from check_macro_blocker_regression_coverage import (
   RegressionCoverageError,
   build_regression_case_coverage,
   build_required_issue_blockers,
+  load_obligations,
   validate_issue_blocker_regression_coverage,
 )
 
@@ -60,6 +62,55 @@ class RequiredIssueBlockersTests(unittest.TestCase):
       "obligation 'supply' missing non-empty string-list 'macroSurfaceBlockers'",
     ):
       build_required_issue_blockers(obligations)
+
+  def test_build_required_issue_blockers_rejects_duplicate_blockers(self) -> None:
+    obligations = [
+      {
+        "issue": 123,
+        "operation": "supply",
+        "macroMigrated": False,
+        "macroSurfaceBlockers": ["erc20", "erc20"],
+      }
+    ]
+    with self.assertRaisesRegex(
+      RegressionCoverageError,
+      "obligation 'supply' contains duplicate macro blocker entries",
+    ):
+      build_required_issue_blockers(obligations)
+
+
+class LoadObligationsTests(unittest.TestCase):
+  def write_config(self, payload: str) -> pathlib.Path:
+    tmp = tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False)
+    self.addCleanup(pathlib.Path(tmp.name).unlink, missing_ok=True)
+    with tmp:
+      tmp.write(payload)
+    return pathlib.Path(tmp.name)
+
+  def test_load_obligations_rejects_malformed_json(self) -> None:
+    path = self.write_config("{not json")
+    with self.assertRaisesRegex(RegressionCoverageError, "failed to parse JSON config"):
+      load_obligations(path)
+
+  def test_load_obligations_rejects_non_object_root(self) -> None:
+    path = self.write_config("[]")
+    with self.assertRaisesRegex(RegressionCoverageError, "config root must be an object"):
+      load_obligations(path)
+
+  def test_load_obligations_rejects_missing_operation(self) -> None:
+    path = self.write_config('{"obligations":[{"issue":123,"macroMigrated":false}]}')
+    with self.assertRaisesRegex(RegressionCoverageError, "obligation\\[0\\] missing non-empty 'operation'"):
+      load_obligations(path)
+
+  def test_load_obligations_rejects_non_boolean_macro_migrated(self) -> None:
+    path = self.write_config('{"obligations":[{"issue":123,"operation":"supply","macroMigrated":"no"}]}')
+    with self.assertRaisesRegex(RegressionCoverageError, "obligation\\[0\\] missing boolean 'macroMigrated'"):
+      load_obligations(path)
+
+  def test_load_obligations_rejects_non_integer_tracked_issue(self) -> None:
+    path = self.write_config('{"obligations":[{"issue":"123","operation":"supply","macroMigrated":false}]}')
+    with self.assertRaisesRegex(RegressionCoverageError, "obligation\\[0\\] has non-integer 'issue'"):
+      load_obligations(path)
 
 
 class RegressionCaseCoverageTests(unittest.TestCase):
