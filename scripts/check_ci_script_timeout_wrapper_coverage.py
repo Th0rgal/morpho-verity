@@ -27,24 +27,46 @@ SHELL_TEST_LOOP_RE = re.compile(
 )
 
 
+class CiScriptTimeoutWrapperCoverageError(RuntimeError):
+  pass
+
+
 def fail(msg: str) -> None:
   print(f"ci-script-timeout-wrapper-coverage check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
 
 
+def read_workflow_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except UnicodeDecodeError as exc:
+    raise CiScriptTimeoutWrapperCoverageError(f"workflow {path} is not valid UTF-8: {exc}") from exc
+  except OSError as exc:
+    raise CiScriptTimeoutWrapperCoverageError(f"failed to read workflow {path}: {exc}") from exc
+
+
 def collect_workflow_script_references(workflow_text: str) -> set[str]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiScriptTimeoutWrapperCoverageError(f"failed to parse workflow run steps: {exc}") from exc
   return {match.group(1) for match in WORKFLOW_SCRIPT_REF_RE.finditer(run_text)}
 
 
 def collect_wrapped_script_targets(workflow_text: str) -> set[str]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiScriptTimeoutWrapperCoverageError(f"failed to parse workflow run steps: {exc}") from exc
   normalized = LINE_CONTINUATION_RE.sub(" ", run_text)
   return {match.group(1) for match in RUN_WITH_TIMEOUT_TARGET_RE.finditer(normalized)}
 
 
 def collect_shell_test_loop_blocks(workflow_text: str) -> list[tuple[str, str]]:
-  run_text = extract_workflow_run_text(workflow_text)
+  try:
+    run_text = extract_workflow_run_text(workflow_text)
+  except ValueError as exc:
+    raise CiScriptTimeoutWrapperCoverageError(f"failed to parse workflow run steps: {exc}") from exc
   blocks: list[tuple[str, str]] = []
   for match in SHELL_TEST_LOOP_RE.finditer(run_text):
     loop_var = match.group(1)
@@ -93,11 +115,14 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  workflow_text = args.workflow.read_text(encoding="utf-8")
-  workflow_refs = collect_workflow_script_references(workflow_text)
-  wrapped_targets = collect_wrapped_script_targets(workflow_text)
-  shell_test_loops = collect_shell_test_loop_blocks(workflow_text)
-  shell_script_tests = collect_repo_shell_script_tests(args.scripts_dir)
+  try:
+    workflow_text = read_workflow_text(args.workflow)
+    workflow_refs = collect_workflow_script_references(workflow_text)
+    wrapped_targets = collect_wrapped_script_targets(workflow_text)
+    shell_test_loops = collect_shell_test_loop_blocks(workflow_text)
+    shell_script_tests = collect_repo_shell_script_tests(args.scripts_dir)
+  except CiScriptTimeoutWrapperCoverageError as exc:
+    fail(str(exc))
   allowed = set(args.allow_unwrapped)
 
   workflow_refs.discard("run_with_timeout.sh")

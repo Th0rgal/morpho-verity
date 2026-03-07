@@ -4,21 +4,25 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import tempfile
 import unittest
 
 import sys
+from unittest import mock
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_script_timeout_wrapper_coverage import (  # noqa: E402
+  CiScriptTimeoutWrapperCoverageError,
   collect_shell_test_loop_blocks,
   collect_workflow_script_references,
   collect_wrapped_script_targets,
   loop_uses_timeout_wrapper,
   main,
+  read_workflow_text,
 )
 
 
@@ -280,6 +284,50 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
       finally:
         sys.argv = old_argv
+
+  def test_read_workflow_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      workflow.write_bytes(b"\x80")
+
+      with self.assertRaisesRegex(
+        CiScriptTimeoutWrapperCoverageError,
+        "is not valid UTF-8",
+      ):
+        read_workflow_text(workflow)
+
+  def test_collect_workflow_script_references_wraps_parser_errors(self) -> None:
+    with mock.patch(
+      "check_ci_script_timeout_wrapper_coverage.extract_workflow_run_text",
+      side_effect=ValueError("bad workflow"),
+    ):
+      with self.assertRaisesRegex(
+        CiScriptTimeoutWrapperCoverageError,
+        "failed to parse workflow run steps: bad workflow",
+      ):
+        collect_workflow_script_references("jobs:\n")
+
+  def test_cli_reports_invalid_utf8_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      workflow = pathlib.Path(tmp_dir) / "verify.yml"
+      workflow.write_bytes(b"\x80")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_script_timeout_wrapper_coverage.py"),
+          "--workflow",
+          str(workflow),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("ci-script-timeout-wrapper-coverage check failed:", proc.stderr)
+    self.assertIn("is not valid UTF-8", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
