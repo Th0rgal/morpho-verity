@@ -28,7 +28,7 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   (?:,|$)
 """, re.VERBOSE)
-TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)\s+(.*)$")
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$")
 ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$")
 ALIAS_SCALAR_RE = re.compile(r"^\*([^\s]+)$")
 
