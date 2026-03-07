@@ -346,9 +346,9 @@ class BuildReportTests(unittest.TestCase):
                 config_path=config_path,
                 macro_slice_path=macro_slice_path,
             )
-        self.assertEqual(report["source"], display_path(bridge_path))
-        self.assertEqual(report["config"], display_path(config_path))
-        self.assertEqual(report["macroSlice"], display_path(macro_slice_path))
+        self.assertEqual(report["sourcePath"], display_path(bridge_path))
+        self.assertEqual(report["configPath"], display_path(config_path))
+        self.assertEqual(report["macroSlicePath"], display_path(macro_slice_path))
 
 
 class IoHelperTests(unittest.TestCase):
@@ -526,9 +526,9 @@ class CliFailureTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0, proc.stderr)
             report = json.loads(json_out.read_text(encoding="utf-8"))
-            self.assertEqual(report["source"], str(bridge_path))
-            self.assertEqual(report["config"], str(config_path))
-            self.assertEqual(report["macroSlice"], str(macro_path))
+            self.assertEqual(report["sourcePath"], str(bridge_path))
+            self.assertEqual(report["configPath"], str(config_path))
+            self.assertEqual(report["macroSlicePath"], str(macro_path))
 
     def test_json_report_normalizes_relative_cli_input_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -572,9 +572,9 @@ class CliFailureTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0, proc.stderr)
             report = json.loads(json_out.read_text(encoding="utf-8"))
-            self.assertEqual(report["source"], str(bridge_path))
-            self.assertEqual(report["config"], str(config_path))
-            self.assertEqual(report["macroSlice"], str(macro_path))
+            self.assertEqual(report["sourcePath"], str(bridge_path))
+            self.assertEqual(report["configPath"], str(config_path))
+            self.assertEqual(report["macroSlicePath"], str(macro_path))
 
     def test_missing_macro_slice_reports_checker_error_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
