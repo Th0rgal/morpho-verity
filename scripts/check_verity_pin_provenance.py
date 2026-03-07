@@ -16,7 +16,7 @@ from check_verity_pin_sync import parse_lakefile_verity, parse_manifest_verity
 MACRO_FRONTEND_AREA = "Upstream macro/frontend gaps still block operation migration"
 MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
 MACRO_ISSUE_CLUSTERS_LABEL = "Tracked migration issue clusters:"
-MACRO_FILES_LABEL = "Relevant files:"
+FILES_LABEL = "Relevant files:"
 
 
 def fail(msg: str) -> None:
@@ -181,12 +181,27 @@ def validate_exact_doc_list(
     )
 
 
-def validate_macro_frontend_doc_section(
-  doc_text: str,
+def validate_doc_section(
+  section_text: str,
   item: dict[str, object],
   doc_path: pathlib.Path,
 ) -> None:
-  section_text = extract_markdown_section(doc_text, MACRO_FRONTEND_AREA, doc_path)
+  files = item.get("files")
+  if isinstance(files, list):
+    validate_exact_doc_list(
+      section_text=section_text,
+      label=FILES_LABEL,
+      expected=files,
+      doc_path=doc_path,
+      description=f"`{item['area']}` file list",
+    )
+
+
+def validate_macro_frontend_doc_section(
+  section_text: str,
+  item: dict[str, object],
+  doc_path: pathlib.Path,
+) -> None:
   blockers = item.get("blockers")
   if isinstance(blockers, list):
     validate_exact_doc_list(
@@ -204,15 +219,6 @@ def validate_macro_frontend_doc_section(
       expected=issue_clusters,
       doc_path=doc_path,
       description="macro/frontend issue cluster list",
-    )
-  files = item.get("files")
-  if isinstance(files, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=MACRO_FILES_LABEL,
-      expected=files,
-      doc_path=doc_path,
-      description="macro/frontend file list",
     )
 
 
@@ -301,6 +307,8 @@ def main() -> int:
   for item in divergences:
     require_doc_mentions(doc_text, item["area"], args.doc)
     require_doc_mentions(doc_text, item["summary"], args.doc)
+    section_text = extract_markdown_section(doc_text, item["area"], args.doc)
+    validate_doc_section(section_text, item, args.doc)
     blockers = item.get("blockers")
     if isinstance(blockers, list):
       for blocker in blockers:
@@ -316,7 +324,7 @@ def main() -> int:
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
     if item["area"] == MACRO_FRONTEND_AREA:
-      validate_macro_frontend_doc_section(doc_text, item, args.doc)
+      validate_macro_frontend_doc_section(section_text, item, args.doc)
 
   readme_text = args.readme.read_text(encoding="utf-8")
   require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)
