@@ -83,6 +83,17 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
   def test_parse_numbered_items(self) -> None:
     self.assertEqual(parse_numbered_items("1. alpha\n2. beta\n"), ["alpha", "beta"])
 
+  def test_parse_numbered_items_allows_wrapped_continuations(self) -> None:
+    self.assertEqual(
+      parse_numbered_items(
+        "1. alpha\n"
+        "   beta\n"
+        "2. gamma\n"
+        "   delta\n"
+      ),
+      ["alpha beta", "gamma delta"],
+    )
+
   def test_filter_tracked_items(self) -> None:
     self.assertEqual(
       filter_tracked_items([
@@ -133,6 +144,33 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
           ]
         )
       )
+
+  def test_validate_doc_status_rejects_stale_upstream_bridge_wording(self) -> None:
+    stale_items = EXPECTED_PARTIALLY_ENFORCED_ITEMS.copy()
+    stale_items[3] = (
+      "Machine-tracked `semantic-bridge-obligations` status is enforced in CI "
+      "(`scripts/check_semantic_bridge_obligations.py`); until all 18 obligations "
+      "are discharged via the upstream verity hybrid migration path (verity#1060 / "
+      "verity#1065), Solidity equivalence status remains \"Conditional\" rather "
+      "than \"Proved\"."
+    )
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "missing expected partially-enforced status items",
+    ):
+      validate_doc_status(make_doc(partially_enforced_items=stale_items))
+
+  def test_validate_doc_status_allows_wrapped_tracked_partial_item(self) -> None:
+    wrapped_items = EXPECTED_PARTIALLY_ENFORCED_ITEMS.copy()
+    wrapped_items[3] = (
+      "Machine-tracked `semantic-bridge-obligations` status is enforced in CI "
+      "(`scripts/check_semantic_bridge_obligations.py`); Links 2+3 are already "
+      "provided upstream for the supported fragment,\n"
+      "   and Solidity equivalence status remains \"Conditional\" rather than "
+      "\"Proved\" until all 18 obligations are discharged across the remaining "
+      "repo-local Link 1 proofs and macro/frontend blockers."
+    )
+    validate_doc_status(make_doc(partially_enforced_items=wrapped_items))
 
   def test_validate_doc_status_rejects_duplicate_tracked_partial_item(self) -> None:
     with self.assertRaisesRegex(

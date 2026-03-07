@@ -19,7 +19,7 @@ Partially enforced:
 10. README semantic-bridge proved-vs-assumed summary drift gate is enforced in CI (`scripts/check_readme_semantic_bridge_summary.py`).
 11. Proof-facing semantic-bridge readiness registry and summary drift gates are enforced in CI (`scripts/check_semantic_bridge_readiness_sync.py`, `scripts/check_semantic_bridge_readiness_summary.py`).
 12. Machine-tracked `equivalence-obligations` status summary and blocker-cluster drift gates are enforced in CI (`scripts/check_equivalence_obligations_doc.py`, `scripts/check_issue_blocker_clusters.py`).
-13. Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); until all 18 obligations are discharged via the upstream verity hybrid migration path (verity#1060 / verity#1065), Solidity equivalence status remains "Conditional" rather than "Proved".
+13. Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); Links 2+3 are already provided upstream for the supported fragment, and Solidity equivalence status remains "Conditional" rather than "Proved" until all 18 obligations are discharged across the remaining repo-local Link 1 proofs and macro/frontend blockers.
 14. Release-criteria semantic-bridge/equivalence status drift gate is enforced in CI (`scripts/check_release_criteria_status.py`).
 
 Not yet enforced:
