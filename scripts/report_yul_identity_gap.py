@@ -95,19 +95,38 @@ def read_json(path: pathlib.Path) -> dict[str, Any]:
   try:
     with path.open("r", encoding="utf-8") as f:
       return json.load(f)
+  except UnicodeDecodeError as exc:
+    raise YulIdentityGapError(f"failed to decode UTF-8 JSON file {path}: {exc}") from exc
+  except OSError as exc:
+    raise YulIdentityGapError(f"failed to read JSON file {path}: {exc}") from exc
   except json.JSONDecodeError as exc:
     raise YulIdentityGapError(f"failed to parse JSON file {path}: {exc}") from exc
 
 
 def read_text(path: pathlib.Path) -> str:
-  with path.open("r", encoding="utf-8") as f:
-    return f.read()
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return f.read()
+  except UnicodeDecodeError as exc:
+    raise YulIdentityGapError(f"failed to decode UTF-8 text file {path}: {exc}") from exc
+  except OSError as exc:
+    raise YulIdentityGapError(f"failed to read text file {path}: {exc}") from exc
+
+
+def ensure_directory(path: pathlib.Path, *, context: str) -> None:
+  try:
+    path.mkdir(parents=True, exist_ok=True)
+  except OSError as exc:
+    raise YulIdentityGapError(f"failed to create {context} directory {path}: {exc}") from exc
 
 
 def write_text(path: pathlib.Path, content: str) -> None:
-  path.parent.mkdir(parents=True, exist_ok=True)
-  with path.open("w", encoding="utf-8") as f:
-    f.write(content)
+  ensure_directory(path.parent, context="output")
+  try:
+    with path.open("w", encoding="utf-8") as f:
+      f.write(content)
+  except OSError as exc:
+    raise YulIdentityGapError(f"failed to write text file {path}: {exc}") from exc
 
 
 def display_path(path: pathlib.Path) -> str:
@@ -1163,9 +1182,9 @@ def main() -> int:
   rewrite_pipeline_manifest_path = pathlib.Path(args.rewrite_pipeline_manifest).resolve()
   solc_dir = out_dir / "solidity"
   verity_dir = out_dir / "verity"
-  out_dir.mkdir(parents=True, exist_ok=True)
-  solc_dir.mkdir(parents=True, exist_ok=True)
-  verity_dir.mkdir(parents=True, exist_ok=True)
+  ensure_directory(out_dir, context="report output")
+  ensure_directory(solc_dir, context="Solidity output")
+  ensure_directory(verity_dir, context="Verity output")
 
   target = load_parity_target(PARITY_TARGET)
   gate_mode = yul_identity_gate_mode(target)

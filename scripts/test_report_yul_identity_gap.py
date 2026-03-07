@@ -87,6 +87,13 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       with self.assertRaisesRegex(RuntimeError, "failed to parse JSON file"):
         load_prepared_rewrite_pipeline_report(prepared_dir)
 
+  def test_read_json_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "bad.json"
+      path.write_bytes(b"{\xff")
+      with self.assertRaisesRegex(RuntimeError, "failed to decode UTF-8 JSON file"):
+        report_module.read_json(path)
+
   def test_resolve_rewrite_pipeline_report_reuses_prepared_report(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       tmp = pathlib.Path(d)
@@ -807,6 +814,56 @@ object "M" {
       self.assertEqual(proc.returncode, 1)
       self.assertIn("yul identity gap report failed:", proc.stderr)
       self.assertIn("invalid JSON", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_rewrite_proof_manifest_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      out_dir = tmp / "out"
+      proof_manifest = tmp / "bad-rewrite-proof.json"
+      proof_manifest.write_bytes(b"{\xff")
+      proc = subprocess.run(
+        [
+          "python3",
+          "scripts/report_yul_identity_gap.py",
+          "--skip-build",
+          "--out-dir",
+          str(out_dir),
+          "--rewrite-proof-manifest",
+          str(proof_manifest),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("yul identity gap report failed:", proc.stderr)
+      self.assertIn("failed to decode UTF-8 JSON file", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_output_directory_creation_failure_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      out_parent = tmp / "blocked"
+      out_parent.write_text("not a directory", encoding="utf-8")
+      out_dir = out_parent / "child"
+      proc = subprocess.run(
+        [
+          "python3",
+          "scripts/report_yul_identity_gap.py",
+          "--skip-build",
+          "--out-dir",
+          str(out_dir),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("yul identity gap report failed:", proc.stderr)
+      self.assertIn("failed to create report output directory", proc.stderr)
       self.assertNotIn("Traceback", proc.stderr)
 
 
