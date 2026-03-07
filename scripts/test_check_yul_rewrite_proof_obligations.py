@@ -394,8 +394,8 @@ class BuildReportTests(unittest.TestCase):
             manifest_path=manifest_path,
             proof_path=proof_path,
         )
-        self.assertEqual(report["manifest"], str(manifest_path))
-        self.assertEqual(report["proofFile"], str(proof_path))
+        self.assertEqual(report["manifestPath"], str(manifest_path))
+        self.assertEqual(report["proofPath"], str(proof_path))
 
 
 class DisplayPathTests(unittest.TestCase):
@@ -567,8 +567,8 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(proc.returncode, 0)
             report = json.loads(json_out.read_text(encoding="utf-8"))
-            self.assertEqual(report["manifest"], str(manifest))
-            self.assertEqual(report["proofFile"], str(proof_file))
+            self.assertEqual(report["manifestPath"], str(manifest))
+            self.assertEqual(report["proofPath"], str(proof_file))
 
     def test_cli_json_report_normalizes_relative_external_input_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -606,8 +606,8 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(proc.returncode, 0)
             report = json.loads(json_out.read_text(encoding="utf-8"))
-            self.assertEqual(report["manifest"], str(manifest.resolve()))
-            self.assertEqual(report["proofFile"], str(proof_file.resolve()))
+            self.assertEqual(report["manifestPath"], str(manifest.resolve()))
+            self.assertEqual(report["proofPath"], str(proof_file.resolve()))
 
 
 if __name__ == "__main__":

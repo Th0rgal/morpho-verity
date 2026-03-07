@@ -198,8 +198,8 @@ class BuildReportTests(unittest.TestCase):
             pathlib.Path("/tmp/MacroSlice.lean"),
             pathlib.Path("/tmp/semantic-bridge-obligations.json"),
         )
-        self.assertEqual(report["macroSlice"], "/tmp/MacroSlice.lean")
-        self.assertEqual(report["config"], "/tmp/semantic-bridge-obligations.json")
+        self.assertEqual(report["macroSlicePath"], "/tmp/MacroSlice.lean")
+        self.assertEqual(report["configPath"], "/tmp/semantic-bridge-obligations.json")
 
 
 class DisplayPathTests(unittest.TestCase):
@@ -536,8 +536,8 @@ class IntegrationTests(unittest.TestCase):
 
             self.assertEqual(proc.returncode, 0)
             report = json.loads(json_out.read_text(encoding="utf-8"))
-            self.assertEqual(report["macroSlice"], str(macro_path))
-            self.assertEqual(report["config"], str(config_path))
+            self.assertEqual(report["macroSlicePath"], str(macro_path))
+            self.assertEqual(report["configPath"], str(config_path))
 
     def test_cli_json_report_normalizes_relative_external_input_paths(self) -> None:
         with tempfile.TemporaryDirectory() as d:
@@ -578,8 +578,8 @@ class IntegrationTests(unittest.TestCase):
 
             self.assertEqual(proc.returncode, 0)
             report = json.loads(json_out.read_text(encoding="utf-8"))
-            self.assertEqual(report["macroSlice"], str(macro_path.resolve()))
-            self.assertEqual(report["config"], str(config_path.resolve()))
+            self.assertEqual(report["macroSlicePath"], str(macro_path.resolve()))
+            self.assertEqual(report["configPath"], str(config_path.resolve()))
 
 
 if __name__ == "__main__":

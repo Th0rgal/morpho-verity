@@ -311,8 +311,8 @@ def build_report(
         by_prefix[family] = by_prefix.get(family, 0) + 1
 
     return {
-        "manifest": display_path(manifest_path),
-        "proofFile": display_path(proof_path),
+        "manifestPath": display_path(manifest_path),
+        "proofPath": display_path(proof_path),
         "trackedProofRefCount": len(manifest_proof_refs),
         "proofRefs": manifest_proof_refs,
         "byFamily": [

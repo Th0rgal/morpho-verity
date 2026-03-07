@@ -317,8 +317,8 @@ def build_report(
     )
     total = len(coverage)
     return {
-        "macroSlice": display_path(macro_slice_path),
-        "config": display_path(config_path),
+        "macroSlicePath": display_path(macro_slice_path),
+        "configPath": display_path(config_path),
         "total": total,
         "fully_covered": fully_covered,
         "edsl_ready": edsl_ready,
