@@ -152,6 +152,88 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
     ):
       compare_entries(config_entries, readiness_entries)
 
+  def test_parse_readiness_entries_rejects_prefixed_fake_namespace_with_tracked_obligations(self) -> None:
+    fake_namespace = textwrap.dedent(
+      """\
+      namespace Morpho.Proofs.SemanticBridgeReadiness
+
+      def obligations : List SemanticBridgeObligation := [
+        { id := "OBL-SUPPLY-SEM-EQ"
+          hypothesis := "supplySemEq"
+          operation := "supply"
+          status := .assumed
+          macroMigrated := false }
+      ]
+
+      end Morpho.Proofs.SemanticBridgeReadiness
+      """
+    )
+    with tempfile.TemporaryDirectory() as d:
+      readiness_path = pathlib.Path(d) / "SemanticBridgeReadiness.lean"
+      readiness_path.write_text(
+        fake_namespace + "\n" + make_readiness_text(),
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "found multiple SemanticBridgeReadiness namespace blocks with tracked obligations",
+      ):
+        parse_readiness_entries(readiness_path)
+
+  def test_parse_readiness_entries_rejects_reopened_namespace_with_tracked_obligations(self) -> None:
+    reopened_namespace = textwrap.dedent(
+      """\
+      namespace Morpho.Proofs.SemanticBridgeReadiness
+
+      def obligations : List SemanticBridgeObligation := [
+        { id := "OBL-SUPPLY-SEM-EQ"
+          hypothesis := "supplySemEq"
+          operation := "supply"
+          status := .assumed
+          macroMigrated := false }
+      ]
+
+      end Morpho.Proofs.SemanticBridgeReadiness
+      """
+    )
+    with tempfile.TemporaryDirectory() as d:
+      readiness_path = pathlib.Path(d) / "SemanticBridgeReadiness.lean"
+      readiness_path.write_text(
+        make_readiness_text() + "\n" + reopened_namespace,
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "found multiple SemanticBridgeReadiness namespace blocks with tracked obligations",
+      ):
+        parse_readiness_entries(readiness_path)
+
+  def test_parse_readiness_entries_rejects_unmatched_footer_before_namespace(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      readiness_path = pathlib.Path(d) / "SemanticBridgeReadiness.lean"
+      readiness_path.write_text(
+        "end Morpho.Proofs.SemanticBridgeReadiness\n\n" + make_readiness_text(),
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "unmatched SemanticBridgeReadiness namespace footer before first namespace block",
+      ):
+        parse_readiness_entries(readiness_path)
+
+  def test_parse_readiness_entries_rejects_unmatched_footer_after_namespace(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      readiness_path = pathlib.Path(d) / "SemanticBridgeReadiness.lean"
+      readiness_path.write_text(
+        make_readiness_text() + "\nend Morpho.Proofs.SemanticBridgeReadiness\n",
+        encoding="utf-8",
+      )
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "unmatched SemanticBridgeReadiness namespace footer after namespace blocks",
+      ):
+        parse_readiness_entries(readiness_path)
+
   def test_build_config_projection_rejects_duplicate_id(self) -> None:
     config = make_config()
     config["obligations"].append(
