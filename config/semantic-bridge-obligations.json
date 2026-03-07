@@ -118,7 +118,7 @@
       "operation": "createMarket",
       "status": "assumed",
       "macroMigrated": false,
-      "blockedBy": "hard stub (require 0==1): tuple element access, externalCall primitive, blockTimestamp value expression + typed-IR SupportedStmtList proof"
+      "blockedBy": "hard stub (require 0==1): tuple components are not bound in macro bodies, pure-expression externalCall is rejected there, and blockTimestamp is not materialized as a plain Uint256 value for setMappingWord; typed-IR SupportedStmtList proof still pending after frontend support lands"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",

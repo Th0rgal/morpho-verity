@@ -53,8 +53,8 @@ primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D str
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
-`createMarket` is a hard stub pending upstream verity EDSL support (tuple element access,
-`externalCall` primitive, `blockTimestamp` value expression).
+`createMarket` is a hard stub pending macro-frontend support for tuple-component binding,
+pure-expression `externalCall`, and a usable `blockTimestamp` value path.
 
 ## Semantic Bridge Discharge Path
 
@@ -132,9 +132,10 @@ explicit translators, `Bytes32`/`Bool` type support.
 **Note on createMarket**: Currently a hard stub (`require (0 == 1) "createMarket stub"`).
 A full implementation using `setMappingWord`/`getMappingWord` with manual word-offset
 addressing was attempted but reverted (preserved in git history, commit 82e5572).
-The remaining blockers are: tuple element access, `externalCall` primitive, and
-`blockTimestamp` as a value expression. These constructs are not yet supported by
-the current pinned verity revision (9d9533b2).
+At the current pin, a minimal macro repro still fails because tuple components such as
+`marketParams_0` are not introduced into the body scope, pure-expression `externalCall`
+is not recognized there, and `blockTimestamp` cannot be fed to `setMappingWord` as a
+plain `Uint256` value.
 
 ## Primitive Coverage & Discharge Readiness
 
