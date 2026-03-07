@@ -15,6 +15,17 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC_PATH = ROOT / "Morpho" / "Compiler" / "Spec.lean"
 BASELINE_PATH = ROOT / "config" / "macro-migration-blockers.json"
+OBLIGATIONS_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
+
+TRACKED_OPERATION_BLOCKER_OPS = {
+  "borrow",
+  "liquidate",
+  "repay",
+  "supply",
+  "supplyCollateral",
+  "withdraw",
+  "withdrawCollateral",
+}
 
 # Supported constructor surface in Verity macro translation (current upstream state).
 SUPPORTED_STMT = {
@@ -86,6 +97,19 @@ SUPPORTED_EXPR = {
 }
 
 CTOR_RE = re.compile(r"\b(Stmt|Expr)\.([A-Za-z0-9_]+)")
+SPEC_BODY_REF_RE = re.compile(r"body\s*:=\s*(\w+)")
+SPEC_BODY_DEF_RE = re.compile(
+  r"private\s+def\s+(\w+)\s*:\s*List\s+Stmt\s*:=\s*(.*?)(?=^(?:private\s+def|/--|def\s+\w+|end\b)|\Z)",
+  re.MULTILINE | re.DOTALL,
+)
+BLOCKER_PATTERNS = {
+  "callbacks": re.compile(r"\bCallbacks\.callback\b"),
+  "erc20": re.compile(r"\bERC20\.safeTransfer(?:From)?\b"),
+  "externalWithReturn": re.compile(r"\bCalls\.withReturn\b"),
+  "internalCall": re.compile(r"\b(?:Stmt\.internalCall|callAccrueInterest)\b"),
+  "memoryOps": re.compile(r"\b(?:Stmt\.mstore|Expr\.mload)\b"),
+  "structMember2": re.compile(r"\b(?:Expr\.structMember2|Stmt\.setStructMember2)\b"),
+}
 
 
 @dataclass(frozen=True)
@@ -123,6 +147,82 @@ def total_occurrences(counts: dict[str, int], keys: set[str]) -> int:
 def load_baseline(path: pathlib.Path) -> dict[str, Any]:
   with path.open("r", encoding="utf-8") as f:
     return json.load(f)
+
+
+def extract_spec_function_blocks(text: str) -> list[str]:
+  match = re.search(r"functions\s*:=\s*\[", text)
+  if not match:
+    return []
+  start = match.end()
+  blocks = []
+  depth = 0
+  current_block = ""
+  in_block = False
+  for i in range(start, len(text)):
+    ch = text[i]
+    if ch == "{":
+      if depth == 0:
+        in_block = True
+        current_block = ""
+      depth += 1
+    if in_block:
+      current_block += ch
+    if ch == "}":
+      depth -= 1
+      if depth == 0 and in_block:
+        in_block = False
+        blocks.append(current_block)
+    if ch == "]" and depth == 0 and not in_block:
+      break
+  return blocks
+
+
+def extract_spec_body_defs(text: str) -> dict[str, str]:
+  return {m.group(1): m.group(2) for m in SPEC_BODY_DEF_RE.finditer(text)}
+
+
+def extract_operation_bodies(text: str) -> dict[str, str]:
+  body_defs = extract_spec_body_defs(text)
+  result: dict[str, str] = {}
+  for block in extract_spec_function_blocks(text):
+    name_match = re.search(r'name\s*:=\s*"(\w+)"', block)
+    if not name_match:
+      continue
+    body_ref = SPEC_BODY_REF_RE.search(block)
+    result[name_match.group(1)] = body_defs.get(body_ref.group(1), block) if body_ref else block
+  return result
+
+
+def detect_operation_blockers(body_text: str) -> list[str]:
+  return sorted(
+    blocker for blocker, pattern in BLOCKER_PATTERNS.items()
+    if pattern.search(body_text) is not None
+  )
+
+
+def build_operation_blocker_report(spec_text: str) -> dict[str, list[str]]:
+  bodies = extract_operation_bodies(spec_text)
+  return {
+    op: detect_operation_blockers(bodies[op])
+    for op in sorted(TRACKED_OPERATION_BLOCKER_OPS)
+    if op in bodies
+  }
+
+
+def load_obligations(path: pathlib.Path) -> dict[str, dict[str, Any]]:
+  raw = load_baseline(path)
+  obligations = raw.get("obligations")
+  if not isinstance(obligations, list):
+    raise MigrationGateError(f"missing `obligations` list in {path}")
+  by_operation: dict[str, dict[str, Any]] = {}
+  for i, item in enumerate(obligations):
+    if not isinstance(item, dict):
+      raise MigrationGateError(f"obligation[{i}] is not an object in {path}")
+    operation = item.get("operation")
+    if not isinstance(operation, str) or not operation:
+      raise MigrationGateError(f"obligation[{i}] missing non-empty `operation` in {path}")
+    by_operation[operation] = item
+  return by_operation
 
 
 def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
@@ -215,12 +315,50 @@ def validate_against_baseline(report: dict[str, Any], baseline: dict[str, Any]) 
     )
 
 
+def validate_operation_blockers(
+  operation_blockers: dict[str, list[str]],
+  obligations: dict[str, dict[str, Any]],
+) -> None:
+  missing_ops = sorted(TRACKED_OPERATION_BLOCKER_OPS - set(operation_blockers))
+  if missing_ops:
+    raise MigrationGateError(
+      "tracked operation blocker coverage missing spec bodies: "
+      f"{missing_ops}"
+    )
+
+  for operation in sorted(TRACKED_OPERATION_BLOCKER_OPS):
+    obligation = obligations.get(operation)
+    if obligation is None:
+      raise MigrationGateError(
+        f"tracked operation blocker coverage missing obligation for `{operation}`"
+      )
+    if obligation.get("macroMigrated") is not False:
+      raise MigrationGateError(
+        f"tracked operation `{operation}` must remain macroMigrated=false while blocker-tracked"
+      )
+    expected = obligation.get("macroSurfaceBlockers")
+    if not isinstance(expected, list) or not expected or not all(isinstance(x, str) for x in expected):
+      raise MigrationGateError(
+        f"obligation `{operation}` missing non-empty string list `macroSurfaceBlockers`"
+      )
+    expected_set = set(expected)
+    actual_set = set(operation_blockers[operation])
+    if expected_set != actual_set:
+      missing = sorted(actual_set - expected_set)
+      extra = sorted(expected_set - actual_set)
+      raise MigrationGateError(
+        f"obligation `{operation}` macroSurfaceBlockers drift detected: "
+        f"missing={missing} extra={extra}"
+      )
+
+
 def parser() -> argparse.ArgumentParser:
   p = argparse.ArgumentParser(
     description="Check morphoSpec constructor usage against current verity macro support"
   )
   p.add_argument("--spec", type=pathlib.Path, default=SPEC_PATH)
   p.add_argument("--baseline", type=pathlib.Path, default=BASELINE_PATH)
+  p.add_argument("--obligations", type=pathlib.Path, default=OBLIGATIONS_PATH)
   p.add_argument("--json-out", type=pathlib.Path)
   p.add_argument(
     "--write",
@@ -235,6 +373,7 @@ def main() -> None:
   spec_text = read_text(args.spec)
   usage = parse_constructor_usage(spec_text)
   report = build_report(usage)
+  operation_blockers = build_operation_blocker_report(spec_text)
 
   if args.write:
     baseline = {
@@ -251,7 +390,11 @@ def main() -> None:
     write_baseline(args.baseline, baseline)
 
   baseline = load_baseline(args.baseline)
+  obligations = load_obligations(args.obligations)
   validate_against_baseline(report, baseline)
+  validate_operation_blockers(operation_blockers, obligations)
+
+  report["operationBlockers"] = operation_blockers
 
   if args.json_out:
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
