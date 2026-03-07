@@ -417,6 +417,3 @@ if __name__ == "__main__":
   except SemanticBridgeReadinessSummaryError as e:
     print(f"semantic-bridge-readiness-summary check failed: {e}", file=sys.stderr)
     raise SystemExit(1)
-  except FileNotFoundError as e:
-    print(f"semantic-bridge-readiness-summary check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
