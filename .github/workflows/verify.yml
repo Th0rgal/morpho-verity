@@ -127,6 +127,9 @@ jobs:
       - name: Validate CI workflow permissions policy
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow permissions policy" -- python3 scripts/check_ci_workflow_permissions.py
 
+      - name: Validate CI workflow trigger policy
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow trigger policy" -- python3 scripts/check_ci_workflow_triggers.py
+
       - name: Validate CI workflow concurrency policy
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow concurrency policy" -- python3 scripts/check_ci_workflow_concurrency.py
 
