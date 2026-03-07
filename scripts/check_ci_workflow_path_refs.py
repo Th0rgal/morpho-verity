@@ -7,9 +7,7 @@ import argparse
 import pathlib
 import sys
 
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+from ci_workflow_helpers import WORKFLOW_PATH, read_text, strip_yaml_scalar
 
 SUPPORTED_ACTION_PREFIXES = {
   "actions/cache@": "cache",
@@ -25,27 +23,6 @@ class CiWorkflowPathRefsError(RuntimeError):
 def fail(message: str) -> None:
   print(f"ci-workflow-path-refs check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
-
-
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowPathRefsError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowPathRefsError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
 
 def _collect_job_blocks(lines: list[str]) -> list[list[str]]:
   jobs_index: int | None = None
@@ -92,7 +69,7 @@ def _parse_path_entries(
       indent, candidate = step_lines[next_index]
       if indent <= path_indent:
         break
-      entry = _strip_yaml_scalar(candidate)
+      entry = strip_yaml_scalar(candidate)
       if entry:
         values.append(entry)
       next_index += 1
@@ -100,7 +77,7 @@ def _parse_path_entries(
       raise CiWorkflowPathRefsError("workflow path block scalar must include at least one entry")
     return values, next_index
 
-  value = _strip_yaml_scalar(raw_value)
+  value = strip_yaml_scalar(raw_value)
   if not value:
     raise CiWorkflowPathRefsError("workflow path must be a non-empty literal")
   return [value], path_index + 1
@@ -136,7 +113,7 @@ def collect_workflow_action_paths(workflow_text: str) -> list[tuple[str, str]]:
       while cursor < len(step_lines):
         indent, candidate = step_lines[cursor]
         if candidate.startswith("uses:"):
-          action_ref = _strip_yaml_scalar(candidate.split(":", 1)[1])
+          action_ref = strip_yaml_scalar(candidate.split(":", 1)[1])
           for prefix, kind in SUPPORTED_ACTION_PREFIXES.items():
             if action_ref.startswith(prefix):
               action_kind = kind
@@ -185,7 +162,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowPathRefsError)
     action_paths = collect_workflow_action_paths(workflow_text)
     for _, path_ref in action_paths:
       validate_path_ref(path_ref)

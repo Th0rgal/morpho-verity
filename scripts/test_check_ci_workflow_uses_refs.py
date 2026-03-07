@@ -45,6 +45,14 @@ class CollectWorkflowUsesReferencesTests(unittest.TestCase):
       ],
     )
 
+  def test_preserves_hash_inside_quoted_uses_reference(self) -> None:
+    workflow_text = '\n'.join(["jobs:", "  verify:", '    uses: "owner/repo/path@ref#fragment"'])
+
+    self.assertEqual(
+      collect_workflow_uses_references(workflow_text),
+      ["owner/repo/path@ref#fragment"],
+    )
+
 
 class ValidateUsesReferenceTests(unittest.TestCase):
   def test_rejects_expression_reference(self) -> None:

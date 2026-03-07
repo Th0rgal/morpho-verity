@@ -8,9 +8,7 @@ import pathlib
 import re
 import sys
 
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+from ci_workflow_helpers import ROOT, WORKFLOW_PATH, read_text, strip_yaml_scalar
 ACTION_METADATA_FILES = ("action.yml", "action.yaml", "Dockerfile")
 EXTERNAL_ACTION_RE = re.compile(
   r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-/]+)?@[^\s@]+$"
@@ -26,26 +24,6 @@ def fail(message: str) -> None:
   raise SystemExit(1)
 
 
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowUsesRefsError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowUsesRefsError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
-
 def collect_workflow_uses_references(workflow_text: str) -> list[str]:
   references: list[str] = []
   for raw_line in workflow_text.splitlines():
@@ -56,7 +34,7 @@ def collect_workflow_uses_references(workflow_text: str) -> list[str]:
       stripped = stripped[2:].lstrip()
     if not stripped.startswith("uses:"):
       continue
-    uses_ref = _strip_yaml_scalar(stripped.split(":", 1)[1])
+    uses_ref = strip_yaml_scalar(stripped.split(":", 1)[1])
     if not uses_ref:
       raise CiWorkflowUsesRefsError("workflow uses: reference must be a non-empty literal")
     references.append(uses_ref)
@@ -130,7 +108,7 @@ def main() -> int:
     fail(f"repository root does not exist: {repo_root}")
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowUsesRefsError)
     uses_references = collect_workflow_uses_references(workflow_text)
     for uses_ref in uses_references:
       validate_uses_reference(repo_root, uses_ref)
