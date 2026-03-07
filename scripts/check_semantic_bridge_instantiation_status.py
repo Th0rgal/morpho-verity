@@ -48,22 +48,25 @@ VALIDATES_SECTION_HEADER = "## What this validates"
 SUMMARY_SECTION_HEADER = "/-! ## Summary"
 NAMESPACE_HEADER = "namespace Morpho.Proofs.SemanticBridgeInstantiation"
 CLOSING_DOCBLOCK_PATTERN = r"(?m)^\s*-/\s*$"
+VALIDATES_SECTION_PATTERN = r"(?m)^\s*## What this validates\s*$"
+SUMMARY_SECTION_PATTERN = r"(?m)^\s*/-!\s*## Summary\s*$"
 
 
 def extract_section(
   *,
   text: str,
-  start_marker: str,
+  start_pattern: str,
   missing_error: str,
   empty_error: str,
   missing_end_error: str,
   end_marker: str | None = None,
   end_pattern: str | None = None,
 ) -> str:
-  try:
-    _, after_start = text.split(start_marker, 1)
-  except ValueError as exc:
-    raise SemanticBridgeInstantiationStatusError(missing_error) from exc
+  start_match = re.search(start_pattern, text)
+  if start_match is None:
+    raise SemanticBridgeInstantiationStatusError(missing_error)
+
+  after_start = text[start_match.end() :]
 
   if end_marker is not None:
     try:
@@ -86,7 +89,7 @@ def extract_section(
 def extract_validates_section(text: str) -> str:
   section = extract_section(
     text=text,
-    start_marker=VALIDATES_SECTION_HEADER,
+    start_pattern=VALIDATES_SECTION_PATTERN,
     end_marker=NAMESPACE_HEADER,
     missing_error="SemanticBridgeInstantiation.lean status drift: missing `## What this validates` section",
     empty_error="SemanticBridgeInstantiation.lean status drift: empty `## What this validates` section",
@@ -102,7 +105,7 @@ def extract_validates_section(text: str) -> str:
 def extract_summary_section(text: str) -> str:
   return extract_section(
     text=text,
-    start_marker=SUMMARY_SECTION_HEADER,
+    start_pattern=SUMMARY_SECTION_PATTERN,
     end_pattern=CLOSING_DOCBLOCK_PATTERN,
     missing_error="SemanticBridgeInstantiation.lean status drift: missing `## Summary` section",
     empty_error="SemanticBridgeInstantiation.lean status drift: empty `## Summary` section",

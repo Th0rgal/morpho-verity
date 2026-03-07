@@ -76,12 +76,28 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     ):
       extract_validates_section(make_text().replace("## What this validates", "## Validation"))
 
+  def test_extract_validates_section_ignores_marker_text_inside_prose(self) -> None:
+    text = make_text().replace(
+      "# Semantic Bridge Instantiation\n",
+      "# Semantic Bridge Instantiation\n\nA note mentioning ## What this validates inline.\n",
+      1,
+    )
+    self.assertIn(EXPECTED_INTRO_STATUS, extract_validates_section(text))
+
   def test_extract_summary_section_rejects_missing_header(self) -> None:
     with self.assertRaisesRegex(
       SemanticBridgeInstantiationStatusError,
       "missing `## Summary` section",
     ):
       extract_summary_section(make_text().replace("/-! ## Summary", "/-! ## Closing"))
+
+  def test_extract_summary_section_ignores_marker_text_inside_prose(self) -> None:
+    text = make_text().replace(
+      EXPECTED_INTRO_STATUS,
+      EXPECTED_INTRO_STATUS + "\n\nInline prose /-! ## Summary should not start a section.",
+      1,
+    )
+    self.assertIn(EXPECTED_SUMMARY_COMPOSITION, extract_summary_section(text))
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
@@ -154,6 +170,19 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       "missing closing `-/` for `## What this validates` section",
     ):
       validate_status(make_text().replace("-/", "", 1))
+
+  def test_validate_status_rejects_intro_header_drift_hidden_by_inline_marker_text(self) -> None:
+    text = make_text().replace("## What this validates", "## Validation", 1)
+    masked_text = text.replace(
+      "# Semantic Bridge Instantiation\n",
+      "# Semantic Bridge Instantiation\n\nA note mentioning ## What this validates inline.\n",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing `## What this validates` section",
+    ):
+      validate_status(masked_text)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
