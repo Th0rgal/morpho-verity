@@ -68,24 +68,33 @@ def require_unique_match(
   if len(matches) > 1:
     raise EquivalenceObligationsDocError(
       f"found multiple `{description}` matches in EQUIVALENCE_OBLIGATIONS.md"
-    )
+  )
   return matches[0]
 
 
+def find_unique_heading_line(text: str, heading: str, description: str) -> re.Match[str]:
+  return require_unique_match(
+    re.compile(rf"(?m)^{re.escape(heading)}$"),
+    text,
+    description,
+  )
+
+
 def extract_heading_section(doc_text: str, start_heading: str, end_heading: str) -> str:
-  start_marker = f"{start_heading}\n"
-  end_marker = f"{end_heading}\n"
-  start = doc_text.find(start_marker)
-  if start == -1:
+  try:
+    start_match = find_unique_heading_line(doc_text, start_heading, f"{start_heading} heading")
+  except EquivalenceObligationsDocError as exc:
     raise EquivalenceObligationsDocError(
       f"missing `{start_heading}` section in EQUIVALENCE_OBLIGATIONS.md"
-    )
-  start += len(start_marker)
-  end = doc_text.find(end_marker, start)
-  if end == -1:
+    ) from exc
+  try:
+    end_match = find_unique_heading_line(doc_text, end_heading, f"{end_heading} heading")
+  except EquivalenceObligationsDocError as exc:
     raise EquivalenceObligationsDocError(
       f"missing `{end_heading}` boundary after `{start_heading}` in EQUIVALENCE_OBLIGATIONS.md"
-    )
+    ) from exc
+  start = start_match.end() + 1
+  end = end_match.start()
   if end <= start:
     raise EquivalenceObligationsDocError(
       f"`{start_heading}` has invalid boundary ordering in EQUIVALENCE_OBLIGATIONS.md"
@@ -100,12 +109,16 @@ def extract_heading_section(doc_text: str, start_heading: str, end_heading: str)
 
 def extract_macro_status_block(doc_text: str) -> str:
   table_section = extract_heading_section(doc_text, OBLIGATION_TABLE_HEADING, DISCHARGE_PATH_HEADING)
-  summary_marker = f"{SECTION_HEADING}\n"
-  end = table_section.find(summary_marker)
-  if end == -1:
+  try:
+    end = find_unique_heading_line(
+      table_section,
+      SECTION_HEADING,
+      f"{SECTION_HEADING} heading",
+    ).start()
+  except EquivalenceObligationsDocError as exc:
     raise EquivalenceObligationsDocError(
       "missing `### Blocker cluster summary` boundary after macro status block in EQUIVALENCE_OBLIGATIONS.md"
-    )
+    ) from exc
   block = table_section[:end]
   if not block.strip():
     raise EquivalenceObligationsDocError(
@@ -211,16 +224,25 @@ def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
 
 
 def extract_issue_summary_table(doc_text: str) -> list[str]:
-  lines = doc_text.splitlines()
   try:
-    heading_index = lines.index(SECTION_HEADING)
-  except ValueError as exc:
+    table_section = extract_heading_section(
+      doc_text,
+      OBLIGATION_TABLE_HEADING,
+      DISCHARGE_PATH_HEADING,
+    )
+    heading_match = find_unique_heading_line(
+      table_section,
+      SECTION_HEADING,
+      f"{SECTION_HEADING} heading",
+    )
+  except EquivalenceObligationsDocError as exc:
     raise EquivalenceObligationsDocError(
       f"missing `{SECTION_HEADING}` section followed by markdown table"
     ) from exc
 
+  lines = table_section[heading_match.end() :].splitlines()
   table_lines: list[str] = []
-  for line in lines[heading_index + 1 :]:
+  for line in lines:
     stripped = line.rstrip()
     if not stripped:
       if table_lines:

@@ -298,6 +298,31 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     ):
       validate_status_summary(drifted_doc, summary)
 
+  def test_validate_status_summary_rejects_drift_hidden_behind_fake_status_heading(self) -> None:
+    summary = derive_summary(make_config())
+    expected_link1 = (
+      f"{summary['link1_count']}/{summary['total']} obligations have Link 1"
+    )
+    wrong_link1 = f"{int(summary['link1_count']) - 1}/{summary['total']} obligations have Link 1"
+    drifted_doc = make_doc([], summary=summary).replace(expected_link1, wrong_link1, 1)
+    link1_operations = ", ".join(summary["link1_operations"]) or "none"
+    fake_status = "\n".join([
+      "## Status",
+      "",
+      f"{expected_link1} (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
+      "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
+      "",
+      "## Scope",
+      "",
+      "Decoy scope.",
+      "",
+    ])
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "missing `## Status` section",
+    ):
+      validate_status_summary(f"{fake_status}{drifted_doc}", summary)
+
   def test_extract_issue_summary_table(self) -> None:
     table_lines = [
       "| Cluster | Operations | Blocker families | Coverage counts |",
@@ -323,6 +348,27 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
       "does not match derived issue-cluster report",
     ):
       validate_issue_summary_table(drifted_doc, clusters)
+
+  def test_validate_issue_summary_table_rejects_drift_hidden_behind_fake_section(self) -> None:
+    clusters = validate_issue_clusters(make_config())
+    expected_lines = expected_table_lines(clusters)
+    drifted_doc = make_doc([
+      "| Cluster | Operations | Blocker families | Coverage counts |",
+      "|-------|------------|------------------|-----------------|",
+      "| `#123` | `supply` | `erc20` | erc20\u00d71 |",
+      "| `#124` | `liquidate` | `erc20` | erc20\u00d71 |",
+    ])
+    fake_section = "\n".join([
+      "### Blocker cluster summary",
+      "",
+      *expected_lines,
+      "",
+    ])
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "does not match derived issue-cluster report",
+    ):
+      validate_issue_summary_table(f"# Notes\n\n{fake_section}{drifted_doc}", clusters)
 
   def test_validate_issue_summary_table_allows_empty_cluster_table(self) -> None:
     empty_config = {"obligations": [], "issueClusters": []}
