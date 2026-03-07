@@ -128,8 +128,23 @@ def require_unique_match(
   return matches[0]
 
 
+def require_first_match(
+  pattern: re.Pattern[str],
+  text: str,
+  description: str,
+  *,
+  start: int = 0,
+) -> re.Match[str]:
+  match = pattern.search(text, start)
+  if match is None:
+    raise SemanticBridgeReadinessSummaryError(
+      f"failed to locate {description} in SemanticBridgeReadiness.lean"
+    )
+  return match
+
+
 def extract_intro_section(text: str) -> str:
-  namespace_match = require_unique_match(
+  namespace_match = require_first_match(
     NAMESPACE_PATTERN,
     text,
     "SemanticBridgeReadiness namespace boundary",
@@ -174,15 +189,16 @@ def extract_discharge_path_section(intro_text: str) -> str:
 
 
 def extract_namespace_body(text: str) -> str:
-  namespace_match = require_unique_match(
+  namespace_match = require_first_match(
     NAMESPACE_PATTERN,
     text,
     "SemanticBridgeReadiness namespace boundary",
   )
-  end_namespace_match = require_unique_match(
+  end_namespace_match = require_first_match(
     END_NAMESPACE_PATTERN,
     text,
     "SemanticBridgeReadiness namespace end boundary",
+    start=namespace_match.end(),
   )
   if end_namespace_match.start() <= namespace_match.end():
     raise SemanticBridgeReadinessSummaryError(

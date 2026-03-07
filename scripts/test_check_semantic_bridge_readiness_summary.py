@@ -296,6 +296,16 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
     ):
       validate_summary(readiness_text, derive_summary(make_config()))
 
+  def test_validate_summary_accepts_reopened_namespace_after_primary_block(self) -> None:
+    readiness_text = make_readiness_text() + (
+      "\nnamespace Morpho.Proofs.SemanticBridgeReadiness\n"
+      "/-- trailing notes outside the tracked summary block -/\n"
+      "theorem trailing_fact : True := by\n"
+      "  trivial\n"
+      "end Morpho.Proofs.SemanticBridgeReadiness\n"
+    )
+    validate_summary(readiness_text, derive_summary(make_config()))
+
   def test_validate_summary_rejects_missing_intro_closure(self) -> None:
     readiness_text = make_readiness_text().replace(
       "    -/\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
