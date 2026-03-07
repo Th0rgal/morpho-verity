@@ -27,7 +27,10 @@ def fail(msg: str) -> None:
 
 
 def parse_lakefile_verity(lakefile_path: pathlib.Path) -> tuple[str, str]:
-  text = lakefile_path.read_text(encoding="utf-8")
+  try:
+    text = lakefile_path.read_text(encoding="utf-8")
+  except (OSError, UnicodeDecodeError) as exc:
+    raise VerityPinSyncError(f"failed to read lakefile {lakefile_path}: {exc}") from exc
   match = REQUIRE_VERITY_RE.search(text)
   if match is None:
     raise VerityPinSyncError(f"missing `require verity from git` stanza in {lakefile_path}")
@@ -37,6 +40,8 @@ def parse_lakefile_verity(lakefile_path: pathlib.Path) -> tuple[str, str]:
 def parse_manifest_verity(manifest_path: pathlib.Path) -> tuple[str, str, str]:
   try:
     data: Any = json.loads(manifest_path.read_text(encoding="utf-8"))
+  except (OSError, UnicodeDecodeError) as exc:
+    raise VerityPinSyncError(f"failed to read manifest {manifest_path}: {exc}") from exc
   except json.JSONDecodeError as exc:
     raise VerityPinSyncError(f"failed to parse JSON manifest {manifest_path}: {exc}") from exc
   if not isinstance(data, dict):
