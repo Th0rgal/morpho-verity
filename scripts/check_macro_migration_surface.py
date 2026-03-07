@@ -36,8 +36,21 @@ class MacroMigrationSurfaceError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-  with path.open("r", encoding="utf-8") as f:
-    return f.read()
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return f.read()
+  except UnicodeDecodeError as exc:
+    raise MacroMigrationSurfaceError(f"failed to decode UTF-8 text file {path}: {exc}") from exc
+  except OSError as exc:
+    raise MacroMigrationSurfaceError(f"failed to read text file {path}: {exc}") from exc
+
+
+def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
+  try:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+  except OSError as exc:
+    raise MacroMigrationSurfaceError(f"failed to write JSON report {path}: {exc}") from exc
 
 
 def fail(msg: str) -> None:
@@ -284,11 +297,11 @@ def main() -> None:
 
   try:
     report = run_check()
+    if args.json_out is not None:
+      write_json_report(args.json_out, report)
   except MacroMigrationSurfaceError as exc:
     fail(str(exc))
   if args.json_out is not None:
-    args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    args.json_out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"wrote migration-surface report: {args.json_out}")
 
   print(
