@@ -57,14 +57,11 @@ theorem setFee_preserves_feeInRange (s : MorphoState) (id : Id) (newFee : Uint25
     (borrowRate : Uint256) (hasIrm : Bool)
     (h : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
     feeInRange s' id := by
-  unfold Morpho.setFee at h
-  split at h <;> simp at h
-  -- h : ¬lastUpdate=0 ∧ ¬newFee=fee ∧ newFee.val ≤ MAX_FEE ∧ { ... fee := newFee ... } = s'
+  obtain ⟨_, _, _, hFeeBound, rfl⟩ :=
+    (Morpho.setFee_success_iff s s' id newFee borrowRate hasIrm).1 h
   unfold feeInRange
-  rw [← h.right.right.right]
-  -- Goal: ({ ... market := fun id' => if id' = id then { ... fee := newFee } else ... }).market id).fee.val ≤ MAX_FEE
   simp
-  exact h.right.right.left
+  exact hFeeBound
 
 /-- Helper: if a ≤ b and both a,b < modulus, then (a-d)%mod ≤ (b-d)%mod. -/
 private theorem sub_mod_le_sub_mod {a b d modulus : Nat}
@@ -354,10 +351,9 @@ theorem setFee_preserves_borrowLeSupply (s : MorphoState) (id : Id) (newFee borr
           (u256 (s.blockTimestamp.val - (s.market id).lastUpdate.val)))).val
       < Verity.Core.Uint256.modulus) :
     borrowLeSupply s' id := by
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' id newFee borrowRate hasIrm).1 h_ok
   unfold borrowLeSupply at h_solvent ⊢
-  rw [← h_eq]; simp
+  rw [h_eq]; simp
   -- After accrueInterest, only fee changes. Market totals come from accrueInterest.
   -- accrueInterest preserves solvency (already proven).
   have h_ai := accrueInterest_preserves_borrowLeSupply s id borrowRate hasIrm h_solvent
@@ -705,9 +701,8 @@ theorem setFee_preserves_alwaysCollateralized (s : MorphoState) (id : Id)
     (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
-  rw [← h_eq] at h_borrow ⊢; simp at h_borrow ⊢
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' id newFee borrowRate hasIrm).1 h_ok
+  rw [h_eq] at h_borrow ⊢; simp at h_borrow ⊢
   -- After accrueInterest + fee change, positions are same as after accrueInterest.
   have h_ai := accrueInterest_preserves_alwaysCollateralized s id borrowRate hasIrm user h_collat
   unfold alwaysCollateralized at h_ai
@@ -1390,9 +1385,8 @@ theorem setFee_preserves_irmMonotone (s : MorphoState) (id : Id) (newFee borrowR
     (hasIrm : Bool) (irm : Address) (h_enabled : s.isIrmEnabled irm)
     (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
     s'.isIrmEnabled irm := by
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; simp; unfold Morpho.accrueInterest; simp
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' id newFee borrowRate hasIrm).1 h_ok
+  rw [h_eq]; simp; unfold Morpho.accrueInterest; simp
   split
   · exact h_enabled
   · split <;> exact h_enabled
@@ -1524,9 +1518,8 @@ theorem setFee_preserves_lltvMonotone (s : MorphoState) (id : Id) (newFee borrow
     (hasIrm : Bool) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
     (h_ok : Morpho.setFee s id newFee borrowRate hasIrm = some s') :
     s'.isLltvEnabled lltv := by
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; simp; unfold Morpho.accrueInterest; simp
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' id newFee borrowRate hasIrm).1 h_ok
+  rw [h_eq]; simp; unfold Morpho.accrueInterest; simp
   split
   · exact h_enabled
   · split <;> exact h_enabled
@@ -1583,9 +1576,8 @@ theorem setFee_lastUpdate_monotone (s : MorphoState) (id : Id) (newFee borrowRat
     (h_elapsed : s.blockTimestamp.val ≥ (s.market id).lastUpdate.val) :
     lastUpdateMonotone s s' id := by
   unfold lastUpdateMonotone
-  unfold Morpho.setFee at h_ok; simp at h_ok
-  obtain ⟨_, _, _, _, h_eq⟩ := h_ok
-  rw [← h_eq]; simp
+  obtain ⟨_, _, _, _, h_eq⟩ := (Morpho.setFee_success_iff s s' id newFee borrowRate hasIrm).1 h_ok
+  rw [h_eq]; simp
   have h_ai := accrueInterest_lastUpdate_monotone s id borrowRate hasIrm h_elapsed
   unfold lastUpdateMonotone at h_ai
   exact h_ai

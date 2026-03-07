@@ -150,6 +150,31 @@ def setFee (s : MorphoState) (id : Id) (newFee : Uint256) (borrowRate : Uint256)
       some { s' with
         market := fun id' => if id' == id then { m' with fee := newFee } else s'.market id' }
 
+theorem setFee_success_iff (s s' : MorphoState) (id : Id) (newFee borrowRate : Uint256)
+    (hasIrm : Bool) :
+    setFee s id newFee borrowRate hasIrm = some s' ↔
+      s.sender = s.owner ∧
+      (s.market id).lastUpdate.val ≠ 0 ∧
+      newFee ≠ (s.market id).fee ∧
+      newFee.val ≤ ConstantsLib.MAX_FEE ∧
+      let sAccrued := accrueInterest s id borrowRate hasIrm
+      let m' := sAccrued.market id
+      s' = { sAccrued with
+        market := fun id' => if id' == id then { m' with fee := newFee } else sAccrued.market id' } := by
+  constructor
+  · intro h
+    unfold setFee at h
+    by_cases hOwner : s.sender = s.owner
+    · simp [hOwner] at h
+      rcases h with ⟨hLastUpdate, hNewFee, hFeeBound, rfl⟩
+      simp [hOwner, hLastUpdate, hNewFee, hFeeBound]
+    · simp [hOwner] at h
+  · intro h
+    dsimp at h
+    rcases h with ⟨hOwner, hLastUpdate, hNewFee, hFeeBound, rfl⟩
+    unfold setFee
+    simp [hOwner, hLastUpdate, hNewFee, hFeeBound]
+
 /-- Set fee recipient. Matches `setFeeRecipient` (Morpho.sol:139). -/
 noncomputable abbrev setFeeRecipient : MorphoState → Address → Option MorphoState :=
   Morpho.Specs.ContractSemantics.setFeeRecipient
