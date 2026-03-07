@@ -50,6 +50,10 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 `MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065
 lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
+For the 7 open core/collateral flow stubs, `config/semantic-bridge-obligations.json` now also
+tracks machine-readable `macroSurfaceBlockers` arrays, and
+`scripts/check_macro_migration_blockers.py` fail-closes if those per-operation blocker families
+drift from `Morpho/Compiler/Spec.lean`.
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.

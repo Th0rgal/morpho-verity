@@ -16,7 +16,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_macro_migration_blockers import (  # noqa: E402
   MigrationGateError,
   build_report,
+  build_operation_blocker_report,
   parse_constructor_usage,
+  validate_operation_blockers,
   validate_against_baseline,
 )
 
@@ -79,6 +81,157 @@ class BaselineValidationTests(unittest.TestCase):
       }
       baseline_path.write_text(str(baseline), encoding="utf-8")
       self.assertTrue(baseline_path.exists())
+
+
+class OperationBlockerTests(unittest.TestCase):
+  def test_build_operation_blocker_report_for_tracked_ops(self) -> None:
+    spec_text = """
+def morphoSpec : CompilationModel := {
+  functions := [
+    {
+      name := "supply"
+      body := supplyBody
+    },
+    {
+      name := "withdraw"
+      body := withdrawBody
+    },
+    {
+      name := "supplyCollateral"
+      body := supplyCollateralBody
+    },
+    {
+      name := "borrow"
+      body := borrowBody
+    },
+    {
+      name := "repay"
+      body := repayBody
+    },
+    {
+      name := "withdrawCollateral"
+      body := withdrawCollateralBody
+    },
+    {
+      name := "liquidate"
+      body := liquidateBody
+    }
+  ]
+}
+
+private def supplyBody : List Stmt := [
+  callAccrueInterest,
+  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "supplyShares"),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  Callbacks.callback Expr.caller 0 [] "data",
+  ERC20.safeTransferFrom (Expr.localVar "loanToken") Expr.caller Expr.contractAddress (Expr.literal 1)
+]
+private def withdrawBody : List Stmt := [
+  callAccrueInterest,
+  Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "user") "supplyShares" (Expr.literal 0),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  ERC20.safeTransfer (Expr.localVar "loanToken") (Expr.param "receiver") (Expr.literal 1)
+]
+private def supplyCollateralBody : List Stmt := [
+  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "collateral"),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  Callbacks.callback Expr.caller 0 [] "data",
+  ERC20.safeTransferFrom (Expr.localVar "token") Expr.caller Expr.contractAddress (Expr.literal 1)
+]
+private def borrowBody : List Stmt := [
+  callAccrueInterest,
+  Calls.withReturn "price" (Expr.localVar "oracle") 0 [] (isStatic := true),
+  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "borrowShares"),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  ERC20.safeTransfer (Expr.localVar "loanToken") (Expr.param "receiver") (Expr.literal 1)
+]
+private def repayBody : List Stmt := [
+  callAccrueInterest,
+  Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "user") "borrowShares" (Expr.literal 0),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  Callbacks.callback Expr.caller 0 [] "data",
+  ERC20.safeTransferFrom (Expr.localVar "loanToken") Expr.caller Expr.contractAddress (Expr.literal 1)
+]
+private def withdrawCollateralBody : List Stmt := [
+  callAccrueInterest,
+  Calls.withReturn "price" (Expr.localVar "oracle") 0 [] (isStatic := true),
+  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "collateral"),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  ERC20.safeTransfer (Expr.localVar "token") (Expr.param "receiver") (Expr.literal 1)
+]
+private def liquidateBody : List Stmt := [
+  callAccrueInterest,
+  Calls.withReturn "price" (Expr.localVar "oracle") 0 [] (isStatic := true),
+  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "collateral"),
+  Stmt.mstore (Expr.literal 0) Expr.caller,
+  Expr.mload (Expr.literal 0),
+  Callbacks.callback Expr.caller 0 [] "data",
+  ERC20.safeTransfer (Expr.localVar "token") Expr.caller (Expr.literal 1)
+]
+"""
+    report = build_operation_blocker_report(spec_text)
+    self.assertEqual(
+      report["supply"],
+      ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+    )
+    self.assertEqual(
+      report["withdraw"],
+      ["erc20", "internalCall", "memoryOps", "structMember2"],
+    )
+    self.assertEqual(
+      report["supplyCollateral"],
+      ["callbacks", "erc20", "memoryOps", "structMember2"],
+    )
+    self.assertEqual(
+      report["borrow"],
+      ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+    )
+    self.assertEqual(
+      report["repay"],
+      ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+    )
+    self.assertEqual(
+      report["withdrawCollateral"],
+      ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+    )
+    self.assertEqual(
+      report["liquidate"],
+      ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+    )
+
+  def test_validate_operation_blockers_accepts_matching_config(self) -> None:
+    report = {
+      "borrow": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "liquidate": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "repay": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+      "supply": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+      "supplyCollateral": ["callbacks", "erc20", "memoryOps", "structMember2"],
+      "withdraw": ["erc20", "internalCall", "memoryOps", "structMember2"],
+      "withdrawCollateral": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+    }
+    obligations = {
+      op: {"operation": op, "macroMigrated": False, "macroSurfaceBlockers": blockers}
+      for op, blockers in report.items()
+    }
+    validate_operation_blockers(report, obligations)
+
+  def test_validate_operation_blockers_rejects_drift(self) -> None:
+    report = {
+      "borrow": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "liquidate": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "repay": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+      "supply": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
+      "supplyCollateral": ["callbacks", "erc20", "memoryOps", "structMember2"],
+      "withdraw": ["erc20", "internalCall", "memoryOps", "structMember2"],
+      "withdrawCollateral": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+    }
+    obligations = {
+      op: {"operation": op, "macroMigrated": False, "macroSurfaceBlockers": blockers}
+      for op, blockers in report.items()
+    }
+    obligations["supply"]["macroSurfaceBlockers"] = ["erc20", "internalCall"]
+    with self.assertRaisesRegex(MigrationGateError, "macroSurfaceBlockers drift detected"):
+      validate_operation_blockers(report, obligations)
 
 
 class CreateMarketFrontendRegressionTests(unittest.TestCase):

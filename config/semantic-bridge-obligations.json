@@ -6,6 +6,7 @@
       "operation": "supply",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
@@ -14,6 +15,7 @@
       "operation": "withdraw",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["erc20", "internalCall", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (internal calls, ERC20, authorization, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
@@ -22,6 +24,7 @@
       "operation": "borrow",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (internal calls, ERC20, oracle calls, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
@@ -30,6 +33,7 @@
       "operation": "repay",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
@@ -38,6 +42,7 @@
       "operation": "supplyCollateral",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["callbacks", "erc20", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
@@ -46,6 +51,7 @@
       "operation": "withdrawCollateral",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (ERC20, oracle calls, authorization, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
@@ -54,6 +60,7 @@
       "operation": "liquidate",
       "status": "assumed",
       "macroMigrated": false,
+      "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
       "blockedBy": "macro migration (ERC20, oracle calls, memory mgmt, 2D struct access) + typed-IR SupportedStmtList proof"
     },
     {
