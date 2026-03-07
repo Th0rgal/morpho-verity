@@ -152,6 +152,9 @@ jobs:
       - name: Validate equivalence obligations doc sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate equivalence obligations doc sync" -- python3 scripts/check_equivalence_obligations_doc.py
 
+      - name: Validate release criteria status sync
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate release criteria status sync" -- python3 scripts/check_release_criteria_status.py
+
       - name: Validate macro migration blockers doc sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration blockers doc sync" -- python3 scripts/check_macro_migration_blockers_doc.py
 
