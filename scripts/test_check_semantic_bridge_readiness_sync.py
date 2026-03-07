@@ -344,6 +344,36 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
       finally:
         sys.argv = old_argv
 
+  def test_cli_accepts_relative_external_paths_from_different_cwd(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      inputs = root / "inputs"
+      worktree = root / "worktree"
+      inputs.mkdir()
+      worktree.mkdir()
+      config_path = inputs / "semantic-bridge-obligations.json"
+      readiness_path = inputs / "SemanticBridgeReadiness.lean"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      readiness_path.write_text(make_readiness_text(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_readiness_sync.py"),
+          "--config",
+          str(pathlib.Path("..") / "inputs" / "semantic-bridge-obligations.json"),
+          "--readiness",
+          str(pathlib.Path("..") / "inputs" / "SemanticBridgeReadiness.lean"),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=worktree,
+      )
+
+      self.assertEqual(proc.returncode, 0)
+      self.assertIn("semantic-bridge-readiness-sync check: OK", proc.stdout)
+
   def test_main_rejects_macro_migrated_drift(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)

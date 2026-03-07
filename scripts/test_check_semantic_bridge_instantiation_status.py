@@ -490,6 +490,32 @@ class CliFailureTests(unittest.TestCase):
     self.assertIn("failed to read SemanticBridgeInstantiation source", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
+  def test_relative_external_path_from_different_cwd_succeeds(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      inputs = root / "inputs"
+      worktree = root / "worktree"
+      inputs.mkdir()
+      worktree.mkdir()
+      instantiation_path = inputs / "SemanticBridgeInstantiation.lean"
+      instantiation_path.write_text(make_text(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_instantiation_status.py"),
+          "--instantiation",
+          str(pathlib.Path("..") / "inputs" / "SemanticBridgeInstantiation.lean"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=worktree,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("semantic-bridge-instantiation-status check: OK", proc.stdout)
+
 
 if __name__ == "__main__":
   unittest.main()

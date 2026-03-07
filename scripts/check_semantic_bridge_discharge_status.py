@@ -237,8 +237,9 @@ def main() -> int:
   )
   parser.add_argument("--discharge", type=pathlib.Path, default=DISCHARGE_PATH)
   args = parser.parse_args()
+  discharge_path = args.discharge.resolve()
 
-  text = read_text(args.discharge)
+  text = read_text(discharge_path)
   validate_status(text)
 
   print("semantic-bridge-discharge-status check: OK")
