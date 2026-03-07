@@ -373,6 +373,63 @@ verity_contract Tmp where
 """,
         "unsupported statement in do block",
       ),
+      (
+        "struct_member2_read",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address) : Unit := do
+    let shares := position[id][user]._0
+    let _ := shares
+    pure ()
+""",
+        "unsupported expression in verity_contract body",
+      ),
+      (
+        "struct_member2_write",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address, x : Uint256) : Unit := do
+    position[id][user]._0 := x
+    pure ()
+""",
+        "unsupported do element",
+      ),
+      (
+        "memory_ops",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (x : Uint256) : Unit := do
+    mstore 0 x
+    let y := mload 0
+    let _ := y
+    pure ()
+""",
+        "unsupported do element",
+      ),
     ]
 
     for name, source, expected in cases:
