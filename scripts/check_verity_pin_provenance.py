@@ -14,6 +14,8 @@ from typing import Any
 
 from check_verity_pin_sync import parse_lakefile_verity, parse_manifest_verity
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 
 MACRO_FRONTEND_AREA = "Upstream macro/frontend gaps still block operation migration"
 MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
@@ -524,43 +526,43 @@ def main() -> int:
   parser.add_argument(
     "--lakefile",
     type=pathlib.Path,
-    default=pathlib.Path("lakefile.lean"),
+    default=ROOT / "lakefile.lean",
     help="Path to lakefile.lean",
   )
   parser.add_argument(
     "--manifest",
     type=pathlib.Path,
-    default=pathlib.Path("lake-manifest.json"),
+    default=ROOT / "lake-manifest.json",
     help="Path to lake-manifest.json",
   )
   parser.add_argument(
     "--provenance",
     type=pathlib.Path,
-    default=pathlib.Path("config/verity-pin-provenance.json"),
+    default=ROOT / "config/verity-pin-provenance.json",
     help="Path to the machine-readable provenance file",
   )
   parser.add_argument(
     "--doc",
     type=pathlib.Path,
-    default=pathlib.Path("docs/VERITY_PIN.md"),
+    default=ROOT / "docs/VERITY_PIN.md",
     help="Path to the human-readable provenance document",
   )
   parser.add_argument(
     "--readme",
     type=pathlib.Path,
-    default=pathlib.Path("README.md"),
+    default=ROOT / "README.md",
     help="Path to README",
   )
   parser.add_argument(
     "--obligations",
     type=pathlib.Path,
-    default=pathlib.Path("config/semantic-bridge-obligations.json"),
+    default=ROOT / "config/semantic-bridge-obligations.json",
     help="Path to the semantic-bridge obligation tracker",
   )
   parser.add_argument(
     "--workflow",
     type=pathlib.Path,
-    default=pathlib.Path(".github/workflows/verify.yml"),
+    default=ROOT / ".github/workflows/verify.yml",
     help="Path to the verify workflow",
   )
   args = parser.parse_args()
