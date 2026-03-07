@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_yul_rewrite_proof_obligations import (  # noqa: E402
     RewriteProofError,
     build_report,
+    display_path,
     extract_declared_proof_obligations,
     extract_manifest_proof_plans,
     extract_declared_proof_refs,
@@ -371,7 +373,9 @@ class BuildReportTests(unittest.TestCase):
             [
                 "rewrite.rename_only.alpha_equiv",
                 "rewrite.checked_add.width_alignment",
-            ]
+            ],
+            manifest_path=pathlib.Path("config/yul-rewrite-proof-obligations.json"),
+            proof_path=pathlib.Path("Morpho/Proofs/YulRewriteProofs.lean"),
         )
         self.assertEqual(report["trackedProofRefCount"], 2)
         self.assertEqual(
@@ -381,6 +385,23 @@ class BuildReportTests(unittest.TestCase):
                 {"family": "rename_only", "count": 1},
             ],
         )
+
+    def test_build_report_uses_actual_external_input_paths(self) -> None:
+        manifest_path = pathlib.Path("/tmp/external-manifest.json")
+        proof_path = pathlib.Path("/tmp/external-proof.lean")
+        report = build_report(
+            ["rewrite.checked_add.width_alignment"],
+            manifest_path=manifest_path,
+            proof_path=proof_path,
+        )
+        self.assertEqual(report["manifest"], str(manifest_path))
+        self.assertEqual(report["proofFile"], str(proof_path))
+
+
+class DisplayPathTests(unittest.TestCase):
+    def test_display_path_keeps_external_absolute_paths(self) -> None:
+        path = pathlib.Path("/tmp/external-proof.lean")
+        self.assertEqual(display_path(path), str(path))
 
 
 class IoHelperTests(unittest.TestCase):
@@ -513,6 +534,41 @@ class CliTests(unittest.TestCase):
         self.assertIn("yul-rewrite-proof-obligations check failed:", proc.stderr)
         self.assertIn("failed to write JSON report", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_json_report_uses_actual_input_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = pathlib.Path(tmpdir) / "manifest.json"
+            proof_file = pathlib.Path(tmpdir) / "YulRewriteProofs.lean"
+            json_out = pathlib.Path(tmpdir) / "report.json"
+            manifest.write_text(
+                "{"
+                "\"defaults\":{\"renameOnly\":{\"rewritePass\":\"rename-pass\",\"proofRefs\":[\"rewrite.rename_only.alpha_equiv\"]}},"
+                "\"families\":[{\"family\":\"checked_add\",\"rewritePass\":\"pass\",\"proofRefs\":[\"rewrite.checked_add.width_alignment\"]}]"
+                "}\n",
+                encoding="utf-8",
+            )
+            proof_file.write_text(SAMPLE_LEAN, encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_yul_rewrite_proof_obligations.py"),
+                    "--manifest",
+                    str(manifest),
+                    "--proof-file",
+                    str(proof_file),
+                    "--json-out",
+                    str(json_out),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(proc.returncode, 0)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+            self.assertEqual(report["manifest"], str(manifest))
+            self.assertEqual(report["proofFile"], str(proof_file))
 
 
 if __name__ == "__main__":
