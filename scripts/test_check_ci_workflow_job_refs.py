@@ -51,6 +51,20 @@ class CollectWorkflowJobGraphTests(unittest.TestCase):
       ),
     )
 
+  def test_rejects_quoted_hash_in_needs_without_truncating_value(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "  test:",
+        '    needs: ["build#fast"]',
+      ]
+    )
+
+    with self.assertRaisesRegex(RuntimeError, "needs references invalid job ids: build#fast"):
+      collect_workflow_job_graph(workflow_text)
+
 
 class FindCycleTests(unittest.TestCase):
   def test_returns_none_for_acyclic_graph(self) -> None:

@@ -9,6 +9,7 @@ import re
 import sys
 
 from check_ci_timeout_job_budget_fit import collect_job_blocks, read_text
+from ci_workflow_helpers import strip_yaml_scalar
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -26,14 +27,6 @@ def fail(message: str) -> None:
   print(f"ci-workflow-continue-on-error check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
 
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = value.split("#", 1)[0].strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
-
 def collect_job_continue_on_error_values(job_text: str) -> list[str]:
   values: list[str] = []
   for line in job_text.splitlines():
@@ -42,7 +35,7 @@ def collect_job_continue_on_error_values(job_text: str) -> list[str]:
       continue
     if len(match.group(1)) != 4:
       continue
-    values.append(_strip_yaml_scalar(match.group(2)))
+    values.append(strip_yaml_scalar(match.group(2)))
   return values
 
 

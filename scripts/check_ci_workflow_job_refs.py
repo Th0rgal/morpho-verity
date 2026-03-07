@@ -8,6 +8,8 @@ import pathlib
 import re
 import sys
 
+from ci_workflow_helpers import read_text, strip_yaml_comment, strip_yaml_scalar
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -22,29 +24,8 @@ def fail(message: str) -> None:
   print(f"ci-workflow-job-refs check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
 
-
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowJobRefsError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowJobRefsError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
-
 def _parse_inline_needs(raw_value: str) -> list[str]:
-  raw_value = _strip_yaml_comment(raw_value).strip()
+  raw_value = strip_yaml_comment(raw_value).strip()
   if not raw_value:
     return []
   if raw_value.startswith("["):
@@ -53,9 +34,9 @@ def _parse_inline_needs(raw_value: str) -> list[str]:
     body = raw_value[1:-1].strip()
     if not body:
       return []
-    refs = [_strip_yaml_scalar(part) for part in body.split(",")]
+    refs = [strip_yaml_scalar(part) for part in body.split(",")]
   else:
-    refs = [_strip_yaml_scalar(raw_value)]
+    refs = [strip_yaml_scalar(raw_value)]
 
   invalid = [ref for ref in refs if not ref or not JOB_ID_RE.fullmatch(ref)]
   if invalid:
@@ -83,7 +64,7 @@ def _collect_job_blocks(lines: list[str]) -> list[tuple[str, list[str]]]:
     if indent == 0 and stripped and not stripped.startswith("#"):
       break
     if indent == 2 and stripped.endswith(":"):
-      candidate = _strip_yaml_comment(stripped[:-1]).strip()
+      candidate = strip_yaml_comment(stripped[:-1]).strip()
       if not candidate:
         continue
       if not JOB_ID_RE.fullmatch(candidate):
@@ -185,7 +166,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowJobRefsError)
     job_ids, needs_by_job = collect_workflow_job_graph(workflow_text)
   except CiWorkflowJobRefsError as exc:
     fail(str(exc))

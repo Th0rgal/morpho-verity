@@ -7,6 +7,7 @@ import argparse
 import pathlib
 import sys
 
+from ci_workflow_helpers import read_text, strip_yaml_scalar
 from check_ci_workflow_job_refs import collect_workflow_job_graph
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -20,23 +21,6 @@ class CiWorkflowArtifactRefsError(RuntimeError):
 def fail(message: str) -> None:
   print(f"ci-workflow-artifact-refs check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
-
-
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowArtifactRefsError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowArtifactRefsError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = value.strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
 
 def _collect_job_blocks(lines: list[str]) -> list[tuple[str, list[str]]]:
   jobs_index: int | None = None
@@ -58,7 +42,7 @@ def _collect_job_blocks(lines: list[str]) -> list[tuple[str, list[str]]]:
     if indent == 0 and stripped and not stripped.startswith("#"):
       break
     if indent == 2 and stripped.endswith(":"):
-      candidate = _strip_yaml_scalar(stripped[:-1]).strip()
+      candidate = strip_yaml_scalar(stripped[:-1]).strip()
       if not candidate:
         continue
       if current_job_id is not None:
@@ -117,7 +101,7 @@ def collect_workflow_artifact_references(
 
       for stripped in step_lines:
         if stripped.startswith("uses:"):
-          action_ref = stripped.split(":", 1)[1].strip()
+          action_ref = strip_yaml_scalar(stripped.split(":", 1)[1])
           if action_ref.startswith("actions/upload-artifact@"):
             action = "upload"
           elif action_ref.startswith("actions/download-artifact@"):
@@ -127,7 +111,7 @@ def collect_workflow_artifact_references(
           with_indent = 0
         elif with_indent is not None and stripped.startswith("name:"):
           saw_name_key = True
-          artifact_name = _strip_yaml_scalar(stripped.split(":", 1)[1])
+          artifact_name = strip_yaml_scalar(stripped.split(":", 1)[1])
         elif with_indent is not None and stripped:
           with_indent = None
 
@@ -176,7 +160,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowArtifactRefsError)
     upload_names, download_names, uploads_by_job, downloads_by_job = collect_workflow_artifact_references(
       workflow_text
     )
