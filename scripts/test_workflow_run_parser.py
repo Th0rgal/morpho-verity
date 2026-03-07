@@ -13,7 +13,11 @@ ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
-from workflow_run_parser import extract_named_step_runs, extract_workflow_run_text  # noqa: E402
+from workflow_run_parser import (  # noqa: E402
+  extract_named_step_runs,
+  extract_workflow_env_literals,
+  extract_workflow_run_text,
+)
 
 
 class WorkflowRunParserTests(unittest.TestCase):
@@ -313,6 +317,48 @@ class WorkflowRunParserTests(unittest.TestCase):
         {"Validate alpha": [""], "Validate beta": ["python3 scripts/check_beta.py"]},
       ),
     )
+
+  def test_extract_workflow_env_literals_collects_workflow_job_and_step_env(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  WORKFLOW_TIMEOUT_SEC: \"10\"",
+        "jobs:",
+        "  test:",
+        "    env:",
+        "      JOB_TIMEOUT_SEC: \"20\"",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env:",
+        "          STEP_TIMEOUT_SEC: \"30\"",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "WORKFLOW_TIMEOUT_SEC": ["10"],
+        "JOB_TIMEOUT_SEC": ["20"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_ignores_nested_non_env_metadata(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        with:",
+        "          env:",
+        "            FAKE_TIMEOUT_SEC: \"99\"",
+        "        env:",
+        "          REAL_TIMEOUT_SEC: \"10\"",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(extract_workflow_env_literals(workflow_text), {"REAL_TIMEOUT_SEC": ["10"]})
 
   def test_extract_workflow_run_text_covers_real_verify_workflow(self) -> None:
     workflow_text = (ROOT / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")

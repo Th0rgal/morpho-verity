@@ -64,6 +64,21 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_timeout_env_literals(workflow), {"A_TIMEOUT": {10}, "B_TIMEOUT_SEC": {20}})
 
+  def test_collect_timeout_env_literals_ignores_nested_non_env_metadata(self) -> None:
+    workflow = (
+      "jobs:\n"
+      "  test:\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        with:\n"
+      "          env:\n"
+      "            FAKE_TIMEOUT_SEC: \"99\"\n"
+      "        env:\n"
+      "          REAL_TIMEOUT_SEC: \"10\"\n"
+      "        run: ./scripts/run_with_timeout.sh REAL_TIMEOUT_SEC 10 \"real\" -- cmd\n"
+    )
+    self.assertEqual(collect_timeout_env_literals(workflow), {"REAL_TIMEOUT_SEC": {10}})
+
   def test_collect_script_timeout_refs(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
       scripts_dir = pathlib.Path(tmp_dir) / "scripts"
