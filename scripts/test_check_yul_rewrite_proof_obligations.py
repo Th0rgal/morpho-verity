@@ -217,6 +217,36 @@ end Morpho.Proofs.YulRewriteProofs
         with self.assertRaisesRegex(RewriteProofError, "unexpected `end` without matching scope opener"):
             extract_declared_proof_obligations(lean)
 
+    def test_rejects_mismatched_named_end_for_namespace(self) -> None:
+        lean = """\
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+axiom width_alignment :
+  RewriteProofObligation "rewrite.checked_add.width_alignment" "pass" "checked_add"
+end rename_only
+end rewrite
+end Morpho.Proofs.YulRewriteProofs
+"""
+        with self.assertRaisesRegex(RewriteProofError, "mismatched `end rename_only`"):
+            extract_declared_proof_obligations(lean)
+
+    def test_rejects_named_end_for_anonymous_section(self) -> None:
+        lean = """\
+namespace Morpho.Proofs.YulRewriteProofs
+namespace rewrite
+namespace checked_add
+section
+axiom width_alignment :
+  RewriteProofObligation "rewrite.checked_add.width_alignment" "pass" "checked_add"
+end helper
+end checked_add
+end rewrite
+end Morpho.Proofs.YulRewriteProofs
+"""
+        with self.assertRaisesRegex(RewriteProofError, "cannot close anonymous section"):
+            extract_declared_proof_obligations(lean)
+
     def test_rejects_unterminated_namespace_at_eof(self) -> None:
         lean = """\
 namespace Morpho.Proofs.YulRewriteProofs

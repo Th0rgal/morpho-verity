@@ -22,8 +22,8 @@ PROOF_PATH = ROOT / "Morpho" / "Proofs" / "YulRewriteProofs.lean"
 PROOF_NAMESPACE = "Morpho.Proofs.YulRewriteProofs."
 DECL_RE = re.compile(r"^\s*(?:axiom|theorem)\s+([A-Za-z0-9_']+)\b")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([A-Za-z0-9_.']+)\s*$")
-SECTION_RE = re.compile(r"^\s*section(?:\s+[A-Za-z0-9_.']+)?\s*$")
-END_RE = re.compile(r"^\s*end(?:\s+[A-Za-z0-9_.']+)?\s*$")
+SECTION_RE = re.compile(r"^\s*section(?:\s+([A-Za-z0-9_.']+))?\s*$")
+END_RE = re.compile(r"^\s*end(?:\s+([A-Za-z0-9_.']+))?\s*$")
 OBLIGATION_RE = re.compile(
     r'RewriteProofObligation\s*"([^"]+)"\s*"([^"]+)"\s*"([^"]+)"',
     re.MULTILINE,
@@ -138,17 +138,29 @@ def extract_declared_proof_obligations(lean_text: str) -> dict[str, dict[str, st
             i += 1
             continue
 
-        if SECTION_RE.match(line):
-            scope_stack.append((False, i + 1, None))
+        section_match = SECTION_RE.match(line)
+        if section_match:
+            scope_stack.append((False, i + 1, section_match.group(1)))
             i += 1
             continue
 
-        if END_RE.match(line):
+        end_match = END_RE.match(line)
+        if end_match:
             if not scope_stack:
                 raise RewriteProofError(
                     f"unexpected `end` without matching scope opener at line {i + 1}"
                 )
-            is_namespace, _, _ = scope_stack.pop()
+            end_name = end_match.group(1)
+            is_namespace, opened_line, opened_name = scope_stack.pop()
+            if end_name is not None:
+                if opened_name is None:
+                    raise RewriteProofError(
+                        f"named `end {end_name}` cannot close anonymous section opened at line {opened_line}"
+                    )
+                if end_name != opened_name:
+                    raise RewriteProofError(
+                        f"mismatched `end {end_name}` at line {i + 1}; expected `end {opened_name}`"
+                    )
             if is_namespace:
                 namespace_stack.pop()
             i += 1
