@@ -126,6 +126,17 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     ):
       extract_summary_section(text)
 
+  def test_extract_summary_section_rejects_summary_before_namespace(self) -> None:
+    text = make_text()
+    summary_block = text.split(f"{NAMESPACE_HEADER}\n\n", 1)[1]
+    text = text.replace(f"{NAMESPACE_HEADER}\n\n{summary_block}", NAMESPACE_HEADER, 1)
+    text = text.replace(NAMESPACE_HEADER, summary_block + "\n" + NAMESPACE_HEADER, 1)
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing `## Summary` section",
+    ):
+      extract_summary_section(text)
+
   def test_extract_summary_section_ignores_marker_text_inside_prose(self) -> None:
     text = make_text().replace(
       EXPECTED_INTRO_STATUS,
@@ -260,6 +271,17 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       "multiple `/-! ## Summary` section markers",
     ):
       validate_status(masked_text)
+
+  def test_validate_status_rejects_summary_relocated_before_namespace(self) -> None:
+    text = make_text()
+    summary_block = text.split(f"{NAMESPACE_HEADER}\n\n", 1)[1]
+    text = text.replace(f"{NAMESPACE_HEADER}\n\n{summary_block}", NAMESPACE_HEADER, 1)
+    text = text.replace(NAMESPACE_HEADER, summary_block + "\n" + NAMESPACE_HEADER, 1)
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "missing `## Summary` section",
+    ):
+      validate_status(text)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:

@@ -130,8 +130,14 @@ def extract_validates_section(text: str) -> str:
 
 
 def extract_summary_section(text: str) -> str:
-  return extract_section(
+  namespace_match = require_unique_match(
     text=text,
+    pattern=NAMESPACE_PATTERN,
+    missing_error="SemanticBridgeInstantiation.lean status drift: missing namespace boundary before `## Summary` section",
+    duplicate_error="SemanticBridgeInstantiation.lean status drift: multiple namespace boundaries before `## Summary` section",
+  )
+  return extract_section(
+    text=text[namespace_match.end() :],
     start_pattern=SUMMARY_SECTION_PATTERN,
     start_label=SUMMARY_SECTION_HEADER,
     end_pattern=CLOSING_DOCBLOCK_PATTERN,
