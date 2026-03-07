@@ -12,6 +12,9 @@ import sys
 from check_verity_pin_sync import parse_lakefile_verity, parse_manifest_verity
 
 
+MACRO_FRONTEND_AREA = "Upstream macro/frontend gaps still block operation migration"
+
+
 def fail(msg: str) -> None:
   print(f"verity-pin-provenance check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
@@ -42,12 +45,25 @@ def require_divergences(data: dict[str, object], path: pathlib.Path) -> list[dic
     area = item.get("area")
     summary = item.get("summary")
     files = item.get("files")
+    blockers = item.get("blockers")
     if not isinstance(area, str) or not area:
       fail(f"`remainingDivergences[{i}].area` must be a non-empty string in {path}")
     if not isinstance(summary, str) or not summary:
       fail(f"`remainingDivergences[{i}].summary` must be a non-empty string in {path}")
     if not isinstance(files, list) or not files or not all(isinstance(f, str) and f for f in files):
       fail(f"`remainingDivergences[{i}].files` must be a non-empty string list in {path}")
+    if blockers is not None and (
+      not isinstance(blockers, list)
+      or not blockers
+      or not all(isinstance(b, str) and b for b in blockers)
+    ):
+      fail(
+        f"`remainingDivergences[{i}].blockers` must be a non-empty string list in {path}"
+      )
+    if area == MACRO_FRONTEND_AREA and blockers is None:
+      fail(
+        f"`remainingDivergences[{i}].blockers` is required for `{MACRO_FRONTEND_AREA}` in {path}"
+      )
     result.append(item)
   return result
 
@@ -137,6 +153,10 @@ def main() -> int:
   for item in divergences:
     require_doc_mentions(doc_text, item["area"], args.doc)
     require_doc_mentions(doc_text, item["summary"], args.doc)
+    blockers = item.get("blockers")
+    if isinstance(blockers, list):
+      for blocker in blockers:
+        require_doc_mentions(doc_text, blocker, args.doc)
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
 

@@ -24,7 +24,17 @@
     },
     {
       "area": "Upstream macro/frontend gaps still block operation migration",
-      "summary": "Several operations remain blocked on current upstream frontend support for tuple destructuring, externalCall, usable blockTimestamp values, and dynamic-topic rawLog witnesses.",
+      "summary": "Several operations remain blocked at the current pin on internal calls, ERC20 helpers, callbacks, 2D struct access, direct mstore/mload, pure-expression externalCall, usable blockTimestamp values, and dynamic-topic rawLog witnesses.",
+      "blockers": [
+        "internal calls",
+        "ERC20 helpers",
+        "callbacks",
+        "2D struct access",
+        "direct mstore/mload",
+        "pure-expression externalCall",
+        "usable blockTimestamp values",
+        "dynamic-topic rawLog witnesses"
+      ],
       "files": [
         "Morpho/Compiler/MacroSlice.lean",
         "Morpho/Proofs/SemanticBridgeReadiness.lean",

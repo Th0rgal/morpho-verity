@@ -131,10 +131,13 @@ Known expected differences (not checked, handled by semantic bridge):
 
 The 12 unmigrated operations depend on upstream verity macro capabilities.
 
-**Resolved blockers** (verity roadmap branch as of 2026-03-01): tuple destructuring,
-`setStructMember`/`structMember` statement/expression primitives, `keccakMarketParams`
-(via `externalCall`), `blockTimestamp`, `mstore`/`mload`, `getMappingUint`/`setMappingUint`
-explicit translators, `Bytes32`/`Bool` type support.
+**Resolved/usable at the current pin**: `setStructMember`/`structMember`
+statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
+translators, and `Bytes32`/`Bool` type support.
+
+At `9d9533b2`, the repo still treats tuple destructuring inside macro bodies,
+pure-expression `externalCall`, usable `blockTimestamp` values for
+`setMappingWord`, and direct `mstore`/`mload` as unresolved frontend gaps.
 
 **Remaining blockers**:
 
