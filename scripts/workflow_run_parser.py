@@ -30,7 +30,9 @@ def extract_workflow_run_text(workflow_text: str) -> str:
           current_step_indent = None
 
     match = RUN_FIELD_RE.match(line)
-    if match is None or current_step_indent is None:
+    # Keep support for simple top-level `run:` fixtures used by the repo's unit
+    # tests while still rejecting nested non-step mappings like `defaults.run`.
+    if match is None or (current_step_indent is None and len(match.group(1)) != 0):
       i += 1
       continue
 

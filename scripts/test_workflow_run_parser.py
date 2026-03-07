@@ -76,6 +76,18 @@ class WorkflowRunParserTests(unittest.TestCase):
     )
     self.assertEqual(extract_workflow_run_text(workflow_text), "python3 scripts/check_alpha.py")
 
+  def test_extract_workflow_run_text_keeps_top_level_run_fixtures(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: python3 scripts/check_alpha.py",
+        "run: ./scripts/check_beta.sh",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py\n./scripts/check_beta.sh",
+    )
+
   def test_extract_workflow_run_text_ignores_non_step_run_mapping(self) -> None:
     workflow_text = "\n".join(
       [
