@@ -232,9 +232,9 @@ def build_report(
     pending_migration = sum(1 for o in obligations if not o.get("macroMigrated"))
 
     return {
-        "source": display_path(bridge_path),
-        "config": display_path(config_path),
-        "macroSlice": display_path(macro_slice_path),
+        "sourcePath": display_path(bridge_path),
+        "configPath": display_path(config_path),
+        "macroSlicePath": display_path(macro_slice_path),
         "total": len(obligations),
         "byStatus": dict(sorted(by_status.items())),
         "macroMigrated": migrated,
@@ -289,7 +289,7 @@ def main() -> None:
         write_json_report(args.json_out, report)
 
     print("semantic bridge obligations check: OK")
-    print(f"source: {report['source']}")
+    print(f"source: {report['sourcePath']}")
     print(f"total obligations: {report['total']}")
     for status, count in sorted(report["byStatus"].items()):
         print(f"  {status}: {count}")
