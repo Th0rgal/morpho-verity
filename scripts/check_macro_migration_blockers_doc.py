@@ -212,9 +212,12 @@ def main() -> int:
   parser.add_argument("--doc", type=pathlib.Path, default=DOC_PATH)
   args = parser.parse_args()
 
-  config = load_config(args.config)
+  config_path = args.config.resolve()
+  doc_path = args.doc.resolve()
+
+  config = load_config(config_path)
   report = build_blocker_report(config)
-  doc_text = read_text(args.doc, context="document file")
+  doc_text = read_text(doc_path, context="document file")
   validate_doc_table(doc_text, report)
 
   print("macro-migration-blockers-doc check: OK")
