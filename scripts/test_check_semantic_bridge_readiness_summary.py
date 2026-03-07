@@ -391,6 +391,26 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
     ):
       validate_summary(readiness_text, derive_summary(make_config()))
 
+  def test_validate_summary_rejects_unmatched_footer_before_namespace(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "unmatched SemanticBridgeReadiness namespace footer before first namespace block",
+    ):
+      validate_summary(
+        "end Morpho.Proofs.SemanticBridgeReadiness\n\n" + make_readiness_text(),
+        derive_summary(make_config()),
+      )
+
+  def test_validate_summary_rejects_unmatched_footer_after_namespace(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "unmatched SemanticBridgeReadiness namespace footer after namespace blocks",
+    ):
+      validate_summary(
+        make_readiness_text() + "\nend Morpho.Proofs.SemanticBridgeReadiness\n",
+        derive_summary(make_config()),
+      )
+
   def test_main_passes_for_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
