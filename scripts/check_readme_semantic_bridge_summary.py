@@ -24,6 +24,11 @@ ASSUMED_RE = re.compile(
   r"The remaining (?P<assumed>\d+)/(?P<total>\d+) operations still have assumed Link 1 status in\s+"
   r"`config/semantic-bridge-obligations\.json`\."
 )
+UPSTREAM_STATUS_PREFIX = (
+  "The Verity framework now has the upstream typed-IR / canonical-semantics bridge\n"
+  "for supported `verity_contract` functions:\n"
+  "`EDSL execution ≡ EVMYulLean(compile(CompilationModel))`."
+)
 
 
 class ReadmeSemanticBridgeSummaryError(RuntimeError):
@@ -62,6 +67,12 @@ def extract_link1_operations(text: str) -> list[str]:
 
 
 def validate_summary(text: str, summary: dict[str, object]) -> None:
+  if UPSTREAM_STATUS_PREFIX not in text:
+    raise ReadmeSemanticBridgeSummaryError(
+      "README upstream semantic-bridge status drift: "
+      f"expected `{UPSTREAM_STATUS_PREFIX}`"
+    )
+
   proven_match = require_match(PROVEN_RE, text, "Link 1 proof summary")
   proven_count = int(proven_match.group("proven"))
   total_count = int(proven_match.group("total"))

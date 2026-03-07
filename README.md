@@ -41,15 +41,17 @@ Groundwork docs for closing these gaps:
 
 ### Upstream: Verity hybrid canonical-semantics migration (verity#1060 / #1065)
 
-The Verity framework is working toward a single machine-checked theorem per
-contract function: `EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
-This will eliminate the hand-rolled `interpretSpec` interpreter from the TCB and
-enable auto-generated semantic preservation proofs in the `verity_contract` macro.
-`verity#1065` has landed upstream, but bumping to the current pin still leaves
-the remaining macro frontend gaps for complex Morpho operations. Once those
-repo-local Link 1 gaps are discharged, morpho-verity's Solidity equivalence
+The Verity framework now has the upstream typed-IR / canonical-semantics bridge
+for supported `verity_contract` functions:
+`EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
+This removes the hand-rolled `interpretSpec` interpreter from the target trust
+story and enables auto-generated semantic preservation proofs in the
+`verity_contract` macro where the frontend can lower the contract successfully.
+At the current morpho-verity pin, the remaining blockers are repo-local Link 1
+gaps and upstream macro frontend limitations for complex Morpho operations.
+Once those repo-local gaps are discharged, morpho-verity's Solidity equivalence
 obligations can be discharged against EVMYulLean's formally verified EVM
-semantics rather than a trusted reimplementation. Track upstream delivery in
+semantics rather than a trusted reimplementation. Track upstream history in
 [verity#1060](https://github.com/Th0rgal/verity/issues/1060) and
 [verity#1065](https://github.com/Th0rgal/verity/pull/1065).
 

@@ -15,8 +15,8 @@ quantified assumption — a function parameter, not a discharged proof.
 
 ## Discharge Path (verity#1060 / #1065)
 
-The Verity semantic bridge will provide, for each function `f` in a
-`verity_contract`:
+The upstream Verity semantic bridge now provides, for each supported function
+`f` in a `verity_contract`:
 
 ```
 EDSL.f.exec state = EVMYulLean(compile(spec)).exec state
@@ -38,8 +38,9 @@ The first link (stable wrapper API ↔ EDSL) requires that `MorphoViewSlice`
 functions have full (non-stub) implementations matching the spec-facing
 execution API in `Morpho.Specs.ContractSemantics`. The repo now states those
 obligations against the stable `Morpho.*` wrappers, which reduce
-definitionally to the canonical contract-semantics surface. The second link is
-what the verity semantic bridge provides.
+definitionally to the canonical contract-semantics surface. Links 2+3 are
+provided upstream for the supported fragment; the remaining blockers in this
+repo are Link 1 gaps and macro frontend coverage for complex operations.
 
 ## Obligation Registry
 
