@@ -148,7 +148,7 @@ theorem edsl_enableIrm_lltvMonotone
     (h_enabled : s.isLltvEnabled lltv)
     (h_ok : edslEnableIrm s irm = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irm).1 h_ok
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irm).1 h_ok
   exact h_enabled
 
 /-! ## enableLltv: Link 1 + invariants (4 theorems + enableLltv_monotone) -/
@@ -172,7 +172,7 @@ theorem edsl_enableLltv_irmMonotone
     (h_enabled : s.isIrmEnabled irm)
     (h_ok : edslEnableLltv s lltvCall = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltvCall).1 h_ok
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltvCall).1 h_ok
   exact h_enabled
 
 theorem edsl_enableLltv_lltvMonotone
@@ -207,8 +207,7 @@ theorem edsl_setAuthorization_irmMonotone
     (h_enabled : s.isIrmEnabled irm)
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem edsl_setAuthorization_lltvMonotone
@@ -217,8 +216,7 @@ theorem edsl_setAuthorization_lltvMonotone
     (h_enabled : s.isLltvEnabled lltv)
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, rfl⟩ :=
-    (Morpho.Specs.ContractSemantics.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 /-! ## flashLoan: Link 1 + canonical rejection theorem -/

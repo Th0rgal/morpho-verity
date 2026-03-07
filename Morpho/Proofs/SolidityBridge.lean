@@ -320,7 +320,7 @@ theorem solidity_enableIrm_preserves_lltvMonotone
   have h_ok_morpho : Morpho.Specs.ContractSemantics.enableIrm s irmCall = some s' := by
     simpa [enableIrmSemEq] using
       (h_eq s irmCall).symm.trans h_ok
-  obtain ⟨_, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableIrm_success_iff s s' irmCall).1 h_ok_morpho
+  obtain ⟨_, _, rfl⟩ := (Morpho.enableIrm_success_iff s s' irmCall).1 h_ok_morpho
   simpa using h_enabled
 
 theorem solidity_enableLltv_preserves_borrowLeSupply
@@ -357,7 +357,7 @@ theorem solidity_enableLltv_preserves_irmMonotone
   have h_ok_morpho : Morpho.Specs.ContractSemantics.enableLltv s lltvCall = some s' := by
     simpa [enableLltvSemEq] using
       (h_eq s lltvCall).symm.trans h_ok
-  obtain ⟨_, _, _, rfl⟩ := (Morpho.Specs.ContractSemantics.enableLltv_success_iff s s' lltvCall).1 h_ok_morpho
+  obtain ⟨_, _, _, rfl⟩ := (Morpho.enableLltv_success_iff s s' lltvCall).1 h_ok_morpho
   simpa using h_enabled
 
 theorem solidity_enableLltv_preserves_lltvMonotone
