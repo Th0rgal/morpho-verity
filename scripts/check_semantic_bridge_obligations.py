@@ -219,6 +219,9 @@ def build_report(
     config_path: pathlib.Path = CONFIG_PATH,
     macro_slice_path: pathlib.Path = MACRO_SLICE_PATH,
 ) -> dict[str, Any]:
+    bridge_path = bridge_path.resolve()
+    config_path = config_path.resolve()
+    macro_slice_path = macro_slice_path.resolve()
     obligations = config["obligations"]
     by_status: dict[str, int] = {}
     for obl in obligations:
@@ -262,21 +265,24 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
+    bridge_path = args.bridge.resolve()
+    config_path = args.config.resolve()
+    macro_slice_path = args.macro_slice.resolve()
 
-    bridge_text = read_text(args.bridge)
+    bridge_text = read_text(bridge_path)
     bridge_hypotheses = extract_sem_eq_definitions(bridge_text)
 
-    macro_text = read_text(args.macro_slice)
+    macro_text = read_text(macro_slice_path)
     macro_functions = extract_macro_functions(macro_text)
 
-    config = load_config(args.config)
+    config = load_config(config_path)
     validate_config(config, bridge_hypotheses, macro_functions)
 
     report = build_report(
         config,
-        bridge_path=args.bridge,
-        config_path=args.config,
-        macro_slice_path=args.macro_slice,
+        bridge_path=bridge_path,
+        config_path=config_path,
+        macro_slice_path=macro_slice_path,
     )
 
     if args.json_out:
