@@ -121,7 +121,7 @@ def _extract_block_scalar_indent(tail: str) -> int | None:
 
 
 def _parse_scalar_env_value(raw: str) -> str | None:
-  value = raw.strip()
+  value = _strip_yaml_comment(raw).strip()
   if not value:
     return None
   if value[0] in {'"', "'"}:
@@ -129,6 +129,36 @@ def _parse_scalar_env_value(raw: str) -> str | None:
       return None
     return value[1:-1]
   return value
+
+
+def _strip_yaml_comment(raw: str) -> str:
+  in_single_quote = False
+  in_double_quote = False
+  escape = False
+  for index, char in enumerate(raw):
+    if in_single_quote:
+      if char == "'":
+        in_single_quote = False
+      continue
+    if in_double_quote:
+      if escape:
+        escape = False
+        continue
+      if char == "\\":
+        escape = True
+        continue
+      if char == '"':
+        in_double_quote = False
+      continue
+    if char == "'":
+      in_single_quote = True
+      continue
+    if char == '"':
+      in_double_quote = True
+      continue
+    if char == "#" and (index == 0 or raw[index - 1].isspace()):
+      return raw[:index].rstrip()
+  return raw
 
 
 def _extract_inline_env_mapping_body(raw: str) -> str | None:
