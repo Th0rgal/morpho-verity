@@ -26,8 +26,13 @@ class RewritePipelineError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-  with path.open("r", encoding="utf-8") as f:
-    return f.read()
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return f.read()
+  except UnicodeDecodeError as exc:
+    raise RewritePipelineError(f"failed to decode UTF-8 text file {display_path(path)}") from exc
+  except OSError as exc:
+    raise RewritePipelineError(f"failed to read text file {display_path(path)}: {exc}") from exc
 
 
 def read_json(path: pathlib.Path) -> Any:
@@ -35,13 +40,20 @@ def read_json(path: pathlib.Path) -> Any:
     with path.open("r", encoding="utf-8") as f:
       return json.load(f)
   except json.JSONDecodeError as exc:
-    raise RewritePipelineError(f"invalid JSON in {path}: {exc}") from exc
+    raise RewritePipelineError(f"invalid JSON in {display_path(path)}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise RewritePipelineError(f"failed to decode UTF-8 JSON file {display_path(path)}") from exc
+  except OSError as exc:
+    raise RewritePipelineError(f"failed to read JSON file {display_path(path)}: {exc}") from exc
 
 
 def write_text(path: pathlib.Path, content: str) -> None:
-  path.parent.mkdir(parents=True, exist_ok=True)
-  with path.open("w", encoding="utf-8") as f:
-    f.write(content)
+  try:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+      f.write(content)
+  except OSError as exc:
+    raise RewritePipelineError(f"failed to write text file {display_path(path)}: {exc}") from exc
 
 
 def sha256_text(text: str) -> str:
@@ -62,76 +74,80 @@ def display_path(path: pathlib.Path) -> str:
 def load_rewrite_pipeline_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
-    raise RewritePipelineError(f"rewrite pipeline manifest must be a JSON object: {path}")
+    raise RewritePipelineError(
+      f"rewrite pipeline manifest must be a JSON object: {display_path(path)}"
+    )
 
   version = data.get("version")
   if not isinstance(version, str) or not version.strip():
-    raise RewritePipelineError(
-      f"rewrite pipeline manifest key `version` must be a non-empty string: {path}"
-    )
+      raise RewritePipelineError(
+        f"rewrite pipeline manifest key `version` must be a non-empty string: {display_path(path)}"
+      )
 
   stages = data.get("stages")
   if not isinstance(stages, list) or not stages:
-    raise RewritePipelineError(
-      f"rewrite pipeline manifest key `stages` must be a non-empty list: {path}"
-    )
+      raise RewritePipelineError(
+        f"rewrite pipeline manifest key `stages` must be a non-empty list: {display_path(path)}"
+      )
 
   normalized_stages: list[dict[str, Any]] = []
   seen_passes: set[str] = set()
   for index, stage in enumerate(stages):
     where = f"stages[{index}]"
     if not isinstance(stage, dict):
-      raise RewritePipelineError(f"rewrite pipeline entry `{where}` must be an object: {path}")
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must be an object: {display_path(path)}"
+        )
     rewrite_pass = stage.get("rewritePass")
     if not isinstance(rewrite_pass, str) or not rewrite_pass.strip():
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` must include non-empty `rewritePass`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must include non-empty `rewritePass`: {display_path(path)}"
+        )
     if rewrite_pass in seen_passes:
-      raise RewritePipelineError(
-        f"rewrite pipeline manifest defines duplicate rewritePass `{rewrite_pass}`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline manifest defines duplicate rewritePass `{rewrite_pass}`: {display_path(path)}"
+        )
     seen_passes.add(rewrite_pass)
 
     families = stage.get("families")
     if not isinstance(families, list) or not families:
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` must include non-empty `families`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must include non-empty `families`: {display_path(path)}"
+        )
     if not all(isinstance(family, str) and family.strip() for family in families):
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` must use non-empty strings in `families`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must use non-empty strings in `families`: {display_path(path)}"
+        )
     if len(families) != len(set(families)):
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` contains duplicate `families`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` contains duplicate `families`: {display_path(path)}"
+        )
 
     proof_refs = stage.get("proofRefs")
     if not isinstance(proof_refs, list) or not proof_refs:
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` must include non-empty `proofRefs`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must include non-empty `proofRefs`: {display_path(path)}"
+        )
     if not all(isinstance(proof_ref, str) and proof_ref.strip() for proof_ref in proof_refs):
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` must use non-empty strings in `proofRefs`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must use non-empty strings in `proofRefs`: {display_path(path)}"
+        )
     if len(proof_refs) != len(set(proof_refs)):
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` contains duplicate `proofRefs`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` contains duplicate `proofRefs`: {display_path(path)}"
+        )
 
     implemented = stage.get("implemented", False)
     if not isinstance(implemented, bool):
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` must use boolean `implemented`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` must use boolean `implemented`: {display_path(path)}"
+        )
 
     notes = stage.get("notes")
     if notes is not None and not isinstance(notes, str):
-      raise RewritePipelineError(
-        f"rewrite pipeline entry `{where}` has non-string `notes`: {path}"
-      )
+        raise RewritePipelineError(
+          f"rewrite pipeline entry `{where}` has non-string `notes`: {display_path(path)}"
+        )
 
     normalized = {
       "rewritePass": rewrite_pass,
@@ -149,11 +165,13 @@ def load_rewrite_pipeline_manifest(path: pathlib.Path) -> dict[str, Any]:
 def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
-    raise RewritePipelineError(f"rewrite proof manifest must be a JSON object: {path}")
+    raise RewritePipelineError(
+      f"rewrite proof manifest must be a JSON object: {display_path(path)}"
+    )
   try:
     extract_manifest_proof_plans(data)
   except RewriteProofError as exc:
-    raise RewritePipelineError(f"invalid rewrite proof manifest {path}: {exc}") from exc
+    raise RewritePipelineError(f"invalid rewrite proof manifest {display_path(path)}: {exc}") from exc
   return data
 
 
