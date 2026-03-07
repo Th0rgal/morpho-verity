@@ -187,7 +187,7 @@ theorem obligation_count : obligations.length = 18 := by
     These 6 Link 1 operations are: setOwner, setFeeRecipient, enableIrm, enableLltv,
     setAuthorization, flashLoan. -/
 theorem link1_proven_count :
-    (obligations.filter (fun o => o.status == .inProgress)).length = 6 := by
+    (obligations.filter (fun o => o.status != .assumed)).length = 6 := by
   native_decide
 
 /-- 12 operations still have assumed status (Link 1 not yet proven). -/
