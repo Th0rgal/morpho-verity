@@ -19,6 +19,7 @@ from check_semantic_bridge_readiness_summary import (  # noqa: E402
   DISCHARGE_PATH_PREFIX,
   SemanticBridgeReadinessSummaryError,
   derive_summary,
+  extract_discharge_path_section,
   extract_intro_section,
   extract_namespace_body,
   main,
@@ -74,6 +75,8 @@ def make_readiness_text(
     ## Discharge Path (verity#1060 / #1065)
 
     {DISCHARGE_PATH_PREFIX}
+
+    ## Obligation Registry
     -/
 
     namespace Morpho.Proofs.SemanticBridgeReadiness
@@ -154,6 +157,12 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
   def test_extract_namespace_body_returns_text_after_namespace(self) -> None:
     self.assertIn("theorem obligation_count", extract_namespace_body(make_readiness_text()))
 
+  def test_extract_discharge_path_section_returns_text_between_headers(self) -> None:
+    self.assertEqual(
+      extract_discharge_path_section(extract_intro_section(make_readiness_text())).strip(),
+      DISCHARGE_PATH_PREFIX,
+    )
+
   def test_validate_summary_accepts_zero_link1_operations(self) -> None:
     summary = {
       "total": 3,
@@ -215,6 +224,22 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
     readiness_text = readiness_text.replace(
       "/-- All 3 semantic equivalence obligations from SolidityBridge.lean.",
       DISCHARGE_PATH_PREFIX + "\n\n/-- All 3 semantic equivalence obligations from SolidityBridge.lean.",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "discharge-path upstream status drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_discharge_path_drift_hidden_elsewhere_in_intro(self) -> None:
+    readiness_text = make_readiness_text().replace(DISCHARGE_PATH_PREFIX, "old prefix", 1)
+    readiness_text = readiness_text.replace(
+      "This module tracks the semantic equivalence obligations that must be discharged\n"
+      "to connect morpho-verity's invariant proofs to formally verified EVM semantics.\n",
+      "This module tracks the semantic equivalence obligations that must be discharged\n"
+      "to connect morpho-verity's invariant proofs to formally verified EVM semantics.\n\n"
+      f"{DISCHARGE_PATH_PREFIX}\n",
       1,
     )
     with self.assertRaisesRegex(

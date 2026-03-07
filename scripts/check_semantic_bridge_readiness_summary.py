@@ -19,6 +19,12 @@ DISCHARGE_PATH_PREFIX = (
   "The upstream Verity semantic bridge now provides, for each supported function\n"
   "`f` in a `verity_contract`:"
 )
+DISCHARGE_PATH_HEADER_PATTERN = re.compile(
+  r"(?m)^\s*##\s+Discharge\s+Path\s+\(verity#1060\s+/\s+#1065\)\s*$"
+)
+OBLIGATION_REGISTRY_HEADER_PATTERN = re.compile(
+  r"(?m)^\s*##\s+Obligation\s+Registry\s*$"
+)
 NAMESPACE_PATTERN = re.compile(
   r"(?m)^\s*namespace\s+Morpho\.Proofs\.SemanticBridgeReadiness\s*$"
 )
@@ -134,6 +140,29 @@ def extract_intro_section(text: str) -> str:
   return intro
 
 
+def extract_discharge_path_section(intro_text: str) -> str:
+  discharge_header = require_unique_match(
+    DISCHARGE_PATH_HEADER_PATTERN,
+    intro_text,
+    "Discharge Path header",
+  )
+  registry_header = require_unique_match(
+    OBLIGATION_REGISTRY_HEADER_PATTERN,
+    intro_text,
+    "Obligation Registry header",
+  )
+  if registry_header.start() <= discharge_header.end():
+    raise SemanticBridgeReadinessSummaryError(
+      "SemanticBridgeReadiness Discharge Path section has an invalid boundary ordering"
+    )
+  discharge_section = intro_text[discharge_header.end() : registry_header.start()]
+  if not discharge_section.strip():
+    raise SemanticBridgeReadinessSummaryError(
+      "SemanticBridgeReadiness Discharge Path section is empty"
+    )
+  return discharge_section
+
+
 def extract_namespace_body(text: str) -> str:
   namespace_match = require_unique_match(
     NAMESPACE_PATTERN,
@@ -176,9 +205,10 @@ def require_count(
 
 def validate_summary(text: str, summary: dict[str, Any]) -> None:
   intro_text = extract_intro_section(text)
+  discharge_path_text = extract_discharge_path_section(intro_text)
   namespace_body = extract_namespace_body(text)
 
-  if DISCHARGE_PATH_PREFIX not in intro_text:
+  if DISCHARGE_PATH_PREFIX not in discharge_path_text:
     raise SemanticBridgeReadinessSummaryError(
       "discharge-path upstream status drift: "
       f"expected `{DISCHARGE_PATH_PREFIX}`"
