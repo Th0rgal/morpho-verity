@@ -36,6 +36,10 @@ DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
 REWRITE_PLAN_DEFAULT_KINDS = frozenset({"renameOnly", "renameAmbiguous"})
 
 
+class YulIdentityGapError(RuntimeError):
+  pass
+
+
 @dataclass(frozen=True)
 class YulToken:
   value: str
@@ -88,8 +92,11 @@ def run_with_timeout(
 
 
 def read_json(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return json.load(f)
+  except json.JSONDecodeError as exc:
+    raise YulIdentityGapError(f"failed to parse JSON file {path}: {exc}") from exc
 
 
 def read_text(path: pathlib.Path) -> str:
@@ -163,7 +170,7 @@ def tokenize_normalized_yul_with_spans(text: str) -> list[YulToken]:
           break
         i += 1
       else:
-        raise RuntimeError("Unterminated string literal while tokenizing normalized Yul.")
+        raise YulIdentityGapError("Unterminated string literal while tokenizing normalized Yul.")
       value = text[start:i]
       tokens.append(YulToken(value=value, line=token_line, column=token_column))
       advance_text(value)
@@ -217,7 +224,7 @@ def tokenize_normalized_yul_with_spans(text: str) -> list[YulToken]:
       advance_text(value)
       continue
 
-    raise RuntimeError(f"Unsupported character while tokenizing normalized Yul: {ch!r}")
+    raise YulIdentityGapError(f"Unsupported character while tokenizing normalized Yul: {ch!r}")
 
   return tokens
 
@@ -242,7 +249,9 @@ def find_matching_token(tokens: list[YulToken], start_index: int, open_tok: str,
       if depth == 0:
         return i
     i += 1
-  raise RuntimeError(f"Unbalanced delimiters while parsing normalized Yul: {open_tok} .. {close_tok}")
+  raise YulIdentityGapError(
+    f"Unbalanced delimiters while parsing normalized Yul: {open_tok} .. {close_tok}"
+  )
 
 
 def validate_balanced_delimiters(tokens: list[YulToken]) -> None:
@@ -255,10 +264,10 @@ def validate_balanced_delimiters(tokens: list[YulToken]) -> None:
       stack.append(value)
     elif value in closing:
       if not stack or stack[-1] != closing[value]:
-        raise RuntimeError("Unbalanced delimiters while parsing normalized Yul.")
+        raise YulIdentityGapError("Unbalanced delimiters while parsing normalized Yul.")
       stack.pop()
   if stack:
-    raise RuntimeError("Unbalanced delimiters while parsing normalized Yul.")
+    raise YulIdentityGapError("Unbalanced delimiters while parsing normalized Yul.")
 
 
 def function_ast_digests(normalized_yul: str) -> dict[str, FunctionAstDigest]:
@@ -481,48 +490,48 @@ def build_function_family_summary(deltas: dict[str, list[str]]) -> dict[str, Any
 def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
-    raise RuntimeError(f"Rewrite proof manifest must be a JSON object: {path}")
+    raise YulIdentityGapError(f"Rewrite proof manifest must be a JSON object: {path}")
 
   version = data.get("version")
   if not isinstance(version, str) or not version.strip():
-    raise RuntimeError(
+    raise YulIdentityGapError(
       f"Rewrite proof manifest key `version` must be a non-empty string: {path}"
     )
 
   def validate_plan(plan: Any, *, where: str, require_family: bool) -> dict[str, Any]:
     if not isinstance(plan, dict):
-      raise RuntimeError(f"Rewrite proof manifest entry `{where}` must be an object: {path}")
+      raise YulIdentityGapError(f"Rewrite proof manifest entry `{where}` must be an object: {path}")
     normalized: dict[str, Any] = {}
     if require_family:
       family = plan.get("family")
       if not isinstance(family, str) or not family.strip():
-        raise RuntimeError(
+        raise YulIdentityGapError(
           f"Rewrite proof manifest entry `{where}` must include non-empty `family`: {path}"
         )
       normalized["family"] = family
     rewrite_pass = plan.get("rewritePass")
     if not isinstance(rewrite_pass, str) or not rewrite_pass.strip():
-      raise RuntimeError(
+      raise YulIdentityGapError(
         f"Rewrite proof manifest entry `{where}` must include non-empty `rewritePass`: {path}"
       )
     proof_obligation = plan.get("proofObligation")
     if not isinstance(proof_obligation, str) or not proof_obligation.strip():
-      raise RuntimeError(
+      raise YulIdentityGapError(
         f"Rewrite proof manifest entry `{where}` must include non-empty `proofObligation`: {path}"
       )
     status = plan.get("status")
     if not isinstance(status, str) or status not in {"planned", "in-progress", "proven", "blocked"}:
-      raise RuntimeError(
+      raise YulIdentityGapError(
         f"Rewrite proof manifest entry `{where}` has invalid `status`: {path}"
       )
     proof_refs = plan.get("proofRefs", [])
     if not isinstance(proof_refs, list) or not all(isinstance(ref, str) for ref in proof_refs):
-      raise RuntimeError(
+      raise YulIdentityGapError(
         f"Rewrite proof manifest entry `{where}` must use `proofRefs` as a list of strings: {path}"
       )
     notes = plan.get("notes")
     if notes is not None and not isinstance(notes, str):
-      raise RuntimeError(
+      raise YulIdentityGapError(
         f"Rewrite proof manifest entry `{where}` has non-string `notes`: {path}"
       )
     normalized.update(
@@ -539,28 +548,28 @@ def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
 
   defaults = data.get("defaults", {})
   if not isinstance(defaults, dict):
-    raise RuntimeError(f"Rewrite proof manifest key `defaults` must be an object: {path}")
+    raise YulIdentityGapError(f"Rewrite proof manifest key `defaults` must be an object: {path}")
   normalized_defaults: dict[str, dict[str, Any]] = {}
   for kind, plan in defaults.items():
     if not isinstance(kind, str) or not kind.strip():
-      raise RuntimeError(f"Rewrite proof manifest has invalid default kind key: {path}")
+      raise YulIdentityGapError(f"Rewrite proof manifest has invalid default kind key: {path}")
     if kind not in REWRITE_PLAN_DEFAULT_KINDS:
       allowed = ", ".join(sorted(REWRITE_PLAN_DEFAULT_KINDS))
-      raise RuntimeError(
+      raise YulIdentityGapError(
         f"Rewrite proof manifest default kind `{kind}` is unsupported; expected one of {allowed}: {path}"
       )
     normalized_defaults[kind] = validate_plan(plan, where=f"defaults.{kind}", require_family=False)
 
   families = data.get("families", [])
   if not isinstance(families, list):
-    raise RuntimeError(f"Rewrite proof manifest key `families` must be a list: {path}")
+    raise YulIdentityGapError(f"Rewrite proof manifest key `families` must be a list: {path}")
   normalized_families: list[dict[str, Any]] = []
   seen_families: set[str] = set()
   for i, entry in enumerate(families):
     normalized_entry = validate_plan(entry, where=f"families[{i}]", require_family=True)
     family = normalized_entry["family"]
     if family in seen_families:
-      raise RuntimeError(f"Rewrite proof manifest defines duplicate family `{family}`: {path}")
+      raise YulIdentityGapError(f"Rewrite proof manifest defines duplicate family `{family}`: {path}")
     seen_families.add(family)
     normalized_families.append(normalized_entry)
 
@@ -732,16 +741,16 @@ def build_rewrite_family_summary(
 def load_unsupported_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
-    raise RuntimeError(f"Unsupported manifest must be a JSON object: {path}")
+    raise YulIdentityGapError(f"Unsupported manifest must be a JSON object: {path}")
   parity_target = data.get("parityTarget")
   if not isinstance(parity_target, str) or not parity_target.strip():
-    raise RuntimeError(
+    raise YulIdentityGapError(
       f"Unsupported manifest key `parityTarget` must be a non-empty string: {path}"
     )
   for key in ("allowedHashMismatchKeys", "allowedOnlyInSolidityKeys", "allowedOnlyInVerityKeys"):
     value = data.get(key)
     if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
-      raise RuntimeError(f"Unsupported manifest key `{key}` must be a list of strings: {path}")
+      raise YulIdentityGapError(f"Unsupported manifest key `{key}` must be a list of strings: {path}")
   return data
 
 
@@ -829,19 +838,36 @@ def build_parity_metadata(target: dict[str, Any], gate_mode: str) -> dict[str, A
 
 
 def yul_identity_gate_mode(target: dict[str, Any]) -> str:
-  return parse_parity_target_yul_identity_gate_mode(
-    target,
-    missing_message="Missing required config `yulIdentity.gateMode` in config/parity-target.json.",
-    invalid_message_prefix="Invalid config `yulIdentity.gateMode` in config/parity-target.json",
-    invalid_message_suffix=".",
-  )
+  try:
+    return parse_parity_target_yul_identity_gate_mode(
+      target,
+      missing_message="Missing required config `yulIdentity.gateMode` in config/parity-target.json.",
+      invalid_message_prefix="Invalid config `yulIdentity.gateMode` in config/parity-target.json",
+      invalid_message_suffix=".",
+    )
+  except RuntimeError as exc:
+    raise YulIdentityGapError(str(exc)) from exc
+
+
+def load_parity_target(path: pathlib.Path) -> dict[str, Any]:
+  data = read_json(path)
+  if not isinstance(data, dict):
+    raise YulIdentityGapError(f"Parity target config must be a JSON object: {path}")
+  target_id = data.get("id")
+  if not isinstance(target_id, str) or not target_id.strip():
+    raise YulIdentityGapError(
+      f"Parity target config key `id` must be a non-empty string: {path}"
+    )
+  return data
 
 
 def extract_solidity_ir_optimized() -> str:
   data = read_json(SOLIDITY_ARTIFACT)
+  if not isinstance(data, dict):
+    raise YulIdentityGapError(f"Solidity artifact must be a JSON object: {SOLIDITY_ARTIFACT}")
   ir = data.get("irOptimized")
   if not isinstance(ir, str) or not ir.strip():
-    raise RuntimeError(
+    raise YulIdentityGapError(
       f"Missing `irOptimized` in {SOLIDITY_ARTIFACT}. "
       "Run forge with `--extra-output irOptimized`."
     )
@@ -898,7 +924,7 @@ def copy_prepared_verity_artifact(
 ) -> None:
   src = prepared_dir / artifact_name
   if not src.is_file():
-    raise RuntimeError(f"Missing prepared Verity artifact: {src}")
+    raise YulIdentityGapError(f"Missing prepared Verity artifact: {src}")
   destination.parent.mkdir(parents=True, exist_ok=True)
   shutil.copy2(src, destination)
 
@@ -928,7 +954,7 @@ def load_prepared_rewrite_pipeline_report(prepared_dir: pathlib.Path) -> dict[st
     return None
   report = read_json(path)
   if not isinstance(report, dict):
-    raise RuntimeError(f"Prepared rewrite pipeline report must be a JSON object: {path}")
+    raise YulIdentityGapError(f"Prepared rewrite pipeline report must be a JSON object: {path}")
   return report
 
 
@@ -1141,7 +1167,7 @@ def main() -> int:
   solc_dir.mkdir(parents=True, exist_ok=True)
   verity_dir.mkdir(parents=True, exist_ok=True)
 
-  target = read_json(PARITY_TARGET)
+  target = load_parity_target(PARITY_TARGET)
   gate_mode = yul_identity_gate_mode(target)
   if not args.skip_build:
     prepared_dir = prepared_verity_artifact_dir()
@@ -1264,4 +1290,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-  raise SystemExit(main())
+  try:
+    raise SystemExit(main())
+  except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:
+    print(f"yul identity gap report failed: {exc}", file=sys.stderr)
+    raise SystemExit(1) from exc
