@@ -230,6 +230,24 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
         "",
       ]))
 
+  def test_validate_workflow_ignores_unnamed_run_step_after_tracked_step(self) -> None:
+    validate_workflow("\n".join([
+      "jobs:",
+      "  parity-target:",
+      "    steps:",
+      f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+      f"        run: {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[0]]}",
+      "      - run: echo helper step",
+      *[
+        "\n".join([
+          f"      - name: {step}",
+          f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+        ])
+        for step in EXPECTED_WORKFLOW_STEPS[1:]
+      ],
+      "",
+    ]))
+
   def test_main_passes_on_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)

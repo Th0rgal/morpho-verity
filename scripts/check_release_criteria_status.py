@@ -108,6 +108,9 @@ def parse_named_step_runs(text: str) -> tuple[dict[str, int], dict[str, list[str
       step_counts[current_step] = step_counts.get(current_step, 0) + 1
       step_runs.setdefault(current_step, [])
       continue
+    if re.match(r"\s*-\s+", line) is not None:
+      current_step = None
+      continue
     if current_step is None:
       continue
     run_match = re.match(r"\s+run:\s+(.*\S)\s*$", line)
