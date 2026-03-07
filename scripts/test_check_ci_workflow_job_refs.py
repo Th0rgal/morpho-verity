@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from check_ci_workflow_job_refs import (  # noqa: E402
   collect_workflow_job_graph,
+  find_cycle,
   main,
 )
 
@@ -48,6 +49,31 @@ class CollectWorkflowJobGraphTests(unittest.TestCase):
           "release": ["test", "lint"],
         },
       ),
+    )
+
+
+class FindCycleTests(unittest.TestCase):
+  def test_returns_none_for_acyclic_graph(self) -> None:
+    self.assertIsNone(
+      find_cycle(
+        {
+          "build": [],
+          "test": ["build"],
+          "release": ["test"],
+        }
+      )
+    )
+
+  def test_returns_cycle_path_for_multi_job_cycle(self) -> None:
+    self.assertEqual(
+      find_cycle(
+        {
+          "build": ["release"],
+          "test": ["build"],
+          "release": ["test"],
+        }
+      ),
+      ["build", "release", "test", "build"],
     )
 
 
@@ -155,6 +181,44 @@ class CliTests(unittest.TestCase):
       self.assertEqual(proc.returncode, 1)
       self.assertIn(
         "ci-workflow-job-refs check failed: workflow jobs cannot need themselves: verify",
+        proc.stderr,
+      )
+
+  def test_main_reports_multi_job_cycle(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      workflow_path = root / "verify.yml"
+      workflow_path.write_text(
+        "\n".join(
+          [
+            "jobs:",
+            "  build:",
+            "    needs: release",
+            "  test:",
+            "    needs: build",
+            "  release:",
+            "    needs: test",
+          ]
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_workflow_job_refs.py"),
+          "--workflow",
+          str(workflow_path),
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn(
+        "ci-workflow-job-refs check failed: workflow jobs contain dependency cycle: build -> release -> test -> build",
         proc.stderr,
       )
 

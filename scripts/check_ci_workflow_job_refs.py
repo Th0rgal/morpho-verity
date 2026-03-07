@@ -141,6 +141,36 @@ def collect_workflow_job_graph(workflow_text: str) -> tuple[list[str], dict[str,
   return job_ids, needs_by_job
 
 
+def find_cycle(needs_by_job: dict[str, list[str]]) -> list[str] | None:
+  visited: set[str] = set()
+  active: set[str] = set()
+  path_stack: list[str] = []
+
+  def visit(job_id: str) -> list[str] | None:
+    if job_id in active:
+      start = path_stack.index(job_id)
+      return path_stack[start:] + [job_id]
+    if job_id in visited:
+      return None
+
+    visited.add(job_id)
+    active.add(job_id)
+    path_stack.append(job_id)
+    for dependency in needs_by_job.get(job_id, []):
+      cycle = visit(dependency)
+      if cycle is not None:
+        return cycle
+    path_stack.pop()
+    active.remove(job_id)
+    return None
+
+  for job_id in needs_by_job:
+    cycle = visit(job_id)
+    if cycle is not None:
+      return cycle
+  return None
+
+
 def main() -> int:
   parser = argparse.ArgumentParser(
     description="Validate verify.yml job ids are unique and needs references stay in sync"
@@ -183,6 +213,10 @@ def main() -> int:
   self_refs = sorted(job_id for job_id, refs in needs_by_job.items() if job_id in refs)
   if self_refs:
     fail("workflow jobs cannot need themselves: " + ", ".join(self_refs))
+
+  cycle = find_cycle(needs_by_job)
+  if cycle is not None:
+    fail("workflow jobs contain dependency cycle: " + " -> ".join(cycle))
 
   print(
     "ci-workflow-job-refs: "
