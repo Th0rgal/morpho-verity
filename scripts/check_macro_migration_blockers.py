@@ -221,6 +221,8 @@ def load_obligations(path: pathlib.Path) -> dict[str, dict[str, Any]]:
     operation = item.get("operation")
     if not isinstance(operation, str) or not operation:
       raise MigrationGateError(f"obligation[{i}] missing non-empty `operation` in {path}")
+    if operation in by_operation:
+      raise MigrationGateError(f"duplicate obligation operation `{operation}` in {path}")
     by_operation[operation] = item
   return by_operation
 
@@ -340,6 +342,10 @@ def validate_operation_blockers(
     if not isinstance(expected, list) or not expected or not all(isinstance(x, str) for x in expected):
       raise MigrationGateError(
         f"obligation `{operation}` missing non-empty string list `macroSurfaceBlockers`"
+      )
+    if len(expected) != len(set(expected)):
+      raise MigrationGateError(
+        f"obligation `{operation}` has duplicate entries in `macroSurfaceBlockers`"
       )
     expected_set = set(expected)
     actual_set = set(operation_blockers[operation])
