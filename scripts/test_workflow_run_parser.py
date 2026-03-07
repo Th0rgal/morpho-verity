@@ -154,6 +154,166 @@ class WorkflowRunParserTests(unittest.TestCase):
       ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_real.py"]}),
     )
 
+  def test_extract_named_step_runs_handles_inline_continuation_lines(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: python3 scripts/check_alpha.py \\",
+        "          --strict",
+        "        env:",
+        "          FOO: bar",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py \\\n--strict"]}),
+    )
+
+  def test_extract_named_step_runs_handles_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: |",
+        "          echo before",
+        "          python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["echo before\npython3 scripts/check_alpha.py"]}),
+    )
+
+  def test_extract_workflow_run_text_handles_folded_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: >",
+        "          python3 scripts/check_alpha.py",
+        "          --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py --strict",
+    )
+
+  def test_extract_named_step_runs_handles_folded_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: >",
+        "          python3 scripts/check_alpha.py",
+        "          --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py --strict"]}),
+    )
+
+  def test_extract_workflow_run_text_preserves_more_indented_lines_in_folded_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: >",
+        "          cat <<'EOF' > sample.txt",
+        "            preserved indent",
+        "          EOF",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "cat <<'EOF' > sample.txt\n  preserved indent\nEOF",
+    )
+
+  def test_extract_workflow_run_text_preserves_relative_indentation_in_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: |",
+        "          cat <<'EOF' > sample.txt",
+        "            preserved indent",
+        "          EOF",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "cat <<'EOF' > sample.txt\n  preserved indent\nEOF",
+    )
+
+  def test_extract_named_step_runs_preserves_relative_indentation_in_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: |",
+        "          cat <<'EOF' > sample.txt",
+        "            preserved indent",
+        "          EOF",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["cat <<'EOF' > sample.txt\n  preserved indent\nEOF"]}),
+    )
+
+  def test_extract_workflow_run_text_handles_empty_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: |",
+        "      - name: Next",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "\npython3 scripts/check_alpha.py",
+    )
+
+  def test_extract_named_step_runs_handles_empty_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: |",
+        "      - name: Validate beta",
+        "        run: python3 scripts/check_beta.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1, "Validate beta": 1},
+        {"Validate alpha": [""], "Validate beta": ["python3 scripts/check_beta.py"]},
+      ),
+    )
+
   def test_extract_workflow_run_text_covers_real_verify_workflow(self) -> None:
     workflow_text = (ROOT / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
     run_text = extract_workflow_run_text(workflow_text)

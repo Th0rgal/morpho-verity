@@ -12,6 +12,82 @@ RUN_FIELD_RE = re.compile(r"^(\s*)run:\s*(.*)$")
 RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>][-+]?$")
 
 
+def _consume_run_command(
+  lines: list[str],
+  start_index: int,
+  run_indent: int,
+  *,
+  first_line: str | None = None,
+) -> tuple[str, int]:
+  """Return the full command text for a matched `run:` line and the next line index."""
+  match = RUN_FIELD_RE.match(lines[start_index] if first_line is None else first_line)
+  if match is None:
+    raise ValueError("expected run field at start_index")
+
+  tail = match.group(2).strip()
+  if tail and not RUN_BLOCK_SCALAR_RE.fullmatch(tail):
+    line_parts = [tail]
+    next_index = start_index + 1
+    while next_index < len(lines):
+      candidate = lines[next_index]
+      stripped = candidate.lstrip(" ")
+      if not stripped:
+        break
+      indent = len(candidate) - len(stripped)
+      if indent <= run_indent:
+        break
+      line_parts.append(stripped)
+      next_index += 1
+    return "\n".join(line_parts), next_index
+
+  next_index = start_index + 1
+  block_lines: list[tuple[str, int | None]] = []
+  while next_index < len(lines):
+    candidate = lines[next_index]
+    stripped = candidate.lstrip(" ")
+    if stripped:
+      indent = len(candidate) - len(stripped)
+      if indent <= run_indent:
+        break
+      block_lines.append((candidate, indent))
+    else:
+      block_lines.append(("", None))
+    next_index += 1
+  if not any(indent is not None for _, indent in block_lines):
+    return "", next_index
+  content_indent = min(
+    indent for _, indent in block_lines if indent is not None
+  )
+  normalized_lines = [
+    line[content_indent:] if indent is not None else ""
+    for line, indent in block_lines
+  ]
+  if tail.startswith(">"):
+    return _fold_block_scalar_lines(normalized_lines), next_index
+  return "\n".join(normalized_lines), next_index
+
+
+def _fold_block_scalar_lines(lines: list[str]) -> str:
+  """Approximate YAML folded scalar semantics for workflow `run: >` bodies."""
+  folded: list[str] = []
+  for line in lines:
+    if not folded:
+      folded.append(line)
+      continue
+    previous = folded[-1]
+    if (
+      not previous
+      or not line
+      or previous.startswith(" ")
+      or line.startswith(" ")
+    ):
+      folded.append("\n")
+    else:
+      folded.append(" ")
+    folded.append(line)
+  return "".join(folded)
+
+
 def extract_workflow_run_text(workflow_text: str) -> str:
   """Return concatenated command text from workflow `run:` steps only."""
   commands: list[str] = []
@@ -60,37 +136,8 @@ def extract_workflow_run_text(workflow_text: str) -> str:
       i += 1
       continue
 
-    tail = match.group(2).strip()
-    if tail and not RUN_BLOCK_SCALAR_RE.fullmatch(tail):
-      line_parts = [tail]
-      i += 1
-      while i < len(lines):
-        candidate = lines[i]
-        stripped = candidate.lstrip(" ")
-        if not stripped:
-          break
-        indent = len(candidate) - len(stripped)
-        if indent <= run_indent:
-          break
-        line_parts.append(stripped)
-        i += 1
-      commands.append("\n".join(line_parts))
-      continue
-
-    i += 1
-    block_lines: list[str] = []
-    while i < len(lines):
-      candidate = lines[i]
-      stripped = candidate.lstrip(" ")
-      if stripped:
-        indent = len(candidate) - len(stripped)
-        if indent <= run_indent:
-          break
-        block_lines.append(stripped)
-      else:
-        block_lines.append("")
-      i += 1
-    commands.append("\n".join(block_lines))
+    command, i = _consume_run_command(lines, i, run_indent, first_line=line)
+    commands.append(command)
   return "\n".join(commands)
 
 
@@ -102,12 +149,15 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
   steps_indent: int | None = None
   current_step_indent: int | None = None
   current_step_name: str | None = None
-  for line in lines:
+  i = 0
+  while i < len(lines):
+    line = lines[i]
     steps_match = STEPS_FIELD_RE.match(line)
     if steps_match is not None:
       steps_indent = len(steps_match.group(1))
       current_step_indent = None
       current_step_name = None
+      i += 1
       continue
 
     stripped = line.lstrip(" ")
@@ -130,6 +180,7 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
         line = f"{step_match.group(1)}  {step_match.group(2)}"
 
     if current_step_indent is None:
+      i += 1
       continue
 
     name_match = NAME_FIELD_RE.match(line)
@@ -137,6 +188,7 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
       current_step_name = name_match.group(2)
       step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1
       step_runs.setdefault(current_step_name, [])
+      i += 1
       continue
 
     run_match = RUN_FIELD_RE.match(line)
@@ -145,6 +197,10 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
       and current_step_name is not None
       and len(run_match.group(1)) == current_step_indent + 2
     ):
-      step_runs[current_step_name].append(run_match.group(2).strip())
+      command, i = _consume_run_command(lines, i, len(run_match.group(1)))
+      step_runs[current_step_name].append(command)
+      continue
+
+    i += 1
 
   return step_counts, step_runs
