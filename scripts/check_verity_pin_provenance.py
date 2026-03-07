@@ -258,32 +258,6 @@ def extract_section_subheadings(
   return subheadings
 
 
-def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
-  lines = section_text.splitlines()
-  matches = [index for index, line in enumerate(lines) if line.strip() == label]
-  if not matches:
-    fail(f"documentation {doc_path} missing expected list label: {label}")
-  if len(matches) > 1:
-    fail(f"documentation {doc_path} has duplicate list label: {label}")
-  start_index = matches[0] + 1
-
-  bullets: list[str] = []
-  for line in lines[start_index:]:
-    stripped = line.strip()
-    if not stripped:
-      break
-    if stripped.endswith(":"):
-      break
-    if stripped.startswith("#"):
-      break
-    if not stripped.startswith("- "):
-      fail(f"documentation {doc_path} has malformed bullet under `{label}`: {line.strip()}")
-    bullets.append(stripped[2:].strip())
-  if not bullets:
-    fail(f"documentation {doc_path} missing bullets under `{label}`")
-  return bullets
-
-
 def extract_summary_text(section_text: str) -> str:
   summary_lines: list[str] = []
   for line in section_text.splitlines():
@@ -300,21 +274,34 @@ def extract_summary_text(section_text: str) -> str:
   return "\n".join(summary_lines).strip()
 
 
-def validate_exact_doc_list(
-  *,
-  section_text: str,
-  label: str,
-  expected: list[str],
-  doc_path: pathlib.Path,
-  description: str,
-) -> None:
-  actual = [normalize_doc_token(item) for item in extract_labeled_bullets(section_text, label, doc_path)]
-  normalized_expected = [normalize_doc_token(item) for item in expected]
-  if actual != normalized_expected:
-    fail(
-      f"documentation {doc_path} {description} drift: expected {normalized_expected}; found {actual}"
-    )
+def build_expected_section_text(item: dict[str, object]) -> str:
+  lines = [str(item["summary"])]
 
+  blockers = item.get("blockers")
+  if isinstance(blockers, list):
+    lines.extend([
+      "",
+      MACRO_BLOCKERS_LABEL,
+      *[f"- {blocker}" for blocker in blockers],
+    ])
+
+  issue_clusters = item.get("issueClusters")
+  if isinstance(issue_clusters, list):
+    lines.extend([
+      "",
+      MACRO_ISSUE_CLUSTERS_LABEL,
+      *[f"- {issue}" for issue in issue_clusters],
+    ])
+
+  files = item.get("files")
+  if isinstance(files, list):
+    lines.extend([
+      "",
+      FILES_LABEL,
+      *[f"- `{file_path}`" for file_path in files],
+    ])
+
+  return "\n".join(lines)
 
 def validate_doc_section(
   section_text: str,
@@ -328,39 +315,12 @@ def validate_doc_section(
       f"documentation {doc_path} `{item['area']}` summary drift: "
       f"expected {expected_summary!r}; found {actual_summary!r}"
     )
-  files = item.get("files")
-  if isinstance(files, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=FILES_LABEL,
-      expected=files,
-      doc_path=doc_path,
-      description=f"`{item['area']}` file list",
-    )
-
-
-def validate_macro_frontend_doc_section(
-  section_text: str,
-  item: dict[str, object],
-  doc_path: pathlib.Path,
-) -> None:
-  blockers = item.get("blockers")
-  if isinstance(blockers, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=MACRO_BLOCKERS_LABEL,
-      expected=blockers,
-      doc_path=doc_path,
-      description="macro/frontend blocker list",
-    )
-  issue_clusters = item.get("issueClusters")
-  if isinstance(issue_clusters, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=MACRO_ISSUE_CLUSTERS_LABEL,
-      expected=issue_clusters,
-      doc_path=doc_path,
-      description="macro/frontend issue cluster list",
+  normalized_section = normalize_doc_token(section_text)
+  normalized_expected_section = normalize_doc_token(build_expected_section_text(item))
+  if normalized_section != normalized_expected_section:
+    fail(
+      f"documentation {doc_path} `{item['area']}` section drift: "
+      f"expected {normalized_expected_section!r}; found {normalized_section!r}"
     )
 
 
@@ -597,8 +557,6 @@ def main() -> int:
         require_doc_mentions(doc_text, issue, args.doc)
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
-    if item["area"] == MACRO_FRONTEND_AREA:
-      validate_macro_frontend_doc_section(section_text, item, args.doc)
 
   readme_text = args.readme.read_text(encoding="utf-8")
   require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)
