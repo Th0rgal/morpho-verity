@@ -17,6 +17,10 @@ REQUIRE_VERITY_RE = re.compile(
 )
 
 
+class VerityPinSyncError(RuntimeError):
+  pass
+
+
 def fail(msg: str) -> None:
   print(f"verity-pin-sync check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
@@ -26,7 +30,7 @@ def parse_lakefile_verity(lakefile_path: pathlib.Path) -> tuple[str, str]:
   text = lakefile_path.read_text(encoding="utf-8")
   match = REQUIRE_VERITY_RE.search(text)
   if match is None:
-    fail(f"missing `require verity from git` stanza in {lakefile_path}")
+    raise VerityPinSyncError(f"missing `require verity from git` stanza in {lakefile_path}")
   return match.group("url"), match.group("rev")
 
 
@@ -34,21 +38,23 @@ def parse_manifest_verity(manifest_path: pathlib.Path) -> tuple[str, str, str]:
   try:
     data: Any = json.loads(manifest_path.read_text(encoding="utf-8"))
   except json.JSONDecodeError as exc:
-    fail(f"failed to parse JSON manifest {manifest_path}: {exc}")
+    raise VerityPinSyncError(f"failed to parse JSON manifest {manifest_path}: {exc}") from exc
   if not isinstance(data, dict):
-    fail(f"manifest root must be a JSON object in {manifest_path}")
+    raise VerityPinSyncError(f"manifest root must be a JSON object in {manifest_path}")
   packages = data.get("packages")
   if not isinstance(packages, list):
-    fail(f"missing `packages` list in {manifest_path}")
-  for pkg in packages:
+    raise VerityPinSyncError(f"missing `packages` list in {manifest_path}")
+  for index, pkg in enumerate(packages):
+    if not isinstance(pkg, dict):
+      raise VerityPinSyncError(f"packages[{index}] is not an object in {manifest_path}")
     if isinstance(pkg, dict) and pkg.get("name") == "verity":
       url = pkg.get("url")
       rev = pkg.get("rev")
       input_rev = pkg.get("inputRev")
       if not isinstance(url, str) or not isinstance(rev, str) or not isinstance(input_rev, str):
-        fail(f"incomplete verity package metadata in {manifest_path}")
+        raise VerityPinSyncError(f"incomplete verity package metadata in {manifest_path}")
       return url, rev, input_rev
-  fail(f"missing verity package entry in {manifest_path}")
+  raise VerityPinSyncError(f"missing verity package entry in {manifest_path}")
 
 
 def main() -> int:
@@ -69,24 +75,27 @@ def main() -> int:
   )
   args = parser.parse_args()
 
-  lakefile_url, lakefile_rev = parse_lakefile_verity(args.lakefile)
-  manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(args.manifest)
+  try:
+    lakefile_url, lakefile_rev = parse_lakefile_verity(args.lakefile)
+    manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(args.manifest)
 
-  if lakefile_url != manifest_url:
-    fail(
-      "lakefile/manifest verity URL mismatch: "
-      f"{lakefile_url} != {manifest_url}"
-    )
-  if lakefile_rev != manifest_input_rev:
-    fail(
-      "lakefile/manifest verity inputRev mismatch: "
-      f"{lakefile_rev} != {manifest_input_rev}"
-    )
-  if not manifest_rev.startswith(lakefile_rev):
-    fail(
-      "lakefile/manifest verity rev mismatch: "
-      f"{manifest_rev} does not start with {lakefile_rev}"
-    )
+    if lakefile_url != manifest_url:
+      raise VerityPinSyncError(
+        "lakefile/manifest verity URL mismatch: "
+        f"{lakefile_url} != {manifest_url}"
+      )
+    if lakefile_rev != manifest_input_rev:
+      raise VerityPinSyncError(
+        "lakefile/manifest verity inputRev mismatch: "
+        f"{lakefile_rev} != {manifest_input_rev}"
+      )
+    if not manifest_rev.startswith(lakefile_rev):
+      raise VerityPinSyncError(
+        "lakefile/manifest verity rev mismatch: "
+        f"{manifest_rev} does not start with {lakefile_rev}"
+      )
+  except VerityPinSyncError as exc:
+    fail(str(exc))
 
   print(
     "verity-pin-sync: "

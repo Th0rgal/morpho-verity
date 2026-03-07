@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -126,3 +127,75 @@ class CheckVerityPinSyncTests(unittest.TestCase):
         ]
         """,
       )
+
+  def test_rejects_non_object_package_entries(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        """
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        """
+        {
+          "packages": [
+            "verity"
+          ]
+        }
+        """,
+      )
+
+  def test_rejects_incomplete_verity_metadata(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        """
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        """
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": null
+            }
+          ]
+        }
+        """,
+      )
+
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      lakefile = root / "lakefile.lean"
+      manifest = root / "lake-manifest.json"
+      lakefile.write_text(
+        textwrap.dedent(
+          """
+          require verity from git
+            "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          """
+        ),
+        encoding="utf-8",
+      )
+      manifest.write_text("""{"packages": [}""", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "check_verity_pin_sync.py"),
+          "--lakefile",
+          str(lakefile),
+          "--manifest",
+          str(manifest),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("verity-pin-sync check failed:", proc.stderr)
+    self.assertIn("failed to parse JSON manifest", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
