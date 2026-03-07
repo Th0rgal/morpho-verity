@@ -381,6 +381,58 @@ verity_contract Tmp where
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn(expected, proc.stdout + proc.stderr)
 
+  def test_collateral_liquidation_frontend_blockers_still_fail_at_current_pin(self) -> None:
+    if shutil.which("lake") is None:
+      self.skipTest("lake is not available in this test environment")
+
+    cases = [
+      (
+        "struct_member2_read",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address) : Unit := do
+    let collateral := position[id][user]._1
+    let _ := collateral
+    pure ()
+""",
+        "unsupported expression in verity_contract body",
+      ),
+      (
+        "memory_ops",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (x : Uint256) : Unit := do
+    mstore 0 x
+    let y := mload 0
+    let _ := y
+    pure ()
+""",
+        "unsupported do element",
+      ),
+    ]
+
+    for name, source, expected in cases:
+      with self.subTest(name=name):
+        proc = self.compile_contract(source)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn(expected, proc.stdout + proc.stderr)
+
 
 if __name__ == "__main__":
   unittest.main()

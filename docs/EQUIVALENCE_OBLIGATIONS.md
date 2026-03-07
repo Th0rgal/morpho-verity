@@ -57,6 +57,9 @@ drift from `Morpho/Compiler/Spec.lean`.
 The same regression suite also compile-checks minimal `verity_contract` repros for the current
 core-flow frontend gaps: `Calls.withReturn`, internal `call`, `Callbacks.callback`, and
 `ERC20.safeTransfer`/`ERC20.safeTransferFrom` still fail at the pinned verity revision.
+For the collateral/liquidation cluster, the same suite also pins the still-failing
+`structMember2` access surface and direct `mstore`/`mload` use that the current
+`withdrawCollateral` and `liquidate` specs depend on.
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
