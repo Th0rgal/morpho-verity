@@ -39,6 +39,20 @@ class CollectTopLevelPermissionsTests(unittest.TestCase):
 
     self.assertEqual(collect_top_level_permissions(workflow_text), {"contents": "read"})
 
+  def test_preserves_hash_inside_quoted_access_level(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "permissions:",
+        '  contents: "read#only"',
+        "jobs:",
+        "  build:",
+        "    steps:",
+        "      - run: echo hi",
+      ]
+    )
+
+    self.assertEqual(collect_top_level_permissions(workflow_text), {"contents": "read#only"})
+
   def test_rejects_scalar_permissions_value(self) -> None:
     workflow_text = "\n".join(["permissions: read-all", "jobs:", "  build:", "    steps:"])
 

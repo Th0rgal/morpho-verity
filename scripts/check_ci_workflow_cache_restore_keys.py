@@ -7,6 +7,8 @@ import argparse
 import pathlib
 import sys
 
+from ci_workflow_helpers import read_text, strip_yaml_comment, strip_yaml_scalar
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -19,26 +21,6 @@ class CiWorkflowCacheRestoreKeysError(RuntimeError):
 def fail(message: str) -> None:
   print(f"ci-workflow-cache-restore-keys check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
-
-
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowCacheRestoreKeysError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowCacheRestoreKeysError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
 
 
 def collect_cache_key_restore_keys(workflow_text: str) -> list[tuple[str | None, str | None, list[str]]]:
@@ -58,9 +40,9 @@ def collect_cache_key_restore_keys(workflow_text: str) -> list[tuple[str | None,
     restore_keys: list[str] = []
     normalized = stripped[2:].lstrip()
     if normalized.startswith("name:"):
-      step_name = _strip_yaml_scalar(normalized.split(":", 1)[1])
+      step_name = strip_yaml_scalar(normalized.split(":", 1)[1])
     elif normalized.startswith("uses:"):
-      uses_ref = _strip_yaml_scalar(normalized.split(":", 1)[1])
+      uses_ref = strip_yaml_scalar(normalized.split(":", 1)[1])
     index += 1
 
     while index < len(lines):
@@ -78,11 +60,11 @@ def collect_cache_key_restore_keys(workflow_text: str) -> list[tuple[str | None,
         candidate_stripped[2:].lstrip() if candidate_stripped.startswith("- ") else candidate_stripped
       )
       if normalized_candidate.startswith("name:"):
-        step_name = _strip_yaml_scalar(normalized_candidate.split(":", 1)[1])
+        step_name = strip_yaml_scalar(normalized_candidate.split(":", 1)[1])
         index += 1
         continue
       if normalized_candidate.startswith("uses:"):
-        uses_ref = _strip_yaml_scalar(normalized_candidate.split(":", 1)[1])
+        uses_ref = strip_yaml_scalar(normalized_candidate.split(":", 1)[1])
         index += 1
         continue
       if not normalized_candidate.startswith("with:"):
@@ -103,14 +85,14 @@ def collect_cache_key_restore_keys(workflow_text: str) -> list[tuple[str | None,
           continue
 
         if with_stripped.startswith("key:"):
-          cache_key = _strip_yaml_scalar(with_stripped.split(":", 1)[1])
+          cache_key = strip_yaml_scalar(with_stripped.split(":", 1)[1])
           index += 1
           continue
 
         if with_stripped.startswith("restore-keys:"):
-          tail = _strip_yaml_comment(with_stripped.split(":", 1)[1]).strip()
+          tail = strip_yaml_comment(with_stripped.split(":", 1)[1]).strip()
           if tail and tail != "|":
-            restore_keys.append(_strip_yaml_scalar(tail))
+            restore_keys.append(strip_yaml_scalar(tail))
             index += 1
             continue
           index += 1
@@ -121,7 +103,7 @@ def collect_cache_key_restore_keys(workflow_text: str) -> list[tuple[str | None,
               restore_indent = len(restore_line) - len(restore_stripped)
               if restore_indent <= with_line_indent:
                 break
-              restore_keys.append(_strip_yaml_scalar(restore_stripped))
+              restore_keys.append(strip_yaml_scalar(restore_stripped))
             index += 1
           continue
 
@@ -162,7 +144,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowCacheRestoreKeysError)
     cache_steps = collect_cache_key_restore_keys(workflow_text)
     for step_name, cache_key, restore_keys in cache_steps:
       validate_cache_restore_keys(step_name, cache_key, restore_keys)

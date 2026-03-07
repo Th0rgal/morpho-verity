@@ -68,6 +68,24 @@ class CollectCacheKeyRestoreKeysTests(unittest.TestCase):
       [(None, "cache-key", ["cache-"])],
     )
 
+  def test_preserves_hash_inside_quoted_key_and_restore_key(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - uses: actions/cache@v4",
+        "        with:",
+        '          key: "cache#key"',
+        '          restore-keys: "cache#"',
+      ]
+    )
+
+    self.assertEqual(
+      collect_cache_key_restore_keys(workflow_text),
+      [(None, "cache#key", ["cache#"])],
+    )
+
 
 class ValidateCacheRestoreKeysTests(unittest.TestCase):
   def test_rejects_missing_key(self) -> None:

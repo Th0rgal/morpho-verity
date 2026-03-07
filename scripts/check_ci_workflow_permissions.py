@@ -7,6 +7,8 @@ import argparse
 import pathlib
 import sys
 
+from ci_workflow_helpers import read_text, strip_yaml_scalar
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -22,28 +24,8 @@ def fail(message: str) -> None:
   raise SystemExit(1)
 
 
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowPermissionsError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowPermissionsError(f"failed to read workflow {path}: {exc}") from exc
-
-
 def _indent_of(line: str) -> int:
   return len(line) - len(line.lstrip())
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
 
 
 def collect_top_level_permissions(workflow_text: str) -> dict[str, str]:
@@ -85,12 +67,12 @@ def collect_top_level_permissions(workflow_text: str) -> dict[str, str]:
           "workflow top-level permissions: must contain simple scope: access mappings"
         )
       scope, raw_access = candidate_stripped.split(":", 1)
-      access = _strip_yaml_scalar(raw_access)
+      access = strip_yaml_scalar(raw_access)
       if not access:
         raise CiWorkflowPermissionsError(
           f"workflow permission {scope.strip()} must have a non-empty literal access level"
         )
-      permissions[_strip_yaml_scalar(scope)] = access
+      permissions[strip_yaml_scalar(scope)] = access
       cursor += 1
 
   if permissions is None:
@@ -117,7 +99,7 @@ def collect_job_level_permissions(workflow_text: str) -> list[str]:
     if indent == 0 and stripped and not stripped.startswith("#"):
       break
     if indent == 2 and stripped.endswith(":") and not stripped.startswith("-"):
-      current_job = _strip_yaml_scalar(stripped[:-1])
+      current_job = strip_yaml_scalar(stripped[:-1])
       job_ids.append(current_job)
       continue
     if current_job is not None and indent == 4 and stripped.startswith("permissions:"):
@@ -162,7 +144,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowPermissionsError)
     top_level_permissions = collect_top_level_permissions(workflow_text)
     job_level_permissions = collect_job_level_permissions(workflow_text)
   except CiWorkflowPermissionsError as exc:

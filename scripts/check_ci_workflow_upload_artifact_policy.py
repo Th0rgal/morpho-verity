@@ -7,6 +7,8 @@ import argparse
 import pathlib
 import sys
 
+from ci_workflow_helpers import read_text, strip_yaml_scalar
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
@@ -20,28 +22,6 @@ class CiWorkflowUploadArtifactPolicyError(RuntimeError):
 def fail(message: str) -> None:
   print(f"ci-workflow-upload-artifact-policy check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
-
-
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowUploadArtifactPolicyError(
-      f"workflow {path} is not valid UTF-8: {exc}"
-    ) from exc
-  except OSError as exc:
-    raise CiWorkflowUploadArtifactPolicyError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
 
 
 def collect_upload_artifact_policies(workflow_text: str) -> list[tuple[str | None, str | None]]:
@@ -75,16 +55,16 @@ def collect_upload_artifact_policies(workflow_text: str) -> list[tuple[str | Non
 
     for indent, candidate in step_lines:
       if candidate.startswith("uses:"):
-        action_ref = _strip_yaml_scalar(candidate.split(":", 1)[1])
+        action_ref = strip_yaml_scalar(candidate.split(":", 1)[1])
         is_upload_step = action_ref.startswith("actions/upload-artifact@")
       elif candidate == "with:":
         with_indent = indent
       elif with_indent is not None and indent <= with_indent:
         with_indent = None
       elif with_indent is not None and candidate.startswith("name:"):
-        artifact_name = _strip_yaml_scalar(candidate.split(":", 1)[1])
+        artifact_name = strip_yaml_scalar(candidate.split(":", 1)[1])
       elif with_indent is not None and candidate.startswith("if-no-files-found:"):
-        if_no_files_found = _strip_yaml_scalar(candidate.split(":", 1)[1])
+        if_no_files_found = strip_yaml_scalar(candidate.split(":", 1)[1])
 
     if is_upload_step:
       policies.append((artifact_name, if_no_files_found))
@@ -128,7 +108,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowUploadArtifactPolicyError)
     policies = collect_upload_artifact_policies(workflow_text)
     for artifact_name, if_no_files_found in policies:
       validate_upload_artifact_policy(artifact_name, if_no_files_found)
