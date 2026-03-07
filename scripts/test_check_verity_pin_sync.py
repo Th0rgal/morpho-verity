@@ -276,3 +276,20 @@ class CheckVerityPinSyncTests(unittest.TestCase):
     self.assertIn("verity-pin-sync check failed:", proc.stderr)
     self.assertIn("failed to read lakefile", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_uses_repo_relative_defaults_from_another_working_directory(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "check_verity_pin_sync.py"),
+        ],
+        cwd=d,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("verity-pin-sync check: OK", proc.stdout)
+    self.assertNotIn("Traceback", proc.stderr)

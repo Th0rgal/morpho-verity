@@ -10,6 +10,10 @@ import sys
 
 from workflow_run_parser import extract_workflow_run_text
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+SCRIPTS_DIR = ROOT / "scripts"
+
 WORKFLOW_CHECK_REF_RE = re.compile(r"\bscripts/(check_[A-Za-z0-9_]+\.(?:py|sh))\b")
 
 
@@ -57,20 +61,22 @@ def main() -> int:
   parser.add_argument(
     "--workflow",
     type=pathlib.Path,
-    default=pathlib.Path(".github/workflows/verify.yml"),
+    default=WORKFLOW_PATH,
     help="Path to workflow yaml",
   )
   parser.add_argument(
     "--scripts-dir",
     type=pathlib.Path,
-    default=pathlib.Path("scripts"),
+    default=SCRIPTS_DIR,
     help="Path to scripts directory",
   )
   args = parser.parse_args()
+  workflow_path = args.workflow.resolve()
+  scripts_dir = args.scripts_dir.resolve()
 
   try:
-    workflow_text = read_text(args.workflow, context="workflow")
-    repo_checks = collect_repo_check_scripts(args.scripts_dir)
+    workflow_text = read_text(workflow_path, context="workflow")
+    repo_checks = collect_repo_check_scripts(scripts_dir)
     workflow_checks = collect_workflow_check_scripts(workflow_text)
   except CiCheckCoverageError as exc:
     fail(str(exc))

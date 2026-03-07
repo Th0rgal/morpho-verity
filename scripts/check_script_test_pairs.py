@@ -8,6 +8,10 @@ import pathlib
 import sys
 
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = ROOT / "scripts"
+
+
 def fail(msg: str) -> None:
   print(f"script-test-pairs check failed: {msg}", file=sys.stderr)
   raise SystemExit(1)
@@ -70,13 +74,14 @@ def main() -> int:
   parser.add_argument(
     "--scripts-dir",
     type=pathlib.Path,
-    default=pathlib.Path("scripts"),
+    default=SCRIPTS_DIR,
     help="Path to scripts directory",
   )
   args = parser.parse_args()
+  scripts_dir = args.scripts_dir.resolve()
 
-  repo_scripts = collect_repo_scripts(args.scripts_dir)
-  repo_tests = collect_repo_script_tests(args.scripts_dir)
+  repo_scripts = collect_repo_scripts(scripts_dir)
+  repo_tests = collect_repo_script_tests(scripts_dir)
 
   missing_tests = find_missing_tests(repo_scripts, repo_tests)
   if missing_tests:
