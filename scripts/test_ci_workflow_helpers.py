@@ -41,6 +41,15 @@ class StripYamlScalarTests(unittest.TestCase):
   def test_preserves_hash_inside_quoted_scalar(self) -> None:
     self.assertEqual(strip_yaml_scalar('"value#still-value"'), "value#still-value")
 
+  def test_unescapes_single_quoted_apostrophes(self) -> None:
+    self.assertEqual(strip_yaml_scalar("'Don''t drift'"), "Don't drift")
+
+  def test_unescapes_double_quoted_backslash_escapes(self) -> None:
+    self.assertEqual(strip_yaml_scalar(r'"Say \"hi\"\nnow"'), 'Say "hi"\nnow')
+
+  def test_preserves_invalid_double_quoted_escape_sequence(self) -> None:
+    self.assertEqual(strip_yaml_scalar(r'"bad \q escape"'), r'"bad \q escape"')
+
 
 if __name__ == "__main__":
   unittest.main()
