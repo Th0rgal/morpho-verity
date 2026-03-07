@@ -399,6 +399,87 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         ),
       )
 
+  def test_rejects_stale_preamble_metadata_before_bullets(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=textwrap.dedent(
+          """
+          # Verity Pin
+
+          `morpho-verity` currently pins Verity to:
+          Repo: `https://github.com/Th0rgal/legacy-verity.git`
+
+          - Repo: `https://github.com/Th0rgal/verity.git`
+          - Short rev: `9d9533b2`
+          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+          - Tracking issue: `#118`
+
+          ## Why this pin
+
+          Current deterministic base.
+
+          ## Remaining repo-local divergence at this pin
+
+          ### Upstream macro/frontend gaps still block operation migration
+
+          Still blocked.
+
+          Current blocker families at this pin:
+          - internal calls
+
+          Tracked migration issue clusters:
+          - #123
+
+          Relevant files:
+          - `Morpho/Compiler/MacroSlice.lean`
+
+          ## Enforcement
+
+          `config/verity-pin-provenance.json`
+          """
+        ),
+      )
+
   def test_rejects_stale_why_pinned_summary(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):
       self.run_check(
@@ -450,6 +531,57 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           why_pinned="Current deterministic base.\n\nExtra stale rationale.",
         ),
       )
+
+  def test_accepts_divergence_summary_line_ending_with_colon(self) -> None:
+    rc = self.run_check(
+      lakefile_text="""
+      require verity from git
+        "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+      """,
+      manifest_text="""
+      {
+        "packages": [
+          {
+            "name": "verity",
+            "url": "https://github.com/Th0rgal/verity.git",
+            "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+            "inputRev": "9d9533b2"
+          }
+        ]
+      }
+      """,
+      provenance_text="""
+      {
+        "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+        "inputRev": "9d9533b2",
+        "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+        "trackedIssue": "#118",
+        "whyPinned": "Current deterministic base.",
+        "remainingDivergences": [
+          {
+            "area": "Upstream macro/frontend gaps still block operation migration",
+            "summary": "Still blocked:",
+            "issueClusters": [
+              "#123"
+            ],
+            "blockers": [
+              "internal calls"
+            ],
+            "files": [
+              "Morpho/Compiler/MacroSlice.lean"
+            ]
+          }
+        ]
+      }
+      """,
+      doc_text=make_macro_frontend_doc(
+        summary="Still blocked:",
+        blockers=["internal calls"],
+        issue_clusters=["#123"],
+        files=["Morpho/Compiler/MacroSlice.lean"],
+      ),
+    )
+    self.assertEqual(rc, 0)
 
   def test_rejects_stale_divergence_summary(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):

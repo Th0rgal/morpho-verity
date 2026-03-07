@@ -18,6 +18,12 @@ MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
 MACRO_ISSUE_CLUSTERS_LABEL = "Tracked migration issue clusters:"
 FILES_LABEL = "Relevant files:"
 WHY_THIS_PIN_HEADING = "## Why this pin"
+SECTION_LIST_LABELS = {
+  FILES_LABEL,
+  MACRO_BLOCKERS_LABEL,
+  MACRO_ISSUE_CLUSTERS_LABEL,
+}
+ALLOWED_METADATA_PREAMBLE = "morpho-verity currently pins Verity to:"
 
 
 def fail(msg: str) -> None:
@@ -157,6 +163,10 @@ def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib
     if stripped == stop_heading:
       break
     if not bullets and not stripped.startswith("- "):
+      if normalize_doc_token(stripped) != normalize_doc_token(ALLOWED_METADATA_PREAMBLE) and ":" in stripped:
+        fail(
+          f"documentation {doc_path} has stale Verity pin metadata before bullet list: {stripped}"
+        )
       continue
     if not stripped.startswith("- "):
       fail(f"documentation {doc_path} has malformed Verity pin metadata line: {stripped}")
@@ -221,7 +231,7 @@ def extract_summary_text(section_text: str) -> str:
       if summary_lines:
         summary_lines.append("")
       continue
-    if stripped.endswith(":"):
+    if stripped in SECTION_LIST_LABELS:
       break
     if stripped.startswith("#"):
       break
