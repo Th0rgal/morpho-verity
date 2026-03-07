@@ -17,6 +17,13 @@ MACRO_FRONTEND_AREA = "Upstream macro/frontend gaps still block operation migrat
 MACRO_BLOCKERS_LABEL = "Current blocker families at this pin:"
 MACRO_ISSUE_CLUSTERS_LABEL = "Tracked migration issue clusters:"
 FILES_LABEL = "Relevant files:"
+WHY_THIS_PIN_HEADING = "## Why this pin"
+SECTION_LIST_LABELS = {
+  FILES_LABEL,
+  MACRO_BLOCKERS_LABEL,
+  MACRO_ISSUE_CLUSTERS_LABEL,
+}
+ALLOWED_METADATA_PREAMBLE = "morpho-verity currently pins Verity to:"
 
 
 def fail(msg: str) -> None:
@@ -138,6 +145,57 @@ def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path
   return "\n".join(section_lines)
 
 
+def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib.Path) -> list[str]:
+  lines = doc_text.splitlines()
+  start_index = None
+  for index, line in enumerate(lines):
+    if line.strip() == "# Verity Pin":
+      start_index = index + 1
+      break
+  if start_index is None:
+    fail(f"documentation {doc_path} missing expected heading: # Verity Pin")
+
+  bullets: list[str] = []
+  for line in lines[start_index:]:
+    stripped = line.strip()
+    if not stripped:
+      continue
+    if stripped == stop_heading:
+      break
+    if not bullets and not stripped.startswith("- "):
+      if normalize_doc_token(stripped) != normalize_doc_token(ALLOWED_METADATA_PREAMBLE) and ":" in stripped:
+        fail(
+          f"documentation {doc_path} has stale Verity pin metadata before bullet list: {stripped}"
+        )
+      continue
+    if not stripped.startswith("- "):
+      fail(f"documentation {doc_path} has malformed Verity pin metadata line: {stripped}")
+    bullets.append(stripped[2:].strip())
+  if not bullets:
+    fail(f"documentation {doc_path} missing Verity pin metadata bullets")
+  return bullets
+
+
+def extract_section_body(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
+  marker = heading
+  lines = doc_text.splitlines()
+  start_index = None
+  for index, line in enumerate(lines):
+    if line.strip() == marker:
+      start_index = index + 1
+      break
+  if start_index is None:
+    fail(f"documentation {doc_path} missing expected heading: {marker}")
+
+  section_lines: list[str] = []
+  for line in lines[start_index:]:
+    stripped = line.strip()
+    if stripped.startswith("## "):
+      break
+    section_lines.append(line)
+  return "\n".join(section_lines)
+
+
 def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
   lines = section_text.splitlines()
   start_index = None
@@ -165,6 +223,22 @@ def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Pat
   return bullets
 
 
+def extract_summary_text(section_text: str) -> str:
+  summary_lines: list[str] = []
+  for line in section_text.splitlines():
+    stripped = line.strip()
+    if not stripped:
+      if summary_lines:
+        summary_lines.append("")
+      continue
+    if stripped in SECTION_LIST_LABELS:
+      break
+    if stripped.startswith("#"):
+      break
+    summary_lines.append(line)
+  return "\n".join(summary_lines).strip()
+
+
 def validate_exact_doc_list(
   *,
   section_text: str,
@@ -186,6 +260,13 @@ def validate_doc_section(
   item: dict[str, object],
   doc_path: pathlib.Path,
 ) -> None:
+  actual_summary = normalize_doc_token(extract_summary_text(section_text))
+  expected_summary = normalize_doc_token(str(item["summary"]))
+  if actual_summary != expected_summary:
+    fail(
+      f"documentation {doc_path} `{item['area']}` summary drift: "
+      f"expected {expected_summary!r}; found {actual_summary!r}"
+    )
   files = item.get("files")
   if isinstance(files, list):
     validate_exact_doc_list(
@@ -219,6 +300,48 @@ def validate_macro_frontend_doc_section(
       expected=issue_clusters,
       doc_path=doc_path,
       description="macro/frontend issue cluster list",
+    )
+
+
+def validate_doc_metadata(
+  *,
+  doc_text: str,
+  upstream_repo: str,
+  input_rev: str,
+  full_rev: str,
+  tracked_issue: str,
+  doc_path: pathlib.Path,
+) -> None:
+  actual = [
+    normalize_doc_token(item)
+    for item in extract_doc_lead_bullets(doc_text, WHY_THIS_PIN_HEADING, doc_path)
+  ]
+  expected = [
+    normalize_doc_token(f"Repo: {upstream_repo}"),
+    normalize_doc_token(f"Short rev: {input_rev}"),
+    normalize_doc_token(f"Full rev: {full_rev}"),
+    normalize_doc_token(f"Tracking issue: {tracked_issue}"),
+  ]
+  if actual != expected:
+    fail(
+      f"documentation {doc_path} Verity pin metadata drift: expected {expected}; found {actual}"
+    )
+
+
+def validate_why_pinned(
+  *,
+  doc_text: str,
+  why_pinned: str,
+  doc_path: pathlib.Path,
+) -> None:
+  actual = normalize_doc_token(
+    extract_section_body(doc_text, WHY_THIS_PIN_HEADING, doc_path)
+  )
+  expected = normalize_doc_token(why_pinned)
+  if actual != expected:
+    fail(
+      f"documentation {doc_path} why-pinned summary drift: "
+      f"expected {expected!r}; found {actual!r}"
     )
 
 
@@ -299,6 +422,19 @@ def main() -> int:
         fail(f"documented divergence file does not exist: {raw_path}")
 
   doc_text = args.doc.read_text(encoding="utf-8")
+  validate_doc_metadata(
+    doc_text=doc_text,
+    upstream_repo=upstream_repo,
+    input_rev=input_rev,
+    full_rev=full_rev,
+    tracked_issue=tracked_issue,
+    doc_path=args.doc,
+  )
+  validate_why_pinned(
+    doc_text=doc_text,
+    why_pinned=why_pinned,
+    doc_path=args.doc,
+  )
   require_doc_mentions(doc_text, upstream_repo, args.doc)
   require_doc_mentions(doc_text, input_rev, args.doc)
   require_doc_mentions(doc_text, full_rev, args.doc)

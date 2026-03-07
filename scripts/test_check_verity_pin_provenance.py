@@ -33,11 +33,16 @@ def make_macro_frontend_doc(
     f"""
     # Verity Pin
 
-    {upstream_repo}
-    {input_rev}
-    {full_rev}
-    {tracked_issue}
+    - Repo: `{upstream_repo}`
+    - Short rev: `{input_rev}`
+    - Full rev: `{full_rev}`
+    - Tracking issue: `{tracked_issue}`
+
+    ## Why this pin
+
     {why_pinned}
+
+    ## Remaining repo-local divergence at this pin
 
     ### Upstream macro/frontend gaps still block operation migration
 
@@ -51,6 +56,10 @@ def make_macro_frontend_doc(
 
     Relevant files:
     {file_lines}
+
+    ## Enforcement
+
+    `config/verity-pin-provenance.json`
     """
   ).strip()
 
@@ -201,11 +210,16 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       doc_text="""
       # Verity Pin
 
-      https://github.com/Th0rgal/verity.git
-      9d9533b2
-      9d9533b2e8fd775ed673797b6a95301c8414c675
-      #118
+      - Repo: `https://github.com/Th0rgal/verity.git`
+      - Short rev: `9d9533b2`
+      - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+      - Tracking issue: `#118`
+
+      ## Why this pin
+
       Current deterministic base.
+
+      ## Remaining repo-local divergence at this pin
 
       ### Local generated-contract boundary
 
@@ -246,9 +260,379 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       - `Morpho/Compiler/MacroSlice.lean`
       - `Morpho/Proofs/SemanticBridgeReadiness.lean`
       - `scripts/check_macro_migration_blockers.py`
+
+      ## Enforcement
+
+      `config/verity-pin-provenance.json`
       """,
       )
     self.assertEqual(rc, 0)
+
+  def test_rejects_stale_verity_pin_metadata_bullet(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+          input_rev="aaaaaaaa",
+        ),
+      )
+
+  def test_rejects_duplicate_verity_pin_metadata_bullet(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=textwrap.dedent(
+          """
+          # Verity Pin
+
+          - Repo: `https://github.com/Th0rgal/verity.git`
+          - Short rev: `9d9533b2`
+          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+          - Tracking issue: `#118`
+
+          ## Why this pin
+
+          Current deterministic base.
+
+          ## Remaining repo-local divergence at this pin
+
+          ### Upstream macro/frontend gaps still block operation migration
+
+          Still blocked.
+
+          Current blocker families at this pin:
+          - internal calls
+
+          Tracked migration issue clusters:
+          - #123
+
+          Relevant files:
+          - `Morpho/Compiler/MacroSlice.lean`
+
+          ## Enforcement
+
+          `config/verity-pin-provenance.json`
+          """
+        ),
+      )
+
+  def test_rejects_stale_preamble_metadata_before_bullets(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=textwrap.dedent(
+          """
+          # Verity Pin
+
+          `morpho-verity` currently pins Verity to:
+          Repo: `https://github.com/Th0rgal/legacy-verity.git`
+
+          - Repo: `https://github.com/Th0rgal/verity.git`
+          - Short rev: `9d9533b2`
+          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+          - Tracking issue: `#118`
+
+          ## Why this pin
+
+          Current deterministic base.
+
+          ## Remaining repo-local divergence at this pin
+
+          ### Upstream macro/frontend gaps still block operation migration
+
+          Still blocked.
+
+          Current blocker families at this pin:
+          - internal calls
+
+          Tracked migration issue clusters:
+          - #123
+
+          Relevant files:
+          - `Morpho/Compiler/MacroSlice.lean`
+
+          ## Enforcement
+
+          `config/verity-pin-provenance.json`
+          """
+        ),
+      )
+
+  def test_rejects_stale_why_pinned_summary(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+          why_pinned="Current deterministic base.\n\nExtra stale rationale.",
+        ),
+      )
+
+  def test_accepts_divergence_summary_line_ending_with_colon(self) -> None:
+    rc = self.run_check(
+      lakefile_text="""
+      require verity from git
+        "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+      """,
+      manifest_text="""
+      {
+        "packages": [
+          {
+            "name": "verity",
+            "url": "https://github.com/Th0rgal/verity.git",
+            "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+            "inputRev": "9d9533b2"
+          }
+        ]
+      }
+      """,
+      provenance_text="""
+      {
+        "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+        "inputRev": "9d9533b2",
+        "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+        "trackedIssue": "#118",
+        "whyPinned": "Current deterministic base.",
+        "remainingDivergences": [
+          {
+            "area": "Upstream macro/frontend gaps still block operation migration",
+            "summary": "Still blocked:",
+            "issueClusters": [
+              "#123"
+            ],
+            "blockers": [
+              "internal calls"
+            ],
+            "files": [
+              "Morpho/Compiler/MacroSlice.lean"
+            ]
+          }
+        ]
+      }
+      """,
+      doc_text=make_macro_frontend_doc(
+        summary="Still blocked:",
+        blockers=["internal calls"],
+        issue_clusters=["#123"],
+        files=["Morpho/Compiler/MacroSlice.lean"],
+      ),
+    )
+    self.assertEqual(rc, 0)
+
+  def test_rejects_stale_divergence_summary(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        lakefile_text="""
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        """,
+        manifest_text="""
+        {
+          "packages": [
+            {
+              "name": "verity",
+              "url": "https://github.com/Th0rgal/verity.git",
+              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+              "inputRev": "9d9533b2"
+            }
+          ]
+        }
+        """,
+        provenance_text="""
+        {
+          "upstreamRepo": "https://github.com/Th0rgal/verity.git",
+          "inputRev": "9d9533b2",
+          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "trackedIssue": "#118",
+          "whyPinned": "Current deterministic base.",
+          "remainingDivergences": [
+            {
+              "area": "Upstream macro/frontend gaps still block operation migration",
+              "summary": "Still blocked.",
+              "issueClusters": [
+                "#123"
+              ],
+              "blockers": [
+                "internal calls"
+              ],
+              "files": [
+                "Morpho/Compiler/MacroSlice.lean"
+              ]
+            }
+          ]
+        }
+        """,
+        doc_text=make_macro_frontend_doc(
+          summary="Still blocked.\n\nStale extra explanation.",
+          blockers=["internal calls"],
+          issue_clusters=["#123"],
+          files=["Morpho/Compiler/MacroSlice.lean"],
+        ),
+      )
 
   def test_rejects_missing_macro_frontend_blockers(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):
@@ -435,14 +819,25 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         }
         """,
         doc_text="""
-        https://github.com/Th0rgal/verity.git
-        9d9533b2
-        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-        #118
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `9d9533b2`
+        - Full rev: `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
         Current deterministic base.
-        Local generated-contract boundary
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Local generated-contract boundary
+
         Repo-local generated boundary remains.
-        Morpho/Compiler/MacroSlice.lean
+
+        Relevant files:
+        - `Morpho/Compiler/MacroSlice.lean`
         """,
       )
 
@@ -484,14 +879,25 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         }
         """,
         doc_text="""
-        https://github.com/Th0rgal/verity.git
-        9d9533b2
-        9d9533b2e8fd775ed673797b6a95301c8414c675
-        #118
+        # Verity Pin
+
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `9d9533b2`
+        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
         Current deterministic base.
-        Local generated-contract boundary
+
+        ## Remaining repo-local divergence at this pin
+
+        ### Local generated-contract boundary
+
         Repo-local generated boundary remains.
-        Morpho/Compiler/MacroSlice.lean
+
+        Relevant files:
+        - `Morpho/Compiler/MacroSlice.lean`
         """,
         readme_text="No pin doc linked here.\n",
       )
@@ -639,11 +1045,16 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         doc_text="""
         # Verity Pin
 
-        https://github.com/Th0rgal/verity.git
-        9d9533b2
-        9d9533b2e8fd775ed673797b6a95301c8414c675
-        #118
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `9d9533b2`
+        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
         Current deterministic base.
+
+        ## Remaining repo-local divergence at this pin
 
         ### Local generated-contract boundary
 
@@ -696,11 +1107,16 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         doc_text="""
         # Verity Pin
 
-        https://github.com/Th0rgal/verity.git
-        9d9533b2
-        9d9533b2e8fd775ed673797b6a95301c8414c675
-        #118
+        - Repo: `https://github.com/Th0rgal/verity.git`
+        - Short rev: `9d9533b2`
+        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Tracking issue: `#118`
+
+        ## Why this pin
+
         Current deterministic base.
+
+        ## Remaining repo-local divergence at this pin
 
         ### Repo-local state encoding wrappers
 
