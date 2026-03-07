@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_morpho_selectors_sync import (  # noqa: E402
@@ -16,6 +17,7 @@ from check_morpho_selectors_sync import (  # noqa: E402
   find_selector_block_bounds,
   parse_selector_signatures,
   rewrite_selector_block,
+  write_text,
 )
 from check_macro_migration_surface import ROOT, run_check  # noqa: E402
 
@@ -88,6 +90,13 @@ def morphoSelectors : List Nat := [
     with self.assertRaisesRegex(MorphoSelectorsSyncError, "missing selector mapping for signature: a\\(\\)"):
       rewrite_selector_block(spec, {})
 
+  def test_write_text_wraps_oserror(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = pathlib.Path(tmpdir) / "Spec.lean"
+      with mock.patch.object(pathlib.Path, "write_text", side_effect=OSError("boom")):
+        with self.assertRaisesRegex(MorphoSelectorsSyncError, "failed to write spec file"):
+          write_text(path, "content\n", context="spec file")
+
   @unittest.skipUnless((pathlib.Path(__file__).resolve().parent.parent / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol").exists(),
                        "requires initialized morpho-blue submodule (IMorpho.sol)")
   @unittest.skipUnless(shutil.which("solc"), "requires solc on PATH")
@@ -131,6 +140,57 @@ def morphoSelectors : List Nat := [
     self.assertEqual(proc.returncode, 1)
     self.assertIn("morpho-selectors-sync check failed:", proc.stderr)
     self.assertIn("unable to find morphoSelectors", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_temp_selector_write_failure_without_traceback(self) -> None:
+    temp_selector_path = pathlib.Path("/tmp/morpho_extra_selectors.sol")
+    created_dir = False
+    if temp_selector_path.exists():
+      self.skipTest("/tmp/morpho_extra_selectors.sol already exists")
+
+    try:
+      temp_selector_path.mkdir()
+      created_dir = True
+      with tempfile.TemporaryDirectory() as tmpdir:
+        bad_repo = pathlib.Path(tmpdir)
+        (bad_repo / "scripts").mkdir()
+        (bad_repo / "Morpho" / "Compiler").mkdir(parents=True)
+        (bad_repo / "morpho-blue" / "src" / "interfaces").mkdir(parents=True)
+        (bad_repo / "scripts" / "check_morpho_selectors_sync.py").write_text(
+          (ROOT / "scripts" / "check_morpho_selectors_sync.py").read_text(encoding="utf-8"),
+          encoding="utf-8",
+        )
+        (bad_repo / "scripts" / "check_macro_migration_surface.py").write_text(
+          (ROOT / "scripts" / "check_macro_migration_surface.py").read_text(encoding="utf-8"),
+          encoding="utf-8",
+        )
+        (bad_repo / "Morpho" / "Compiler" / "Spec.lean").write_text(
+          "def morphoSelectors : List Nat := [\n"
+          "  0x11111111 -- fee(bytes32)\n"
+          "]\n",
+          encoding="utf-8",
+        )
+        (bad_repo / "morpho-blue" / "src" / "interfaces" / "IMorpho.sol").write_text(
+          "interface IMorpho {\n"
+          "  function supply(address,uint256) external;\n"
+          "}\n",
+          encoding="utf-8",
+        )
+
+        proc = subprocess.run(
+          [sys.executable, str(bad_repo / "scripts" / "check_morpho_selectors_sync.py")],
+          cwd=bad_repo,
+          check=False,
+          capture_output=True,
+          text=True,
+        )
+    finally:
+      if created_dir:
+        temp_selector_path.rmdir()
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("morpho-selectors-sync check failed:", proc.stderr)
+    self.assertIn("failed to write temporary selector interface", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
 
