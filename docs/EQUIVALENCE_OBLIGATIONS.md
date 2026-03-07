@@ -14,8 +14,8 @@ enableIrm, enableLltv, setAuthorization, flashLoan. The proofs are in
 `Morpho/Proofs/CompilationCorrectness.lean` (setOwner, setFeeRecipient,
 enableIrm, enableLltv, setAuthorization). `flashLoan` is now in the same
 state as a Link 1-proven operation, but still lacks Link 2 because its
-event-emission body uses
-`mstore`/`rawLog`, which are not yet covered by the current witness set. Link 3 (CompilationModel ↔ EVMYulLean) depends on
+event-emission body needs a `SupportedStmtList` witness for a `rawLog` tail
+whose topics depend on `caller` and `token`, not just literals. Link 3 (CompilationModel ↔ EVMYulLean) depends on
 upstream verity infrastructure.
 
 ## Scope
@@ -177,14 +177,14 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 | `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 9d9533b2 |
 | `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 9d9533b2 |
 | `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 9d9533b2 |
-| `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | event/log witness + primitive bridge coverage |
+| `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
 **Summary**: All 6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
 The 5 admin operations also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
 `Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
 the upstream two-storage-address witness added in verity. `flashLoan` remains
-blocked at Link 2 on the `mstore`/`rawLog` event path.
+blocked at Link 2 on the dynamic-topic `rawLog` event path.
 createMarket is a hard stub (not macro-migrated) — Link 1 not yet provable.
 
 ### Discharge proof structure

@@ -22,8 +22,8 @@ EVMYulLean (Yul execution)
 ## What this proves (no sorry)
 
 For the 5 admin functions with Link 1 proofs, we compose:
-- **Link 1** (`SemanticBridgeDischarge`): `edslF = ContractSemantics.F`
-- **Canonical invariants** (`Invariants`): `ContractSemantics.F` preserves all 4 invariants
+- **Link 1** (`SemanticBridgeDischarge`): `edslF = Morpho.F`
+- **Canonical invariants** (`Invariants`): `Morpho.F` preserves all 4 invariants
 
 Result: 20 direct composition theorems for the admin cluster, plus 2
 additional monotonicity theorems for enableIrm, and a direct flash-loan
@@ -256,9 +256,9 @@ compilation correctness via `compile_supported_stmt_list_direct_semantics`:
 - enableLltv: `letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop`
 - setAuthorization: `letCallerLetMapping2IteParamReqSetMapping2Stop`
 
-`flashLoan` does not yet have the analogous witness because its body uses
-`mstore` and `rawLog`, which are outside the current witness set tracked in
-`CompilationCorrectness.lean`.
+`flashLoan` does not yet have the analogous witness because the current
+`SupportedStmtFragment` raw-log family only covers literal topic lists, while
+the Morpho event path logs `caller` and `token` as dynamic topics.
 
 ### Remaining gaps
 

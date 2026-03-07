@@ -1,12 +1,13 @@
-import Morpho.Specs.ContractSemantics
+import Morpho.Morpho
 import Morpho.Proofs.SolidityBridge
 
 /-!
-# Semantic Bridge Discharge: Link 1 (Pure Lean ↔ EDSL)
+# Semantic Bridge Discharge: Link 1 (Wrapper API ↔ EDSL)
 
 This module proves the first link of the semantic bridge discharge chain:
 the EDSL functions produced by `verity_contract` are equivalent to the
-canonical spec-facing execution surface in `Morpho.Specs.ContractSemantics`.
+stable spec-facing wrapper API exported by `Morpho.Morpho`, which in turn
+aliases the canonical execution surface in `Morpho.Specs.ContractSemantics`.
 
 ## Architecture
 
@@ -48,17 +49,17 @@ open Morpho.Types
 
 /-! ## Canonical State Encoding
 
-`Morpho.Specs.ContractSemantics` now owns the canonical spec-facing execution
-surface for the already-migrated admin operations. That module points directly
-at `Compiler.AdminAdapters`, while `Morpho.Morpho` merely re-exports the same
-definitions for backwards compatibility. -/
+`Morpho.Specs.ContractSemantics` owns the canonical spec-facing execution
+surface for the already-migrated admin operations. This file states Link 1 on
+the stable `Morpho.*` wrappers so downstream proofs can stay on the readable
+compatibility API while still reducing definitionally to the canonical module. -/
 
 noncomputable abbrev edslSetOwner := Morpho.Compiler.AdminAdapters.setOwner
 
 /-- **Link 1 for setOwner**: The EDSL `setOwner` matches the pure Lean model. -/
 theorem setOwner_link1 :
     ∀ s newOwner,
-      edslSetOwner s newOwner = Morpho.Specs.ContractSemantics.setOwner s newOwner := by
+      edslSetOwner s newOwner = Morpho.setOwner s newOwner := by
   intro s newOwner
   rfl
 
@@ -72,8 +73,7 @@ noncomputable abbrev edslSetFeeRecipient := Morpho.Compiler.AdminAdapters.setFee
 /-- **Link 1 for setFeeRecipient**: EDSL matches the pure Lean model. -/
 theorem setFeeRecipient_link1 :
     ∀ s newFeeRecipient,
-      edslSetFeeRecipient s newFeeRecipient =
-        Morpho.Specs.ContractSemantics.setFeeRecipient s newFeeRecipient := by
+      edslSetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient := by
   intro s newFeeRecipient
   rfl
 
@@ -86,7 +86,7 @@ noncomputable abbrev edslEnableIrm := Morpho.Compiler.AdminAdapters.enableIrm
 
 /-- **Link 1 for enableIrm**: The EDSL `enableIrm` matches the pure Lean model. -/
 theorem enableIrm_link1 :
-    ∀ s irm, edslEnableIrm s irm = Morpho.Specs.ContractSemantics.enableIrm s irm := by
+    ∀ s irm, edslEnableIrm s irm = Morpho.enableIrm s irm := by
   intro s irm
   rfl
 
@@ -99,7 +99,7 @@ noncomputable abbrev edslEnableLltv := Morpho.Compiler.AdminAdapters.enableLltv
 
 /-- **Link 1 for enableLltv**: The EDSL `enableLltv` matches the pure Lean model. -/
 theorem enableLltv_link1 :
-    ∀ s lltv, edslEnableLltv s lltv = Morpho.Specs.ContractSemantics.enableLltv s lltv := by
+    ∀ s lltv, edslEnableLltv s lltv = Morpho.enableLltv s lltv := by
   intro s lltv
   rfl
 
@@ -114,7 +114,7 @@ noncomputable abbrev edslSetAuthorization := Morpho.Compiler.AdminAdapters.setAu
 theorem setAuthorization_link1 :
     ∀ s authorized newIsAuthorized,
       edslSetAuthorization s authorized newIsAuthorized =
-        Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuthorized := by
+        Morpho.setAuthorization s authorized newIsAuthorized := by
   intro s authorized newIsAuthorized
   rfl
 
@@ -128,7 +128,7 @@ noncomputable abbrev edslFlashLoan := Morpho.Compiler.AdminAdapters.flashLoan
 /-- **Link 1 for flashLoan**: The EDSL `flashLoan` matches the canonical state model. -/
 theorem flashLoan_link1 :
     ∀ s assets,
-      edslFlashLoan s assets = Morpho.Specs.ContractSemantics.flashLoan s assets := by
+      edslFlashLoan s assets = Morpho.flashLoan s assets := by
   intro s assets
   rfl
 
@@ -147,7 +147,7 @@ execution to the compiled IR and then to EVMYulLean.
 |-------|-----------|--------|-----------|
 | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `9d9533b2` |
 | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `9d9533b2` |
-| 3 | flashLoan | **proven** | pending `SupportedStmtList`/primitive bridge coverage for `mstore` + `rawLog` |
+| 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` tail with caller/token topics, then external I/O bridge work |
 | 4 | createMarket | provable | needs MappingWord bridge |
 | 5 | 11 remaining ops | blocked on macro | blocked |
 -/
