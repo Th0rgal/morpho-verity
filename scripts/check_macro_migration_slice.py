@@ -350,6 +350,7 @@ def run_check(
     "status": "ok",
     "specPath": display_path(spec_path),
     "macroPath": display_path(macro_path),
+    "baselinePath": display_path(baseline_path),
     "contract": contract_name,
     "migratedCount": len(migrated_signatures),
     "specSignatureCount": len(spec_signatures),
