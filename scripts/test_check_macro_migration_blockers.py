@@ -406,6 +406,24 @@ verity_contract Tmp where
         "unsupported expression in verity_contract body",
       ),
       (
+        "struct_member2_write",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    position : Uint256 := slot 0
+
+  function f (id : Uint256, user : Address, x : Uint256) : Unit := do
+    position[id][user]._1 := x
+    pure ()
+""",
+        "unsupported do element",
+      ),
+      (
         "memory_ops",
         """\
 import Verity.Core
