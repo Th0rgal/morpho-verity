@@ -152,6 +152,36 @@
       "blockedBy": "Link 1 proven (SemanticBridgeDischarge); remaining gap is external ERC20/callback proof surface plus a typed-IR SupportedStmtList witness for the rawLog tail with caller/token topics"
     }
   ],
+  "issueClusters": [
+    {
+      "issue": 123,
+      "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL",
+      "operations": ["supply", "withdraw", "borrow", "repay"],
+      "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "blockerCoverageCounts": {
+        "callbacks": 2,
+        "erc20": 4,
+        "externalWithReturn": 1,
+        "internalCall": 4,
+        "memoryOps": 4,
+        "structMember2": 4
+      }
+    },
+    {
+      "issue": 124,
+      "title": "Implement collateral and liquidation flows in the Verity EDSL",
+      "operations": ["supplyCollateral", "withdrawCollateral", "liquidate"],
+      "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
+      "blockerCoverageCounts": {
+        "callbacks": 2,
+        "erc20": 3,
+        "externalWithReturn": 2,
+        "internalCall": 2,
+        "memoryOps": 3,
+        "structMember2": 3
+      }
+    }
+  ],
   "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 9d9533b2; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
   "source": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
