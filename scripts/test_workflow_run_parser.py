@@ -367,6 +367,31 @@ class WorkflowRunParserTests(unittest.TestCase):
       ),
     )
 
+  def test_extract_named_step_runs_resolves_yaml_scalar_aliases(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: &validate_label "Validate alpha"',
+        "        run: python3 scripts/check_alpha.py",
+        "      - name: *validate_label",
+        "        run: python3 scripts/check_beta.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 2},
+        {
+          "Validate alpha": [
+            "python3 scripts/check_alpha.py",
+            "python3 scripts/check_beta.py",
+          ],
+        },
+      ),
+    )
+
   def test_extract_named_step_runs_strips_yaml_comments_from_step_names(self) -> None:
     workflow_text = "\n".join(
       [
@@ -485,6 +510,30 @@ class WorkflowRunParserTests(unittest.TestCase):
         "TOP_TIMEOUT_SEC": ["10"],
         "JOB_TIMEOUT_SEC": ["20"],
         "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_resolves_yaml_scalar_aliases(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        '  TOP_TIMEOUT_SEC: &top_timeout "10"',
+        "jobs:",
+        "  test:",
+        "    env:",
+        "      JOB_TIMEOUT_SEC: *top_timeout",
+        "    steps:",
+        '      - env: {STEP_TIMEOUT_SEC: &step_timeout "30", STEP_TIMEOUT_COPY: *step_timeout}',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "JOB_TIMEOUT_SEC": ["10"],
+        "STEP_TIMEOUT_SEC": ["30"],
+        "STEP_TIMEOUT_COPY": ["30"],
       },
     )
 
