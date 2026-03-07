@@ -113,6 +113,9 @@ jobs:
       - name: Validate CI timeout budgets fit inside job limits
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout budgets fit inside job limits" -- python3 scripts/check_ci_timeout_job_budget_fit.py
 
+      - name: Validate CI workflow job timeout policy
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI workflow job timeout policy" -- python3 scripts/check_ci_workflow_job_timeouts.py
+
       - name: Validate CI script-test coverage sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI script-test coverage sync" -- python3 scripts/check_ci_test_coverage.py
 
