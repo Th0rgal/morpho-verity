@@ -28,6 +28,9 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   (?:,|$)
 """, re.VERBOSE)
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)\s+(.*)$")
+ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$")
+ALIAS_SCALAR_RE = re.compile(r"^\*([^\s]+)$")
 
 DOUBLE_QUOTED_ESCAPES = {
   "0": "\0",
@@ -140,18 +143,49 @@ def _extract_block_scalar_indent(tail: str) -> int | None:
   return None
 
 
-def _parse_scalar_env_value(raw: str) -> str | None:
+def _strip_yaml_scalar_properties(value: str) -> tuple[str, list[str]]:
+  anchors: list[str] = []
+  previous = None
+  while value and value != previous:
+    previous = value
+    tag_match = TAG_PROPERTY_RE.match(value)
+    if tag_match is not None:
+      value = tag_match.group(1).lstrip()
+      continue
+    anchor_match = ANCHOR_PROPERTY_RE.match(value)
+    if anchor_match is not None:
+      anchors.append(anchor_match.group(1))
+      value = anchor_match.group(2).lstrip()
+  return value, anchors
+
+
+def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> str | None:
   value = _strip_yaml_comment(raw).strip()
   if not value:
     return None
+  value, declared_anchors = _strip_yaml_scalar_properties(value)
+  if not value:
+    return None
+  alias_match = ALIAS_SCALAR_RE.fullmatch(value)
+  if alias_match is not None:
+    return anchors.get(alias_match.group(1)) if anchors is not None else None
+
+  parsed: str | None
   if value[0] in {'"', "'"}:
     if len(value) < 2 or value[-1] != value[0]:
       return None
     inner = value[1:-1]
     if value[0] == "'":
-      return inner.replace("''", "'")
-    return _parse_double_quoted_yaml_scalar(inner)
-  return value
+      parsed = inner.replace("''", "'")
+    else:
+      parsed = _parse_double_quoted_yaml_scalar(inner)
+  else:
+    parsed = value
+
+  if parsed is not None and anchors is not None:
+    for anchor_name in declared_anchors:
+      anchors[anchor_name] = parsed
+  return parsed
 
 
 def _parse_double_quoted_yaml_scalar(inner: str) -> str | None:
@@ -261,7 +295,7 @@ def _extract_inline_env_mapping_body(raw: str) -> str | None:
   return None
 
 
-def _parse_inline_env_mapping(raw: str) -> dict[str, list[str]] | None:
+def _parse_inline_env_mapping(raw: str, anchors: dict[str, str] | None = None) -> dict[str, list[str]] | None:
   body = _extract_inline_env_mapping_body(raw)
   if body is None:
     return None
@@ -273,14 +307,19 @@ def _parse_inline_env_mapping(raw: str) -> dict[str, list[str]] | None:
     match = INLINE_ENV_ENTRY_RE.match(body, position)
     if match is None:
       return None
-    scalar = _parse_scalar_env_value(match.group(2))
+    scalar = _parse_scalar_env_value(match.group(2), anchors)
     if scalar is not None:
       parsed.setdefault(match.group(1), []).append(scalar)
     position = match.end()
   return parsed
 
 
-def _consume_env_mapping(lines: list[str], start_index: int, env_indent: int) -> tuple[dict[str, list[str]], int]:
+def _consume_env_mapping(
+  lines: list[str],
+  start_index: int,
+  env_indent: int,
+  anchors: dict[str, str] | None = None,
+) -> tuple[dict[str, list[str]], int]:
   values: dict[str, list[str]] = {}
   next_index = start_index + 1
   while next_index < len(lines):
@@ -296,7 +335,7 @@ def _consume_env_mapping(lines: list[str], start_index: int, env_indent: int) ->
     if entry_match is None or len(entry_match.group(1)) != env_indent + 2:
       next_index += 1
       continue
-    value = _parse_scalar_env_value(entry_match.group(3))
+    value = _parse_scalar_env_value(entry_match.group(3), anchors)
     if value is not None:
       values.setdefault(entry_match.group(2), []).append(value)
     next_index += 1
@@ -359,6 +398,7 @@ def extract_workflow_run_text(workflow_text: str) -> str:
 def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
   """Return scalar env literals from workflow, job, and step `env:` mappings only."""
   values: dict[str, list[str]] = {}
+  anchors: dict[str, str] = {}
   lines = workflow_text.splitlines()
   i = 0
   jobs_indent: int | None = None
@@ -430,13 +470,13 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       continue
 
     if env_tail:
-      env_values = _parse_inline_env_mapping(env_tail)
+      env_values = _parse_inline_env_mapping(env_tail, anchors)
       if env_values is None:
         i += 1
         continue
       i += 1
     else:
-      env_values, i = _consume_env_mapping(lines, i, env_indent)
+      env_values, i = _consume_env_mapping(lines, i, env_indent, anchors)
     for key, extracted in env_values.items():
       values.setdefault(key, []).extend(extracted)
   return values
@@ -446,6 +486,7 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
   """Return named workflow step counts and their step-level inline `run:` lines."""
   step_counts: dict[str, int] = {}
   step_runs: dict[str, list[str]] = {}
+  anchors: dict[str, str] = {}
   lines = workflow_text.splitlines()
   steps_indent: int | None = None
   current_step_indent: int | None = None
@@ -486,7 +527,7 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
 
     name_match = NAME_FIELD_RE.match(line)
     if name_match is not None and len(name_match.group(1)) == current_step_indent + 2:
-      parsed_name = _parse_scalar_env_value(name_match.group(2))
+      parsed_name = _parse_scalar_env_value(name_match.group(2), anchors)
       current_step_name = parsed_name
       if current_step_name is not None:
         step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1

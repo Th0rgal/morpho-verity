@@ -166,6 +166,21 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
       "",
     ]))
 
+  def test_validate_workflow_accepts_tagged_step_names(self) -> None:
+    validate_workflow("\n".join([
+      "jobs:",
+      "  parity-target:",
+      "    steps:",
+      *[
+        "\n".join([
+          f'      - name: !!str "{step}"',
+          f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+        ])
+        for step in EXPECTED_WORKFLOW_STEPS
+      ],
+      "",
+    ]))
+
   def test_validate_workflow_rejects_missing_step(self) -> None:
     with self.assertRaisesRegex(
       ReleaseCriteriaStatusError,
