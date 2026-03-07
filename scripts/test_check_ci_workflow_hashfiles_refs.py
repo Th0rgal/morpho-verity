@@ -18,7 +18,9 @@ from check_ci_workflow_hashfiles_refs import (  # noqa: E402
   CiWorkflowHashFilesRefsError,
   collect_workflow_hashfiles_patterns,
   expand_hashfiles_pattern,
+  iter_hashfiles_call_args,
   main,
+  parse_hashfiles_call_patterns,
 )
 
 
@@ -52,6 +54,46 @@ class CollectWorkflowHashFilesPatternsTests(unittest.TestCase):
       r"hashFiles\(\) call must use quoted literal patterns",
     ):
       collect_workflow_hashfiles_patterns("key: ${{ hashFiles(matrix.cacheKey) }}")
+
+  def test_collect_preserves_parentheses_inside_quoted_pattern(self) -> None:
+    workflow_text = (
+      "key: ${{ runner.os }}-${{ hashFiles('config/cache(1).json', 'config/(extra).json') }}"
+    )
+
+    self.assertEqual(
+      collect_workflow_hashfiles_patterns(workflow_text),
+      ["config/cache(1).json", "config/(extra).json"],
+    )
+
+  def test_collect_rejects_unterminated_hashfiles_call(self) -> None:
+    with self.assertRaisesRegex(
+      CiWorkflowHashFilesRefsError,
+      r"hashFiles\(\) call is missing a closing parenthesis",
+    ):
+      collect_workflow_hashfiles_patterns("key: ${{ hashFiles('config/cache.json' }}")
+
+
+class ParseHashFilesCallPatternsTests(unittest.TestCase):
+  def test_accepts_parentheses_and_commas_inside_quoted_patterns(self) -> None:
+    self.assertEqual(
+      parse_hashfiles_call_patterns("'config/cache(1).json', \"config/part,2.json\""),
+      ["config/cache(1).json", "config/part,2.json"],
+    )
+
+  def test_rejects_mixed_literal_and_non_literal_arguments(self) -> None:
+    with self.assertRaisesRegex(
+      CiWorkflowHashFilesRefsError,
+      r"hashFiles\(\) call must use quoted literal patterns",
+    ):
+      parse_hashfiles_call_patterns("'config/cache.json', matrix.extra")
+
+
+class IterHashFilesCallArgsTests(unittest.TestCase):
+  def test_returns_complete_args_when_pattern_contains_parenthesis(self) -> None:
+    self.assertEqual(
+      iter_hashfiles_call_args("runner.os && hashFiles('config/cache(1).json', 'config/a.json')"),
+      ["'config/cache(1).json', 'config/a.json'"],
+    )
 
 
 class ExpandHashFilesPatternTests(unittest.TestCase):
