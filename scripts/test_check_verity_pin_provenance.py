@@ -29,8 +29,8 @@ def make_macro_frontend_doc(
   issue_clusters: list[str],
   files: list[str],
   upstream_repo: str = "https://github.com/Th0rgal/verity.git",
-  input_rev: str = "9d9533b2",
-  full_rev: str = "9d9533b2e8fd775ed673797b6a95301c8414c675",
+  input_rev: str = "ad03fc64",
+  full_rev: str = "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
   tracked_issue: str = "#118",
   why_pinned: str = "Current deterministic base.",
 ) -> str:
@@ -410,7 +410,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
     rc = self.run_check(
       lakefile_text="""
       require verity from git
-        "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
       """,
       manifest_text="""
       {
@@ -418,8 +418,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           {
             "name": "verity",
             "url": "https://github.com/Th0rgal/verity.git",
-            "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-            "inputRev": "9d9533b2"
+            "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+            "inputRev": "ad03fc64"
           }
         ]
       }
@@ -427,8 +427,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       provenance_text="""
       {
         "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-        "inputRev": "9d9533b2",
-        "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+        "inputRev": "ad03fc64",
+        "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
         "trackedIssue": "#118",
         "whyPinned": "Current deterministic base.",
         "remainingDivergences": [
@@ -479,8 +479,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       # Verity Pin
 
       - Repo: `https://github.com/Th0rgal/verity.git`
-      - Short rev: `9d9533b2`
-      - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+      - Short rev: `ad03fc64`
+      - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
       - Tracking issue: `#118`
 
       ## Why this pin
@@ -544,7 +544,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -552,8 +552,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -561,8 +561,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -596,7 +596,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -604,8 +604,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -613,8 +613,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -639,9 +639,9 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           # Verity Pin
 
           - Repo: `https://github.com/Th0rgal/verity.git`
-          - Short rev: `9d9533b2`
-          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
-          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+          - Short rev: `ad03fc64`
+          - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+          - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
           - Tracking issue: `#118`
 
           ## Why this pin
@@ -675,7 +675,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -683,8 +683,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -692,8 +692,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -721,8 +721,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           Repo: `https://github.com/Th0rgal/legacy-verity.git`
 
           - Repo: `https://github.com/Th0rgal/verity.git`
-          - Short rev: `9d9533b2`
-          - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+          - Short rev: `ad03fc64`
+          - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
           - Tracking issue: `#118`
 
           ## Why this pin
@@ -756,7 +756,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -764,8 +764,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -773,8 +773,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -807,7 +807,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
     rc = self.run_check(
       lakefile_text="""
       require verity from git
-        "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+        "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
       """,
       manifest_text="""
       {
@@ -815,8 +815,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
           {
             "name": "verity",
             "url": "https://github.com/Th0rgal/verity.git",
-            "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-            "inputRev": "9d9533b2"
+            "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+            "inputRev": "ad03fc64"
           }
         ]
       }
@@ -824,8 +824,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       provenance_text="""
       {
         "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-        "inputRev": "9d9533b2",
-        "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+        "inputRev": "ad03fc64",
+        "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
         "trackedIssue": "#118",
         "whyPinned": "Current deterministic base.",
         "remainingDivergences": [
@@ -859,7 +859,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -867,8 +867,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -876,8 +876,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -910,7 +910,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -918,8 +918,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -927,8 +927,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -958,7 +958,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -966,8 +966,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -975,8 +975,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1006,7 +1006,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1014,8 +1014,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1023,8 +1023,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1057,7 +1057,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1065,8 +1065,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1074,8 +1074,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1111,7 +1111,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1119,8 +1119,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1128,8 +1128,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1163,7 +1163,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1171,8 +1171,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1180,8 +1180,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1221,7 +1221,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1229,8 +1229,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1238,8 +1238,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1279,7 +1279,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1287,8 +1287,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1296,8 +1296,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1340,7 +1340,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1348,8 +1348,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1357,7 +1357,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
+          "inputRev": "ad03fc64",
           "fullRev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
@@ -1376,7 +1376,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         # Verity Pin
 
         - Repo: `https://github.com/Th0rgal/verity.git`
-        - Short rev: `9d9533b2`
+        - Short rev: `ad03fc64`
         - Full rev: `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`
         - Tracking issue: `#118`
 
@@ -1400,7 +1400,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1408,8 +1408,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1417,8 +1417,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1436,8 +1436,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         # Verity Pin
 
         - Repo: `https://github.com/Th0rgal/verity.git`
-        - Short rev: `9d9533b2`
-        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
         - Tracking issue: `#118`
 
         ## Why this pin
@@ -1461,7 +1461,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1469,8 +1469,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1478,8 +1478,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1512,7 +1512,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1520,8 +1520,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1529,8 +1529,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1564,7 +1564,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1572,8 +1572,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1581,8 +1581,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1600,8 +1600,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         # Verity Pin
 
         - Repo: `https://github.com/Th0rgal/verity.git`
-        - Short rev: `9d9533b2`
-        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
         - Tracking issue: `#118`
 
         ## Why this pin
@@ -1625,7 +1625,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1633,8 +1633,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1642,8 +1642,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1662,8 +1662,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         # Verity Pin
 
         - Repo: `https://github.com/Th0rgal/verity.git`
-        - Short rev: `9d9533b2`
-        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
         - Tracking issue: `#118`
 
         ## Why this pin
@@ -1688,7 +1688,7 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       self.run_check(
         lakefile_text="""
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "9d9533b2"
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
         """,
         manifest_text="""
         {
@@ -1696,8 +1696,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
-              "inputRev": "9d9533b2"
+              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "inputRev": "ad03fc64"
             }
           ]
         }
@@ -1705,8 +1705,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         provenance_text="""
         {
           "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-          "inputRev": "9d9533b2",
-          "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+          "inputRev": "ad03fc64",
+          "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
           "trackedIssue": "#118",
           "whyPinned": "Current deterministic base.",
           "remainingDivergences": [
@@ -1724,8 +1724,8 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
         # Verity Pin
 
         - Repo: `https://github.com/Th0rgal/verity.git`
-        - Short rev: `9d9533b2`
-        - Full rev: `9d9533b2e8fd775ed673797b6a95301c8414c675`
+        - Short rev: `ad03fc64`
+        - Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
         - Tracking issue: `#118`
 
         ## Why this pin

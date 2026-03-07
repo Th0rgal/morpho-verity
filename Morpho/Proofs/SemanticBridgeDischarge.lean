@@ -26,7 +26,7 @@ The full discharge chain for an obligation like `setOwnerSemEq` has three links:
 This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
 `enableLltv`, `setAuthorization`, and `flashLoan`.
 Links 2+3 depend on upstream verity infrastructure (verity#1060 / #1065).
-Verity pin: 9d9533b2 (including the two-storage-address witness needed by `setFeeRecipient`).
+Verity pin: ad03fc64 (including the two-storage-address witness needed by `setFeeRecipient`).
 
 ## Proof Strategy
 
@@ -145,8 +145,8 @@ execution to the compiled IR and then to EVMYulLean.
 
 | Phase | Operations | Link 1 | Links 2+3 |
 |-------|-----------|--------|-----------|
-| 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `9d9533b2` |
-| 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `9d9533b2` |
+| 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
+| 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
 | 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` tail with caller/token topics, then external I/O bridge work |
 | 4 | createMarket | provable | needs MappingWord bridge |
 | 5 | 11 remaining ops | blocked on macro | blocked |
