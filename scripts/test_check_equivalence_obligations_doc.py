@@ -18,9 +18,12 @@ from check_equivalence_obligations_doc import (  # noqa: E402
   MACRO_STATUS_PREFIX,
   UPSTREAM_BRIDGE_PREFIX,
   EquivalenceObligationsDocError,
+  extract_heading_section,
+  extract_macro_status_block,
   expected_table_lines,
   extract_issue_summary_table,
   main,
+  normalize_text,
   parse_operation_list,
   validate_status_summary,
   validate_issue_summary_table,
@@ -84,10 +87,18 @@ def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None
     "",
     "## Status",
     "",
-    f"{UPSTREAM_BRIDGE_PREFIX} This eliminates the hand-rolled `interpretSpec` from the TCB where the macro frontend can lower the contract successfully.",
-    "",
     f"{summary['link1_count']}/{summary['total']} obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
     "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
+    "",
+    "## Scope",
+    "",
+    "Tracked scope.",
+    "",
+    "## Obligation Table",
+    "",
+    "| Obligation ID | Bridge hypothesis | Operation | Macro migrated | Status |",
+    "|---------------|-------------------|-----------|:--------------:|--------|",
+    "| `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `link1_proven` |",
     "",
     f"{MACRO_STATUS_PREFIX} {summary['macro_migrated_count']}/{summary['total']} operations are macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream macro primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).",
     "",
@@ -95,12 +106,32 @@ def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None
     "",
     *table_lines,
     "",
-    "Next section.",
+    "## Semantic Bridge Discharge Path",
+    "",
+    f"{UPSTREAM_BRIDGE_PREFIX} This eliminates the hand-rolled `interpretSpec` from the TCB where the macro frontend can lower the contract successfully.",
+    "",
+    "## Spec Correspondence",
     "",
   ])
 
 
 class EquivalenceObligationsDocTests(unittest.TestCase):
+  def test_normalize_text_collapses_whitespace(self) -> None:
+    self.assertEqual(normalize_text("alpha\n\n beta\tgamma"), "alpha beta gamma")
+
+  def test_extract_heading_section(self) -> None:
+    status_section = extract_heading_section(
+      make_doc([]),
+      "## Status",
+      "## Scope",
+    )
+    self.assertIn("Link 1", status_section)
+
+  def test_extract_macro_status_block(self) -> None:
+    macro_block = extract_macro_status_block(make_doc([]))
+    self.assertIn(MACRO_STATUS_PREFIX, macro_block)
+    self.assertNotIn("## Semantic Bridge Discharge Path", macro_block)
+
   def test_parse_operation_list(self) -> None:
     self.assertEqual(parse_operation_list("setOwner, liquidate"), ["setOwner", "liquidate"])
 
@@ -200,6 +231,98 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
     )
     validate_status_summary(wrapped_doc, summary)
 
+  def test_validate_status_summary_rejects_link1_drift_hidden_outside_status_section(self) -> None:
+    summary = derive_summary(make_config())
+    expected_link1 = (
+      f"{summary['link1_count']}/{summary['total']} obligations have Link 1"
+    )
+    wrong_link1 = f"{int(summary['link1_count']) - 1}/{summary['total']} obligations have Link 1"
+    drifted_doc = make_doc([], summary=summary).replace(
+      expected_link1,
+      wrong_link1,
+    )
+    link1_operations = ", ".join(summary["link1_operations"]) or "none"
+    drifted_doc += (
+      "\n## Notes\n\n"
+      f"{expected_link1} (stable `Morpho.*` wrapper API ↔ EDSL) proven: "
+      f"{link1_operations}. The proofs are in\n"
+      "`Morpho/Proofs/SemanticBridgeDischarge.lean`.\n"
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "Link 1 status summary drift",
+    ):
+      validate_status_summary(drifted_doc, summary)
+
+  def test_validate_status_summary_rejects_macro_drift_hidden_outside_macro_block(self) -> None:
+    summary = derive_summary(make_config())
+    expected_macro = f"{summary['macro_migrated_count']}/{summary['total']} operations are"
+    wrong_macro = (
+      f"{int(summary['macro_migrated_count']) + 1}/{summary['total']} operations are"
+    )
+    drifted_doc = make_doc([], summary=summary).replace(
+      expected_macro,
+      wrong_macro,
+    )
+    drifted_doc += (
+      "\n## Notes\n\n"
+      f"{MACRO_STATUS_PREFIX} {summary['macro_migrated_count']}/{summary['total']} operations are "
+      f"macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream "
+      "macro primitive support.\n"
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "macro migration summary drift",
+    ):
+      validate_status_summary(drifted_doc, summary)
+
+  def test_validate_status_summary_rejects_upstream_bridge_drift_hidden_outside_discharge_path(self) -> None:
+    summary = derive_summary(make_config())
+    drifted_doc = make_doc([], summary=summary).replace(
+      UPSTREAM_BRIDGE_PREFIX,
+      "- **Link 2** (EDSL ↔ EVMYulLean): pending a later upstream bridge rewrite.",
+    )
+    drifted_doc += f"\n## Notes\n\n{UPSTREAM_BRIDGE_PREFIX}\n"
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "upstream bridge status drift",
+    ):
+      validate_status_summary(drifted_doc, summary)
+
+  def test_validate_status_summary_rejects_missing_status_boundary(self) -> None:
+    summary = derive_summary(make_config())
+    drifted_doc = make_doc([], summary=summary).replace("## Scope\n", "", 1)
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "missing `## Scope` boundary after `## Status`",
+    ):
+      validate_status_summary(drifted_doc, summary)
+
+  def test_validate_status_summary_rejects_drift_hidden_behind_fake_status_heading(self) -> None:
+    summary = derive_summary(make_config())
+    expected_link1 = (
+      f"{summary['link1_count']}/{summary['total']} obligations have Link 1"
+    )
+    wrong_link1 = f"{int(summary['link1_count']) - 1}/{summary['total']} obligations have Link 1"
+    drifted_doc = make_doc([], summary=summary).replace(expected_link1, wrong_link1, 1)
+    link1_operations = ", ".join(summary["link1_operations"]) or "none"
+    fake_status = "\n".join([
+      "## Status",
+      "",
+      f"{expected_link1} (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
+      "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
+      "",
+      "## Scope",
+      "",
+      "Decoy scope.",
+      "",
+    ])
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "missing `## Status` section",
+    ):
+      validate_status_summary(f"{fake_status}{drifted_doc}", summary)
+
   def test_extract_issue_summary_table(self) -> None:
     table_lines = [
       "| Cluster | Operations | Blocker families | Coverage counts |",
@@ -225,6 +348,27 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
       "does not match derived issue-cluster report",
     ):
       validate_issue_summary_table(drifted_doc, clusters)
+
+  def test_validate_issue_summary_table_rejects_drift_hidden_behind_fake_section(self) -> None:
+    clusters = validate_issue_clusters(make_config())
+    expected_lines = expected_table_lines(clusters)
+    drifted_doc = make_doc([
+      "| Cluster | Operations | Blocker families | Coverage counts |",
+      "|-------|------------|------------------|-----------------|",
+      "| `#123` | `supply` | `erc20` | erc20\u00d71 |",
+      "| `#124` | `liquidate` | `erc20` | erc20\u00d71 |",
+    ])
+    fake_section = "\n".join([
+      "### Blocker cluster summary",
+      "",
+      *expected_lines,
+      "",
+    ])
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "does not match derived issue-cluster report",
+    ):
+      validate_issue_summary_table(f"# Notes\n\n{fake_section}{drifted_doc}", clusters)
 
   def test_validate_issue_summary_table_allows_empty_cluster_table(self) -> None:
     empty_config = {"obligations": [], "issueClusters": []}
@@ -283,7 +427,7 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
         ]
         with self.assertRaisesRegex(
           EquivalenceObligationsDocError,
-          "missing `### Blocker cluster summary` section",
+          "missing `### Blocker cluster summary`",
         ):
           main()
       finally:

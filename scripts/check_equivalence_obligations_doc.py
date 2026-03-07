@@ -20,6 +20,9 @@ SECTION_HEADING = "### Blocker cluster summary"
 TABLE_HEADER = "| Cluster | Operations | Blocker families | Coverage counts |"
 TABLE_SEPARATOR = "|-------|------------|------------------|-----------------|"
 STATUS_HEADING = "## Status"
+SCOPE_HEADING = "## Scope"
+OBLIGATION_TABLE_HEADING = "## Obligation Table"
+DISCHARGE_PATH_HEADING = "## Semantic Bridge Discharge Path"
 MACRO_STATUS_PREFIX = (
   "**Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in\n"
   "`MacroSlice.lean`, which is the current macro-generated contract surface."
@@ -50,13 +53,78 @@ class EquivalenceObligationsDocError(RuntimeError):
   pass
 
 
-def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.Match[str]:
-  match = pattern.search(text)
-  if match is None:
+def normalize_text(text: str) -> str:
+  return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
+def require_unique_match(
+  pattern: re.Pattern[str], text: str, description: str
+) -> re.Match[str]:
+  matches = list(pattern.finditer(text))
+  if not matches:
     raise EquivalenceObligationsDocError(
       f"missing `{description}` in EQUIVALENCE_OBLIGATIONS.md"
     )
-  return match
+  if len(matches) > 1:
+    raise EquivalenceObligationsDocError(
+      f"found multiple `{description}` matches in EQUIVALENCE_OBLIGATIONS.md"
+  )
+  return matches[0]
+
+
+def find_unique_heading_line(text: str, heading: str, description: str) -> re.Match[str]:
+  return require_unique_match(
+    re.compile(rf"(?m)^{re.escape(heading)}$"),
+    text,
+    description,
+  )
+
+
+def extract_heading_section(doc_text: str, start_heading: str, end_heading: str) -> str:
+  try:
+    start_match = find_unique_heading_line(doc_text, start_heading, f"{start_heading} heading")
+  except EquivalenceObligationsDocError as exc:
+    raise EquivalenceObligationsDocError(
+      f"missing `{start_heading}` section in EQUIVALENCE_OBLIGATIONS.md"
+    ) from exc
+  try:
+    end_match = find_unique_heading_line(doc_text, end_heading, f"{end_heading} heading")
+  except EquivalenceObligationsDocError as exc:
+    raise EquivalenceObligationsDocError(
+      f"missing `{end_heading}` boundary after `{start_heading}` in EQUIVALENCE_OBLIGATIONS.md"
+    ) from exc
+  start = start_match.end() + 1
+  end = end_match.start()
+  if end <= start:
+    raise EquivalenceObligationsDocError(
+      f"`{start_heading}` has invalid boundary ordering in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  section = doc_text[start:end]
+  if not section.strip():
+    raise EquivalenceObligationsDocError(
+      f"`{start_heading}` section is empty in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  return section
+
+
+def extract_macro_status_block(doc_text: str) -> str:
+  table_section = extract_heading_section(doc_text, OBLIGATION_TABLE_HEADING, DISCHARGE_PATH_HEADING)
+  try:
+    end = find_unique_heading_line(
+      table_section,
+      SECTION_HEADING,
+      f"{SECTION_HEADING} heading",
+    ).start()
+  except EquivalenceObligationsDocError as exc:
+    raise EquivalenceObligationsDocError(
+      "missing `### Blocker cluster summary` boundary after macro status block in EQUIVALENCE_OBLIGATIONS.md"
+    ) from exc
+  block = table_section[:end]
+  if not block.strip():
+    raise EquivalenceObligationsDocError(
+      "macro status block is empty in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  return block
 
 
 def format_cluster_row(cluster: dict[str, Any]) -> str:
@@ -84,20 +152,30 @@ def parse_operation_list(raw_ops: str) -> list[str]:
 
 
 def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
-  if STATUS_HEADING not in doc_text:
-    raise EquivalenceObligationsDocError("missing `## Status` section in EQUIVALENCE_OBLIGATIONS.md")
-  if MACRO_STATUS_PREFIX not in doc_text:
+  status_section = extract_heading_section(doc_text, STATUS_HEADING, SCOPE_HEADING)
+  macro_block = extract_macro_status_block(doc_text)
+  discharge_path_section = extract_heading_section(
+    doc_text, DISCHARGE_PATH_HEADING, "## Spec Correspondence"
+  )
+
+  if normalize_text(MACRO_STATUS_PREFIX) not in normalize_text(macro_block):
     raise EquivalenceObligationsDocError(
       "equivalence obligations macro migration intro drift: "
       f"expected `{MACRO_STATUS_PREFIX}`"
     )
-  if UPSTREAM_BRIDGE_STATUS_RE.search(doc_text) is None:
+  try:
+    require_unique_match(
+      UPSTREAM_BRIDGE_STATUS_RE,
+      discharge_path_section,
+      "upstream bridge status summary",
+    )
+  except EquivalenceObligationsDocError as exc:
     raise EquivalenceObligationsDocError(
       "equivalence obligations upstream bridge status drift: "
       f"expected `{UPSTREAM_BRIDGE_PREFIX}`"
-    )
+    ) from exc
 
-  link1_match = require_match(LINK1_SUMMARY_RE, doc_text, "Link 1 status summary")
+  link1_match = require_unique_match(LINK1_SUMMARY_RE, status_section, "Link 1 status summary")
   actual_count = int(link1_match.group("count"))
   actual_total = int(link1_match.group("total"))
   expected_count = int(summary["link1_count"])
@@ -123,7 +201,11 @@ def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
       + ", ".join(actual_operations)
     )
 
-  macro_match = require_match(MACRO_MIGRATED_RE, doc_text, "macro-migrated status summary")
+  macro_match = require_unique_match(
+    MACRO_MIGRATED_RE,
+    macro_block,
+    "macro-migrated status summary",
+  )
   actual_migrated = int(macro_match.group("count"))
   actual_migrated_total = int(macro_match.group("total"))
   actual_pending = int(macro_match.group("pending"))
@@ -142,16 +224,25 @@ def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
 
 
 def extract_issue_summary_table(doc_text: str) -> list[str]:
-  lines = doc_text.splitlines()
   try:
-    heading_index = lines.index(SECTION_HEADING)
-  except ValueError as exc:
+    table_section = extract_heading_section(
+      doc_text,
+      OBLIGATION_TABLE_HEADING,
+      DISCHARGE_PATH_HEADING,
+    )
+    heading_match = find_unique_heading_line(
+      table_section,
+      SECTION_HEADING,
+      f"{SECTION_HEADING} heading",
+    )
+  except EquivalenceObligationsDocError as exc:
     raise EquivalenceObligationsDocError(
       f"missing `{SECTION_HEADING}` section followed by markdown table"
     ) from exc
 
+  lines = table_section[heading_match.end() :].splitlines()
   table_lines: list[str] = []
-  for line in lines[heading_index + 1 :]:
+  for line in lines:
     stripped = line.rstrip()
     if not stripped:
       if table_lines:
