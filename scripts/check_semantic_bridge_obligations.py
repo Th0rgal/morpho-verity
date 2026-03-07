@@ -83,8 +83,16 @@ def extract_macro_functions(macro_text: str) -> dict[str, bool]:
 
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            raw = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise ObligationError(
+            f"{path} contains invalid JSON: {exc.msg} at line {exc.lineno} column {exc.colno}"
+        ) from exc
+    if not isinstance(raw, dict):
+        raise ObligationError(f"{path} must contain a JSON object at the top level")
+    return raw
 
 
 def validate_config(
