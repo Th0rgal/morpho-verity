@@ -42,6 +42,8 @@ ARCHITECTURE_SECTION_HEADER = "## Architecture"
 DISCHARGE_SECTION_HEADER = "/-! ## Discharge Status"
 PROOF_STRATEGY_SECTION_HEADER = "## Proof Strategy"
 PROOF_STRATEGY_SECTION_PATTERN = r"(?m)^\s*## Proof Strategy\s*$"
+NAMESPACE_HEADER = "namespace Morpho.Proofs.SemanticBridgeDischarge"
+NAMESPACE_FOOTER = "end Morpho.Proofs.SemanticBridgeDischarge"
 
 
 class SemanticBridgeDischargeStatusError(RuntimeError):
@@ -52,9 +54,49 @@ def normalize_text(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
 
+def require_unique_line(text: str, line: str, error: str) -> re.Match[str]:
+  matches = list(re.finditer(rf"(?m)^\s*{re.escape(line)}\r?$", text))
+  if len(matches) != 1:
+    raise SemanticBridgeDischargeStatusError(error)
+  return matches[0]
+
+
+def extract_namespace_block(text: str) -> str:
+  namespace_match = re.search(rf"(?m)^\s*{re.escape(NAMESPACE_HEADER)}\r?$", text)
+  if namespace_match is None:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing namespace header"
+    )
+  end_match = re.search(rf"(?m)^\s*{re.escape(NAMESPACE_FOOTER)}\r?$", text[namespace_match.end():])
+  if end_match is None:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing namespace footer"
+    )
+  end_start = namespace_match.end() + end_match.start()
+  if end_start <= namespace_match.end():
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: invalid namespace boundary ordering"
+    )
+  return text[namespace_match.end():end_start]
+
+
+def extract_intro_block(text: str) -> str:
+  namespace_match = re.search(rf"(?m)^\s*{re.escape(NAMESPACE_HEADER)}\r?$", text)
+  if namespace_match is None:
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: missing namespace header"
+    )
+  intro = text[:namespace_match.start()]
+  if not intro.strip():
+    raise SemanticBridgeDischargeStatusError(
+      "SemanticBridgeDischarge.lean status drift: empty intro block before namespace"
+    )
+  return intro
+
+
 def extract_discharge_section(text: str) -> str:
   return extract_section(
-    text=text,
+    text=extract_namespace_block(text),
     start_marker=DISCHARGE_SECTION_HEADER,
     end_pattern=r"(?m)^\s*-/\s*$",
     missing_error="SemanticBridgeDischarge.lean status drift: missing `## Discharge Status` section",
@@ -65,7 +107,7 @@ def extract_discharge_section(text: str) -> str:
 
 def extract_architecture_section(text: str) -> str:
   return extract_section(
-    text=text,
+    text=extract_intro_block(text),
     start_marker=ARCHITECTURE_SECTION_HEADER,
     end_pattern=PROOF_STRATEGY_SECTION_PATTERN,
     missing_error="SemanticBridgeDischarge.lean status drift: missing `## Architecture` section",
@@ -84,15 +126,12 @@ def extract_section(
   end_marker: str | None = None,
   end_pattern: str | None = None,
 ) -> str:
-  try:
-    _, after_start = text.split(start_marker, 1)
-  except ValueError as exc:
-    raise SemanticBridgeDischargeStatusError(missing_error) from exc
+  start_match = require_unique_line(text, start_marker, missing_error)
+  after_start = text[start_match.end():]
 
   if end_marker is not None:
-    if end_marker not in after_start:
-      raise SemanticBridgeDischargeStatusError(missing_end_error)
-    section = after_start.split(end_marker, 1)[0]
+    end_match = require_unique_line(after_start, end_marker, missing_end_error)
+    section = after_start[:end_match.start()]
   elif end_pattern is not None:
     match = re.search(end_pattern, after_start)
     if match is None:

@@ -21,6 +21,8 @@ from check_semantic_bridge_discharge_status import (  # noqa: E402
   EXPECTED_DISCHARGE_STATUS,
   EXPECTED_FLASHLOAN_ROW,
   FORBIDDEN_SNIPPETS,
+  NAMESPACE_HEADER,
+  NAMESPACE_FOOTER,
   PROOF_STRATEGY_SECTION_HEADER,
   SemanticBridgeDischargeStatusError,
   extract_architecture_section,
@@ -43,6 +45,8 @@ def make_text() -> str:
 
     {PROOF_STRATEGY_SECTION_HEADER}
 
+    {NAMESPACE_HEADER}
+
     {DISCHARGE_SECTION_HEADER}
 
     {EXPECTED_DISCHARGE_STATUS}
@@ -55,6 +59,8 @@ def make_text() -> str:
     | 4 | createMarket | provable | needs MappingWord bridge |
     | 5 | 11 remaining ops | blocked on macro | blocked |
     -/
+
+    {NAMESPACE_FOOTER}
     """
   )
 
@@ -93,6 +99,13 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
         )
       )
 
+  def test_extract_architecture_section_rejects_duplicate_heading_line(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Architecture` section",
+    ):
+      extract_architecture_section(f"{ARCHITECTURE_SECTION_HEADER}\n\nplaceholder\n\n{make_text()}")
+
   def test_extract_discharge_section_returns_target_block(self) -> None:
     self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text()))
 
@@ -109,6 +122,29 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       "missing closing `-/`",
     ):
       extract_discharge_section(make_text().replace("-/\n", "", 1))
+
+  def test_extract_discharge_section_ignores_decoy_header_before_namespace(self) -> None:
+    decoy = "\n".join([
+      "/-!",
+      "## Discharge Status",
+      "",
+      EXPECTED_DISCHARGE_STATUS,
+      "",
+      EXPECTED_FLASHLOAN_ROW,
+      "-/",
+      "",
+    ])
+    self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(decoy + make_text()))
+
+  def test_extract_discharge_section_accepts_reopened_namespace_after_primary_block(self) -> None:
+    trailing_namespace = (
+      "\nnamespace Morpho.Proofs.SemanticBridgeDischarge\n"
+      "/-! ## Discharge Status\n\n"
+      "trailing notes\n"
+      "-/\n\n"
+      "end Morpho.Proofs.SemanticBridgeDischarge\n"
+    )
+    self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text() + trailing_namespace))
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
@@ -210,6 +246,37 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       "missing expected text",
     ):
       validate_status(masked_text)
+
+  def test_validate_status_rejects_architecture_drift_hidden_by_decoy_intro_sections(self) -> None:
+    drifted = make_text().replace(EXPECTED_ARCHITECTURE_SUMMARY, "old architecture")
+    decoy_intro = "\n".join([
+      "/-!",
+      ARCHITECTURE_SECTION_HEADER,
+      "",
+      EXPECTED_ARCHITECTURE_SUMMARY,
+      "",
+      PROOF_STRATEGY_SECTION_HEADER,
+      "-/",
+      "",
+    ])
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Architecture` section|missing expected text",
+    ):
+      validate_status(decoy_intro + drifted)
+
+  def test_validate_status_accepts_crlf_line_endings(self) -> None:
+    validate_status(make_text().replace("\n", "\r\n"))
+
+  def test_validate_status_accepts_reopened_namespace_after_primary_block(self) -> None:
+    trailing_namespace = (
+      "\nnamespace Morpho.Proofs.SemanticBridgeDischarge\n"
+      "/-- trailing notes outside the tracked block -/\n"
+      "theorem trailing_fact : True := by\n"
+      "  trivial\n"
+      "end Morpho.Proofs.SemanticBridgeDischarge\n"
+    )
+    validate_status(make_text() + trailing_namespace)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
