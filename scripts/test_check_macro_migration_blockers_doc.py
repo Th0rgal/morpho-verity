@@ -320,6 +320,38 @@ class MacroMigrationBlockersDocTests(unittest.TestCase):
       self.assertIn("failed to decode UTF-8 in document file", result.stderr)
       self.assertNotIn("Traceback", result.stderr)
 
+  def test_main_resolves_relative_external_paths_from_other_cwd(self) -> None:
+    config = make_config()
+    report = build_blocker_report(config)
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      inputs = root / "inputs"
+      inputs.mkdir()
+      config_path = inputs / "config.json"
+      doc_path = inputs / "EQUIVALENCE_OBLIGATIONS.md"
+      config_path.write_text(json.dumps(config), encoding="utf-8")
+      doc_path.write_text(make_doc(expected_table_lines(report)), encoding="utf-8")
+
+      runner = root / "runner"
+      runner.mkdir()
+      result = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_macro_migration_blockers_doc.py"),
+          "--config",
+          str(pathlib.Path("..") / "inputs" / "config.json"),
+          "--doc",
+          str(pathlib.Path("..") / "inputs" / "EQUIVALENCE_OBLIGATIONS.md"),
+        ],
+        cwd=runner,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(result.returncode, 0, result.stderr)
+      self.assertIn("macro-migration-blockers-doc check: OK", result.stdout)
+
 
 if __name__ == "__main__":
   unittest.main()
