@@ -69,6 +69,9 @@ cannot silently drift from the tracked issue inventory.
 `scripts/check_macro_migration_blockers_doc.py` also now fail-closes the remaining macro blocker
 table below against the false `macroMigrated` obligation inventory, so the aggregate blocker
 families and counts cannot silently drift from the tracked migration backlog.
+`scripts/check_semantic_bridge_readiness_sync.py` also now fail-closes the duplicated Lean
+readiness registry in `Morpho/Proofs/SemanticBridgeReadiness.lean` against the JSON tracker,
+so status and `macroMigrated` flips cannot silently diverge across proof-facing surfaces.
 `scripts/check_verity_pin_provenance.py` also now requires the current-pin macro/frontend
 divergence record to name the live issue clusters for that blocker surface, so `docs/VERITY_PIN.md`
 cannot drift away from the open migration roadmap.
