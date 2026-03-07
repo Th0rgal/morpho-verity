@@ -19,6 +19,9 @@ from check_semantic_bridge_readiness_summary import (  # noqa: E402
   DISCHARGE_PATH_PREFIX,
   SemanticBridgeReadinessSummaryError,
   derive_summary,
+  extract_discharge_path_section,
+  extract_intro_section,
+  extract_namespace_body,
   main,
   parse_operation_list,
   validate_summary,
@@ -63,9 +66,20 @@ def make_readiness_text(
 ) -> str:
   return textwrap.dedent(
     f"""\
-    namespace Morpho.Proofs.SemanticBridgeReadiness
+    /-!
+    # Semantic Bridge Readiness
+
+    This module tracks the semantic equivalence obligations that must be discharged
+    to connect morpho-verity's invariant proofs to formally verified EVM semantics.
+
+    ## Discharge Path (verity#1060 / #1065)
 
     {DISCHARGE_PATH_PREFIX}
+
+    ## Obligation Registry
+    -/
+
+    namespace Morpho.Proofs.SemanticBridgeReadiness
 
     /-- All {total} semantic equivalence obligations from SolidityBridge.lean.
 
@@ -99,6 +113,8 @@ def make_readiness_text(
     theorem macro_pending_count :
         (obligations.filter (fun o => !o.macroMigrated)).length = {macro_pending_count} := by
       native_decide
+
+    end Morpho.Proofs.SemanticBridgeReadiness
     """
   )
 
@@ -136,6 +152,18 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
 
   def test_validate_summary_accepts_matching_text(self) -> None:
     validate_summary(make_readiness_text(), derive_summary(make_config()))
+
+  def test_extract_intro_section_returns_text_before_namespace(self) -> None:
+    self.assertIn(DISCHARGE_PATH_PREFIX, extract_intro_section(make_readiness_text()))
+
+  def test_extract_namespace_body_returns_text_after_namespace(self) -> None:
+    self.assertIn("theorem obligation_count", extract_namespace_body(make_readiness_text()))
+
+  def test_extract_discharge_path_section_returns_text_between_headers(self) -> None:
+    self.assertEqual(
+      extract_discharge_path_section(extract_intro_section(make_readiness_text())).strip(),
+      DISCHARGE_PATH_PREFIX,
+    )
 
   def test_validate_summary_accepts_zero_link1_operations(self) -> None:
     summary = {
@@ -192,6 +220,118 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
         ),
         derive_summary(make_config()),
       )
+
+  def test_validate_summary_rejects_discharge_path_drift_hidden_after_namespace(self) -> None:
+    readiness_text = make_readiness_text().replace(DISCHARGE_PATH_PREFIX, "old prefix", 1)
+    readiness_text = readiness_text.replace(
+      "/-- All 3 semantic equivalence obligations from SolidityBridge.lean.",
+      DISCHARGE_PATH_PREFIX + "\n\n/-- All 3 semantic equivalence obligations from SolidityBridge.lean.",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "discharge-path upstream status drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_discharge_path_drift_hidden_elsewhere_in_intro(self) -> None:
+    readiness_text = make_readiness_text().replace(DISCHARGE_PATH_PREFIX, "old prefix", 1)
+    readiness_text = readiness_text.replace(
+      "This module tracks the semantic equivalence obligations that must be discharged\n"
+      "to connect morpho-verity's invariant proofs to formally verified EVM semantics.\n",
+      "This module tracks the semantic equivalence obligations that must be discharged\n"
+      "to connect morpho-verity's invariant proofs to formally verified EVM semantics.\n\n"
+      f"{DISCHARGE_PATH_PREFIX}\n",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "discharge-path upstream status drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_theorem_drift_hidden_by_duplicate_match(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "(obligations.filter (fun o => o.status != .assumed)).length = 2",
+      "(obligations.filter (fun o => o.status != .assumed)).length = 1",
+      1,
+    )
+    readiness_text += (
+      "\n/-- copied theorem text outside the real section -/\n"
+      "theorem link1_proven_count :\n"
+      "    (obligations.filter (fun o => o.status != .assumed)).length = 2 := by\n"
+      "  native_decide\n"
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "link1_proven_count theorem drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_accepts_pre_namespace_commands_after_intro_closure(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "\nnamespace Morpho.Proofs.SemanticBridgeReadiness",
+      "\nset_option autoImplicit false\n\nnamespace Morpho.Proofs.SemanticBridgeReadiness",
+      1,
+    )
+    validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_ignores_duplicate_theorem_text_after_namespace_end(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "(obligations.filter (fun o => o.status != .assumed)).length = 2",
+      "(obligations.filter (fun o => o.status != .assumed)).length = 1",
+      1,
+    )
+    readiness_text += (
+      "\nnamespace Morpho.Proofs.TrailingNotes\n"
+      "/-- copied theorem text in another namespace -/\n"
+      "theorem link1_proven_count :\n"
+      "    (obligations.filter (fun o => o.status != .assumed)).length = 2 := by\n"
+      "  native_decide\n"
+      "end Morpho.Proofs.TrailingNotes\n"
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "link1_proven_count theorem drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_accepts_reopened_namespace_after_primary_block(self) -> None:
+    readiness_text = make_readiness_text() + (
+      "\nnamespace Morpho.Proofs.SemanticBridgeReadiness\n"
+      "/-- trailing notes outside the tracked summary block -/\n"
+      "theorem trailing_fact : True := by\n"
+      "  trivial\n"
+      "end Morpho.Proofs.SemanticBridgeReadiness\n"
+    )
+    validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_missing_intro_closure(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "    -/\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+      "\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "intro section must begin with a closed module docblock",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_unclosed_module_docblock_hidden_by_earlier_docblock(self) -> None:
+    readiness_text = (
+      "/-! Earlier closed docblock. -/\n\n"
+      + make_readiness_text().replace(
+        "    -/\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+        "\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
+        1,
+      )
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "intro section contains multiple module docblocks",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
 
   def test_main_passes_for_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
