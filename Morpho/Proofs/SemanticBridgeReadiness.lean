@@ -34,12 +34,12 @@ Morpho.f args                          -- pure Lean model
   = EVMYulLean(compile(spec)).exec     -- verified EVM semantics (verity bridge)
 ```
 
-The first link (canonical contract semantics ↔ EDSL) requires that
-`MorphoViewSlice` functions have full (non-stub) implementations matching the
-spec-facing execution API in `Morpho.Specs.ContractSemantics`. `Morpho.Morpho`
-still re-exports those migrated admin operations, but it is no longer the
-intended proof target for that cluster. The second link is what the verity
-semantic bridge provides.
+The first link (stable wrapper API ↔ EDSL) requires that `MorphoViewSlice`
+functions have full (non-stub) implementations matching the spec-facing
+execution API in `Morpho.Specs.ContractSemantics`. The repo now states those
+obligations against the stable `Morpho.*` wrappers, which reduce
+definitionally to the canonical contract-semantics surface. The second link is
+what the verity semantic bridge provides.
 
 ## Obligation Registry
 

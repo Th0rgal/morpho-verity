@@ -6,7 +6,7 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 
 ## Status
 
-6/18 obligations have Link 1 (Pure Lean ↔ EDSL) proven: setOwner, setFeeRecipient,
+6/18 obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: setOwner, setFeeRecipient,
 enableIrm, enableLltv, setAuthorization, flashLoan. The proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
@@ -65,16 +65,17 @@ The obligations above will be discharged via the Verity hybrid canonical-semanti
 The discharge requires a three-layer correspondence for each operation:
 
 ```
-Morpho.f args                        -- pure Lean model (this repo)
+Morpho.f args                        -- stable wrapper surface (this repo)
   = MorphoViewSlice.f.exec state     -- EDSL macro output (verity_contract)
   = EVMYulLean(compile(spec)).exec   -- verified EVM semantics (verity bridge)
 ```
 
-- **Link 1** (pure Lean ↔ EDSL): requires that `MorphoViewSlice` functions in
-  `MacroSlice.lean` have full implementations matching `Morpho.*`. Currently,
-  simple view functions are fully implemented; complex operations (supply,
-  borrow, liquidate, etc.) are stub/noop — these must be completed as macro
-  primitive support grows in verity.
+- **Link 1** (stable wrapper API ↔ EDSL): requires that `MorphoViewSlice`
+  functions in `MacroSlice.lean` have full implementations matching
+  `Morpho.*`, which in turn aliases `Morpho.Specs.ContractSemantics` for the
+  migrated operations. Currently, simple view functions are fully implemented;
+  complex operations (supply, borrow, liquidate, etc.) are stub/noop — these
+  must be completed as macro primitive support grows in verity.
 
 - **Link 2** (EDSL ↔ EVMYulLean): provided by the verity semantic bridge once
   Layers 2+3 are composed into per-function theorems. This eliminates the
@@ -180,7 +181,7 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 | `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
-**Summary**: All 6 migrated operations have Link 1 (Pure Lean ↔ EDSL) fully proven.
+**Summary**: All 6 migrated operations have Link 1 (stable wrapper API ↔ EDSL) fully proven.
 The 5 admin operations also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
 `Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
 the upstream two-storage-address witness added in verity. `flashLoan` remains
