@@ -78,7 +78,20 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       SemanticBridgeDischargeStatusError,
       "missing `## Proof Strategy` boundary",
     ):
-      extract_architecture_section(make_text().replace(PROOF_STRATEGY_SECTION_HEADER, "## Strategy"))
+      extract_architecture_section(make_text().replace(PROOF_STRATEGY_SECTION_HEADER, "## Strategy", 1))
+
+  def test_extract_architecture_section_rejects_inline_boundary_text(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Proof Strategy` boundary",
+    ):
+      extract_architecture_section(
+        make_text().replace(
+          PROOF_STRATEGY_SECTION_HEADER,
+          "## Strategy\n\nThe roadmap still references `## Proof Strategy` in prose.",
+          1,
+        )
+      )
 
   def test_extract_discharge_section_returns_target_block(self) -> None:
     self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text()))

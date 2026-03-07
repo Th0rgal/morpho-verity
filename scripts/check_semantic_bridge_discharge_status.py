@@ -41,6 +41,7 @@ FORBIDDEN_SNIPPETS = [
 ARCHITECTURE_SECTION_HEADER = "## Architecture"
 DISCHARGE_SECTION_HEADER = "/-! ## Discharge Status"
 PROOF_STRATEGY_SECTION_HEADER = "## Proof Strategy"
+PROOF_STRATEGY_SECTION_PATTERN = r"(?m)^\s*## Proof Strategy\s*$"
 
 
 class SemanticBridgeDischargeStatusError(RuntimeError):
@@ -66,7 +67,7 @@ def extract_architecture_section(text: str) -> str:
   return extract_section(
     text=text,
     start_marker=ARCHITECTURE_SECTION_HEADER,
-    end_marker=PROOF_STRATEGY_SECTION_HEADER,
+    end_pattern=PROOF_STRATEGY_SECTION_PATTERN,
     missing_error="SemanticBridgeDischarge.lean status drift: missing `## Architecture` section",
     empty_error="SemanticBridgeDischarge.lean status drift: empty `## Architecture` section",
     missing_end_error="SemanticBridgeDischarge.lean status drift: missing `## Proof Strategy` boundary after `## Architecture` section",
