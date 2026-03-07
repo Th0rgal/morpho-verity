@@ -23,11 +23,16 @@ class ParityTargetError(RuntimeError):
 
 
 def load_json(path: pathlib.Path) -> Any:
-  with path.open("r", encoding="utf-8") as f:
-    try:
-      return json.load(f)
-    except json.JSONDecodeError as exc:
-      raise ParityTargetError(f"config/parity-target.json is not valid JSON: {path}") from exc
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      try:
+        return json.load(f)
+      except json.JSONDecodeError as exc:
+        raise ParityTargetError(f"config/parity-target.json is not valid JSON: {path}") from exc
+  except UnicodeDecodeError as exc:
+    raise ParityTargetError(f"config/parity-target.json is not valid UTF-8: {path}") from exc
+  except OSError as exc:
+    raise ParityTargetError(f"failed to read config/parity-target.json: {path}: {exc}") from exc
 
 
 def require_non_empty_string(value: Any, field: str) -> str:
@@ -81,15 +86,25 @@ def load_target(path: pathlib.Path) -> dict[str, Any]:
 
 
 def read_text(path: pathlib.Path) -> str:
-  with path.open("r", encoding="utf-8") as f:
-    return f.read()
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      return f.read()
+  except UnicodeDecodeError as exc:
+    raise ParityTargetError(f"failed to decode text file as UTF-8: {path}") from exc
+  except OSError as exc:
+    raise ParityTargetError(f"failed to read text file: {path}: {exc}") from exc
 
 
 def parse_solc_version() -> tuple[str, str]:
-  out = subprocess.check_output(["solc", "--version"], text=True)
+  try:
+    out = subprocess.check_output(["solc", "--version"], text=True)
+  except OSError as exc:
+    raise ParityTargetError(f"failed to execute `solc --version`: {exc}") from exc
+  except subprocess.CalledProcessError as exc:
+    raise ParityTargetError(f"`solc --version` exited with status {exc.returncode}") from exc
   match = re.search(r"Version:\s+(\d+\.\d+\.\d+)\+commit\.([0-9a-fA-F]+)", out)
   if not match:
-    raise RuntimeError(f"Unable to parse solc version output:\n{out}")
+    raise ParityTargetError(f"unable to parse `solc --version` output:\n{out}")
   return match.group(1), match.group(2).lower()
 
 
@@ -147,11 +162,10 @@ def parse_yul_identity_gate_mode(target: dict[str, Any]) -> str:
 def main() -> None:
   try:
     target = load_target(TARGET_PATH)
-  except ParityTargetError as exc:
+    foundry = parse_foundry_default(read_text(FOUNDRY_PATH))
+    version, commit = parse_solc_version()
+  except (ParityTargetError, RuntimeError) as exc:
     fail(str(exc))
-  foundry = parse_foundry_default(read_text(FOUNDRY_PATH))
-
-  version, commit = parse_solc_version()
   expected_solc = target["solc"]
   if version != expected_solc["version"]:
     fail(f"solc version mismatch: expected {expected_solc['version']}, got {version}")
