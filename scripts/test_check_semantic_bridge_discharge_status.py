@@ -139,9 +139,9 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
   def test_extract_discharge_section_accepts_reopened_namespace_after_primary_block(self) -> None:
     trailing_namespace = (
       "\nnamespace Morpho.Proofs.SemanticBridgeDischarge\n"
-      "/-! ## Discharge Status\n\n"
-      "trailing notes\n"
-      "-/\n\n"
+      "/-- trailing notes outside the tracked block -/\n"
+      "theorem trailing_fact : True := by\n"
+      "  trivial\n"
       "end Morpho.Proofs.SemanticBridgeDischarge\n"
     )
     self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text() + trailing_namespace))
@@ -277,6 +277,40 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       "end Morpho.Proofs.SemanticBridgeDischarge\n"
     )
     validate_status(make_text() + trailing_namespace)
+
+  def test_validate_status_rejects_drift_hidden_by_prefixed_fake_tracked_namespace(self) -> None:
+    clean_text = make_text()
+    fake_namespace = textwrap.dedent(
+      f"""\
+      namespace Morpho.Proofs.SemanticBridgeDischarge
+
+      {DISCHARGE_SECTION_HEADER}
+
+      {EXPECTED_DISCHARGE_STATUS}
+
+      | Phase | Operations | Link 1 | Links 2+3 |
+      |-------|-----------|--------|-----------|
+      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
+      | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
+      {EXPECTED_FLASHLOAN_ROW}
+      | 4 | createMarket | provable | needs MappingWord bridge |
+      | 5 | 11 remaining ops | blocked on macro | blocked |
+      -/
+
+      end Morpho.Proofs.SemanticBridgeDischarge
+      """
+    )
+    drifted_text = clean_text.replace(EXPECTED_DISCHARGE_STATUS, "old status", 1)
+    masked_text = drifted_text.replace(
+      f"{NAMESPACE_HEADER}\n",
+      fake_namespace + f"\n{NAMESPACE_HEADER}\n",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "multiple namespace blocks with tracked status content",
+    ):
+      validate_status(masked_text)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
