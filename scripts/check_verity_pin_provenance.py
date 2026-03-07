@@ -166,6 +166,26 @@ def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib
   return bullets
 
 
+def extract_section_body(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
+  marker = heading
+  lines = doc_text.splitlines()
+  start_index = None
+  for index, line in enumerate(lines):
+    if line.strip() == marker:
+      start_index = index + 1
+      break
+  if start_index is None:
+    fail(f"documentation {doc_path} missing expected heading: {marker}")
+
+  section_lines: list[str] = []
+  for line in lines[start_index:]:
+    stripped = line.strip()
+    if stripped.startswith("## "):
+      break
+    section_lines.append(line)
+  return "\n".join(section_lines)
+
+
 def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
   lines = section_text.splitlines()
   start_index = None
@@ -193,6 +213,22 @@ def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Pat
   return bullets
 
 
+def extract_summary_text(section_text: str) -> str:
+  summary_lines: list[str] = []
+  for line in section_text.splitlines():
+    stripped = line.strip()
+    if not stripped:
+      if summary_lines:
+        summary_lines.append("")
+      continue
+    if stripped.endswith(":"):
+      break
+    if stripped.startswith("#"):
+      break
+    summary_lines.append(line)
+  return "\n".join(summary_lines).strip()
+
+
 def validate_exact_doc_list(
   *,
   section_text: str,
@@ -214,6 +250,13 @@ def validate_doc_section(
   item: dict[str, object],
   doc_path: pathlib.Path,
 ) -> None:
+  actual_summary = normalize_doc_token(extract_summary_text(section_text))
+  expected_summary = normalize_doc_token(str(item["summary"]))
+  if actual_summary != expected_summary:
+    fail(
+      f"documentation {doc_path} `{item['area']}` summary drift: "
+      f"expected {expected_summary!r}; found {actual_summary!r}"
+    )
   files = item.get("files")
   if isinstance(files, list):
     validate_exact_doc_list(
@@ -272,6 +315,23 @@ def validate_doc_metadata(
   if actual != expected:
     fail(
       f"documentation {doc_path} Verity pin metadata drift: expected {expected}; found {actual}"
+    )
+
+
+def validate_why_pinned(
+  *,
+  doc_text: str,
+  why_pinned: str,
+  doc_path: pathlib.Path,
+) -> None:
+  actual = normalize_doc_token(
+    extract_section_body(doc_text, WHY_THIS_PIN_HEADING, doc_path)
+  )
+  expected = normalize_doc_token(why_pinned)
+  if actual != expected:
+    fail(
+      f"documentation {doc_path} why-pinned summary drift: "
+      f"expected {expected!r}; found {actual!r}"
     )
 
 
@@ -358,6 +418,11 @@ def main() -> int:
     input_rev=input_rev,
     full_rev=full_rev,
     tracked_issue=tracked_issue,
+    doc_path=args.doc,
+  )
+  validate_why_pinned(
+    doc_text=doc_text,
+    why_pinned=why_pinned,
     doc_path=args.doc,
   )
   require_doc_mentions(doc_text, upstream_repo, args.doc)
