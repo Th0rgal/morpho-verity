@@ -322,10 +322,11 @@ def validate_correspondence(
                 f"MacroSlice={macro['param_count']}, Spec={spec['param_count']}"
             )
 
-        # Macro may expand ownership checks into more require statements
-        # (e.g., requireOwner in Spec is 1 Stmt.require, but macro has 2: msgSender + require ==)
-        # So we check that macro has at least the spec's require count minus expansions.
-        # But we should NOT have FEWER requires than spec (after accounting for requireOwner).
+        if macro["require_count"] < spec["require_count"]:
+            errors.append(
+                f"missing requires for '{op}': "
+                f"MacroSlice={macro['require_count']}, Spec={spec['require_count']}"
+            )
 
         # MacroSlice may expand a single mutation into if/else branches
         # (e.g., setMapping2 in both then/else), so we allow up to 2x.

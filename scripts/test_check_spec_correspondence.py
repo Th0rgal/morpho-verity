@@ -253,6 +253,12 @@ class ValidateCorrespondenceTests(unittest.TestCase):
         errors = validate_correspondence(spec_fns, macro_fns, {}, {}, {"f"})
         self.assertTrue(any("extra mutations" in e for e in errors))
 
+    def test_missing_requires_fails(self) -> None:
+        spec_fns = {"f": {"param_count": 1, "require_count": 2, "mutation_count": 0}}
+        macro_fns = {"f": {"param_count": 1, "is_stub": False, "require_count": 1, "mutation_count": 0}}
+        errors = validate_correspondence(spec_fns, macro_fns, {}, {}, {"f"})
+        self.assertTrue(any("missing requires" in e for e in errors))
+
 
 class BuildReportTests(unittest.TestCase):
     def test_report_structure(self) -> None:
