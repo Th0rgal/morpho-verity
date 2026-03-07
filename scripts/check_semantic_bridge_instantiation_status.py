@@ -80,6 +80,14 @@ def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[st
       "SemanticBridgeInstantiation.lean status drift: missing namespace boundary after `## What this validates` section"
     )
   end_matches = list(re.finditer(rf"(?m)^\s*{re.escape(NAMESPACE_FOOTER)}\r?$", text))
+  if not end_matches:
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: missing namespace footer"
+    )
+  if end_matches[0].start() < namespace_matches[0].start():
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: unmatched namespace footer before first namespace block"
+    )
   blocks: list[tuple[re.Match[str], re.Match[str], str]] = []
   end_index = 0
   previous_end = -1
@@ -103,6 +111,10 @@ def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[st
     blocks.append((namespace_match, end_match, namespace_body))
     previous_end = end_match.end()
     end_index += 1
+  if end_index != len(end_matches):
+    raise SemanticBridgeInstantiationStatusError(
+      "SemanticBridgeInstantiation.lean status drift: unmatched namespace footer after namespace blocks"
+    )
   return blocks
 
 

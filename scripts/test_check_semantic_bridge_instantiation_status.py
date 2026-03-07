@@ -206,6 +206,22 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
     ):
       extract_summary_section(fake_namespace + "\n" + make_text())
 
+  def test_extract_summary_section_rejects_unmatched_footer_before_namespace(self) -> None:
+    text = NAMESPACE_FOOTER + "\n\n" + make_text()
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer before first namespace block",
+    ):
+      extract_summary_section(text)
+
+  def test_extract_summary_section_rejects_unmatched_footer_after_namespace_blocks(self) -> None:
+    text = make_text() + "\n" + NAMESPACE_FOOTER
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer after namespace blocks",
+    ):
+      extract_summary_section(text)
+
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())
 
@@ -401,6 +417,20 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
       "found multiple namespace blocks with tracked status content",
     ):
       validate_status(intro + fake_namespace + "\n" + NAMESPACE_HEADER + "\n" + remainder)
+
+  def test_validate_status_rejects_unmatched_footer_before_namespace(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer before first namespace block",
+    ):
+      validate_status(NAMESPACE_FOOTER + "\n\n" + make_text())
+
+  def test_validate_status_rejects_unmatched_footer_after_namespace_blocks(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeInstantiationStatusError,
+      "unmatched namespace footer after namespace blocks",
+    ):
+      validate_status(make_text() + "\n" + NAMESPACE_FOOTER)
 
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
