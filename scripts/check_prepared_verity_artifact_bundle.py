@@ -16,6 +16,10 @@ DEFAULT_PIPELINE_MANIFEST = ROOT / "config" / "yul-rewrite-pipeline.json"
 DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
 
 
+class PreparedArtifactBundleError(RuntimeError):
+  """Raised when a prepared Verity artifact bundle is malformed or out of sync."""
+
+
 def _display_path(path: pathlib.Path) -> str:
   try:
     return str(path.relative_to(ROOT))
@@ -31,10 +35,15 @@ def resolve_artifact_dir(path: pathlib.Path) -> pathlib.Path:
 
 
 def _read_json(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as handle:
-    data = json.load(handle)
+  try:
+    with path.open("r", encoding="utf-8") as handle:
+      data = json.load(handle)
+  except json.JSONDecodeError as exc:
+    raise PreparedArtifactBundleError(
+      f"Invalid JSON in {_display_path(path)}: {exc.msg}"
+    ) from exc
   if not isinstance(data, dict):
-    raise RuntimeError(f"Expected JSON object in {_display_path(path)}")
+    raise PreparedArtifactBundleError(f"Expected JSON object in {_display_path(path)}")
   return data
 
 
@@ -48,7 +57,7 @@ def _sha256_file(path: pathlib.Path) -> str:
 
 def _require_nonempty_file(path: pathlib.Path, *, label: str) -> None:
   if not path.is_file() or path.stat().st_size <= 0:
-    raise RuntimeError(f"Missing required non-empty {label}: {_display_path(path)}")
+    raise PreparedArtifactBundleError(f"Missing required non-empty {label}: {_display_path(path)}")
 
 
 def _parse_manifest(path: pathlib.Path) -> dict[str, str]:
@@ -59,20 +68,50 @@ def _parse_manifest(path: pathlib.Path) -> dict[str, str]:
     if not line:
       continue
     if "=" not in line:
-      raise RuntimeError(f"Malformed artifact manifest line in {_display_path(path)}: {raw_line!r}")
+      raise PreparedArtifactBundleError(
+        f"Malformed artifact manifest line in {_display_path(path)}: {raw_line!r}"
+      )
     key, value = line.split("=", 1)
+    if not key:
+      raise PreparedArtifactBundleError(
+        f"Malformed artifact manifest line in {_display_path(path)}: {raw_line!r}"
+      )
+    if key in parsed:
+      raise PreparedArtifactBundleError(
+        f"Duplicate artifact manifest key `{key}` in {_display_path(path)}"
+      )
     parsed[key] = value
   return parsed
+
+
+def _require_string_field(report: dict[str, Any], path: pathlib.Path, key: str) -> str:
+  value = report.get(key)
+  if not isinstance(value, str) or not value.strip():
+    raise PreparedArtifactBundleError(
+      f"Prepared rewrite report requires non-empty string `{key}` in {_display_path(path)}"
+    )
+  return value
+
+
+def _require_optional_string_field(report: dict[str, Any], path: pathlib.Path, key: str) -> str | None:
+  value = report.get(key)
+  if value is None:
+    return None
+  if not isinstance(value, str) or not value.strip():
+    raise PreparedArtifactBundleError(
+      f"Prepared rewrite report field `{key}` must be a non-empty string or null in {_display_path(path)}"
+    )
+  return value
 
 
 def _required_parity_pack(path: pathlib.Path) -> str:
   data = _read_json(path)
   verity = data.get("verity")
   if not isinstance(verity, dict):
-    raise RuntimeError(f"Missing object key `verity` in {_display_path(path)}")
+    raise PreparedArtifactBundleError(f"Missing object key `verity` in {_display_path(path)}")
   parity_pack = verity.get("parityPackId")
   if not isinstance(parity_pack, str) or not parity_pack.strip():
-    raise RuntimeError(f"Missing required `verity.parityPackId` in {_display_path(path)}")
+    raise PreparedArtifactBundleError(f"Missing required `verity.parityPackId` in {_display_path(path)}")
   return parity_pack
 
 
@@ -99,7 +138,9 @@ def validate_prepared_verity_artifact_bundle(
 ) -> pathlib.Path:
   resolved_dir = resolve_artifact_dir(artifact_dir)
   if not resolved_dir.is_dir():
-    raise RuntimeError(f"Prepared artifact directory does not exist: {_display_path(resolved_dir)}")
+    raise PreparedArtifactBundleError(
+      f"Prepared artifact directory does not exist: {_display_path(resolved_dir)}"
+    )
 
   _require_nonempty_file(resolved_dir / "Morpho.yul", label="artifact")
   _require_nonempty_file(resolved_dir / "Morpho.abi.json", label="artifact")
@@ -112,24 +153,24 @@ def validate_prepared_verity_artifact_bundle(
   parity_pack = manifest.get("parity_pack", "").strip()
 
   if not input_digest:
-    raise RuntimeError(
+    raise PreparedArtifactBundleError(
       f"Prepared artifact manifest is missing non-empty `input_digest`: "
       f"{_display_path(resolved_dir / 'Morpho.artifact-manifest.env')}"
     )
   if artifact_mode != "edsl":
-    raise RuntimeError(
+    raise PreparedArtifactBundleError(
       f"Prepared artifact manifest must pin `artifact_mode=edsl` "
       f"(got {artifact_mode or '<missing>'})"
     )
   if skip_solc not in {"0", "1"}:
-    raise RuntimeError(
+    raise PreparedArtifactBundleError(
       f"Prepared artifact manifest must pin `skip_solc` to 0 or 1 "
       f"(got {skip_solc or '<missing>'})"
     )
 
   expected_parity_pack = _required_parity_pack(parity_target_path)
   if parity_pack != expected_parity_pack:
-    raise RuntimeError(
+    raise PreparedArtifactBundleError(
       f"Prepared artifact manifest parity pack mismatch: expected {expected_parity_pack}, got "
       f"{parity_pack or '<missing>'}"
     )
@@ -138,14 +179,20 @@ def validate_prepared_verity_artifact_bundle(
   if require_bin:
     _require_nonempty_file(bin_path, label="artifact")
     if skip_solc != "0":
-      raise RuntimeError("Prepared artifact bundle requires Morpho.bin, so manifest must record `skip_solc=0`")
+      raise PreparedArtifactBundleError(
+        "Prepared artifact bundle requires Morpho.bin, so manifest must record `skip_solc=0`"
+      )
   else:
     if bin_path.exists() and bin_path.stat().st_size <= 0:
-      raise RuntimeError(f"Prepared artifact file is empty: {_display_path(bin_path)}")
+      raise PreparedArtifactBundleError(f"Prepared artifact file is empty: {_display_path(bin_path)}")
     if bin_path.exists() and skip_solc == "1":
-      raise RuntimeError("Prepared artifact manifest recorded `skip_solc=1`, but Morpho.bin is present")
+      raise PreparedArtifactBundleError(
+        "Prepared artifact manifest recorded `skip_solc=1`, but Morpho.bin is present"
+      )
     if not bin_path.exists() and skip_solc == "0":
-      raise RuntimeError("Prepared artifact manifest recorded `skip_solc=0`, but Morpho.bin is missing")
+      raise PreparedArtifactBundleError(
+        "Prepared artifact manifest recorded `skip_solc=0`, but Morpho.bin is missing"
+      )
 
   rewritten_path = resolved_dir / "Morpho.rewritten.yul"
   rewrite_report_path = resolved_dir / "Morpho.rewrite-report.json"
@@ -156,33 +203,43 @@ def validate_prepared_verity_artifact_bundle(
   if rewrite_report_path.exists():
     report = _read_json(rewrite_report_path)
     expected_pipeline_manifest = _display_path(pipeline_manifest_path)
-    if report.get("pipelineManifest") != expected_pipeline_manifest:
-      raise RuntimeError(
+    pipeline_manifest = _require_string_field(report, rewrite_report_path, "pipelineManifest")
+    if pipeline_manifest != expected_pipeline_manifest:
+      raise PreparedArtifactBundleError(
         "Prepared rewrite report pipeline manifest mismatch: expected "
-        f"{expected_pipeline_manifest}, got {report.get('pipelineManifest')!r}"
+        f"{expected_pipeline_manifest}, got {pipeline_manifest!r}"
       )
     expected_pipeline_sha256 = _expected_manifest_sha256(pipeline_manifest_path)
-    if report.get("pipelineManifestSha256") != expected_pipeline_sha256:
-      raise RuntimeError(
+    pipeline_manifest_sha256 = _require_optional_string_field(
+      report, rewrite_report_path, "pipelineManifestSha256"
+    )
+    if pipeline_manifest_sha256 != expected_pipeline_sha256:
+      raise PreparedArtifactBundleError(
         "Prepared rewrite report pipeline manifest digest mismatch: expected "
-        f"{expected_pipeline_sha256!r}, got {report.get('pipelineManifestSha256')!r}"
+        f"{expected_pipeline_sha256!r}, got {pipeline_manifest_sha256!r}"
       )
     expected_proof_manifest = _expected_proof_manifest(proof_manifest_path)
-    if report.get("proofManifest") != expected_proof_manifest:
-      raise RuntimeError(
+    proof_manifest = _require_optional_string_field(report, rewrite_report_path, "proofManifest")
+    if proof_manifest != expected_proof_manifest:
+      raise PreparedArtifactBundleError(
         "Prepared rewrite report proof manifest mismatch: expected "
-        f"{expected_proof_manifest!r}, got {report.get('proofManifest')!r}"
+        f"{expected_proof_manifest!r}, got {proof_manifest!r}"
       )
     expected_proof_sha256 = _expected_manifest_sha256(proof_manifest_path)
-    if report.get("proofManifestSha256") != expected_proof_sha256:
-      raise RuntimeError(
+    proof_manifest_sha256 = _require_optional_string_field(
+      report, rewrite_report_path, "proofManifestSha256"
+    )
+    if proof_manifest_sha256 != expected_proof_sha256:
+      raise PreparedArtifactBundleError(
         "Prepared rewrite report proof manifest digest mismatch: expected "
-        f"{expected_proof_sha256!r}, got {report.get('proofManifestSha256')!r}"
+        f"{expected_proof_sha256!r}, got {proof_manifest_sha256!r}"
       )
     if rewritten_path.exists() and rewritten_path.stat().st_size <= 0:
-      raise RuntimeError(f"Prepared rewritten artifact is empty: {_display_path(rewritten_path)}")
+      raise PreparedArtifactBundleError(
+        f"Prepared rewritten artifact is empty: {_display_path(rewritten_path)}"
+      )
   elif rewritten_path.exists():
-    raise RuntimeError(
+    raise PreparedArtifactBundleError(
       "Prepared rewritten artifact is present without matching Morpho.rewrite-report.json: "
       f"{_display_path(rewritten_path)}"
     )
