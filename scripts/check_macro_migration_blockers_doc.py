@@ -51,6 +51,17 @@ class MacroMigrationBlockersDocError(RuntimeError):
   pass
 
 
+def read_text(path: pathlib.Path, *, context: str) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise MacroMigrationBlockersDocError(f"failed to read {context} {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise MacroMigrationBlockersDocError(
+      f"failed to decode UTF-8 in {context} {path}: {exc}"
+    ) from exc
+
+
 def require_unique_heading_line(text: str, heading: str) -> re.Match[str]:
   matches = list(re.finditer(rf"(?m)^{re.escape(heading)}\r?$", text))
   if not matches:
@@ -79,8 +90,7 @@ def extract_macro_migration_section(doc_text: str) -> str:
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
   try:
-    with path.open("r", encoding="utf-8") as f:
-      data = json.load(f)
+    data = json.loads(read_text(path, context="config file"))
   except json.JSONDecodeError as exc:
     raise MacroMigrationBlockersDocError(f"failed to parse JSON in {path}: {exc}") from exc
   if not isinstance(data, dict):
@@ -204,7 +214,7 @@ def main() -> int:
 
   config = load_config(args.config)
   report = build_blocker_report(config)
-  doc_text = args.doc.read_text(encoding="utf-8")
+  doc_text = read_text(args.doc, context="document file")
   validate_doc_table(doc_text, report)
 
   print("macro-migration-blockers-doc check: OK")
@@ -216,8 +226,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except MacroMigrationBlockersDocError as e:
-    print(f"macro-migration-blockers-doc check failed: {e}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as e:
     print(f"macro-migration-blockers-doc check failed: {e}", file=sys.stderr)
     raise SystemExit(1)
