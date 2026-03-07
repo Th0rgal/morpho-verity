@@ -2970,3 +2970,13 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
 
     self.assertEqual(result.returncode, 0)
     self.assertIn("verity-pin-provenance check: OK", result.stdout)
+
+  def test_cli_no_arg_defaults_work_from_different_working_directory(self) -> None:
+    runner = pathlib.Path(__file__).resolve().parent / "_tmp_runner"
+    runner.mkdir(exist_ok=True)
+    self.addCleanup(lambda: runner.rmdir())
+
+    result = self.run_cli(runner)
+
+    self.assertEqual(result.returncode, 0)
+    self.assertIn("verity-pin-provenance check: OK", result.stdout)
