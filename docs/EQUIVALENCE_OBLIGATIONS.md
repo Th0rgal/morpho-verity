@@ -69,9 +69,10 @@ between that compile-checked suite and the open issue tracker by requiring every
 `scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
 from per-obligation `issue` tags in the obligation tracker so the remaining open migration issues
 cannot drift from the actual per-operation blocker inventory.
-`scripts/check_equivalence_obligations_doc.py` now also fail-closes the markdown summary table
-below against that derived cluster report, so the repo-facing blocker roadmap in this document
-cannot silently drift from the tracked issue inventory.
+`scripts/check_equivalence_obligations_doc.py` now also fail-closes the top-level Link 1 /
+macro-migration status summary and the markdown issue-cluster table below against the tracked
+obligation inventory, so the repo-facing roadmap in this document cannot silently drift from the
+machine-checked migration state.
 `scripts/check_macro_migration_blockers_doc.py` also now fail-closes the remaining macro blocker
 table below against the false `macroMigrated` obligation inventory, so the aggregate blocker
 families and counts cannot silently drift from the tracked migration backlog.

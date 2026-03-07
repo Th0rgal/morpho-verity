@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import sys
 from typing import Any
 
 from check_issue_blocker_clusters import load_config, validate_issue_clusters
+from check_semantic_bridge_readiness_summary import derive_summary
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -17,10 +19,31 @@ DOC_PATH = ROOT / "docs" / "EQUIVALENCE_OBLIGATIONS.md"
 SECTION_HEADING = "### Open issue blocker summary"
 TABLE_HEADER = "| Issue | Operations | Blocker families | Coverage counts |"
 TABLE_SEPARATOR = "|-------|------------|------------------|-----------------|"
+STATUS_HEADING = "## Status"
+LINK1_SUMMARY_RE = re.compile(
+  r"(?P<count>\d+)/(?P<total>\d+)\s+obligations have Link 1 "
+  r"\(stable `Morpho\.\*` wrapper API ↔ EDSL\) proven:\s*(?P<ops>.*?)\.\s+The proofs are in\s+"
+  r"`Morpho/Proofs/SemanticBridgeDischarge\.lean`\.",
+  re.DOTALL,
+)
+MACRO_MIGRATED_RE = re.compile(
+  r"(?P<count>\d+)/(?P<total>\d+)\s+operations are macro-migrated; the remaining "
+  r"(?P<pending>\d+)\s+are blocked on upstream macro",
+  re.DOTALL,
+)
 
 
 class EquivalenceObligationsDocError(RuntimeError):
   pass
+
+
+def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.Match[str]:
+  match = pattern.search(text)
+  if match is None:
+    raise EquivalenceObligationsDocError(
+      f"missing `{description}` in EQUIVALENCE_OBLIGATIONS.md"
+    )
+  return match
 
 
 def format_cluster_row(cluster: dict[str, Any]) -> str:
@@ -35,6 +58,64 @@ def format_cluster_row(cluster: dict[str, Any]) -> str:
 
 def expected_table_lines(clusters: list[dict[str, Any]]) -> list[str]:
   return [TABLE_HEADER, TABLE_SEPARATOR, *[format_cluster_row(cluster) for cluster in clusters]]
+
+
+def parse_operation_list(raw_ops: str) -> list[str]:
+  operations = [item.strip() for item in raw_ops.replace("\n", " ").split(",")]
+  normalized = [item for item in operations if item and item.lower() != "none"]
+  if len(normalized) != len(set(normalized)):
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations status operation list contains duplicate operations"
+    )
+  return normalized
+
+
+def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
+  if STATUS_HEADING not in doc_text:
+    raise EquivalenceObligationsDocError("missing `## Status` section in EQUIVALENCE_OBLIGATIONS.md")
+
+  link1_match = require_match(LINK1_SUMMARY_RE, doc_text, "Link 1 status summary")
+  actual_count = int(link1_match.group("count"))
+  actual_total = int(link1_match.group("total"))
+  expected_count = int(summary["link1_count"])
+  expected_total = int(summary["total"])
+  if actual_count != expected_count or actual_total != expected_total:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations Link 1 status summary drift: "
+      f"expected {expected_count}/{expected_total}, found {actual_count}/{actual_total}"
+    )
+
+  actual_operations = parse_operation_list(link1_match.group("ops"))
+  expected_operations = list(summary["link1_operations"])
+  if not expected_operations and actual_operations:
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations Link 1 operation list drift: expected no operations; found "
+      + ", ".join(actual_operations)
+    )
+  if set(actual_operations) != set(expected_operations):
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations Link 1 operation list drift: expected "
+      + ", ".join(expected_operations)
+      + "; found "
+      + ", ".join(actual_operations)
+    )
+
+  macro_match = require_match(MACRO_MIGRATED_RE, doc_text, "macro-migrated status summary")
+  actual_migrated = int(macro_match.group("count"))
+  actual_migrated_total = int(macro_match.group("total"))
+  actual_pending = int(macro_match.group("pending"))
+  expected_migrated = int(summary["macro_migrated_count"])
+  expected_pending = int(summary["macro_pending_count"])
+  if (
+    actual_migrated != expected_migrated
+    or actual_migrated_total != expected_total
+    or actual_pending != expected_pending
+  ):
+    raise EquivalenceObligationsDocError(
+      "equivalence obligations macro migration summary drift: expected "
+      f"{expected_migrated}/{expected_total} with {expected_pending} remaining, found "
+      f"{actual_migrated}/{actual_migrated_total} with {actual_pending} remaining"
+    )
 
 
 def extract_issue_summary_table(doc_text: str) -> list[str]:
@@ -90,12 +171,18 @@ def main() -> int:
 
   config = load_config(args.config)
   clusters = validate_issue_clusters(config)
+  summary = derive_summary(config)
   doc_text = args.doc.read_text(encoding="utf-8")
 
+  validate_status_summary(doc_text, summary)
   validate_issue_summary_table(doc_text, clusters)
 
   print("equivalence-obligations-doc check: OK")
-  print(f"issue clusters: {len(clusters)}")
+  print(
+    f"issue clusters: {len(clusters)}; "
+    f"link1={summary['link1_count']}/{summary['total']}; "
+    f"macro_migrated={summary['macro_migrated_count']}/{summary['total']}"
+  )
   return 0
 
 

@@ -19,31 +19,50 @@ from check_equivalence_obligations_doc import (  # noqa: E402
   expected_table_lines,
   extract_issue_summary_table,
   main,
+  parse_operation_list,
+  validate_status_summary,
   validate_issue_summary_table,
 )
 from check_issue_blocker_clusters import validate_issue_clusters  # noqa: E402
+from check_semantic_bridge_readiness_summary import derive_summary  # noqa: E402
 
 
 def make_config() -> dict:
   return {
     "obligations": [
       {
+        "id": "OBL-SUPPLY-SEM-EQ",
+        "hypothesis": "supplySemEq",
         "issue": 123,
         "operation": "supply",
+        "status": "assumed",
         "macroMigrated": False,
         "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall"],
       },
       {
+        "id": "OBL-WITHDRAW-SEM-EQ",
+        "hypothesis": "withdrawSemEq",
         "issue": 123,
         "operation": "withdraw",
+        "status": "assumed",
         "macroMigrated": False,
         "macroSurfaceBlockers": ["erc20", "internalCall"],
       },
       {
+        "id": "OBL-LIQUIDATE-SEM-EQ",
+        "hypothesis": "liquidateSemEq",
         "issue": 124,
         "operation": "liquidate",
+        "status": "in_progress",
         "macroMigrated": False,
         "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn"],
+      },
+      {
+        "id": "OBL-SET-OWNER-SEM-EQ",
+        "hypothesis": "setOwnerSemEq",
+        "operation": "setOwner",
+        "status": "in_progress",
+        "macroMigrated": True,
       },
     ],
     "issueClusters": [
@@ -53,11 +72,20 @@ def make_config() -> dict:
   }
 
 
-def make_doc(table_lines: list[str]) -> str:
+def make_doc(table_lines: list[str], *, summary: dict[str, object] | None = None) -> str:
+  summary = derive_summary(make_config()) if summary is None else summary
+  link1_operations = ", ".join(summary["link1_operations"]) or "none"
   return "\n".join([
     "# Equivalence",
     "",
     "Some intro.",
+    "",
+    "## Status",
+    "",
+    f"{summary['link1_count']}/{summary['total']} obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: {link1_operations}. The proofs are in",
+    "`Morpho/Proofs/SemanticBridgeDischarge.lean`.",
+    "",
+    f"`MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065 lands. {summary['macro_migrated_count']}/{summary['total']} operations are macro-migrated; the remaining {summary['macro_pending_count']} are blocked on upstream macro primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).",
     "",
     "### Open issue blocker summary",
     "",
@@ -69,6 +97,62 @@ def make_doc(table_lines: list[str]) -> str:
 
 
 class EquivalenceObligationsDocTests(unittest.TestCase):
+  def test_parse_operation_list(self) -> None:
+    self.assertEqual(parse_operation_list("setOwner, liquidate"), ["setOwner", "liquidate"])
+
+  def test_parse_operation_list_allows_none_sentinel(self) -> None:
+    self.assertEqual(parse_operation_list("none"), [])
+
+  def test_validate_status_summary_passes(self) -> None:
+    config = make_config()
+    validate_status_summary(make_doc([], summary=derive_summary(config)), derive_summary(config))
+
+  def test_validate_status_summary_passes_with_zero_link1_operations(self) -> None:
+    summary = {
+      "link1_count": 0,
+      "total": 3,
+      "link1_operations": [],
+      "macro_migrated_count": 0,
+      "macro_pending_count": 3,
+    }
+    validate_status_summary(make_doc([], summary=summary), summary)
+
+  def test_validate_status_summary_rejects_link1_count_drift(self) -> None:
+    config = make_config()
+    drifted_doc = make_doc(
+      [],
+      summary={"link1_count": 1, "total": 4, "link1_operations": ["setOwner"], "macro_migrated_count": 1, "macro_pending_count": 3},
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "Link 1 status summary drift",
+    ):
+      validate_status_summary(drifted_doc, derive_summary(config))
+
+  def test_validate_status_summary_rejects_link1_operation_drift(self) -> None:
+    config = make_config()
+    drifted_doc = make_doc(
+      [],
+      summary={"link1_count": 2, "total": 4, "link1_operations": ["setOwner", "enableIrm"], "macro_migrated_count": 1, "macro_pending_count": 3},
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "Link 1 operation list drift",
+    ):
+      validate_status_summary(drifted_doc, derive_summary(config))
+
+  def test_validate_status_summary_rejects_macro_migration_drift(self) -> None:
+    config = make_config()
+    drifted_doc = make_doc(
+      [],
+      summary={"link1_count": 2, "total": 4, "link1_operations": ["liquidate", "setOwner"], "macro_migrated_count": 2, "macro_pending_count": 2},
+    )
+    with self.assertRaisesRegex(
+      EquivalenceObligationsDocError,
+      "macro migration summary drift",
+    ):
+      validate_status_summary(drifted_doc, derive_summary(config))
+
   def test_extract_issue_summary_table(self) -> None:
     table_lines = [
       "| Issue | Operations | Blocker families | Coverage counts |",
@@ -110,12 +194,13 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
   def test_main_passes_on_synced_files(self) -> None:
     config = make_config()
     clusters = validate_issue_clusters(config)
+    summary = derive_summary(config)
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
       config_path = root / "config.json"
       doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
       config_path.write_text(json.dumps(config), encoding="utf-8")
-      doc_path.write_text(make_doc(expected_table_lines(clusters)), encoding="utf-8")
+      doc_path.write_text(make_doc(expected_table_lines(clusters), summary=summary), encoding="utf-8")
 
       old_argv = sys.argv
       try:
@@ -132,12 +217,13 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
 
   def test_main_fails_when_section_missing(self) -> None:
     config = make_config()
+    summary = derive_summary(config)
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
       config_path = root / "config.json"
       doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
       config_path.write_text(json.dumps(config), encoding="utf-8")
-      doc_path.write_text("# Equivalence\n", encoding="utf-8")
+      doc_path.write_text(make_doc([], summary=summary).replace("### Open issue blocker summary\n", ""), encoding="utf-8")
 
       old_argv = sys.argv
       try:
