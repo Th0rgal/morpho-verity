@@ -51,14 +51,20 @@ def fail(msg: str) -> None:
 
 
 def load_provenance(path: pathlib.Path) -> dict[str, object]:
-  data = json.loads(path.read_text(encoding="utf-8"))
+  try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+  except json.JSONDecodeError as exc:
+    fail(f"failed to parse provenance JSON {path}: {exc}")
   if not isinstance(data, dict):
     fail(f"provenance file must be a JSON object: {path}")
   return data
 
 
 def load_issue_clusters(path: pathlib.Path) -> dict[str, dict[str, Any]]:
-  data = json.loads(path.read_text(encoding="utf-8"))
+  try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+  except json.JSONDecodeError as exc:
+    fail(f"failed to parse issue cluster JSON {path}: {exc}")
   if not isinstance(data, dict):
     fail(f"obligations file must be a JSON object: {path}")
   raw_clusters = data.get("issueClusters")
@@ -75,7 +81,10 @@ def load_issue_clusters(path: pathlib.Path) -> dict[str, dict[str, Any]]:
       fail(f"`issueClusters[{i}].issue` must be an integer in {path}")
     if not isinstance(title, str) or not title:
       fail(f"`issueClusters[{i}].title` must be a non-empty string in {path}")
-    clusters[f"#{issue}"] = item
+    issue_key = f"#{issue}"
+    if issue_key in clusters:
+      fail(f"duplicate `issueClusters[{i}].issue` value {issue_key} in {path}")
+    clusters[issue_key] = item
   return clusters
 
 
