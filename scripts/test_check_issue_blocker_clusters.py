@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -151,6 +152,41 @@ class ValidateIssueClustersTests(unittest.TestCase):
     config["issueClusters"][1]["issue"] = 123
     with self.assertRaisesRegex(IssueClusterError, "duplicate issue cluster"):
       validate_issue_clusters(config)
+
+  def test_rejects_boolean_issue_cluster_id(self) -> None:
+    config = make_config()
+    config["issueClusters"][0]["issue"] = True
+    with self.assertRaisesRegex(IssueClusterError, "missing integer 'issue'"):
+      validate_issue_clusters(config)
+
+  def test_rejects_boolean_obligation_issue(self) -> None:
+    config = make_config()
+    config["obligations"][0]["issue"] = False
+    with self.assertRaisesRegex(IssueClusterError, "has non-integer 'issue'"):
+      validate_issue_clusters(config)
+
+
+class CliTests(unittest.TestCase):
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "config.json"
+      config_path.write_text("{invalid\n", encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_issue_blocker_clusters.py"),
+          "--config",
+          str(config_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("issue blocker clusters check failed: failed to parse JSON config", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
