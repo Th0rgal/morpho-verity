@@ -49,6 +49,14 @@ class CheckCiTimeoutWrapperCoverageTests(unittest.TestCase):
     )
     self.assertEqual(collect_workflow_check_scripts(workflow_text), {"check_alpha.py"})
 
+  def test_collect_workflow_check_scripts_ignores_yaml_comments_on_run_lines(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: python3 scripts/check_alpha.py # scripts/check_from_comment.py",
+      ]
+    )
+    self.assertEqual(collect_workflow_check_scripts(workflow_text), {"check_alpha.py"})
+
   def test_collect_workflow_check_scripts_supports_quoted_paths(self) -> None:
     workflow_text = "\n".join(
       [

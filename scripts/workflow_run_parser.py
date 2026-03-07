@@ -311,7 +311,7 @@ def _parse_run_scalar(raw: str, anchors: dict[str, str] | None = None) -> str | 
     return ""
   if normalized != stripped or normalized.startswith(("'", '"', "*")):
     return _parse_scalar_env_value(raw, anchors)
-  return raw
+  return _strip_yaml_comment(raw)
 
 
 def _parse_double_quoted_yaml_scalar(inner: str) -> str | None:

@@ -58,6 +58,14 @@ class CheckCiScriptTimeoutWrapperCoverageTests(unittest.TestCase):
     )
     self.assertEqual(collect_workflow_script_references(workflow_text), {"install_lean.sh"})
 
+  def test_collect_workflow_script_references_ignores_yaml_comments_on_run_lines(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "run: ./scripts/install_lean.sh # scripts/install_from_comment.sh",
+      ]
+    )
+    self.assertEqual(collect_workflow_script_references(workflow_text), {"install_lean.sh"})
+
   def test_collect_workflow_script_references_supports_quoted_paths(self) -> None:
     workflow_text = "\n".join(
       [
