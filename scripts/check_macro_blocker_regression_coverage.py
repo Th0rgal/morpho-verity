@@ -27,6 +27,10 @@ def load_obligations(path: pathlib.Path) -> list[dict[str, Any]]:
       raw = json.load(f)
   except json.JSONDecodeError as exc:
     raise RegressionCoverageError(f"failed to parse JSON config {path}: {exc}") from exc
+  except UnicodeDecodeError as exc:
+    raise RegressionCoverageError(f"failed to decode JSON config {path}: {exc}") from exc
+  except OSError as exc:
+    raise RegressionCoverageError(f"failed to read JSON config {path}: {exc}") from exc
   if not isinstance(raw, dict):
     raise RegressionCoverageError(f"config root must be an object in {path}")
   obligations = raw.get("obligations")
@@ -150,8 +154,5 @@ if __name__ == "__main__":
   try:
     raise SystemExit(main())
   except RegressionCoverageError as exc:
-    print(f"macro-blocker-regression-coverage check failed: {exc}", file=sys.stderr)
-    raise SystemExit(1)
-  except FileNotFoundError as exc:
     print(f"macro-blocker-regression-coverage check failed: {exc}", file=sys.stderr)
     raise SystemExit(1)
