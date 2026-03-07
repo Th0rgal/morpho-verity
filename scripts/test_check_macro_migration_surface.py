@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import subprocess
 import shutil
@@ -149,6 +150,58 @@ def morphoSelectors : List Nat := [
     self.assertEqual(report["interfacePath"], str(interface_path))
     self.assertEqual(report["matchedSignatureCount"], 1)
 
+  def test_cli_accepts_relative_external_inputs_and_reports_resolved_paths(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      root = pathlib.Path(tmpdir)
+      run_dir = root / "runner"
+      run_dir.mkdir()
+      inputs_dir = run_dir / "inputs"
+      inputs_dir.mkdir()
+      spec_path = inputs_dir / "Spec.lean"
+      interface_path = inputs_dir / "IMorpho.sol"
+      spec_path.write_text("def morphoSelectors : List Nat := []\n", encoding="utf-8")
+      interface_path.write_text("interface IMorpho {}\n", encoding="utf-8")
+      json_out = root / "surface-report.json"
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          "-c",
+          "\n".join([
+            "import sys",
+            f"sys.path.insert(0, {str(SCRIPT_DIR)!r})",
+            "import check_macro_migration_surface as mod",
+            "mod.run_check = lambda spec_path=None, interface_path=None: {"
+            "'status': 'ok', "
+            "'specSignatureCount': 1, "
+            "'interfaceSignatureCount': 1, "
+            "'matchedSignatureCount': 1, "
+            "'selectorComparableCount': 1, "
+            "'selectorMismatchCount': 0, "
+            "'specPath': mod.display_path(spec_path), "
+            "'interfacePath': mod.display_path(interface_path)"
+            "}",
+            "sys.argv = ["
+            "'check_macro_migration_surface.py', "
+            "'--spec', 'inputs/Spec.lean', "
+            "'--interface', 'inputs/IMorpho.sol', "
+            f"'--json-out', {str(json_out)!r}"
+            "]",
+            "mod.main()",
+          ]),
+        ],
+        cwd=run_dir,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      report = json.loads(json_out.read_text(encoding="utf-8"))
+
+    self.assertEqual(report["specPath"], str(spec_path.resolve()))
+    self.assertEqual(report["interfacePath"], str(interface_path.resolve()))
+
   def test_cli_reports_checker_error_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
       bad_repo = pathlib.Path(tmpdir)
@@ -189,13 +242,13 @@ def morphoSelectors : List Nat := [
           sys.executable,
           "-c",
           "\n".join([
-            "import sys",
-            f"sys.path.insert(0, {str(SCRIPT_DIR)!r})",
-            "import check_macro_migration_surface as mod",
-            "mod.run_check = lambda: {"
-            "'status': 'ok', "
-            "'specSignatureCount': 1, "
-            "'interfaceSignatureCount': 1, "
+             "import sys",
+             f"sys.path.insert(0, {str(SCRIPT_DIR)!r})",
+             "import check_macro_migration_surface as mod",
+             "mod.run_check = lambda spec_path=None, interface_path=None: {"
+             "'status': 'ok', "
+             "'specSignatureCount': 1, "
+             "'interfaceSignatureCount': 1, "
             "'matchedSignatureCount': 1, "
             "'selectorMismatchCount': 0"
             "}",
