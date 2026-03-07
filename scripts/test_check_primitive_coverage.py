@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -14,7 +15,9 @@ from check_primitive_coverage import (  # noqa: E402
     build_report,
     extract_primitives,
     is_stub,
+    load_migrated_operations,
     PRIMITIVE_BRIDGE_STATUS,
+    PrimitiveCoverageError,
 )
 
 
@@ -201,6 +204,76 @@ class PrimitiveBridgeStatusTests(unittest.TestCase):
             )
 
 
+class LoadMigratedOperationsTests(unittest.TestCase):
+    def write_config(self, payload: str) -> pathlib.Path:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = pathlib.Path(temp_dir.name) / "config.json"
+        path.write_text(payload, encoding="utf-8")
+        return path
+
+    def test_loads_migrated_operations(self) -> None:
+        path = self.write_config(json.dumps({
+            "obligations": [
+                {"operation": "setOwner", "macroMigrated": True},
+                {"operation": "flashLoan", "macroMigrated": False},
+            ]
+        }))
+        self.assertEqual(load_migrated_operations(path), {"setOwner"})
+
+    def test_rejects_malformed_json(self) -> None:
+        path = self.write_config("{")
+        with self.assertRaisesRegex(
+            PrimitiveCoverageError,
+            "failed to parse semantic bridge obligations JSON",
+        ):
+            load_migrated_operations(path)
+
+    def test_rejects_non_object_root(self) -> None:
+        path = self.write_config("[]")
+        with self.assertRaisesRegex(
+            PrimitiveCoverageError,
+            "config must be a JSON object",
+        ):
+            load_migrated_operations(path)
+
+    def test_rejects_non_list_obligations(self) -> None:
+        path = self.write_config(json.dumps({"obligations": {}}))
+        with self.assertRaisesRegex(
+            PrimitiveCoverageError,
+            "must contain an `obligations` list",
+        ):
+            load_migrated_operations(path)
+
+    def test_rejects_non_object_obligation(self) -> None:
+        path = self.write_config(json.dumps({"obligations": ["setOwner"]}))
+        with self.assertRaisesRegex(
+            PrimitiveCoverageError,
+            "obligation #0 must be a JSON object",
+        ):
+            load_migrated_operations(path)
+
+    def test_rejects_invalid_operation(self) -> None:
+        path = self.write_config(json.dumps({
+            "obligations": [{"operation": "", "macroMigrated": True}]
+        }))
+        with self.assertRaisesRegex(
+            PrimitiveCoverageError,
+            "invalid `operation`",
+        ):
+            load_migrated_operations(path)
+
+    def test_rejects_non_boolean_macro_migrated(self) -> None:
+        path = self.write_config(json.dumps({
+            "obligations": [{"operation": "setOwner", "macroMigrated": "yes"}]
+        }))
+        with self.assertRaisesRegex(
+            PrimitiveCoverageError,
+            "invalid `macroMigrated`",
+        ):
+            load_migrated_operations(path)
+
+
 class IntegrationTests(unittest.TestCase):
     def test_real_files(self) -> None:
         """Run against actual repo files."""
@@ -212,13 +285,7 @@ class IntegrationTests(unittest.TestCase):
             self.skipTest("repo files not available")
 
         macro_text = macro_path.read_text(encoding="utf-8")
-        with config_path.open("r", encoding="utf-8") as f:
-            config = json.load(f)
-        migrated_ops = {
-            o["operation"]
-            for o in config["obligations"]
-            if o.get("macroMigrated")
-        }
+        migrated_ops = load_migrated_operations(config_path)
 
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage)

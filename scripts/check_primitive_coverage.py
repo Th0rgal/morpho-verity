@@ -130,6 +130,51 @@ def read_text(path: pathlib.Path) -> str:
         return f.read()
 
 
+def load_migrated_operations(path: pathlib.Path) -> set[str]:
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise PrimitiveCoverageError(
+            f"failed to parse semantic bridge obligations JSON: {exc}"
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise PrimitiveCoverageError(
+            "semantic bridge obligations config must be a JSON object"
+        )
+
+    obligations = data.get("obligations")
+    if not isinstance(obligations, list):
+        raise PrimitiveCoverageError(
+            "semantic bridge obligations config must contain an `obligations` list"
+        )
+
+    migrated_ops: set[str] = set()
+    for index, obligation in enumerate(obligations):
+        if not isinstance(obligation, dict):
+            raise PrimitiveCoverageError(
+                f"obligation #{index} must be a JSON object"
+            )
+
+        operation = obligation.get("operation")
+        if not isinstance(operation, str) or not operation.strip():
+            raise PrimitiveCoverageError(
+                f"obligation #{index} has invalid `operation`; expected non-empty string"
+            )
+
+        macro_migrated = obligation.get("macroMigrated")
+        if not isinstance(macro_migrated, bool):
+            raise PrimitiveCoverageError(
+                f"obligation `{operation}` has invalid `macroMigrated`; expected boolean"
+            )
+
+        if macro_migrated:
+            migrated_ops.add(operation)
+
+    return migrated_ops
+
+
 # ---------------------------------------------------------------------------
 # MacroSlice function splitting (reused from check_spec_correspondence.py)
 # ---------------------------------------------------------------------------
@@ -258,14 +303,7 @@ def main() -> None:
     args = parser().parse_args()
 
     macro_text = read_text(args.macro_slice)
-
-    with args.config.open("r", encoding="utf-8") as f:
-        config = json.load(f)
-    migrated_ops = {
-        o["operation"]
-        for o in config["obligations"]
-        if o.get("macroMigrated")
-    }
+    migrated_ops = load_migrated_operations(args.config)
 
     coverage = analyze_coverage(macro_text, migrated_ops)
     report = build_report(coverage)
