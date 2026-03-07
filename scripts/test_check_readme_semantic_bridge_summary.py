@@ -281,6 +281,36 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
       finally:
         sys.argv = old_argv
 
+  def test_cli_accepts_relative_external_paths_from_different_cwd(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      inputs = root / "inputs"
+      worktree = root / "worktree"
+      inputs.mkdir()
+      worktree.mkdir()
+      config_path = inputs / "semantic-bridge-obligations.json"
+      readme_path = inputs / "README.md"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      readme_path.write_text(make_readme(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_readme_semantic_bridge_summary.py"),
+          "--config",
+          str(pathlib.Path("..") / "inputs" / "semantic-bridge-obligations.json"),
+          "--readme",
+          str(pathlib.Path("..") / "inputs" / "README.md"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=worktree,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("readme-semantic-bridge-summary check: OK", proc.stdout)
+
   def test_cli_reports_invalid_json_config_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)

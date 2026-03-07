@@ -289,9 +289,11 @@ def main() -> int:
   parser.add_argument("--config", type=pathlib.Path, default=CONFIG_PATH)
   parser.add_argument("--readiness", type=pathlib.Path, default=READINESS_PATH)
   args = parser.parse_args()
+  config_path = args.config.resolve()
+  readiness_path = args.readiness.resolve()
 
-  config_entries = build_config_projection(load_config(args.config))
-  readiness_entries = parse_readiness_entries(args.readiness)
+  config_entries = build_config_projection(load_config(config_path))
+  readiness_entries = parse_readiness_entries(readiness_path)
   compare_entries(config_entries, readiness_entries)
 
   print("semantic-bridge-readiness-sync check: OK")

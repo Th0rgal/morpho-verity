@@ -255,8 +255,9 @@ def main() -> int:
   )
   parser.add_argument("--instantiation", type=pathlib.Path, default=INSTANTIATION_PATH)
   args = parser.parse_args()
+  instantiation_path = args.instantiation.resolve()
 
-  text = read_instantiation_text(args.instantiation)
+  text = read_instantiation_text(instantiation_path)
   validate_status(text)
 
   print("semantic-bridge-instantiation-status check: OK")

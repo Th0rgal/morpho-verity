@@ -313,11 +313,13 @@ def main() -> int:
   parser.add_argument("--config", type=pathlib.Path, default=CONFIG_PATH)
   parser.add_argument("--doc", type=pathlib.Path, default=DOC_PATH)
   args = parser.parse_args()
+  config_path = args.config.resolve()
+  doc_path = args.doc.resolve()
 
-  config = load_tracker_config(args.config)
+  config = load_tracker_config(config_path)
   clusters = validate_issue_clusters(config)
   summary = derive_summary(config)
-  doc_text = read_doc_text(args.doc)
+  doc_text = read_doc_text(doc_path)
 
   validate_status_summary(doc_text, summary)
   validate_issue_summary_table(doc_text, clusters)

@@ -489,6 +489,39 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+  def test_cli_accepts_relative_external_paths_from_different_cwd(self) -> None:
+    config = make_config()
+    clusters = validate_issue_clusters(config)
+    summary = derive_summary(config)
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      inputs = root / "inputs"
+      worktree = root / "worktree"
+      inputs.mkdir()
+      worktree.mkdir()
+      config_path = inputs / "config.json"
+      doc_path = inputs / "EQUIVALENCE_OBLIGATIONS.md"
+      config_path.write_text(json.dumps(config), encoding="utf-8")
+      doc_path.write_text(make_doc(expected_table_lines(clusters), summary=summary), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_equivalence_obligations_doc.py"),
+          "--config",
+          str(pathlib.Path("..") / "inputs" / "config.json"),
+          "--doc",
+          str(pathlib.Path("..") / "inputs" / "EQUIVALENCE_OBLIGATIONS.md"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=worktree,
+      )
+
+    self.assertEqual(proc.returncode, 0)
+    self.assertIn("equivalence-obligations-doc check: OK", proc.stdout)
+
   def test_cli_reports_invalid_json_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)

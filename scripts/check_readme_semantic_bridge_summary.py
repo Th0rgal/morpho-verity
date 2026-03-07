@@ -197,9 +197,11 @@ def main() -> int:
   parser.add_argument("--config", type=pathlib.Path, default=CONFIG_PATH)
   parser.add_argument("--readme", type=pathlib.Path, default=README_PATH)
   args = parser.parse_args()
+  config_path = args.config.resolve()
+  readme_path = args.readme.resolve()
 
-  summary = load_summary(args.config)
-  text = read_text(args.readme, context="README file")
+  summary = load_summary(config_path)
+  text = read_text(readme_path, context="README file")
   validate_summary(text, summary)
 
   print("readme-semantic-bridge-summary check: OK")

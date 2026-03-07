@@ -391,12 +391,14 @@ def main() -> int:
   parser.add_argument("--config", type=pathlib.Path, default=CONFIG_PATH)
   parser.add_argument("--readiness", type=pathlib.Path, default=READINESS_PATH)
   args = parser.parse_args()
+  config_path = args.config.resolve()
+  readiness_path = args.readiness.resolve()
 
   try:
-    summary = derive_summary(load_config(args.config))
+    summary = derive_summary(load_config(config_path))
   except SemanticBridgeReadinessSyncError as exc:
     raise SemanticBridgeReadinessSummaryError(str(exc)) from exc
-  text = read_readiness_text(args.readiness)
+  text = read_readiness_text(readiness_path)
   validate_summary(text, summary)
 
   print("semantic-bridge-readiness-summary check: OK")

@@ -348,6 +348,32 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       finally:
         sys.argv = old_argv
 
+  def test_cli_accepts_relative_external_path_from_different_cwd(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      inputs = root / "inputs"
+      worktree = root / "worktree"
+      inputs.mkdir()
+      worktree.mkdir()
+      discharge_path = inputs / "SemanticBridgeDischarge.lean"
+      discharge_path.write_text(make_text(), encoding="utf-8")
+
+      result = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_discharge_status.py"),
+          "--discharge",
+          str(pathlib.Path("..") / "inputs" / "SemanticBridgeDischarge.lean"),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=worktree,
+      )
+
+    self.assertEqual(result.returncode, 0)
+    self.assertIn("semantic-bridge-discharge-status check: OK", result.stdout)
+
   def test_read_text_rejects_invalid_utf8(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       discharge_path = pathlib.Path(d) / "SemanticBridgeDischarge.lean"
