@@ -335,17 +335,32 @@ class WorkflowRunParserTests(unittest.TestCase):
         "        run: python3 scripts/check_alpha.py",
         "      - name: 'Validate # literal'",
         "        run: python3 scripts/check_literal.py",
+        "      - name: 'Don''t drift' # apostrophe escape",
+        "        run: python3 scripts/check_quote.py",
       ]
     )
     self.assertEqual(
       extract_named_step_runs(workflow_text),
       (
-        {"Validate alpha": 1, "Validate # literal": 1},
+        {"Validate alpha": 1, "Validate # literal": 1, "Don't drift": 1},
         {
           "Validate alpha": ["python3 scripts/check_alpha.py"],
           "Validate # literal": ["python3 scripts/check_literal.py"],
+          "Don't drift": ["python3 scripts/check_quote.py"],
         },
       ),
+    )
+
+  def test_extract_workflow_env_literals_unescapes_single_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  ESCAPED_LABEL: 'Don''t drift' # apostrophe escape",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"ESCAPED_LABEL": ["Don't drift"]},
     )
 
   def test_extract_named_step_runs_handles_block_scalar(self) -> None:

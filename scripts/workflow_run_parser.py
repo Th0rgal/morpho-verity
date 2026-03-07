@@ -127,7 +127,10 @@ def _parse_scalar_env_value(raw: str) -> str | None:
   if value[0] in {'"', "'"}:
     if len(value) < 2 or value[-1] != value[0]:
       return None
-    return value[1:-1]
+    inner = value[1:-1]
+    if value[0] == "'":
+      return inner.replace("''", "'")
+    return inner
   return value
 
 
