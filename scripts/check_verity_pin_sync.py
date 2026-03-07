@@ -8,6 +8,7 @@ import json
 import pathlib
 import re
 import sys
+from typing import Any
 
 
 REQUIRE_VERITY_RE = re.compile(
@@ -30,7 +31,12 @@ def parse_lakefile_verity(lakefile_path: pathlib.Path) -> tuple[str, str]:
 
 
 def parse_manifest_verity(manifest_path: pathlib.Path) -> tuple[str, str, str]:
-  data = json.loads(manifest_path.read_text(encoding="utf-8"))
+  try:
+    data: Any = json.loads(manifest_path.read_text(encoding="utf-8"))
+  except json.JSONDecodeError as exc:
+    fail(f"failed to parse JSON manifest {manifest_path}: {exc}")
+  if not isinstance(data, dict):
+    fail(f"manifest root must be a JSON object in {manifest_path}")
   packages = data.get("packages")
   if not isinstance(packages, list):
     fail(f"missing `packages` list in {manifest_path}")
