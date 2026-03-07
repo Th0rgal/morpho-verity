@@ -35,6 +35,13 @@ class MacroMigrationSurfaceError(RuntimeError):
   """Raised when the macro migration surface check cannot validate its inputs."""
 
 
+def display_path(path: pathlib.Path) -> str:
+  try:
+    return str(path.relative_to(ROOT))
+  except ValueError:
+    return str(path)
+
+
 def read_text(path: pathlib.Path) -> str:
   try:
     with path.open("r", encoding="utf-8") as f:
@@ -284,8 +291,8 @@ def run_check(spec_path: pathlib.Path = SPEC_PATH, interface_path: pathlib.Path 
   interface_signatures = extract_interface_signatures(interface_text)
   solc_selector_map = extract_solc_selector_map(interface_path)
   report = build_report(spec_signatures, interface_signatures, spec_selector_map, solc_selector_map)
-  report["specPath"] = str(spec_path.relative_to(ROOT))
-  report["interfacePath"] = str(interface_path.relative_to(ROOT))
+  report["specPath"] = display_path(spec_path)
+  report["interfacePath"] = display_path(interface_path)
   report["selectorSource"] = f"solc --hashes ({IMORPHO_CONTRACT})"
   return report
 
