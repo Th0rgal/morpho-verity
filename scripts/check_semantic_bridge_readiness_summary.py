@@ -96,9 +96,7 @@ def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.M
 
 def parse_operation_list(raw_ops: str) -> list[str]:
   operations = [item.strip().strip("`") for item in raw_ops.replace("\n", " ").split(",")]
-  normalized = [item for item in operations if item]
-  if not normalized:
-    raise SemanticBridgeReadinessSummaryError("Link 1 operation list is empty")
+  normalized = [item for item in operations if item and item.lower() != "none"]
   return normalized
 
 
@@ -124,6 +122,11 @@ def validate_summary(text: str, summary: dict[str, Any]) -> None:
   link1_list = require_match(LINK1_LIST_RE, text, "Link 1 operation list")
   require_count(int(link1_list.group("count")), summary["link1_count"], "Link 1 operation list count")
   actual_operations = parse_operation_list(link1_list.group("ops"))
+  if not summary["link1_operations"] and actual_operations:
+    raise SemanticBridgeReadinessSummaryError(
+      "Link 1 operation list drift: expected no operations; found "
+      + ", ".join(actual_operations)
+    )
   if len(actual_operations) != len(set(actual_operations)):
     raise SemanticBridgeReadinessSummaryError(
       "Link 1 operation list contains duplicate operations"
