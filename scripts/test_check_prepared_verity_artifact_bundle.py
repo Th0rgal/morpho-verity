@@ -266,6 +266,32 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
           proof_manifest_path=proof_manifest,
         )
 
+  def test_rejects_rewrite_report_without_rewritten_yul(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      (bundle / "Morpho.rewritten.yul").unlink()
+
+      with self.assertRaisesRegex(RuntimeError, "rewrite report is present without matching"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=False,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
   def test_rejects_invalid_parity_target_json(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
