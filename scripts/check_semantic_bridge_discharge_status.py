@@ -12,6 +12,16 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DISCHARGE_PATH = ROOT / "Morpho" / "Proofs" / "SemanticBridgeDischarge.lean"
 
+EXPECTED_ARCHITECTURE_SUMMARY = (
+  "This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,\n"
+  "`enableLltv`, `setAuthorization`, and `flashLoan`.\n"
+  "Links 2+3 are already provided upstream for the supported fragment "
+  "(verity#1060 / #1065).\n"
+  "The remaining blockers here are Link 1 discharge and macro frontend coverage\n"
+  "for complex Morpho operations.\n"
+  "Verity pin: ad03fc64 (including the two-storage-address witness needed by "
+  "`setFeeRecipient`)."
+)
 EXPECTED_DISCHARGE_STATUS = (
   "With Link 1 proven for 6 operations, the `*SemEq` obligations can be instantiated\n"
   "using the EDSL-based wrappers. For the supported fragment, Links 2+3 are already\n"
@@ -26,8 +36,11 @@ EXPECTED_FLASHLOAN_ROW = (
 FORBIDDEN_SNIPPETS = [
   "The remaining gap (Links 2+3) connects the EDSL",
   "execution to the compiled IR and then to EVMYulLean.",
+  "Links 2+3 are provided upstream for the supported fragment (verity#1060 / #1065).",
 ]
+ARCHITECTURE_SECTION_HEADER = "## Architecture"
 DISCHARGE_SECTION_HEADER = "/-! ## Discharge Status"
+PROOF_STRATEGY_SECTION_HEADER = "## Proof Strategy"
 
 
 class SemanticBridgeDischargeStatusError(RuntimeError):
@@ -39,32 +52,70 @@ def normalize_text(text: str) -> str:
 
 
 def extract_discharge_section(text: str) -> str:
-  try:
-    _, after_header = text.split(DISCHARGE_SECTION_HEADER, 1)
-  except ValueError as exc:
-    raise SemanticBridgeDischargeStatusError(
-      "SemanticBridgeDischarge.lean status drift: missing `## Discharge Status` section"
-    ) from exc
+  return extract_section(
+    text=text,
+    start_marker=DISCHARGE_SECTION_HEADER,
+    end_pattern=r"(?m)^\s*-/\s*$",
+    missing_error="SemanticBridgeDischarge.lean status drift: missing `## Discharge Status` section",
+    empty_error="SemanticBridgeDischarge.lean status drift: empty `## Discharge Status` section",
+  )
 
-  match = re.search(r"(?m)^\s*-/\s*$", after_header)
-  section = after_header[: match.start()] if match else after_header
+
+def extract_architecture_section(text: str) -> str:
+  return extract_section(
+    text=text,
+    start_marker=ARCHITECTURE_SECTION_HEADER,
+    end_marker=PROOF_STRATEGY_SECTION_HEADER,
+    missing_error="SemanticBridgeDischarge.lean status drift: missing `## Architecture` section",
+    empty_error="SemanticBridgeDischarge.lean status drift: empty `## Architecture` section",
+  )
+
+
+def extract_section(
+  *,
+  text: str,
+  start_marker: str,
+  missing_error: str,
+  empty_error: str,
+  end_marker: str | None = None,
+  end_pattern: str | None = None,
+) -> str:
+  try:
+    _, after_start = text.split(start_marker, 1)
+  except ValueError as exc:
+    raise SemanticBridgeDischargeStatusError(missing_error) from exc
+
+  if end_marker is not None:
+    section = after_start.split(end_marker, 1)[0]
+  elif end_pattern is not None:
+    match = re.search(end_pattern, after_start)
+    section = after_start[: match.start()] if match else after_start
+  else:
+    section = after_start
+
   if not section.strip():
-    raise SemanticBridgeDischargeStatusError(
-      "SemanticBridgeDischarge.lean status drift: empty `## Discharge Status` section"
-    )
+    raise SemanticBridgeDischargeStatusError(empty_error)
   return section
 
 
 def validate_status(text: str) -> None:
-  normalized_text = normalize_text(extract_discharge_section(text))
-  for expected in (EXPECTED_DISCHARGE_STATUS, EXPECTED_FLASHLOAN_ROW):
-    if normalize_text(expected) not in normalized_text:
+  architecture_text = normalize_text(extract_architecture_section(text))
+  discharge_text = normalize_text(extract_discharge_section(text))
+
+  expected_sections = (
+    (architecture_text, EXPECTED_ARCHITECTURE_SUMMARY),
+    (discharge_text, EXPECTED_DISCHARGE_STATUS),
+    (discharge_text, EXPECTED_FLASHLOAN_ROW),
+  )
+  for section_text, expected in expected_sections:
+    if normalize_text(expected) not in section_text:
       raise SemanticBridgeDischargeStatusError(
         "SemanticBridgeDischarge.lean status drift: missing expected text "
         f"`{expected}`"
       )
 
-  stale = [snippet for snippet in FORBIDDEN_SNIPPETS if normalize_text(snippet) in normalized_text]
+  combined_text = architecture_text + " " + discharge_text
+  stale = [snippet for snippet in FORBIDDEN_SNIPPETS if normalize_text(snippet) in combined_text]
   if stale:
     raise SemanticBridgeDischargeStatusError(
       "SemanticBridgeDischarge.lean still contains stale bridge status text: "

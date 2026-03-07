@@ -25,7 +25,7 @@ The full discharge chain for an obligation like `setOwnerSemEq` has three links:
 
 This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
 `enableLltv`, `setAuthorization`, and `flashLoan`.
-Links 2+3 are provided upstream for the supported fragment (verity#1060 / #1065).
+Links 2+3 are already provided upstream for the supported fragment (verity#1060 / #1065).
 The remaining blockers here are Link 1 discharge and macro frontend coverage
 for complex Morpho operations.
 Verity pin: ad03fc64 (including the two-storage-address witness needed by `setFeeRecipient`).
