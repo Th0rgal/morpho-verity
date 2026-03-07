@@ -221,6 +221,25 @@ class WorkflowRunParserTests(unittest.TestCase):
       },
     )
 
+  def test_extract_workflow_env_literals_handles_inline_flow_mapping_single_quote_escape(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env: {ESCAPED_LABEL: 'Don''t drift'}",
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - env: {STEP_LABEL: 'Keep''s value'} # step label",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "ESCAPED_LABEL": ["Don't drift"],
+        "STEP_LABEL": ["Keep's value"],
+      },
+    )
+
   def test_extract_workflow_env_literals_handles_block_env_value_comments(self) -> None:
     workflow_text = "\n".join(
       [
@@ -323,6 +342,104 @@ class WorkflowRunParserTests(unittest.TestCase):
     self.assertEqual(
       extract_named_step_runs(workflow_text),
       ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py \\\n--strict"]}),
+    )
+
+  def test_extract_named_step_runs_strips_yaml_comments_from_step_names(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha # tracked step comment",
+        "        run: python3 scripts/check_alpha.py",
+        "      - name: 'Validate # literal'",
+        "        run: python3 scripts/check_literal.py",
+        "      - name: 'Don''t drift' # apostrophe escape",
+        "        run: python3 scripts/check_quote.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1, "Validate # literal": 1, "Don't drift": 1},
+        {
+          "Validate alpha": ["python3 scripts/check_alpha.py"],
+          "Validate # literal": ["python3 scripts/check_literal.py"],
+          "Don't drift": ["python3 scripts/check_quote.py"],
+        },
+      ),
+    )
+
+  def test_extract_workflow_env_literals_unescapes_single_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  ESCAPED_LABEL: 'Don''t drift' # apostrophe escape",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"ESCAPED_LABEL": ["Don't drift"]},
+    )
+
+  def test_extract_named_step_runs_unescapes_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: "Say \\"hi\\""',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {'Say "hi"': 1},
+        {'Say "hi"': ["python3 scripts/check_alpha.py"]},
+      ),
+    )
+
+  def test_extract_workflow_env_literals_unescapes_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        '  ESCAPED_PATH: "C:\\\\temp\\\\file"',
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"ESCAPED_PATH": ["C:\\temp\\file"]},
+    )
+
+  def test_extract_named_step_runs_unescapes_yaml_hex_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: "Validate\\x20alpha"',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1},
+        {"Validate alpha": ["python3 scripts/check_alpha.py"]},
+      ),
+    )
+
+  def test_extract_workflow_env_literals_unescapes_yaml_hex_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        '  ESCAPED_LABEL: "alpha\\x2fbeta"',
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"ESCAPED_LABEL": ["alpha/beta"]},
     )
 
   def test_extract_named_step_runs_handles_block_scalar(self) -> None:

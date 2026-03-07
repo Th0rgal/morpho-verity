@@ -21,13 +21,33 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   (
     "(?:[^"\\]|\\.)*"
     |
-    '(?:[^'\\]|\\.)*'
+    '(?:[^']|'')*'
     |
     [^,{}]+
   )
   \s*
   (?:,|$)
 """, re.VERBOSE)
+
+DOUBLE_QUOTED_ESCAPES = {
+  "0": "\0",
+  "a": "\a",
+  "b": "\b",
+  "t": "\t",
+  "n": "\n",
+  "v": "\v",
+  "f": "\f",
+  "r": "\r",
+  "e": "\x1b",
+  " ": " ",
+  '"': '"',
+  "/": "/",
+  "\\": "\\",
+  "N": "\x85",
+  "_": "\xa0",
+  "L": "\u2028",
+  "P": "\u2029",
+}
 
 
 def _consume_run_command(
@@ -127,8 +147,40 @@ def _parse_scalar_env_value(raw: str) -> str | None:
   if value[0] in {'"', "'"}:
     if len(value) < 2 or value[-1] != value[0]:
       return None
-    return value[1:-1]
+    inner = value[1:-1]
+    if value[0] == "'":
+      return inner.replace("''", "'")
+    return _parse_double_quoted_yaml_scalar(inner)
   return value
+
+
+def _parse_double_quoted_yaml_scalar(inner: str) -> str | None:
+  parsed: list[str] = []
+  i = 0
+  while i < len(inner):
+    char = inner[i]
+    if char != "\\":
+      parsed.append(char)
+      i += 1
+      continue
+    i += 1
+    if i >= len(inner):
+      return None
+    escape = inner[i]
+    if escape in DOUBLE_QUOTED_ESCAPES:
+      parsed.append(DOUBLE_QUOTED_ESCAPES[escape])
+      i += 1
+      continue
+    if escape in {"x", "u", "U"}:
+      width = {"x": 2, "u": 4, "U": 8}[escape]
+      digits = inner[i + 1:i + 1 + width]
+      if len(digits) != width or re.fullmatch(rf"[0-9A-Fa-f]{{{width}}}", digits) is None:
+        return None
+      parsed.append(chr(int(digits, 16)))
+      i += 1 + width
+      continue
+    return None
+  return "".join(parsed)
 
 
 def _strip_yaml_comment(raw: str) -> str:
@@ -434,9 +486,11 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
 
     name_match = NAME_FIELD_RE.match(line)
     if name_match is not None and len(name_match.group(1)) == current_step_indent + 2:
-      current_step_name = name_match.group(2)
-      step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1
-      step_runs.setdefault(current_step_name, [])
+      parsed_name = _parse_scalar_env_value(name_match.group(2))
+      current_step_name = parsed_name
+      if current_step_name is not None:
+        step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1
+        step_runs.setdefault(current_step_name, [])
       i += 1
       continue
 

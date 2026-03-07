@@ -254,6 +254,24 @@ class CheckVerityPinProvenanceTests(unittest.TestCase):
       workflow_path=pathlib.Path(".github/workflows/verify.yml"),
     )
 
+  def test_validate_workflow_accepts_trailing_comments_on_step_names(self) -> None:
+    validate_workflow(
+      workflow_text="\n".join([
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        *[
+          "\n".join([
+            f"      - name: {step} # tracked workflow step",
+            f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+          ])
+          for step in EXPECTED_WORKFLOW_STEPS
+        ],
+        "",
+      ]),
+      workflow_path=pathlib.Path(".github/workflows/verify.yml"),
+    )
+
   def test_validate_workflow_rejects_missing_step(self) -> None:
     with self.assertRaisesRegex(SystemExit, "1"):
       validate_workflow(
