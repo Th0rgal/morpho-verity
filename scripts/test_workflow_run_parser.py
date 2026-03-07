@@ -118,7 +118,24 @@ class WorkflowRunParserTests(unittest.TestCase):
     )
     self.assertEqual(
       extract_workflow_run_text(workflow_text),
-      "python3 scripts/check_alpha.py \\\n--strict",
+        "python3 scripts/check_alpha.py \\\n--strict",
+      )
+
+  def test_extract_workflow_run_text_handles_empty_plain_multiline_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run:",
+        "          python3 scripts/check_alpha.py",
+        "          --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py\n--strict",
     )
 
   def test_extract_workflow_run_text_handles_inline_run_step_item(self) -> None:
@@ -715,6 +732,73 @@ class WorkflowRunParserTests(unittest.TestCase):
       {
         "TOP_TIMEOUT_SEC": ["1 0"],
         "LABEL": ["Don't drift"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_handles_block_scalar_values(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  TOP_TIMEOUT_SEC: >",
+        "    1",
+        "    0",
+        "  LABEL: |",
+        "    alpha",
+        "    beta",
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        env:",
+        "          STEP_TIMEOUT_SEC: |",
+        "            30",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["1 0"],
+        "LABEL": ["alpha\nbeta"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_preserves_hashes_in_block_scalar_values(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  LABEL: |",
+        "    alpha # keep",
+        "  TOP_TIMEOUT_SEC: |",
+        "    10 # sec",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "LABEL": ["alpha # keep"],
+        "TOP_TIMEOUT_SEC": ["10 # sec"],
+      },
+    )
+
+  def test_extract_workflow_env_literals_handles_block_scalar_values_with_properties(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        "  TOP_TIMEOUT_SEC: !!str |",
+        "    10",
+        "  TOP_TIMEOUT_COPY: &top_timeout |",
+        "    20",
+        "  TOP_TIMEOUT_ALIAS: *top_timeout",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "TOP_TIMEOUT_COPY": ["20"],
+        "TOP_TIMEOUT_ALIAS": ["20"],
       },
     )
 
