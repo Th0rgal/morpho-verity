@@ -14,6 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_spec_correspondence import (  # noqa: E402
     CorrespondenceError,
     build_report,
+    display_path,
     extract_macro_functions,
     extract_macro_slots,
     extract_spec_fields,
@@ -264,14 +265,39 @@ class BuildReportTests(unittest.TestCase):
     def test_report_structure(self) -> None:
         spec_fns = extract_spec_functions(SAMPLE_SPEC)
         macro_fns = extract_macro_functions(SAMPLE_MACRO)
-        report = build_report(spec_fns, macro_fns, {"setOwner"}, [])
+        report = build_report(
+            spec_fns,
+            macro_fns,
+            {"setOwner"},
+            [],
+            spec_path=pathlib.Path("/tmp/Spec.lean"),
+            macro_path=pathlib.Path("/tmp/MacroSlice.lean"),
+            config_path=pathlib.Path("/tmp/semantic-bridge-obligations.json"),
+        )
         self.assertEqual(report["migratedChecked"], 1)
         self.assertEqual(len(report["correspondences"]), 1)
         self.assertEqual(report["errors"], [])
+        self.assertEqual(report["specPath"], "/tmp/Spec.lean")
+        self.assertEqual(report["macroSlicePath"], "/tmp/MacroSlice.lean")
+        self.assertEqual(report["config"], "/tmp/semantic-bridge-obligations.json")
 
     def test_report_json_serializable(self) -> None:
-        report = build_report({}, {}, set(), [])
+        report = build_report(
+            {},
+            {},
+            set(),
+            [],
+            spec_path=pathlib.Path("/tmp/Spec.lean"),
+            macro_path=pathlib.Path("/tmp/MacroSlice.lean"),
+            config_path=pathlib.Path("/tmp/semantic-bridge-obligations.json"),
+        )
         json.dumps(report)
+
+
+class DisplayPathTests(unittest.TestCase):
+    def test_display_path_keeps_external_absolute_paths(self) -> None:
+        path = pathlib.Path("/tmp/config.json")
+        self.assertEqual(display_path(path), str(path))
 
 
 class LoadMigratedOperationsTests(unittest.TestCase):
@@ -483,6 +509,54 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("spec correspondence check failed:", proc.stderr)
         self.assertIn("failed to write JSON report", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_json_report_records_actual_input_paths(self) -> None:
+        root = pathlib.Path(__file__).resolve().parent.parent
+        script_path = root / "scripts" / "check_spec_correspondence.py"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            spec_path = tmp / "Spec.lean"
+            macro_path = tmp / "MacroSlice.lean"
+            config_path = tmp / "semantic-bridge-obligations.json"
+            json_out = tmp / "report.json"
+            spec_path.write_text(SAMPLE_SPEC, encoding="utf-8")
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                            {"operation": "enableIrm", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--spec",
+                    str(spec_path),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                    "--json-out",
+                    str(json_out),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+            report = json.loads(json_out.read_text(encoding="utf-8"))
+            self.assertEqual(report["specPath"], str(spec_path))
+            self.assertEqual(report["macroSlicePath"], str(macro_path))
+            self.assertEqual(report["config"], str(config_path))
 
 
 if __name__ == "__main__":
