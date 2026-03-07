@@ -179,6 +179,12 @@ class MacroMigrationBlockersDocTests(unittest.TestCase):
     ):
       validate_doc_table(masked_doc, report)
 
+  def test_extract_macro_migration_section_accepts_crlf_heading_lines(self) -> None:
+    report = build_blocker_report(make_config())
+    doc = make_doc(expected_table_lines(report)).replace("\n", "\r\n")
+    section = extract_macro_migration_section(doc)
+    self.assertIn(SECTION_MARKER, section)
+
   def test_main_passes_on_synced_files(self) -> None:
     config = make_config()
     report = build_blocker_report(config)

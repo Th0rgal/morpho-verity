@@ -52,7 +52,7 @@ class MacroMigrationBlockersDocError(RuntimeError):
 
 
 def require_unique_heading_line(text: str, heading: str) -> re.Match[str]:
-  matches = list(re.finditer(rf"(?m)^{re.escape(heading)}$", text))
+  matches = list(re.finditer(rf"(?m)^{re.escape(heading)}\r?$", text))
   if not matches:
     raise MacroMigrationBlockersDocError(f"missing `{heading}` section in EQUIVALENCE_OBLIGATIONS.md")
   if len(matches) > 1:
