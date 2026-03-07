@@ -15,6 +15,10 @@ from check_semantic_bridge_readiness_sync import build_config_projection, load_c
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 READINESS_PATH = ROOT / "Morpho" / "Proofs" / "SemanticBridgeReadiness.lean"
+DISCHARGE_PATH_PREFIX = (
+  "The upstream Verity semantic bridge now provides, for each supported function\n"
+  "`f` in a `verity_contract`:"
+)
 
 
 class SemanticBridgeReadinessSummaryError(RuntimeError):
@@ -123,6 +127,12 @@ def require_count(
 
 
 def validate_summary(text: str, summary: dict[str, Any]) -> None:
+  if DISCHARGE_PATH_PREFIX not in text:
+    raise SemanticBridgeReadinessSummaryError(
+      "discharge-path upstream status drift: "
+      f"expected `{DISCHARGE_PATH_PREFIX}`"
+    )
+
   total_comment = require_match(TOTAL_COMMENT_RE, text, "obligation summary comment")
   require_count(int(total_comment.group("count")), summary["total"], "obligation summary comment count")
 

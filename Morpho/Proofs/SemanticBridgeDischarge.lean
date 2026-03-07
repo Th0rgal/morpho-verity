@@ -18,14 +18,16 @@ The full discharge chain for an obligation like `setOwnerSemEq` has three links:
      ↕ Link 1 (this file)
    EDSL (Compiler.AdminAdapters.setOwner)
      ↕ Link 2 (verity SemanticBridge)
-   Compiled IR (interpretIR morphoIR)   -- verity, once compile pipeline lands
+   Compiled IR (interpretIR morphoIR)   -- verity, bridge landed upstream
      ↕ Link 3 (verity EndToEnd)
    EVMYulLean (Yul execution)           -- verity, 1 keccak axiom
 ```
 
 This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
 `enableLltv`, `setAuthorization`, and `flashLoan`.
-Links 2+3 depend on upstream verity infrastructure (verity#1060 / #1065).
+Links 2+3 are provided upstream for the supported fragment (verity#1060 / #1065).
+The remaining blockers here are Link 1 discharge and macro frontend coverage
+for complex Morpho operations.
 Verity pin: ad03fc64 (including the two-storage-address witness needed by `setFeeRecipient`).
 
 ## Proof Strategy

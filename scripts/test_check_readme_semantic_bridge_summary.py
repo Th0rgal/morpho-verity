@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_readme_semantic_bridge_summary import (  # noqa: E402
+  UPSTREAM_STATUS_PREFIX,
   ReadmeSemanticBridgeSummaryError,
   extract_link1_operations,
   main,
@@ -61,6 +62,11 @@ def make_readme(
   return textwrap.dedent(
     f"""\
     # Morpho Verity
+
+    {UPSTREAM_STATUS_PREFIX}
+    This removes the hand-rolled `interpretSpec` interpreter from the target trust
+    story and enables auto-generated semantic preservation proofs in the
+    `verity_contract` macro where the frontend can lower the contract successfully.
 
     **Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for {proven_count}/{total} operations:**
     {operations}
@@ -129,6 +135,20 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
       "duplicate operations",
     ):
       validate_summary(make_readme(operations="`setOwner`, `setOwner`"), derive_summary(make_config()))
+
+  def test_validate_summary_rejects_upstream_status_drift(self) -> None:
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "upstream semantic-bridge status drift",
+    ):
+      validate_summary(
+        make_readme().replace(
+          UPSTREAM_STATUS_PREFIX,
+          "The Verity framework is working toward a single machine-checked theorem per\n"
+          "contract function: `EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.",
+        ),
+        derive_summary(make_config()),
+      )
 
   def test_main_passes_for_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:

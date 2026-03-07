@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_semantic_bridge_readiness_summary import (  # noqa: E402
+  DISCHARGE_PATH_PREFIX,
   SemanticBridgeReadinessSummaryError,
   derive_summary,
   main,
@@ -63,6 +64,8 @@ def make_readiness_text(
   return textwrap.dedent(
     f"""\
     namespace Morpho.Proofs.SemanticBridgeReadiness
+
+    {DISCHARGE_PATH_PREFIX}
 
     /-- All {total} semantic equivalence obligations from SolidityBridge.lean.
 
@@ -175,6 +178,20 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
       "link1_proven_count theorem drift",
     ):
       validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_discharge_path_status_drift(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "discharge-path upstream status drift",
+    ):
+      validate_summary(
+        make_readiness_text().replace(
+          DISCHARGE_PATH_PREFIX,
+          "The Verity semantic bridge will provide, for each function `f` in a\n"
+          "`verity_contract`:",
+        ),
+        derive_summary(make_config()),
+      )
 
   def test_main_passes_for_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
