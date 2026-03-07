@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -29,6 +30,7 @@ from check_semantic_bridge_instantiation_status import (  # noqa: E402
   extract_validates_section,
   main,
   normalize_text,
+  read_instantiation_text,
   validate_status,
 )
 
@@ -448,6 +450,45 @@ class SemanticBridgeInstantiationStatusTests(unittest.TestCase):
         self.assertEqual(main(), 0)
       finally:
         sys.argv = old_argv
+
+
+class ReadInstantiationTextTests(unittest.TestCase):
+  def test_invalid_utf8_fails_closed(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      instantiation_path = pathlib.Path(d) / "SemanticBridgeInstantiation.lean"
+      instantiation_path.write_bytes(b"\xff")
+
+      with self.assertRaisesRegex(
+        SemanticBridgeInstantiationStatusError,
+        "failed to read SemanticBridgeInstantiation source",
+      ):
+        read_instantiation_text(instantiation_path)
+
+
+class CliFailureTests(unittest.TestCase):
+  def test_invalid_utf8_reports_checker_error_without_traceback(self) -> None:
+    root = pathlib.Path(__file__).resolve().parent.parent
+    with tempfile.TemporaryDirectory() as d:
+      instantiation_path = pathlib.Path(d) / "SemanticBridgeInstantiation.lean"
+      instantiation_path.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(root / "scripts" / "check_semantic_bridge_instantiation_status.py"),
+          "--instantiation",
+          str(instantiation_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=root,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("semantic-bridge-instantiation-status check failed:", proc.stderr)
+    self.assertIn("failed to read SemanticBridgeInstantiation source", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
