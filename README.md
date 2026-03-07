@@ -55,10 +55,15 @@ The upstream typed-IR + bridge roadmap includes fully discharged (zero sorry)
 proof patterns for `Owned`, `SafeCounter`, and `OwnedCounter` contracts which serve as templates
 for morpho-verity's discharge.
 
-**Link 1 proofs (Pure Lean ↔ EDSL) are now proven for 6/18 operations:**
+**Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 6/18 operations:**
 `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`,
 `flashLoan`.
 See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
+
+Of those 6, the 5 admin operations also have typed-IR `SupportedStmtList`
+proofs in `Morpho/Proofs/CompilationCorrectness.lean`. `flashLoan` is still
+waiting on the corresponding dynamic-topic `rawLog` witness for its
+`caller`/`token` event path.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)

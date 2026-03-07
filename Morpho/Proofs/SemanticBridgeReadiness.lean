@@ -34,12 +34,12 @@ Morpho.f args                          -- pure Lean model
   = EVMYulLean(compile(spec)).exec     -- verified EVM semantics (verity bridge)
 ```
 
-The first link (canonical contract semantics ↔ EDSL) requires that
-`MorphoViewSlice` functions have full (non-stub) implementations matching the
-spec-facing execution API in `Morpho.Specs.ContractSemantics`. `Morpho.Morpho`
-still re-exports those migrated admin operations, but it is no longer the
-intended proof target for that cluster. The second link is what the verity
-semantic bridge provides.
+The first link (stable wrapper API ↔ EDSL) requires that `MorphoViewSlice`
+functions have full (non-stub) implementations matching the spec-facing
+execution API in `Morpho.Specs.ContractSemantics`. The repo now states those
+obligations against the stable `Morpho.*` wrappers, which reduce
+definitionally to the canonical contract-semantics surface. The second link is
+what the verity semantic bridge provides.
 
 ## Obligation Registry
 
@@ -180,11 +180,11 @@ theorem obligation_count : obligations.length = 18 := by
   native_decide
 
 /-- 6 of 18 operations have Link 1 proven.
-    Link 1 (Pure Lean ↔ EDSL) in `SemanticBridgeDischarge.lean`.
-    Link 2 (EDSL ↔ SupportedStmtList) is also proven for those same 5 admin functions
-    in `CompilationCorrectness.lean`.
+    Link 1 (wrapper API ↔ EDSL) is proven in `SemanticBridgeDischarge.lean`.
+    Link 2 (EDSL ↔ SupportedStmtList) is separately proven for the 5 admin functions
+    in `CompilationCorrectness.lean`; `flashLoan` still lacks that witness.
     Link 3 comes free from verity's typed-IR compilation-correctness framework.
-    These are: setOwner, setFeeRecipient, enableIrm, enableLltv,
+    These 6 Link 1 operations are: setOwner, setFeeRecipient, enableIrm, enableLltv,
     setAuthorization, flashLoan. -/
 theorem link1_proven_count :
     (obligations.filter (fun o => o.status == .inProgress)).length = 6 := by
