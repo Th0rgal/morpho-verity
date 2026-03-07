@@ -32,7 +32,9 @@ def write_bundle(
 ) -> pathlib.Path:
   bundle = root / "edsl"
   bundle.mkdir(parents=True, exist_ok=True)
-  (bundle / "Morpho.yul").write_text("raw-yul\n", encoding="utf-8")
+  raw_yul = "raw-yul\n"
+  rewritten_yul = "rewritten-yul\n"
+  (bundle / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
   (bundle / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
   (bundle / "Morpho.stage-times.log").write_text("stage=rewrite-yul status=ok elapsed_sec=1\n", encoding="utf-8")
   (bundle / "Morpho.artifact-manifest.env").write_text(
@@ -71,6 +73,8 @@ def write_bundle(
           "pipelineManifestSha256": pipeline_manifest_sha256,
           "proofManifest": proof_manifest,
           "proofManifestSha256": proof_manifest_sha256,
+          "inputSha256": hashlib.sha256(raw_yul.encode("utf-8")).hexdigest(),
+          "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
           "stageCount": 1,
           "implementedStageCount": 1,
           "changedStageCount": 1,
@@ -234,6 +238,64 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
           root,
           require_bin=True,
           require_rewrite=True,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_rewrite_report_input_digest_mismatch(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      report_path = bundle / "Morpho.rewrite-report.json"
+      report = json.loads(report_path.read_text(encoding="utf-8"))
+      report["inputSha256"] = "0" * 64
+      report_path.write_text(json.dumps(report) + "\n", encoding="utf-8")
+
+      with self.assertRaisesRegex(RuntimeError, "input digest mismatch"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=False,
+          parity_target_path=parity_target,
+          pipeline_manifest_path=pipeline_manifest,
+          proof_manifest_path=proof_manifest,
+        )
+
+  def test_rejects_rewrite_report_output_digest_mismatch(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      report_path = bundle / "Morpho.rewrite-report.json"
+      report = json.loads(report_path.read_text(encoding="utf-8"))
+      report["outputSha256"] = "0" * 64
+      report_path.write_text(json.dumps(report) + "\n", encoding="utf-8")
+
+      with self.assertRaisesRegex(RuntimeError, "output digest mismatch"):
+        validate_prepared_verity_artifact_bundle(
+          root,
+          require_bin=True,
+          require_rewrite=False,
           parity_target_path=parity_target,
           pipeline_manifest_path=pipeline_manifest,
           proof_manifest_path=proof_manifest,

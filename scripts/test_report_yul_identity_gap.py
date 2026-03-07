@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pathlib
@@ -61,6 +62,57 @@ class ReportYulIdentityGapTests(unittest.TestCase):
         prepared_bundle_module, "_required_parity_pack", return_value="morpho-blue-0.8.28"
       ):
         self.assertEqual(prepared_verity_artifact_dir(), base / "edsl")
+    if old is None:
+      os.environ.pop("MORPHO_VERITY_PREPARED_ARTIFACT_DIR", None)
+    else:
+      os.environ["MORPHO_VERITY_PREPARED_ARTIFACT_DIR"] = old
+
+  def test_prepared_artifact_dir_rejects_rewrite_report_hash_drift(self) -> None:
+    old = os.environ.get("MORPHO_VERITY_PREPARED_ARTIFACT_DIR")
+    with tempfile.TemporaryDirectory() as d:
+      base = pathlib.Path(d)
+      prepared_dir = base / "edsl"
+      raw_yul = "raw-yul\n"
+      rewritten_yul = "rewritten-yul\n"
+      prepared_dir.mkdir(parents=True, exist_ok=True)
+      (prepared_dir / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.rewritten.yul").write_text(rewritten_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
+      (prepared_dir / "Morpho.artifact-manifest.env").write_text(
+        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=morpho-blue-0.8.28\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.stage-times.log").write_text(
+        "stage=rewrite-yul status=ok elapsed_sec=0\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.rewrite-report.json").write_text(
+        json.dumps(
+          {
+            "pipelineManifest": "config/yul-rewrite-pipeline.json",
+            "pipelineManifestSha256": hashlib.sha256(
+              (ROOT / "config" / "yul-rewrite-pipeline.json").read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest(),
+            "proofManifest": "config/yul-rewrite-proof-obligations.json",
+            "proofManifestSha256": hashlib.sha256(
+              (ROOT / "config" / "yul-rewrite-proof-obligations.json").read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest(),
+            "inputSha256": "0" * 64,
+            "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
+            "stageCount": 1,
+            "implementedStageCount": 0,
+            "changedStageCount": 0,
+            "stages": [],
+          }
+        ),
+        encoding="utf-8",
+      )
+      os.environ["MORPHO_VERITY_PREPARED_ARTIFACT_DIR"] = str(base)
+      with mock.patch.object(
+        prepared_bundle_module, "_required_parity_pack", return_value="morpho-blue-0.8.28"
+      ):
+        with self.assertRaisesRegex(RuntimeError, "input digest mismatch"):
+          prepared_verity_artifact_dir()
     if old is None:
       os.environ.pop("MORPHO_VERITY_PREPARED_ARTIFACT_DIR", None)
     else:
