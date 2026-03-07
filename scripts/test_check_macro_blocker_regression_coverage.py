@@ -118,6 +118,14 @@ class LoadObligationsTests(unittest.TestCase):
     with self.assertRaisesRegex(RegressionCoverageError, "obligation\\[0\\] has non-integer 'issue'"):
       load_obligations(path)
 
+  def test_load_obligations_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      path = pathlib.Path(d) / "semantic-bridge-obligations.json"
+      path.write_bytes(b"\xff")
+
+      with self.assertRaisesRegex(RegressionCoverageError, "failed to decode JSON config"):
+        load_obligations(path)
+
 
 class RegressionCaseCoverageTests(unittest.TestCase):
   def test_build_regression_case_coverage_tracks_case_names_by_blocker(self) -> None:
@@ -194,6 +202,28 @@ class CliTests(unittest.TestCase):
     self.assertNotEqual(proc.returncode, 0)
     self.assertIn("macro-blocker-regression-coverage check failed:", proc.stderr)
     self.assertIn("failed to parse JSON config", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      obligations = pathlib.Path(d) / "semantic-bridge-obligations.json"
+      obligations.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(pathlib.Path(__file__).resolve().parent / "check_macro_blocker_regression_coverage.py"),
+          "--obligations",
+          str(obligations),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertNotEqual(proc.returncode, 0)
+    self.assertIn("macro-blocker-regression-coverage check failed:", proc.stderr)
+    self.assertIn("failed to decode JSON config", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
 
