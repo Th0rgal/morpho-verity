@@ -55,11 +55,12 @@ tracks machine-readable `macroSurfaceBlockers` arrays, and
 `scripts/check_macro_migration_blockers.py` fail-closes if those per-operation blocker families
 drift from `Morpho/Compiler/Spec.lean`.
 The same regression suite also compile-checks minimal `verity_contract` repros for the current
-core-flow frontend gaps: `Calls.withReturn`, internal `call`, `Callbacks.callback`, and
-`ERC20.safeTransfer`/`ERC20.safeTransferFrom` still fail at the pinned verity revision.
-For the collateral/liquidation cluster, the same suite also pins the still-failing
-`structMember2` read/write surface and direct `mstore`/`mload` use that the current
-`supplyCollateral`, `withdrawCollateral`, and `liquidate` specs depend on.
+core-flow frontend gaps: `Calls.withReturn`, internal `call`, `Callbacks.callback`,
+`ERC20.safeTransfer`/`ERC20.safeTransferFrom`, `structMember2` read/write, and direct
+`mstore`/`mload` still fail at the pinned verity revision.
+For the collateral/liquidation cluster, the same suite separately pins that those
+`structMember2` and memory-op failures remain blockers for the current
+`supplyCollateral`, `withdrawCollateral`, and `liquidate` specs too.
 `scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
 from per-obligation `issue` tags in the obligation tracker so the remaining open migration issues
 cannot drift from the actual per-operation blocker inventory.
