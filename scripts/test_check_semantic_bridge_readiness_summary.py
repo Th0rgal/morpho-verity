@@ -306,6 +306,64 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
     )
     validate_summary(readiness_text, derive_summary(make_config()))
 
+  def test_validate_summary_rejects_drift_hidden_by_prefixed_fake_tracked_namespace(self) -> None:
+    clean_text = make_readiness_text()
+    fake_namespace = textwrap.dedent(
+      """\
+      namespace Morpho.Proofs.SemanticBridgeReadiness
+
+      /-- All 3 semantic equivalence obligations from SolidityBridge.lean.
+
+          Each corresponds to one Morpho operation whose Solidity equivalence
+          is hypothesized in bridge proofs and must eventually be discharged
+          against EVMYulLean via the verity semantic bridge. -/
+      def obligations : List SemanticBridgeObligation := []
+
+      /-- 2 of 3 operations have Link 1 proven.
+          Link 1 (wrapper API ↔ EDSL) is proven in `SemanticBridgeDischarge.lean`.
+          These 2 Link 1 operations are: setOwner, flashLoan. -/
+      theorem link1_proven_count :
+          (obligations.filter (fun o => o.status != .assumed)).length = 2 := by
+        native_decide
+
+      /-- There are exactly 3 semantic equivalence obligations. -/
+      theorem obligation_count : obligations.length = 3 := by
+        native_decide
+
+      /-- 1 operations still have assumed status (Link 1 not yet proven). -/
+      theorem assumed_count :
+          (obligations.filter (fun o => o.status == .assumed)).length = 1 := by
+        native_decide
+
+      /-- 2 of 3 operations have full (non-stub) macro implementations. -/
+      theorem macro_migrated_count :
+          (obligations.filter (fun o => o.macroMigrated)).length = 2 := by
+        native_decide
+
+      /-- 1 operations still need macro migration before discharge. -/
+      theorem macro_pending_count :
+          (obligations.filter (fun o => !o.macroMigrated)).length = 1 := by
+        native_decide
+
+      end Morpho.Proofs.SemanticBridgeReadiness
+      """
+    )
+    drifted_text = clean_text.replace(
+      "(obligations.filter (fun o => o.status != .assumed)).length = 2",
+      "(obligations.filter (fun o => o.status != .assumed)).length = 1",
+      1,
+    )
+    readiness_text = drifted_text.replace(
+      "namespace Morpho.Proofs.SemanticBridgeReadiness\n",
+      fake_namespace + "\nnamespace Morpho.Proofs.SemanticBridgeReadiness\n",
+      1,
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "multiple SemanticBridgeReadiness namespace blocks with tracked summary content",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
   def test_validate_summary_rejects_missing_intro_closure(self) -> None:
     readiness_text = make_readiness_text().replace(
       "    -/\n\n    namespace Morpho.Proofs.SemanticBridgeReadiness",
