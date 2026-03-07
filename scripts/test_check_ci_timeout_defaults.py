@@ -79,6 +79,26 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
     )
     self.assertEqual(collect_timeout_env_literals(workflow), {"REAL_TIMEOUT_SEC": {10}})
 
+  def test_collect_timeout_env_literals_handles_inline_flow_mapping(self) -> None:
+    workflow = (
+      "env: {MORPHO_TOP_TIMEOUT_SEC: \"10\", NON_TIMEOUT: foo}\n"
+      "jobs:\n"
+      "  test:\n"
+      "    env: {MORPHO_JOB_TIMEOUT_SEC: '20'}\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        env: {MORPHO_STEP_TIMEOUT_SEC: 30}\n"
+      "        run: ./scripts/run_with_timeout.sh MORPHO_STEP_TIMEOUT_SEC 30 \"real\" -- cmd\n"
+    )
+    self.assertEqual(
+      collect_timeout_env_literals(workflow),
+      {
+        "MORPHO_TOP_TIMEOUT_SEC": {10},
+        "MORPHO_JOB_TIMEOUT_SEC": {20},
+        "MORPHO_STEP_TIMEOUT_SEC": {30},
+      },
+    )
+
   def test_collect_script_timeout_refs(self) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
       scripts_dir = pathlib.Path(tmp_dir) / "scripts"

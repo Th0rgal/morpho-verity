@@ -10,10 +10,24 @@ MAPPING_FIELD_RE = re.compile(r"^(\s*)([A-Za-z0-9_-]+):\s*(.*)$")
 STEPS_FIELD_RE = re.compile(r"^(\s*)steps:\s*$")
 STEP_ITEM_RE = re.compile(r"^(\s*)-\s*(.*)$")
 NAME_FIELD_RE = re.compile(r"^(\s*)name:\s*(.+?)\s*$")
-ENV_FIELD_RE = re.compile(r"^(\s*)env:\s*$")
+ENV_LINE_RE = re.compile(r"^(\s*)env:\s*(.*?)\s*$")
 ENV_ENTRY_RE = re.compile(r"^(\s*)([A-Z_][A-Z0-9_]*):\s*(.+?)\s*$")
 RUN_FIELD_RE = re.compile(r"^(\s*)run:\s*(.*)$")
 RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>][-+]?$")
+INLINE_ENV_ENTRY_RE = re.compile(r"""
+  \s*
+  ([A-Z_][A-Z0-9_]*)
+  \s*:\s*
+  (
+    "(?:[^"\\]|\\.)*"
+    |
+    '(?:[^'\\]|\\.)*'
+    |
+    [^,{}]+
+  )
+  \s*
+  (?:,|$)
+""", re.VERBOSE)
 
 
 def _consume_run_command(
@@ -101,6 +115,26 @@ def _parse_scalar_env_value(raw: str) -> str | None:
       return None
     return value[1:-1]
   return value
+
+
+def _parse_inline_env_mapping(raw: str) -> dict[str, list[str]] | None:
+  value = raw.strip()
+  if not value.startswith("{") or not value.endswith("}"):
+    return None
+  body = value[1:-1]
+  if not body.strip():
+    return {}
+  parsed: dict[str, list[str]] = {}
+  position = 0
+  while position < len(body):
+    match = INLINE_ENV_ENTRY_RE.match(body, position)
+    if match is None:
+      return None
+    scalar = _parse_scalar_env_value(match.group(2))
+    if scalar is not None:
+      parsed.setdefault(match.group(1), []).append(scalar)
+    position = match.end()
+  return parsed
 
 
 def _consume_env_mapping(lines: list[str], start_index: int, env_indent: int) -> tuple[dict[str, list[str]], int]:
@@ -237,12 +271,13 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       if step_indent > steps_indent and (current_step_indent is None or step_indent <= current_step_indent):
         current_step_indent = step_indent
 
-    env_match = ENV_FIELD_RE.match(line)
+    env_match = ENV_LINE_RE.match(line)
     if env_match is None:
       i += 1
       continue
 
     env_indent = len(env_match.group(1))
+    env_tail = env_match.group(2).strip()
     is_workflow_env = env_indent == 0
     is_job_env = current_job_indent is not None and current_step_indent is None and env_indent == current_job_indent + 2
     is_step_env = current_step_indent is not None and env_indent == current_step_indent + 2
@@ -250,7 +285,14 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       i += 1
       continue
 
-    env_values, i = _consume_env_mapping(lines, i, env_indent)
+    if env_tail:
+      env_values = _parse_inline_env_mapping(env_tail)
+      if env_values is None:
+        i += 1
+        continue
+      i += 1
+    else:
+      env_values, i = _consume_env_mapping(lines, i, env_indent)
     for key, extracted in env_values.items():
       values.setdefault(key, []).extend(extracted)
   return values
