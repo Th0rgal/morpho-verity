@@ -28,6 +28,8 @@ INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   (?:,|$)
 """, re.VERBOSE)
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)\s+(.*)$")
+ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$")
 
 DOUBLE_QUOTED_ESCAPES = {
   "0": "\0",
@@ -144,6 +146,9 @@ def _parse_scalar_env_value(raw: str) -> str | None:
   value = _strip_yaml_comment(raw).strip()
   if not value:
     return None
+  value = _strip_yaml_scalar_properties(value)
+  if not value:
+    return None
   if value[0] in {'"', "'"}:
     if len(value) < 2 or value[-1] != value[0]:
       return None
@@ -181,6 +186,20 @@ def _parse_double_quoted_yaml_scalar(inner: str) -> str | None:
       continue
     return None
   return "".join(parsed)
+
+
+def _strip_yaml_scalar_properties(value: str) -> str:
+  previous = None
+  while value and value != previous:
+    previous = value
+    tag_match = TAG_PROPERTY_RE.match(value)
+    if tag_match is not None:
+      value = tag_match.group(1).lstrip()
+      continue
+    anchor_match = ANCHOR_PROPERTY_RE.match(value)
+    if anchor_match is not None:
+      value = anchor_match.group(2).lstrip()
+  return value
 
 
 def _strip_yaml_comment(raw: str) -> str:

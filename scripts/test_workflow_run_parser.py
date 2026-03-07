@@ -344,6 +344,29 @@ class WorkflowRunParserTests(unittest.TestCase):
       ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py \\\n--strict"]}),
     )
 
+  def test_extract_named_step_runs_supports_yaml_scalar_tags_and_anchors(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: !!str "Validate alpha"',
+        "        run: python3 scripts/check_alpha.py",
+        "      - name: &quote_label 'Don''t drift'",
+        "        run: python3 scripts/check_quote.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1, "Don't drift": 1},
+        {
+          "Validate alpha": ["python3 scripts/check_alpha.py"],
+          "Don't drift": ["python3 scripts/check_quote.py"],
+        },
+      ),
+    )
+
   def test_extract_named_step_runs_strips_yaml_comments_from_step_names(self) -> None:
     workflow_text = "\n".join(
       [
@@ -440,6 +463,29 @@ class WorkflowRunParserTests(unittest.TestCase):
     self.assertEqual(
       extract_workflow_env_literals(workflow_text),
       {"ESCAPED_LABEL": ["alpha/beta"]},
+    )
+
+  def test_extract_workflow_env_literals_supports_yaml_scalar_tags_and_anchors(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        '  TOP_TIMEOUT_SEC: !!str "10"',
+        "jobs:",
+        "  test:",
+        "    env:",
+        "      JOB_TIMEOUT_SEC: &job_timeout '20'",
+        "    steps:",
+        '      - env: {STEP_TIMEOUT_SEC: !!str &step_timeout "30"}',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {
+        "TOP_TIMEOUT_SEC": ["10"],
+        "JOB_TIMEOUT_SEC": ["20"],
+        "STEP_TIMEOUT_SEC": ["30"],
+      },
     )
 
   def test_extract_named_step_runs_handles_block_scalar(self) -> None:
