@@ -312,6 +312,22 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
     ):
       validate_status(masked_text)
 
+  def test_validate_status_rejects_unmatched_namespace_footer_before_primary_block(self) -> None:
+    masked_text = f"{NAMESPACE_FOOTER}\n{make_text()}"
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "unmatched namespace footer before first namespace block",
+    ):
+      validate_status(masked_text)
+
+  def test_validate_status_rejects_unmatched_namespace_footer_after_namespace_blocks(self) -> None:
+    masked_text = make_text() + f"\n{NAMESPACE_FOOTER}\n"
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "unmatched namespace footer after namespace blocks",
+    ):
+      validate_status(masked_text)
+
   def test_main_passes_for_synced_file(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
