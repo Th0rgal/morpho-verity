@@ -325,6 +325,29 @@ class WorkflowRunParserTests(unittest.TestCase):
       ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py \\\n--strict"]}),
     )
 
+  def test_extract_named_step_runs_strips_yaml_comments_from_step_names(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha # tracked step comment",
+        "        run: python3 scripts/check_alpha.py",
+        "      - name: 'Validate # literal'",
+        "        run: python3 scripts/check_literal.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {"Validate alpha": 1, "Validate # literal": 1},
+        {
+          "Validate alpha": ["python3 scripts/check_alpha.py"],
+          "Validate # literal": ["python3 scripts/check_literal.py"],
+        },
+      ),
+    )
+
   def test_extract_named_step_runs_handles_block_scalar(self) -> None:
     workflow_text = "\n".join(
       [

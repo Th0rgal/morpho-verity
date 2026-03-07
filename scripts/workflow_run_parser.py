@@ -434,9 +434,11 @@ def extract_named_step_runs(workflow_text: str) -> tuple[dict[str, int], dict[st
 
     name_match = NAME_FIELD_RE.match(line)
     if name_match is not None and len(name_match.group(1)) == current_step_indent + 2:
-      current_step_name = name_match.group(2)
-      step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1
-      step_runs.setdefault(current_step_name, [])
+      parsed_name = _parse_scalar_env_value(name_match.group(2))
+      current_step_name = parsed_name
+      if current_step_name is not None:
+        step_counts[current_step_name] = step_counts.get(current_step_name, 0) + 1
+        step_runs.setdefault(current_step_name, [])
       i += 1
       continue
 
