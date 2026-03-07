@@ -51,6 +51,23 @@ class WorkflowRunParserTests(unittest.TestCase):
       "echo before\npython3 scripts/check_alpha.py",
     )
 
+  def test_extract_workflow_run_text_handles_explicit_indent_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: |2",
+        "          echo before",
+        "          python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "echo before\npython3 scripts/check_alpha.py",
+    )
+
   def test_extract_workflow_run_text_handles_inline_with_nested_lines(self) -> None:
     workflow_text = "\n".join(
       [
@@ -243,6 +260,23 @@ class WorkflowRunParserTests(unittest.TestCase):
       ({"Validate alpha": 1}, {"Validate alpha": ["echo before\npython3 scripts/check_alpha.py"]}),
     )
 
+  def test_extract_named_step_runs_handles_explicit_indent_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: |2",
+        "          echo before",
+        "          python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["echo before\npython3 scripts/check_alpha.py"]}),
+    )
+
   def test_extract_workflow_run_text_handles_folded_block_scalar(self) -> None:
     workflow_text = "\n".join(
       [
@@ -260,6 +294,23 @@ class WorkflowRunParserTests(unittest.TestCase):
       "python3 scripts/check_alpha.py --strict",
     )
 
+  def test_extract_workflow_run_text_handles_explicit_indent_folded_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Step",
+        "        run: >2-",
+        "          python3 scripts/check_alpha.py",
+        "          --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_run_text(workflow_text),
+      "python3 scripts/check_alpha.py --strict",
+    )
+
   def test_extract_named_step_runs_handles_folded_block_scalar(self) -> None:
     workflow_text = "\n".join(
       [
@@ -268,6 +319,23 @@ class WorkflowRunParserTests(unittest.TestCase):
         "    steps:",
         "      - name: Validate alpha",
         "        run: >",
+        "          python3 scripts/check_alpha.py",
+        "          --strict",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      ({"Validate alpha": 1}, {"Validate alpha": ["python3 scripts/check_alpha.py --strict"]}),
+    )
+
+  def test_extract_named_step_runs_handles_explicit_indent_folded_block_scalar(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - name: Validate alpha",
+        "        run: >2-",
         "          python3 scripts/check_alpha.py",
         "          --strict",
       ]

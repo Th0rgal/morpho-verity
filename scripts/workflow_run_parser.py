@@ -13,7 +13,7 @@ NAME_FIELD_RE = re.compile(r"^(\s*)name:\s*(.+?)\s*$")
 ENV_LINE_RE = re.compile(r"^(\s*)env:\s*(.*?)\s*$")
 ENV_ENTRY_RE = re.compile(r"^(\s*)([A-Z_][A-Z0-9_]*):\s*(.+?)\s*$")
 RUN_FIELD_RE = re.compile(r"^(\s*)run:\s*(.*)$")
-RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>][-+]?$")
+RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>](?:[1-9][-+]?|[-+]?[1-9]|[-+])?$")
 INLINE_ENV_ENTRY_RE = re.compile(r"""
   \s*
   ([A-Z_][A-Z0-9_]*)
