@@ -113,6 +113,8 @@ def make_readiness_text(
     theorem macro_pending_count :
         (obligations.filter (fun o => !o.macroMigrated)).length = {macro_pending_count} := by
       native_decide
+
+    end Morpho.Proofs.SemanticBridgeReadiness
     """
   )
 
@@ -262,7 +264,35 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
     )
     with self.assertRaisesRegex(
       SemanticBridgeReadinessSummaryError,
-      "found multiple link1_proven_count theorem matches",
+      "link1_proven_count theorem drift",
+    ):
+      validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_accepts_pre_namespace_commands_after_intro_closure(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "\nnamespace Morpho.Proofs.SemanticBridgeReadiness",
+      "\nset_option autoImplicit false\n\nnamespace Morpho.Proofs.SemanticBridgeReadiness",
+      1,
+    )
+    validate_summary(readiness_text, derive_summary(make_config()))
+
+  def test_validate_summary_ignores_duplicate_theorem_text_after_namespace_end(self) -> None:
+    readiness_text = make_readiness_text().replace(
+      "(obligations.filter (fun o => o.status != .assumed)).length = 2",
+      "(obligations.filter (fun o => o.status != .assumed)).length = 1",
+      1,
+    )
+    readiness_text += (
+      "\nnamespace Morpho.Proofs.TrailingNotes\n"
+      "/-- copied theorem text in another namespace -/\n"
+      "theorem link1_proven_count :\n"
+      "    (obligations.filter (fun o => o.status != .assumed)).length = 2 := by\n"
+      "  native_decide\n"
+      "end Morpho.Proofs.TrailingNotes\n"
+    )
+    with self.assertRaisesRegex(
+      SemanticBridgeReadinessSummaryError,
+      "link1_proven_count theorem drift",
     ):
       validate_summary(readiness_text, derive_summary(make_config()))
 

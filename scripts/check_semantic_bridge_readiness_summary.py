@@ -28,6 +28,10 @@ OBLIGATION_REGISTRY_HEADER_PATTERN = re.compile(
 NAMESPACE_PATTERN = re.compile(
   r"(?m)^\s*namespace\s+Morpho\.Proofs\.SemanticBridgeReadiness\s*$"
 )
+END_NAMESPACE_PATTERN = re.compile(
+  r"(?m)^\s*end\s+Morpho\.Proofs\.SemanticBridgeReadiness\s*$"
+)
+INTRO_DOCBLOCK_PATTERN = re.compile(r"/-!(?P<body>.*?)-/", re.DOTALL)
 
 
 class SemanticBridgeReadinessSummaryError(RuntimeError):
@@ -133,7 +137,7 @@ def extract_intro_section(text: str) -> str:
   intro = text[: namespace_match.start()]
   if not intro.strip():
     raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness intro section is empty")
-  if not intro.strip().endswith("-/"):
+  if INTRO_DOCBLOCK_PATTERN.search(intro) is None:
     raise SemanticBridgeReadinessSummaryError(
       "SemanticBridgeReadiness intro section is missing its closing `-/`"
     )
@@ -169,7 +173,16 @@ def extract_namespace_body(text: str) -> str:
     text,
     "SemanticBridgeReadiness namespace boundary",
   )
-  namespace_body = text[namespace_match.end() :]
+  end_namespace_match = require_unique_match(
+    END_NAMESPACE_PATTERN,
+    text,
+    "SemanticBridgeReadiness namespace end boundary",
+  )
+  if end_namespace_match.start() <= namespace_match.end():
+    raise SemanticBridgeReadinessSummaryError(
+      "SemanticBridgeReadiness namespace body has an invalid boundary ordering"
+    )
+  namespace_body = text[namespace_match.end() : end_namespace_match.start()]
   if not namespace_body.strip():
     raise SemanticBridgeReadinessSummaryError("SemanticBridgeReadiness namespace body is empty")
   return namespace_body
