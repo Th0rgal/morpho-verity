@@ -50,7 +50,8 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 `MacroSlice.lean` and is ready for end-to-end semantic bridge composition once verity#1065
 lands. 6/18 operations are macro-migrated; the remaining 12 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
-For the 7 open core/collateral flow stubs, `config/semantic-bridge-obligations.json` now also
+For the 7 core/collateral flow stubs tracked under blocker-cluster labels `#123`/`#124`,
+`config/semantic-bridge-obligations.json` now also
 tracks machine-readable `macroSurfaceBlockers` arrays, and
 `scripts/check_macro_migration_blockers.py` fail-closes if those per-operation blocker families
 drift from `Morpho/Compiler/Spec.lean`.
@@ -64,10 +65,10 @@ frontend blocker surface too: `Calls.withReturn`, internal `call`,
 `structMember2` read/write, and direct `mstore`/`mload` all still fail for the current
 `supplyCollateral`, `withdrawCollateral`, and `liquidate` spec shapes.
 `scripts/check_macro_blocker_regression_coverage.py` now fail-closes the remaining gap
-between that compile-checked suite and the open issue tracker by requiring every current
+between that compile-checked suite and the tracked blocker clusters by requiring every current
 `#123`/`#124` `macroSurfaceBlockers` family to have at least one named regression case.
 `scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
-from per-obligation `issue` tags in the obligation tracker so the remaining open migration issues
+from per-obligation `issue` tags in the obligation tracker so the remaining migration clusters
 cannot drift from the actual per-operation blocker inventory.
 `scripts/check_equivalence_obligations_doc.py` now also fail-closes the top-level Link 1 /
 macro-migration status summary and the markdown issue-cluster table below against the tracked
@@ -85,11 +86,11 @@ the readiness narrative claiming fewer proved operations than the tracker actual
 `scripts/check_verity_pin_provenance.py` also now fail-closes the current-pin macro/frontend
 divergence section in `docs/VERITY_PIN.md` against `config/verity-pin-provenance.json`, including
 the exact blocker-family, issue-cluster, and relevant-file bullet lists, so that surface cannot
-silently drift away from the open migration roadmap.
+silently drift away from the tracked migration roadmap.
 
-### Open issue blocker summary
+### Blocker cluster summary
 
-| Issue | Operations | Blocker families | Coverage counts |
+| Cluster | Operations | Blocker families | Coverage counts |
 |-------|------------|------------------|-----------------|
 | `#123` | `supply`, `withdraw`, `borrow`, `repay` | `callbacks`, `erc20`, `externalWithReturn`, `internalCall`, `memoryOps`, `structMember2` | callbacks×2, erc20×4, externalWithReturn×1, internalCall×4, memoryOps×4, structMember2×4 |
 | `#124` | `supplyCollateral`, `withdrawCollateral`, `liquidate` | `callbacks`, `erc20`, `externalWithReturn`, `internalCall`, `memoryOps`, `structMember2` | callbacks×2, erc20×3, externalWithReturn×2, internalCall×2, memoryOps×3, structMember2×3 |

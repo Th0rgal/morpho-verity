@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed sync check for open-issue macro blockers vs compile regressions."""
+"""Fail-closed sync check for tracked blocker-cluster macro blockers vs compile regressions."""
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def validate_issue_blocker_regression_coverage(
 
 def main() -> int:
   parser = argparse.ArgumentParser(
-    description="Validate open issue macroSurfaceBlockers stay covered by compile regressions"
+    description="Validate tracked blocker-cluster macroSurfaceBlockers stay covered by compile regressions"
   )
   parser.add_argument(
     "--obligations",

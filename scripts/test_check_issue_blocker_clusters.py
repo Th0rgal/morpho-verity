@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for issue-cluster blocker checker."""
+"""Unit tests for blocker-cluster blocker checker."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ class ValidateIssueClustersTests(unittest.TestCase):
   def test_rejects_issue_tag_once_obligation_is_migrated(self) -> None:
     config = make_config()
     config["obligations"][0]["macroMigrated"] = True
-    with self.assertRaisesRegex(IssueClusterError, "cannot reference open issue"):
+    with self.assertRaisesRegex(IssueClusterError, "cannot reference blocker cluster"):
       validate_issue_clusters(config)
 
   def test_rejects_missing_macro_surface_blockers(self) -> None:
