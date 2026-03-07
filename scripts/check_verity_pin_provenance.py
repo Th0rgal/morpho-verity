@@ -144,16 +144,64 @@ def normalize_doc_token(text: str) -> str:
   return re.sub(r"\s+", " ", text.replace("`", "")).strip()
 
 
+def require_unique_heading_line(doc_text: str, heading: str, doc_path: pathlib.Path) -> re.Match[str]:
+  matches = list(re.finditer(rf"(?m)^{re.escape(heading)}\r?$", doc_text))
+  if not matches:
+    fail(f"documentation {doc_path} missing expected heading: {heading}")
+  if len(matches) > 1:
+    fail(f"documentation {doc_path} has duplicate heading: {heading}")
+  return matches[0]
+
+
+def extract_heading_section(
+  doc_text: str,
+  heading: str,
+  *,
+  doc_path: pathlib.Path,
+  next_heading: str | None = None,
+) -> str:
+  start_match = require_unique_heading_line(doc_text, heading, doc_path)
+  if next_heading is None:
+    section_text = doc_text[start_match.end() :]
+  else:
+    end_match = require_unique_heading_line(doc_text, next_heading, doc_path)
+    if end_match.start() <= start_match.end():
+      fail(
+        f"documentation {doc_path} has invalid heading boundary ordering: "
+        f"{heading} before {next_heading}"
+      )
+    section_text = doc_text[start_match.end() : end_match.start()]
+  return section_text
+
+
+def extract_section_until_next_h2(
+  doc_text: str,
+  heading: str,
+  *,
+  doc_path: pathlib.Path,
+) -> str:
+  start_match = require_unique_heading_line(doc_text, heading, doc_path)
+  next_h2_match = re.search(r"(?m)^## .*\r?$", doc_text[start_match.end() :])
+  if next_h2_match is None:
+    return doc_text[start_match.end() :]
+  return doc_text[start_match.end() : start_match.end() + next_h2_match.start()]
+
+
 def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
   marker = f"### {heading}"
-  lines = doc_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == marker:
-      start_index = index + 1
-      break
-  if start_index is None:
+  divergence_section = extract_heading_section(
+    doc_text,
+    REMAINING_DIVERGENCES_HEADING,
+    doc_path=doc_path,
+    next_heading=ENFORCEMENT_HEADING,
+  )
+  lines = divergence_section.splitlines()
+  matches = [index for index, line in enumerate(lines) if line.strip() == marker]
+  if not matches:
     fail(f"documentation {doc_path} missing expected section heading: {marker}")
+  if len(matches) > 1:
+    fail(f"documentation {doc_path} has duplicate section heading: {marker}")
+  start_index = matches[0] + 1
 
   section_lines: list[str] = []
   for line in lines[start_index:]:
@@ -165,22 +213,20 @@ def extract_markdown_section(doc_text: str, heading: str, doc_path: pathlib.Path
 
 
 def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib.Path) -> list[str]:
-  lines = doc_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == "# Verity Pin":
-      start_index = index + 1
-      break
-  if start_index is None:
-    fail(f"documentation {doc_path} missing expected heading: # Verity Pin")
+  start_match = require_unique_heading_line(doc_text, "# Verity Pin", doc_path)
+  end_match = require_unique_heading_line(doc_text, stop_heading, doc_path)
+  if end_match.start() <= start_match.end():
+    fail(
+      f"documentation {doc_path} has invalid heading boundary ordering: "
+      f"# Verity Pin before {stop_heading}"
+    )
 
+  lines = doc_text[start_match.end() : end_match.start()].splitlines()
   bullets: list[str] = []
-  for line in lines[start_index:]:
+  for line in lines:
     stripped = line.strip()
     if not stripped:
       continue
-    if stripped == stop_heading:
-      break
     if not bullets and not stripped.startswith("- "):
       if normalize_doc_token(stripped) != normalize_doc_token(ALLOWED_METADATA_PREAMBLE) and ":" in stripped:
         fail(
@@ -196,23 +242,18 @@ def extract_doc_lead_bullets(doc_text: str, stop_heading: str, doc_path: pathlib
 
 
 def extract_section_body(doc_text: str, heading: str, doc_path: pathlib.Path) -> str:
-  marker = heading
-  lines = doc_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == marker:
-      start_index = index + 1
-      break
-  if start_index is None:
-    fail(f"documentation {doc_path} missing expected heading: {marker}")
-
-  section_lines: list[str] = []
-  for line in lines[start_index:]:
-    stripped = line.strip()
-    if stripped.startswith("## "):
-      break
-    section_lines.append(line)
-  return "\n".join(section_lines)
+  next_heading = {
+    WHY_THIS_PIN_HEADING: REMAINING_DIVERGENCES_HEADING,
+    REMAINING_DIVERGENCES_HEADING: ENFORCEMENT_HEADING,
+  }.get(heading)
+  if next_heading is None and heading == ENFORCEMENT_HEADING:
+    return extract_section_until_next_h2(doc_text, heading, doc_path=doc_path)
+  return extract_heading_section(
+    doc_text,
+    heading,
+    doc_path=doc_path,
+    next_heading=next_heading,
+  )
 
 
 def extract_section_subheadings(
@@ -232,33 +273,6 @@ def extract_section_subheadings(
   return subheadings
 
 
-def extract_labeled_bullets(section_text: str, label: str, doc_path: pathlib.Path) -> list[str]:
-  lines = section_text.splitlines()
-  start_index = None
-  for index, line in enumerate(lines):
-    if line.strip() == label:
-      start_index = index + 1
-      break
-  if start_index is None:
-    fail(f"documentation {doc_path} missing expected list label: {label}")
-
-  bullets: list[str] = []
-  for line in lines[start_index:]:
-    stripped = line.strip()
-    if not stripped:
-      break
-    if stripped.endswith(":"):
-      break
-    if stripped.startswith("#"):
-      break
-    if not stripped.startswith("- "):
-      fail(f"documentation {doc_path} has malformed bullet under `{label}`: {line.strip()}")
-    bullets.append(stripped[2:].strip())
-  if not bullets:
-    fail(f"documentation {doc_path} missing bullets under `{label}`")
-  return bullets
-
-
 def extract_summary_text(section_text: str) -> str:
   summary_lines: list[str] = []
   for line in section_text.splitlines():
@@ -275,21 +289,78 @@ def extract_summary_text(section_text: str) -> str:
   return "\n".join(summary_lines).strip()
 
 
-def validate_exact_doc_list(
-  *,
-  section_text: str,
-  label: str,
-  expected: list[str],
-  doc_path: pathlib.Path,
-  description: str,
-) -> None:
-  actual = [normalize_doc_token(item) for item in extract_labeled_bullets(section_text, label, doc_path)]
-  normalized_expected = [normalize_doc_token(item) for item in expected]
-  if actual != normalized_expected:
-    fail(
-      f"documentation {doc_path} {description} drift: expected {normalized_expected}; found {actual}"
-    )
+def build_expected_section_lists(item: dict[str, object]) -> list[tuple[str, list[str]]]:
+  expected_lists: list[tuple[str, list[str]]] = []
 
+  blockers = item.get("blockers")
+  if isinstance(blockers, list):
+    expected_lists.append((MACRO_BLOCKERS_LABEL, [str(blocker) for blocker in blockers]))
+
+  issue_clusters = item.get("issueClusters")
+  if isinstance(issue_clusters, list):
+    expected_lists.append((MACRO_ISSUE_CLUSTERS_LABEL, [str(issue) for issue in issue_clusters]))
+
+  files = item.get("files")
+  if isinstance(files, list):
+    expected_lists.append((FILES_LABEL, [str(file_path) for file_path in files]))
+
+  return expected_lists
+
+
+def parse_section_lists(
+  section_text: str,
+  doc_path: pathlib.Path,
+) -> list[tuple[str, list[str]]]:
+  lines = section_text.splitlines()
+  lists: list[tuple[str, list[str]]] = []
+  seen_labels: set[str] = set()
+  in_summary = True
+  index = 0
+
+  while index < len(lines):
+    stripped = lines[index].strip()
+    if in_summary:
+      if not stripped:
+        index += 1
+        continue
+      if stripped in SECTION_LIST_LABELS:
+        in_summary = False
+      else:
+        index += 1
+        continue
+
+    if not stripped:
+      index += 1
+      continue
+    if stripped.startswith("#"):
+      break
+    if stripped not in SECTION_LIST_LABELS:
+      fail(f"documentation {doc_path} has unexpected content in divergence section: {stripped}")
+    if stripped in seen_labels:
+      fail(f"documentation {doc_path} has duplicate list label: {stripped}")
+
+    label = stripped
+    seen_labels.add(label)
+    index += 1
+    bullets: list[str] = []
+    while index < len(lines):
+      stripped = lines[index].strip()
+      if not stripped:
+        index += 1
+        if bullets:
+          break
+        continue
+      if stripped in SECTION_LIST_LABELS or stripped.startswith("#"):
+        break
+      if not stripped.startswith("- "):
+        fail(f"documentation {doc_path} has malformed bullet under `{label}`: {stripped}")
+      bullets.append(stripped[2:].strip())
+      index += 1
+    if not bullets:
+      fail(f"documentation {doc_path} missing bullets under `{label}`")
+    lists.append((label, bullets))
+
+  return lists
 
 def validate_doc_section(
   section_text: str,
@@ -303,40 +374,24 @@ def validate_doc_section(
       f"documentation {doc_path} `{item['area']}` summary drift: "
       f"expected {expected_summary!r}; found {actual_summary!r}"
     )
-  files = item.get("files")
-  if isinstance(files, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=FILES_LABEL,
-      expected=files,
-      doc_path=doc_path,
-      description=f"`{item['area']}` file list",
-    )
 
-
-def validate_macro_frontend_doc_section(
-  section_text: str,
-  item: dict[str, object],
-  doc_path: pathlib.Path,
-) -> None:
-  blockers = item.get("blockers")
-  if isinstance(blockers, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=MACRO_BLOCKERS_LABEL,
-      expected=blockers,
-      doc_path=doc_path,
-      description="macro/frontend blocker list",
+  expected_lists = build_expected_section_lists(item)
+  actual_lists = parse_section_lists(section_text, doc_path)
+  actual_labels = [label for label, _ in actual_lists]
+  expected_labels = [label for label, _ in expected_lists]
+  if actual_labels != expected_labels:
+    fail(
+      f"documentation {doc_path} `{item['area']}` section label drift: "
+      f"expected {expected_labels}; found {actual_labels}"
     )
-  issue_clusters = item.get("issueClusters")
-  if isinstance(issue_clusters, list):
-    validate_exact_doc_list(
-      section_text=section_text,
-      label=MACRO_ISSUE_CLUSTERS_LABEL,
-      expected=issue_clusters,
-      doc_path=doc_path,
-      description="macro/frontend issue cluster list",
-    )
+  for (label, actual_items_raw), (_, expected_items) in zip(actual_lists, expected_lists):
+    actual_items = [normalize_doc_token(item_text) for item_text in actual_items_raw]
+    normalized_expected_items = [normalize_doc_token(item_text) for item_text in expected_items]
+    if actual_items != normalized_expected_items:
+      fail(
+        f"documentation {doc_path} `{item['area']}` `{label}` drift: "
+        f"expected {normalized_expected_items}; found {actual_items}"
+      )
 
 
 def validate_doc_metadata(
@@ -572,8 +627,6 @@ def main() -> int:
         require_doc_mentions(doc_text, issue, args.doc)
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
-    if item["area"] == MACRO_FRONTEND_AREA:
-      validate_macro_frontend_doc_section(section_text, item, args.doc)
 
   readme_text = args.readme.read_text(encoding="utf-8")
   require_doc_mentions(readme_text, "docs/VERITY_PIN.md", args.readme)
