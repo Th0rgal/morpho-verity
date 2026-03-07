@@ -66,7 +66,7 @@ def _consume_run_command(
         block_scalar = _consume_block_scalar(
           lines,
           start_index + 1,
-          run_indent,
+          indent,
           f"{tail} {stripped}".strip(),
         )
         if block_scalar is not None:
