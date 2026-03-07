@@ -444,6 +444,96 @@ verity_contract Tmp where
 
     cases = [
       (
+        "calls_with_return",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (oracle : Address) : Unit := do
+    let _ <- Calls.withReturn oracle 0 []
+    pure ()
+""",
+        "unsupported do element",
+      ),
+      (
+        "internal_call",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f () : Unit := do
+    let _ <- call g()
+    pure ()
+
+  function g () : Unit := do
+    pure ()
+""",
+        "unsupported do element",
+      ),
+      (
+        "callback",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (onBehalf : Address, data : Bytes) : Unit := do
+    Callbacks.callback onBehalf 0 [] data
+""",
+        "unsupported statement in do block",
+      ),
+      (
+        "erc20_transfer",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransfer token receiver amount
+""",
+        "unsupported statement in do block",
+      ),
+      (
+        "erc20_transfer_from",
+        """\
+import Verity.Core
+import Verity.Macro
+
+open Verity
+
+verity_contract Tmp where
+  storage
+    dummy : Uint256 := slot 0
+
+  function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
+    ERC20.safeTransferFrom token sender receiver amount
+""",
+        "unsupported statement in do block",
+      ),
+      (
         "struct_member2_read",
         """\
 import Verity.Core
