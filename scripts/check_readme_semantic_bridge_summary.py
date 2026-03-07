@@ -29,6 +29,10 @@ UPSTREAM_STATUS_PREFIX = (
   "for supported `verity_contract` functions:\n"
   "`EDSL execution ≡ EVMYulLean(compile(CompilationModel))`."
 )
+SECTION_HEADER_PATTERN = re.compile(
+  r"(?m)^\s*### Upstream: Verity hybrid canonical-semantics migration \(verity#1060 / #1065\)\s*$"
+)
+SECTION_END_PATTERN = re.compile(r"(?m)^\s*Machine-readable parity target artifacts:\s*$")
 
 
 class ReadmeSemanticBridgeSummaryError(RuntimeError):
@@ -42,15 +46,46 @@ def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.M
   return match
 
 
-def extract_link1_operations(text: str) -> list[str]:
-  summary_match = require_match(PROVEN_RE, text, "Link 1 proof summary")
-  block_start = summary_match.end()
-  assumed_match = require_match(ASSUMED_RE, text, "assumed Link 1 summary")
-  block_end = assumed_match.start()
-  if block_end == -1:
-    raise ReadmeSemanticBridgeSummaryError("failed to locate assumed Link 1 summary in README.md")
+def require_unique_match(pattern: re.Pattern[str], text: str, description: str) -> re.Match[str]:
+  matches = list(pattern.finditer(text))
+  if not matches:
+    raise ReadmeSemanticBridgeSummaryError(f"failed to locate {description} in README.md")
+  if len(matches) > 1:
+    raise ReadmeSemanticBridgeSummaryError(f"found multiple {description} matches in README.md")
+  return matches[0]
 
-  ops_block = text[block_start:block_end]
+
+def extract_semantic_bridge_section(text: str) -> str:
+  section_start = require_unique_match(
+    SECTION_HEADER_PATTERN,
+    text,
+    "semantic-bridge section header",
+  )
+  section_end = require_unique_match(
+    SECTION_END_PATTERN,
+    text,
+    "semantic-bridge section end boundary",
+  )
+  if section_end.start() <= section_start.end():
+    raise ReadmeSemanticBridgeSummaryError(
+      "README semantic-bridge section has an invalid boundary ordering"
+    )
+  section = text[section_start.end() : section_end.start()]
+  if not section.strip():
+    raise ReadmeSemanticBridgeSummaryError("README semantic-bridge section is empty")
+  return section
+
+
+def extract_link1_operations(section_text: str) -> list[str]:
+  summary_match = require_unique_match(PROVEN_RE, section_text, "Link 1 proof summary")
+  block_start = summary_match.end()
+  assumed_match = require_unique_match(ASSUMED_RE, section_text, "assumed Link 1 summary")
+  block_end = assumed_match.start()
+  if block_end <= block_start:
+    raise ReadmeSemanticBridgeSummaryError(
+      "README Link 1 operation list has an invalid boundary ordering"
+    )
+  ops_block = section_text[block_start:block_end]
   operations = re.findall(r"`([^`]+)`", ops_block)
   has_none_sentinel = re.search(r"\bnone\b", ops_block, re.IGNORECASE) is not None
   if has_none_sentinel and operations:
@@ -67,13 +102,15 @@ def extract_link1_operations(text: str) -> list[str]:
 
 
 def validate_summary(text: str, summary: dict[str, object]) -> None:
-  if UPSTREAM_STATUS_PREFIX not in text:
+  section_text = extract_semantic_bridge_section(text)
+
+  if UPSTREAM_STATUS_PREFIX not in section_text:
     raise ReadmeSemanticBridgeSummaryError(
       "README upstream semantic-bridge status drift: "
       f"expected `{UPSTREAM_STATUS_PREFIX}`"
     )
 
-  proven_match = require_match(PROVEN_RE, text, "Link 1 proof summary")
+  proven_match = require_unique_match(PROVEN_RE, section_text, "Link 1 proof summary")
   proven_count = int(proven_match.group("proven"))
   total_count = int(proven_match.group("total"))
   expected_proven = int(summary["link1_count"])
@@ -84,7 +121,7 @@ def validate_summary(text: str, summary: dict[str, object]) -> None:
       f"expected {expected_proven}/{expected_total}, found {proven_count}/{total_count}"
     )
 
-  actual_operations = extract_link1_operations(text)
+  actual_operations = extract_link1_operations(section_text)
   expected_operations = list(summary["link1_operations"])
   if not expected_operations and actual_operations:
     raise ReadmeSemanticBridgeSummaryError(
@@ -99,7 +136,7 @@ def validate_summary(text: str, summary: dict[str, object]) -> None:
       + ", ".join(actual_operations)
     )
 
-  assumed_match = require_match(ASSUMED_RE, text, "assumed Link 1 summary")
+  assumed_match = require_unique_match(ASSUMED_RE, section_text, "assumed Link 1 summary")
   assumed_count = int(assumed_match.group("assumed"))
   assumed_total = int(assumed_match.group("total"))
   expected_assumed = int(summary["assumed_count"])

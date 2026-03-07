@@ -18,6 +18,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from check_readme_semantic_bridge_summary import (  # noqa: E402
   UPSTREAM_STATUS_PREFIX,
   ReadmeSemanticBridgeSummaryError,
+  extract_semantic_bridge_section,
   extract_link1_operations,
   main,
   validate_summary,
@@ -63,6 +64,8 @@ def make_readme(
     f"""\
     # Morpho Verity
 
+    ### Upstream: Verity hybrid canonical-semantics migration (verity#1060 / #1065)
+
     {UPSTREAM_STATUS_PREFIX}
     This removes the hand-rolled `interpretSpec` interpreter from the target trust
     story and enables auto-generated semantic preservation proofs in the
@@ -73,17 +76,32 @@ def make_readme(
     The remaining {assumed_count}/{total} operations still have assumed Link 1 status in
     `config/semantic-bridge-obligations.json`.
     See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
+
+    Machine-readable parity target artifacts:
+    - `config/parity-target.json`
     """
   )
 
 
 class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
+  def test_extract_semantic_bridge_section(self) -> None:
+    section = extract_semantic_bridge_section(make_readme())
+    self.assertIn(UPSTREAM_STATUS_PREFIX, section)
+    self.assertIn("Link 1 proofs", section)
+
   def test_extract_link1_operations(self) -> None:
-    self.assertEqual(extract_link1_operations(make_readme()), ["setOwner", "flashLoan"])
+    self.assertEqual(
+      extract_link1_operations(extract_semantic_bridge_section(make_readme())),
+      ["setOwner", "flashLoan"],
+    )
 
   def test_extract_link1_operations_allows_none_sentinel(self) -> None:
     self.assertEqual(
-      extract_link1_operations(make_readme(proven_count=0, assumed_count=3, operations="none")),
+      extract_link1_operations(
+        extract_semantic_bridge_section(
+          make_readme(proven_count=0, assumed_count=3, operations="none")
+        )
+      ),
       [],
     )
 
@@ -149,6 +167,51 @@ class ReadmeSemanticBridgeSummaryTests(unittest.TestCase):
         ),
         derive_summary(make_config()),
       )
+
+  def test_validate_summary_rejects_upstream_status_drift_hidden_outside_section(self) -> None:
+    readme_text = make_readme().replace(UPSTREAM_STATUS_PREFIX, "old prefix", 1)
+    readme_text += f"\n## Notes\n\n{UPSTREAM_STATUS_PREFIX}\n"
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "upstream semantic-bridge status drift",
+    ):
+      validate_summary(readme_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_link1_summary_drift_hidden_outside_section(self) -> None:
+    readme_text = make_readme(proven_count=1)
+    readme_text += (
+      "\n## Notes\n\n"
+      "**Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 2/3 operations:**\n"
+      "`setOwner`, `flashLoan`\n"
+      "The remaining 1/3 operations still have assumed Link 1 status in\n"
+      "`config/semantic-bridge-obligations.json`.\n"
+    )
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "README Link 1 proof summary drift",
+    ):
+      validate_summary(readme_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_operation_drift_hidden_outside_section(self) -> None:
+    readme_text = make_readme(operations="`setOwner`, `enableIrm`")
+    readme_text += "\n## Notes\n\n`setOwner`, `flashLoan`\n"
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "README Link 1 operation list drift",
+    ):
+      validate_summary(readme_text, derive_summary(make_config()))
+
+  def test_validate_summary_rejects_missing_semantic_bridge_end_boundary(self) -> None:
+    readme_text = make_readme().replace(
+      "Machine-readable parity target artifacts:\n    - `config/parity-target.json`\n",
+      "\n",
+      1,
+    )
+    with self.assertRaisesRegex(
+      ReadmeSemanticBridgeSummaryError,
+      "semantic-bridge section end boundary",
+    ):
+      validate_summary(readme_text, derive_summary(make_config()))
 
   def test_main_passes_for_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
