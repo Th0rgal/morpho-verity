@@ -125,6 +125,9 @@ jobs:
       - name: Validate shell script executable bit integrity
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate shell script executable bit integrity" -- python3 scripts/check_shell_script_executable.py
 
+      - name: Validate duplicate top-level Python defs
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate duplicate top-level Python defs" -- python3 scripts/check_duplicate_top_level_defs.py
+
       - name: Validate script-test pairing
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate script-test pairing" -- python3 scripts/check_script_test_pairs.py
 
