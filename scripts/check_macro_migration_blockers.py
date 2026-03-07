@@ -254,7 +254,13 @@ def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
     raise MigrationGateError(f"failed to write {path}: {exc}") from exc
 
 
-def build_report(usage: ConstructorUsage, *, source_path: pathlib.Path = SPEC_PATH) -> dict[str, Any]:
+def build_report(
+  usage: ConstructorUsage,
+  *,
+  source_path: pathlib.Path = SPEC_PATH,
+  baseline_path: pathlib.Path = BASELINE_PATH,
+  obligations_path: pathlib.Path = OBLIGATIONS_PATH,
+) -> dict[str, Any]:
   used_stmt = set(usage.stmt_counts)
   used_expr = set(usage.expr_counts)
 
@@ -266,6 +272,8 @@ def build_report(usage: ConstructorUsage, *, source_path: pathlib.Path = SPEC_PA
 
   return {
     "source": display_path(source_path),
+    "baselinePath": display_path(baseline_path),
+    "obligationsPath": display_path(obligations_path),
     "supportedSurface": {
       "stmt": sorted_unique(SUPPORTED_STMT),
       "expr": sorted_unique(SUPPORTED_EXPR),
@@ -398,7 +406,12 @@ def main() -> None:
   args = parser().parse_args()
   spec_text = read_text(args.spec)
   usage = parse_constructor_usage(spec_text)
-  report = build_report(usage, source_path=args.spec)
+  report = build_report(
+    usage,
+    source_path=args.spec,
+    baseline_path=args.baseline,
+    obligations_path=args.obligations,
+  )
   operation_blockers = build_operation_blocker_report(spec_text)
 
   if args.write:
