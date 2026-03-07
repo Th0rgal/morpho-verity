@@ -38,6 +38,22 @@ EXPECTED_WORKFLOW_STEPS = [
   "Validate equivalence obligations doc sync",
   "Validate release criteria status sync",
 ]
+EXPECTED_WORKFLOW_RUN_LINES = {
+  "Validate semantic bridge obligations":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge obligations" -- python3 scripts/check_semantic_bridge_obligations.py',
+  "Validate semantic bridge readiness sync":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge readiness sync" -- python3 scripts/check_semantic_bridge_readiness_sync.py',
+  "Validate semantic bridge readiness summary":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge readiness summary" -- python3 scripts/check_semantic_bridge_readiness_summary.py',
+  "Validate README semantic bridge summary":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate README semantic bridge summary" -- python3 scripts/check_readme_semantic_bridge_summary.py',
+  "Validate issue blocker clusters":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate issue blocker clusters" -- python3 scripts/check_issue_blocker_clusters.py',
+  "Validate equivalence obligations doc sync":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate equivalence obligations doc sync" -- python3 scripts/check_equivalence_obligations_doc.py',
+  "Validate release criteria status sync":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate release criteria status sync" -- python3 scripts/check_release_criteria_status.py',
+}
 
 TRACKED_STATUS_ITEM_MARKERS = (
   "semantic-bridge",
@@ -81,6 +97,28 @@ def filter_tracked_items(items: list[str]) -> list[str]:
   ]
 
 
+def parse_named_step_runs(text: str) -> tuple[dict[str, int], dict[str, list[str]]]:
+  step_counts: dict[str, int] = {}
+  step_runs: dict[str, list[str]] = {}
+  current_step: str | None = None
+  for line in text.splitlines():
+    step_match = re.match(r"\s*-\s+name:\s+(.*\S)\s*$", line)
+    if step_match is not None:
+      current_step = step_match.group(1)
+      step_counts[current_step] = step_counts.get(current_step, 0) + 1
+      step_runs.setdefault(current_step, [])
+      continue
+    if re.match(r"\s*-\s+", line) is not None:
+      current_step = None
+      continue
+    if current_step is None:
+      continue
+    run_match = re.match(r"\s+run:\s+(.*\S)\s*$", line)
+    if run_match is not None:
+      step_runs[current_step].append(run_match.group(1))
+  return step_counts, step_runs
+
+
 def validate_doc_status(text: str) -> None:
   partially_enforced = parse_numbered_items(
     extract_section(text, PARTIALLY_ENFORCED_HEADING, NOT_YET_ENFORCED_HEADING)
@@ -119,11 +157,29 @@ def validate_doc_status(text: str) -> None:
 
 
 def validate_workflow(text: str) -> None:
-  missing_steps = [step for step in EXPECTED_WORKFLOW_STEPS if f"- name: {step}" not in text]
+  step_counts, step_runs = parse_named_step_runs(text)
+  missing_steps = [step for step in EXPECTED_WORKFLOW_STEPS if step not in step_runs]
   if missing_steps:
     raise ReleaseCriteriaStatusError(
       "verify.yml is missing workflow steps referenced by RELEASE_CRITERIA.md: "
       + ", ".join(missing_steps)
+    )
+  duplicate_steps = [
+    step for step in EXPECTED_WORKFLOW_STEPS if step_counts.get(step, 0) > 1
+  ]
+  if duplicate_steps:
+    raise ReleaseCriteriaStatusError(
+      "verify.yml duplicates workflow steps referenced by RELEASE_CRITERIA.md: "
+      + ", ".join(sorted(duplicate_steps))
+    )
+  wrong_run_steps = [
+    step for step in EXPECTED_WORKFLOW_STEPS
+    if step_runs.get(step) != [EXPECTED_WORKFLOW_RUN_LINES[step]]
+  ]
+  if wrong_run_steps:
+    raise ReleaseCriteriaStatusError(
+      "verify.yml has drifted workflow commands referenced by RELEASE_CRITERIA.md: "
+      + ", ".join(wrong_run_steps)
     )
 
 

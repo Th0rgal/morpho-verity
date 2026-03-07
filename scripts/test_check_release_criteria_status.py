@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from check_release_criteria_status import (  # noqa: E402
   EXPECTED_PARTIALLY_ENFORCED_ITEMS,
+  EXPECTED_WORKFLOW_RUN_LINES,
   EXPECTED_WORKFLOW_STEPS,
   FORBIDDEN_NOT_YET_ENFORCED_ITEMS,
   ReleaseCriteriaStatusError,
@@ -67,7 +68,13 @@ def make_workflow(*, steps: list[str] | None = None) -> str:
     "jobs:",
     "  parity-target:",
     "    steps:",
-    *[f"      - name: {step}" for step in steps],
+    *[
+      "\n".join([
+        f"      - name: {step}",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES.get(step, 'echo placeholder')}",
+      ])
+      for step in steps
+    ],
     "",
   ])
 
@@ -150,6 +157,96 @@ class ReleaseCriteriaStatusTests(unittest.TestCase):
       "missing workflow steps",
     ):
       validate_workflow(make_workflow(steps=EXPECTED_WORKFLOW_STEPS[:-1]))
+
+  def test_validate_workflow_rejects_commented_step(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "missing workflow steps",
+    ):
+      validate_workflow("\n".join([
+        "jobs:",
+        "  parity-target:",
+        "    steps:",
+        "      # - name: Validate semantic bridge obligations",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[1]}",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[1]]}",
+        "",
+      ]))
+
+  def test_validate_workflow_rejects_duplicate_step(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "duplicates workflow steps",
+    ):
+      validate_workflow(make_workflow(
+        steps=[
+          EXPECTED_WORKFLOW_STEPS[0],
+          EXPECTED_WORKFLOW_STEPS[0],
+          *EXPECTED_WORKFLOW_STEPS[1:],
+        ]
+      ))
+
+  def test_validate_workflow_rejects_duplicate_step_without_second_run(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "duplicates workflow steps",
+    ):
+      validate_workflow("\n".join([
+        "jobs:",
+        "  parity-target:",
+        "    steps:",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+        f"        run: {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[0]]}",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+        "        uses: actions/checkout@v5",
+        *[
+          "\n".join([
+            f"      - name: {step}",
+            f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+          ])
+          for step in EXPECTED_WORKFLOW_STEPS[1:]
+        ],
+        "",
+      ]))
+
+  def test_validate_workflow_rejects_wrong_run_command(self) -> None:
+    with self.assertRaisesRegex(
+      ReleaseCriteriaStatusError,
+      "drifted workflow commands",
+    ):
+      validate_workflow("\n".join([
+        "jobs:",
+        "  parity-target:",
+        "    steps:",
+        f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+        "        run: echo noop",
+        *[
+          "\n".join([
+            f"      - name: {step}",
+            f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+          ])
+          for step in EXPECTED_WORKFLOW_STEPS[1:]
+        ],
+        "",
+      ]))
+
+  def test_validate_workflow_ignores_unnamed_run_step_after_tracked_step(self) -> None:
+    validate_workflow("\n".join([
+      "jobs:",
+      "  parity-target:",
+      "    steps:",
+      f"      - name: {EXPECTED_WORKFLOW_STEPS[0]}",
+      f"        run: {EXPECTED_WORKFLOW_RUN_LINES[EXPECTED_WORKFLOW_STEPS[0]]}",
+      "      - run: echo helper step",
+      *[
+        "\n".join([
+          f"      - name: {step}",
+          f"        run: {EXPECTED_WORKFLOW_RUN_LINES[step]}",
+        ])
+        for step in EXPECTED_WORKFLOW_STEPS[1:]
+      ],
+      "",
+    ]))
 
   def test_main_passes_on_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
