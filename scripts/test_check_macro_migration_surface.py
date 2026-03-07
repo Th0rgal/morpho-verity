@@ -10,15 +10,18 @@ import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
 from check_macro_migration_surface import (  # noqa: E402
   MacroMigrationSurfaceError,
   ROOT,
   build_report,
   canonicalize_type,
   extract_spec_selector_entries,
+  read_text,
   run_check,
   split_top_level_csv,
+  write_json_report,
 )
 
 
@@ -96,6 +99,28 @@ def morphoSelectors : List Nat := [
   def test_root_constant_points_to_repo(self) -> None:
     self.assertTrue((ROOT / "Morpho" / "Compiler" / "Spec.lean").exists())
 
+  def test_read_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = pathlib.Path(tmpdir) / "Spec.lean"
+      path.write_bytes(b"\xff")
+
+      with self.assertRaisesRegex(
+        MacroMigrationSurfaceError,
+        "failed to decode UTF-8 text file",
+      ):
+        read_text(path)
+
+  def test_write_json_report_wraps_write_failures(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      output_dir = pathlib.Path(tmpdir) / "report-dir"
+      output_dir.mkdir()
+
+      with self.assertRaisesRegex(
+        MacroMigrationSurfaceError,
+        "failed to write JSON report",
+      ):
+        write_json_report(output_dir, {"status": "ok"})
+
   def test_cli_reports_checker_error_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
       bad_repo = pathlib.Path(tmpdir)
@@ -126,6 +151,41 @@ def morphoSelectors : List Nat := [
     self.assertEqual(proc.returncode, 1)
     self.assertIn("macro-migration-surface check failed:", proc.stderr)
     self.assertIn("unable to find morphoSelectors", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_json_out_failure_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      json_out = pathlib.Path(tmpdir)
+      proc = subprocess.run(
+        [
+          sys.executable,
+          "-c",
+          "\n".join([
+            "import sys",
+            f"sys.path.insert(0, {str(SCRIPT_DIR)!r})",
+            "import check_macro_migration_surface as mod",
+            "mod.run_check = lambda: {"
+            "'status': 'ok', "
+            "'specSignatureCount': 1, "
+            "'interfaceSignatureCount': 1, "
+            "'matchedSignatureCount': 1, "
+            "'selectorMismatchCount': 0"
+            "}",
+            f"sys.argv = ['check_macro_migration_surface.py', '--json-out', {str(json_out)!r}]",
+            "try:",
+            "  mod.main()",
+            "except mod.MacroMigrationSurfaceError as exc:",
+            "  mod.fail(str(exc))",
+          ]),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("macro-migration-surface check failed:", proc.stderr)
+    self.assertIn("failed to write JSON report", proc.stderr)
     self.assertNotIn("Traceback", proc.stderr)
 
 
