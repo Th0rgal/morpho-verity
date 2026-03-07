@@ -380,24 +380,27 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
   args = parser().parse_args()
+  spec_path = args.spec.resolve()
+  macro_path = args.macro.resolve()
+  baseline_path = args.baseline.resolve()
 
-  macro_signatures = extract_macro_signatures(read_text(args.macro), contract_name=args.contract)
+  macro_signatures = extract_macro_signatures(read_text(macro_path), contract_name=args.contract)
   if args.write:
-    spec_signatures = extract_spec_signatures(read_text(args.spec))
-    existing_baseline = load_baseline(args.baseline) if args.baseline.exists() else None
+    spec_signatures = extract_spec_signatures(read_text(spec_path))
+    existing_baseline = load_baseline(baseline_path) if baseline_path.exists() else None
     baseline = build_write_baseline(
       spec_signatures=spec_signatures,
       migrated_signatures=macro_signatures,
-      macro_path=args.macro,
+      macro_path=macro_path,
       contract_name=args.contract,
       existing_baseline=existing_baseline,
     )
-    write_baseline(args.baseline, baseline)
+    write_baseline(baseline_path, baseline)
 
   report = run_check(
-    spec_path=args.spec,
-    macro_path=args.macro,
-    baseline_path=args.baseline,
+    spec_path=spec_path,
+    macro_path=macro_path,
+    baseline_path=baseline_path,
     contract_name=args.contract,
   )
 

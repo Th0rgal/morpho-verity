@@ -543,6 +543,76 @@ verity_contract MorphoViewSlice where
     self.assertEqual(report["macroPath"], str(macro_path))
     self.assertEqual(report["baselinePath"], str(baseline_path))
 
+  def test_cli_normalizes_relative_external_paths_in_report_and_write_mode(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      root = tmp / "runner"
+      external = tmp / "external"
+      root.mkdir()
+      external.mkdir()
+
+      spec_path = external / "Spec.lean"
+      macro_path = external / "MacroSlice.lean"
+      baseline_path = external / "baseline.json"
+      json_out = external / "report.json"
+
+      spec_path.write_text(
+        """
+def morphoSelectors : List Nat := [
+  0x8da5cb5b -- owner()
+]
+""",
+        encoding="utf-8",
+      )
+      macro_path.write_text(
+        """
+verity_contract MorphoViewSlice where
+  function owner () : Address := do
+    return 0
+""",
+        encoding="utf-8",
+      )
+      baseline_path.write_text(
+        json.dumps(
+          {
+            "source": str(pathlib.Path("..") / "external" / "MacroSlice.lean"),
+            "contract": "MorphoViewSlice",
+            "expectedMigrated": ["owner()"],
+            "expectedBlocked": {},
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_slice.py"),
+          "--spec",
+          str(pathlib.Path("..") / "external" / "Spec.lean"),
+          "--macro",
+          str(pathlib.Path("..") / "external" / "MacroSlice.lean"),
+          "--baseline",
+          str(pathlib.Path("..") / "external" / "baseline.json"),
+          "--json-out",
+          str(json_out),
+          "--write",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+      report = json.loads(json_out.read_text(encoding="utf-8"))
+      updated = json.loads(baseline_path.read_text(encoding="utf-8"))
+
+    self.assertEqual(report["specPath"], str(spec_path.resolve()))
+    self.assertEqual(report["macroPath"], str(macro_path.resolve()))
+    self.assertEqual(report["baselinePath"], str(baseline_path.resolve()))
+    self.assertEqual(updated["source"], str(macro_path.resolve()))
+
 
 if __name__ == "__main__":
   unittest.main()

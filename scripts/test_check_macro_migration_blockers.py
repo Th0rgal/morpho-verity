@@ -530,6 +530,57 @@ class MainFailureTests(unittest.TestCase):
       self.assertEqual(report["baselinePath"], str(baseline_path))
       self.assertEqual(report["obligationsPath"], str(obligations_path))
 
+  def test_cli_json_report_normalizes_relative_external_input_paths(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      tmp_path = pathlib.Path(tmp)
+      root = tmp_path / "runner"
+      external = tmp_path / "external"
+      root.mkdir()
+      external.mkdir()
+
+      spec_path = external / "Spec.lean"
+      baseline_path = external / "macro-migration-blockers.json"
+      obligations_path = external / "semantic-bridge-obligations.json"
+      json_out = external / "report.json"
+
+      spec_path.write_text(
+        (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+      baseline_path.write_text(
+        (ROOT / "config" / "macro-migration-blockers.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+      obligations_path.write_text(
+        (ROOT / "config" / "semantic-bridge-obligations.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(ROOT / "scripts" / "check_macro_migration_blockers.py"),
+          "--spec",
+          str(pathlib.Path("..") / "external" / "Spec.lean"),
+          "--baseline",
+          str(pathlib.Path("..") / "external" / "macro-migration-blockers.json"),
+          "--obligations",
+          str(pathlib.Path("..") / "external" / "semantic-bridge-obligations.json"),
+          "--json-out",
+          str(json_out),
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+      self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+      report = json.loads(json_out.read_text(encoding="utf-8"))
+      self.assertEqual(report["source"], str(spec_path.resolve()))
+      self.assertEqual(report["baselinePath"], str(baseline_path.resolve()))
+      self.assertEqual(report["obligationsPath"], str(obligations_path.resolve()))
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -404,13 +404,17 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
   args = parser().parse_args()
-  spec_text = read_text(args.spec)
+  spec_path = args.spec.resolve()
+  baseline_path = args.baseline.resolve()
+  obligations_path = args.obligations.resolve()
+
+  spec_text = read_text(spec_path)
   usage = parse_constructor_usage(spec_text)
   report = build_report(
     usage,
-    source_path=args.spec,
-    baseline_path=args.baseline,
-    obligations_path=args.obligations,
+    source_path=spec_path,
+    baseline_path=baseline_path,
+    obligations_path=obligations_path,
   )
   operation_blockers = build_operation_blocker_report(spec_text)
 
@@ -426,10 +430,10 @@ def main() -> None:
         "As verity macro support grows and morphoSpec shrinks, these sets should only move via explicit reviewed updates."
       ),
     }
-    write_baseline(args.baseline, baseline)
+    write_baseline(baseline_path, baseline)
 
-  baseline = load_baseline(args.baseline)
-  obligations = load_obligations(args.obligations)
+  baseline = load_baseline(baseline_path)
+  obligations = load_obligations(obligations_path)
   validate_against_baseline(report, baseline)
   validate_operation_blockers(operation_blockers, obligations)
 
