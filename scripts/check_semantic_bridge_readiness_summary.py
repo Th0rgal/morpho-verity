@@ -9,7 +9,11 @@ import re
 import sys
 from typing import Any
 
-from check_semantic_bridge_readiness_sync import build_config_projection, load_config
+from check_semantic_bridge_readiness_sync import (
+  SemanticBridgeReadinessSyncError,
+  build_config_projection,
+  load_config,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -109,6 +113,19 @@ def derive_summary(config: dict[str, Any]) -> dict[str, Any]:
     "macro_migrated_count": macro_migrated_count,
     "macro_pending_count": total - macro_migrated_count,
   }
+
+
+def read_readiness_text(path: pathlib.Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except OSError as exc:
+    raise SemanticBridgeReadinessSummaryError(
+      f"failed to read SemanticBridgeReadiness file {path}: {exc}"
+    ) from exc
+  except UnicodeDecodeError as exc:
+    raise SemanticBridgeReadinessSummaryError(
+      f"failed to decode SemanticBridgeReadiness file {path} as UTF-8: {exc}"
+    ) from exc
 
 
 def require_match(pattern: re.Pattern[str], text: str, description: str) -> re.Match[str]:
@@ -375,8 +392,11 @@ def main() -> int:
   parser.add_argument("--readiness", type=pathlib.Path, default=READINESS_PATH)
   args = parser.parse_args()
 
-  summary = derive_summary(load_config(args.config))
-  text = args.readiness.read_text(encoding="utf-8")
+  try:
+    summary = derive_summary(load_config(args.config))
+  except SemanticBridgeReadinessSyncError as exc:
+    raise SemanticBridgeReadinessSummaryError(str(exc)) from exc
+  text = read_readiness_text(args.readiness)
   validate_summary(text, summary)
 
   print("semantic-bridge-readiness-summary check: OK")

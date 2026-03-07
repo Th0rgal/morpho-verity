@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -24,6 +25,7 @@ from check_semantic_bridge_readiness_summary import (  # noqa: E402
   extract_namespace_body,
   main,
   parse_operation_list,
+  read_readiness_text,
   validate_summary,
 )
 
@@ -164,6 +166,16 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
       extract_discharge_path_section(extract_intro_section(make_readiness_text())).strip(),
       DISCHARGE_PATH_PREFIX,
     )
+
+  def test_read_readiness_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      readiness_path = pathlib.Path(d) / "SemanticBridgeReadiness.lean"
+      readiness_path.write_bytes(b"\xff\xfe")
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSummaryError,
+        "failed to decode SemanticBridgeReadiness file",
+      ):
+        read_readiness_text(readiness_path)
 
   def test_validate_summary_accepts_zero_link1_operations(self) -> None:
     summary = {
@@ -431,6 +443,60 @@ class SemanticBridgeReadinessSummaryTests(unittest.TestCase):
         self.assertEqual(main(), 0)
       finally:
         sys.argv = old_argv
+
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readiness_path = root / "SemanticBridgeReadiness.lean"
+      config_path.write_text("{not json", encoding="utf-8")
+      readiness_path.write_text(make_readiness_text(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_readiness_summary.py"),
+          "--config",
+          str(config_path),
+          "--readiness",
+          str(readiness_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("semantic-bridge-readiness-summary check failed:", proc.stderr)
+    self.assertIn("failed to parse JSON config", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readiness_path = root / "SemanticBridgeReadiness.lean"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      readiness_path.write_bytes(b"\xff\xfe")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_readiness_summary.py"),
+          "--config",
+          str(config_path),
+          "--readiness",
+          str(readiness_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("semantic-bridge-readiness-summary check failed:", proc.stderr)
+    self.assertIn("failed to decode SemanticBridgeReadiness file", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
