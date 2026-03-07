@@ -98,3 +98,31 @@ class CheckVerityPinSyncTests(unittest.TestCase):
         """,
       )
 
+  def test_rejects_invalid_manifest_json(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        """
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        """{"packages": [}""",
+      )
+
+  def test_rejects_non_object_manifest_root(self) -> None:
+    with self.assertRaisesRegex(SystemExit, "1"):
+      self.run_check(
+        """
+        require verity from git
+          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        """,
+        """
+        [
+          {
+            "name": "verity",
+            "url": "https://github.com/Th0rgal/verity.git",
+            "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+            "inputRev": "ad03fc64"
+          }
+        ]
+        """,
+      )
