@@ -69,9 +69,9 @@ def write_bundle(
     (bundle / "Morpho.rewrite-report.json").write_text(
       json.dumps(
         {
-          "pipelineManifest": pipeline_manifest,
+          "pipelineManifestPath": pipeline_manifest,
           "pipelineManifestSha256": pipeline_manifest_sha256,
-          "proofManifest": proof_manifest,
+          "proofManifestPath": proof_manifest,
           "proofManifestSha256": proof_manifest_sha256,
           "inputSha256": hashlib.sha256(raw_yul.encode("utf-8")).hexdigest(),
           "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
@@ -434,9 +434,9 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
       (bundle / "Morpho.rewrite-report.json").write_text(
         json.dumps(
           {
-            "pipelineManifest": str(pipeline_manifest.resolve()),
+            "pipelineManifestPath": str(pipeline_manifest.resolve()),
             "pipelineManifestSha256": 7,
-            "proofManifest": str(proof_manifest.resolve()),
+            "proofManifestPath": str(proof_manifest.resolve()),
             "proofManifestSha256": hashlib.sha256(
               proof_manifest.read_text(encoding="utf-8").encode("utf-8")
             ).hexdigest(),

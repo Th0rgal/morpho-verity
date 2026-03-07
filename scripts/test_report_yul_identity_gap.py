@@ -89,11 +89,11 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       (prepared_dir / "Morpho.rewrite-report.json").write_text(
         json.dumps(
           {
-            "pipelineManifest": "config/yul-rewrite-pipeline.json",
+            "pipelineManifestPath": "config/yul-rewrite-pipeline.json",
             "pipelineManifestSha256": hashlib.sha256(
               (ROOT / "config" / "yul-rewrite-pipeline.json").read_text(encoding="utf-8").encode("utf-8")
             ).hexdigest(),
-            "proofManifest": "config/yul-rewrite-proof-obligations.json",
+            "proofManifestPath": "config/yul-rewrite-proof-obligations.json",
             "proofManifestSha256": hashlib.sha256(
               (ROOT / "config" / "yul-rewrite-proof-obligations.json").read_text(encoding="utf-8").encode("utf-8")
             ).hexdigest(),
@@ -156,8 +156,8 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       prepared_dir.mkdir(parents=True, exist_ok=True)
       (prepared_dir / "Morpho.rewritten.yul").write_text("prepared rewrite", encoding="utf-8")
       prepared_report = {
-        "pipelineManifest": display_path(pipeline_manifest_path),
-        "proofManifest": display_path(proof_manifest_path),
+        "pipelineManifestPath": display_path(pipeline_manifest_path),
+        "proofManifestPath": display_path(proof_manifest_path),
         "stageCount": 1,
         "implementedStageCount": 0,
         "changedStageCount": 0,
@@ -182,8 +182,8 @@ class ReportYulIdentityGapTests(unittest.TestCase):
     pipeline_manifest_path = ROOT / "config" / "yul-rewrite-pipeline.json"
     proof_manifest_path = ROOT / "config" / "yul-rewrite-proof-obligations.json"
     report = {
-      "pipelineManifest": display_path(pipeline_manifest_path),
-      "proofManifest": display_path(proof_manifest_path),
+      "pipelineManifestPath": display_path(pipeline_manifest_path),
+      "proofManifestPath": display_path(proof_manifest_path),
     }
     self.assertTrue(
       prepared_rewrite_pipeline_report_matches_request(
@@ -203,8 +203,8 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       (prepared_dir / "Morpho.rewrite-report.json").write_text(
         json.dumps(
           {
-            "pipelineManifest": "config/other-rewrite-pipeline.json",
-            "proofManifest": display_path(proof_manifest_path),
+            "pipelineManifestPath": "config/other-rewrite-pipeline.json",
+            "proofManifestPath": display_path(proof_manifest_path),
             "stageCount": 1,
             "implementedStageCount": 0,
             "changedStageCount": 0,

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -261,7 +262,10 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
       self.assertEqual(report["stageCount"], 1)
       self.assertTrue(json_out.is_file())
       json_report = json.loads(json_out.read_text(encoding="utf-8"))
-      self.assertEqual(json_report["output"], str(output_path))
+      self.assertEqual(json_report["outputPath"], str(output_path.resolve()))
+      self.assertEqual(json_report["inputPath"], str(input_path.resolve()))
+      self.assertEqual(json_report["pipelineManifestPath"], str(pipeline_path.resolve()))
+      self.assertEqual(json_report["proofManifestPath"], str(proof_path.resolve()))
       self.assertEqual(
         json_report["pipelineManifestSha256"],
         hashlib.sha256(pipeline_path.read_text(encoding="utf-8").encode("utf-8")).hexdigest(),
@@ -304,8 +308,71 @@ class ApplyYulRewritePipelineTests(unittest.TestCase):
       )
 
       self.assertEqual(output_path.read_text(encoding="utf-8"), input_path.read_text(encoding="utf-8"))
-      self.assertIsNone(report["proofManifest"])
+      self.assertIsNone(report["proofManifestPath"])
       self.assertIsNone(report["proofManifestSha256"])
+
+  def test_apply_rewrite_pipeline_to_file_normalizes_relative_report_paths(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      workdir = tmp / "work"
+      external = tmp / "external"
+      workdir.mkdir()
+      external.mkdir()
+      input_path = external / "Morpho.yul"
+      output_path = external / "Morpho.rewritten.yul"
+      pipeline_path = external / "pipeline.json"
+      proof_path = external / "proof.json"
+      json_out = external / "report.json"
+
+      input_path.write_text('object "M" { code { } }\n', encoding="utf-8")
+      pipeline_path.write_text(
+        json.dumps(
+          {
+            "version": "rewrite-pipeline-v1",
+            "stages": [
+              {
+                "rewritePass": "rename-normalization",
+                "families": ["renameOnly"],
+                "proofRefs": ["rewrite.rename_only.alpha_equiv"],
+                "implemented": False,
+              }
+            ],
+          }
+        ),
+        encoding="utf-8",
+      )
+      proof_path.write_text(
+        json.dumps(
+          {
+            "defaults": {
+              "renameOnly": {
+                "rewritePass": "rename-normalization",
+                "proofRefs": ["rewrite.rename_only.alpha_equiv"],
+              }
+            },
+            "families": [],
+          }
+        ),
+        encoding="utf-8",
+      )
+
+      old_cwd = pathlib.Path.cwd()
+      try:
+        os.chdir(workdir)
+        report = apply_rewrite_pipeline_to_file(
+          pathlib.Path("..") / "external" / "Morpho.yul",
+          pathlib.Path("..") / "external" / "Morpho.rewritten.yul",
+          pipeline_manifest_path=pathlib.Path("..") / "external" / "pipeline.json",
+          proof_manifest_path=pathlib.Path("..") / "external" / "proof.json",
+          json_out=pathlib.Path("..") / "external" / "report.json",
+        )
+      finally:
+        os.chdir(old_cwd)
+
+      self.assertEqual(report["inputPath"], str(input_path.resolve()))
+      self.assertEqual(report["outputPath"], str(output_path.resolve()))
+      self.assertEqual(report["pipelineManifestPath"], str(pipeline_path.resolve()))
+      self.assertEqual(report["proofManifestPath"], str(proof_path.resolve()))
 
   def test_cli_rejects_invalid_proof_manifest_without_traceback(self) -> None:
     with tempfile.TemporaryDirectory() as d:

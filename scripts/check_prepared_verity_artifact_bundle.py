@@ -238,7 +238,7 @@ def validate_prepared_verity_artifact_bundle(
   if rewrite_report_path.exists():
     report = _read_json(rewrite_report_path)
     expected_pipeline_manifest = _display_path(pipeline_manifest_path)
-    pipeline_manifest = _require_string_field(report, rewrite_report_path, "pipelineManifest")
+    pipeline_manifest = _require_string_field(report, rewrite_report_path, "pipelineManifestPath")
     if pipeline_manifest != expected_pipeline_manifest:
       raise PreparedArtifactBundleError(
         "Prepared rewrite report pipeline manifest mismatch: expected "
@@ -254,7 +254,7 @@ def validate_prepared_verity_artifact_bundle(
         f"{expected_pipeline_sha256!r}, got {pipeline_manifest_sha256!r}"
       )
     expected_proof_manifest = _expected_proof_manifest(proof_manifest_path)
-    proof_manifest = _require_optional_string_field(report, rewrite_report_path, "proofManifest")
+    proof_manifest = _require_optional_string_field(report, rewrite_report_path, "proofManifestPath")
     if proof_manifest != expected_proof_manifest:
       raise PreparedArtifactBundleError(
         "Prepared rewrite report proof manifest mismatch: expected "
