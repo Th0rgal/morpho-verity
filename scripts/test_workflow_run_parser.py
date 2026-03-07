@@ -162,6 +162,18 @@ class WorkflowRunParserTests(unittest.TestCase):
     )
     self.assertEqual(extract_workflow_env_literals(workflow_text), {"REAL_TIMEOUT_SEC": ["10"]})
 
+  def test_extract_workflow_env_literals_handles_inline_step_item_env_mapping(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        "      - env: {STEP_TIMEOUT_SEC: 30}",
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(extract_workflow_env_literals(workflow_text), {"STEP_TIMEOUT_SEC": ["30"]})
+
   def test_extract_workflow_run_text_ignores_nested_run_field_within_step_mapping(self) -> None:
     workflow_text = "\n".join(
       [

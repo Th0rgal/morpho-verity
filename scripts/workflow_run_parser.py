@@ -270,6 +270,7 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       step_indent = len(step_match.group(1))
       if step_indent > steps_indent and (current_step_indent is None or step_indent <= current_step_indent):
         current_step_indent = step_indent
+        line = f"{step_match.group(1)}  {step_match.group(2)}"
 
     env_match = ENV_LINE_RE.match(line)
     if env_match is None:
