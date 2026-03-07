@@ -73,6 +73,13 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
     ):
       extract_architecture_section(make_text().replace(ARCHITECTURE_SECTION_HEADER, "## Overview"))
 
+  def test_extract_architecture_section_rejects_missing_boundary(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing `## Proof Strategy` boundary",
+    ):
+      extract_architecture_section(make_text().replace(PROOF_STRATEGY_SECTION_HEADER, "## Strategy"))
+
   def test_extract_discharge_section_returns_target_block(self) -> None:
     self.assertIn(EXPECTED_FLASHLOAN_ROW, extract_discharge_section(make_text()))
 
@@ -82,6 +89,13 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
       "missing `## Discharge Status` section",
     ):
       extract_discharge_section(make_text().replace(DISCHARGE_SECTION_HEADER, "/-! ## Other"))
+
+  def test_extract_discharge_section_rejects_missing_closing_delimiter(self) -> None:
+    with self.assertRaisesRegex(
+      SemanticBridgeDischargeStatusError,
+      "missing closing `-/`",
+    ):
+      extract_discharge_section(make_text().replace("-/\n", "", 1))
 
   def test_validate_status_accepts_matching_text(self) -> None:
     validate_status(make_text())

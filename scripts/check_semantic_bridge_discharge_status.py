@@ -58,6 +58,7 @@ def extract_discharge_section(text: str) -> str:
     end_pattern=r"(?m)^\s*-/\s*$",
     missing_error="SemanticBridgeDischarge.lean status drift: missing `## Discharge Status` section",
     empty_error="SemanticBridgeDischarge.lean status drift: empty `## Discharge Status` section",
+    missing_end_error="SemanticBridgeDischarge.lean status drift: missing closing `-/` for `## Discharge Status` section",
   )
 
 
@@ -68,6 +69,7 @@ def extract_architecture_section(text: str) -> str:
     end_marker=PROOF_STRATEGY_SECTION_HEADER,
     missing_error="SemanticBridgeDischarge.lean status drift: missing `## Architecture` section",
     empty_error="SemanticBridgeDischarge.lean status drift: empty `## Architecture` section",
+    missing_end_error="SemanticBridgeDischarge.lean status drift: missing `## Proof Strategy` boundary after `## Architecture` section",
   )
 
 
@@ -77,6 +79,7 @@ def extract_section(
   start_marker: str,
   missing_error: str,
   empty_error: str,
+  missing_end_error: str,
   end_marker: str | None = None,
   end_pattern: str | None = None,
 ) -> str:
@@ -86,10 +89,14 @@ def extract_section(
     raise SemanticBridgeDischargeStatusError(missing_error) from exc
 
   if end_marker is not None:
+    if end_marker not in after_start:
+      raise SemanticBridgeDischargeStatusError(missing_end_error)
     section = after_start.split(end_marker, 1)[0]
   elif end_pattern is not None:
     match = re.search(end_pattern, after_start)
-    section = after_start[: match.start()] if match else after_start
+    if match is None:
+      raise SemanticBridgeDischargeStatusError(missing_end_error)
+    section = after_start[: match.start()]
   else:
     section = after_start
 
