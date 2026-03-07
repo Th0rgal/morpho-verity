@@ -3,6 +3,7 @@
     {
       "id": "OBL-SUPPLY-SEM-EQ",
       "hypothesis": "supplySemEq",
+      "issue": 123,
       "operation": "supply",
       "status": "assumed",
       "macroMigrated": false,
@@ -12,6 +13,7 @@
     {
       "id": "OBL-WITHDRAW-SEM-EQ",
       "hypothesis": "withdrawSemEq",
+      "issue": 123,
       "operation": "withdraw",
       "status": "assumed",
       "macroMigrated": false,
@@ -21,6 +23,7 @@
     {
       "id": "OBL-BORROW-SEM-EQ",
       "hypothesis": "borrowSemEq",
+      "issue": 123,
       "operation": "borrow",
       "status": "assumed",
       "macroMigrated": false,
@@ -30,6 +33,7 @@
     {
       "id": "OBL-REPAY-SEM-EQ",
       "hypothesis": "repaySemEq",
+      "issue": 123,
       "operation": "repay",
       "status": "assumed",
       "macroMigrated": false,
@@ -39,6 +43,7 @@
     {
       "id": "OBL-SUPPLY-COLLATERAL-SEM-EQ",
       "hypothesis": "supplyCollateralSemEq",
+      "issue": 124,
       "operation": "supplyCollateral",
       "status": "assumed",
       "macroMigrated": false,
@@ -48,6 +53,7 @@
     {
       "id": "OBL-WITHDRAW-COLLATERAL-SEM-EQ",
       "hypothesis": "withdrawCollateralSemEq",
+      "issue": 124,
       "operation": "withdrawCollateral",
       "status": "assumed",
       "macroMigrated": false,
@@ -57,6 +63,7 @@
     {
       "id": "OBL-LIQUIDATE-SEM-EQ",
       "hypothesis": "liquidateSemEq",
+      "issue": 124,
       "operation": "liquidate",
       "status": "assumed",
       "macroMigrated": false,
@@ -155,31 +162,11 @@
   "issueClusters": [
     {
       "issue": 123,
-      "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL",
-      "operations": ["supply", "withdraw", "borrow", "repay"],
-      "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "blockerCoverageCounts": {
-        "callbacks": 2,
-        "erc20": 4,
-        "externalWithReturn": 1,
-        "internalCall": 4,
-        "memoryOps": 4,
-        "structMember2": 4
-      }
+      "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL"
     },
     {
       "issue": 124,
-      "title": "Implement collateral and liquidation flows in the Verity EDSL",
-      "operations": ["supplyCollateral", "withdrawCollateral", "liquidate"],
-      "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "blockerCoverageCounts": {
-        "callbacks": 2,
-        "erc20": 3,
-        "externalWithReturn": 2,
-        "internalCall": 2,
-        "memoryOps": 3,
-        "structMember2": 3
-      }
+      "title": "Implement collateral and liquidation flows in the Verity EDSL"
     }
   ],
   "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 9d9533b2; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",

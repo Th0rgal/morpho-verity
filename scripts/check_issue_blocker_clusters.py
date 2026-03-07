@@ -41,6 +41,16 @@ def load_obligations_by_operation(config: dict[str, Any]) -> dict[str, dict[str,
   return by_operation
 
 
+def load_obligations(config: dict[str, Any]) -> list[dict[str, Any]]:
+  obligations = config.get("obligations")
+  if not isinstance(obligations, list):
+    raise IssueClusterError("config missing 'obligations' array")
+  for i, item in enumerate(obligations):
+    if not isinstance(item, dict):
+      raise IssueClusterError(f"obligations[{i}] is not an object")
+  return obligations
+
+
 def derive_cluster_blockers(
   operations: list[str],
   obligations_by_operation: dict[str, dict[str, Any]],
@@ -60,21 +70,19 @@ def derive_cluster_blockers(
 
 def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
   obligations_by_operation = load_obligations_by_operation(config)
+  obligations = load_obligations(config)
   raw_clusters = config.get("issueClusters")
   if not isinstance(raw_clusters, list):
     raise IssueClusterError("config missing 'issueClusters' array")
 
   seen_issues: set[int] = set()
-  reports: list[dict[str, Any]] = []
+  cluster_meta: dict[int, dict[str, Any]] = {}
   for i, item in enumerate(raw_clusters):
     if not isinstance(item, dict):
       raise IssueClusterError(f"issueClusters[{i}] is not an object")
 
     issue = item.get("issue")
     title = item.get("title")
-    operations = item.get("operations")
-    expected_blockers = item.get("macroSurfaceBlockers")
-    expected_counts = item.get("blockerCoverageCounts")
 
     if not isinstance(issue, int):
       raise IssueClusterError(f"issueClusters[{i}] missing integer 'issue'")
@@ -84,36 +92,44 @@ def validate_issue_clusters(config: dict[str, Any]) -> list[dict[str, Any]]:
 
     if not isinstance(title, str) or not title:
       raise IssueClusterError(f"issueClusters[{i}] missing non-empty 'title'")
-    if not isinstance(operations, list) or not operations or not all(isinstance(op, str) for op in operations):
-      raise IssueClusterError(f"issueClusters[{i}] missing string-list 'operations'")
+    cluster_meta[issue] = {"issue": issue, "title": title}
+
+  operations_by_issue: dict[int, list[str]] = {issue: [] for issue in cluster_meta}
+  for i, obligation in enumerate(obligations):
+    operation = obligation["operation"]
+    issue = obligation.get("issue")
+    if issue is None:
+      continue
+    if not isinstance(issue, int):
+      raise IssueClusterError(f"obligations[{i}] has non-integer 'issue'")
+    if issue not in cluster_meta:
+      raise IssueClusterError(
+        f"obligations[{i}] references unknown issue cluster '{issue}'"
+      )
+    if obligation.get("macroMigrated") is not False:
+      raise IssueClusterError(
+        f"obligation '{operation}' cannot reference open issue #{issue} once macroMigrated!=false"
+      )
+    blockers = obligation.get("macroSurfaceBlockers")
+    if not isinstance(blockers, list) or not blockers or not all(isinstance(b, str) for b in blockers):
+      raise IssueClusterError(
+        f"obligation '{operation}' missing non-empty string-list 'macroSurfaceBlockers'"
+      )
+    if operation not in obligations_by_operation:
+      raise IssueClusterError(f"obligation '{operation}' missing from operation index")
+    operations_by_issue[issue].append(operation)
+
+  reports: list[dict[str, Any]] = []
+  for issue, meta in sorted(cluster_meta.items()):
+    operations = operations_by_issue[issue]
+    if not operations:
+      raise IssueClusterError(f"issue #{issue} does not cover any obligations")
     if len(operations) != len(set(operations)):
-      raise IssueClusterError(f"issueClusters[{i}] contains duplicate operations")
-    if not isinstance(expected_blockers, list) or not all(isinstance(b, str) for b in expected_blockers):
-      raise IssueClusterError(f"issueClusters[{i}] missing string-list 'macroSurfaceBlockers'")
-    if not isinstance(expected_counts, dict) or not all(isinstance(k, str) and isinstance(v, int) for k, v in expected_counts.items()):
-      raise IssueClusterError(f"issueClusters[{i}] missing string->int 'blockerCoverageCounts'")
-
-    missing_operations = sorted(op for op in operations if op not in obligations_by_operation)
-    if missing_operations:
-      raise IssueClusterError(
-        f"issueClusters[{i}] references unknown operations: {', '.join(missing_operations)}"
-      )
-
+      raise IssueClusterError(f"issue #{issue} contains duplicate operations")
     derived_blockers, derived_counts = derive_cluster_blockers(operations, obligations_by_operation)
-    if derived_blockers != sorted(expected_blockers):
-      raise IssueClusterError(
-        f"issue #{issue} macroSurfaceBlockers drift detected: "
-        f"expected {sorted(expected_blockers)}, derived {derived_blockers}"
-      )
-    if derived_counts != dict(sorted(expected_counts.items())):
-      raise IssueClusterError(
-        f"issue #{issue} blockerCoverageCounts drift detected: "
-        f"expected {dict(sorted(expected_counts.items()))}, derived {derived_counts}"
-      )
-
     reports.append({
       "issue": issue,
-      "title": title,
+      "title": meta["title"],
       "operations": operations,
       "macroSurfaceBlockers": derived_blockers,
       "blockerCoverageCounts": derived_counts,
