@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -25,6 +26,8 @@ from check_equivalence_obligations_doc import (  # noqa: E402
   main,
   normalize_text,
   parse_operation_list,
+  read_doc_text,
+  load_tracker_config,
   validate_status_summary,
   validate_issue_summary_table,
 )
@@ -461,6 +464,117 @@ class EquivalenceObligationsDocTests(unittest.TestCase):
           main()
       finally:
         sys.argv = old_argv
+
+  def test_load_tracker_config_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "config.json"
+      config_path.write_bytes(b"\xff")
+
+      with self.assertRaisesRegex(
+        EquivalenceObligationsDocError,
+        "is not valid UTF-8",
+      ):
+        load_tracker_config(config_path)
+
+  def test_read_doc_text_rejects_invalid_utf8(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      doc_path = pathlib.Path(d) / "EQUIVALENCE_OBLIGATIONS.md"
+      doc_path.write_bytes(b"\xff")
+
+      with self.assertRaisesRegex(
+        EquivalenceObligationsDocError,
+        "is not valid UTF-8",
+      ):
+        read_doc_text(doc_path)
+
+
+class CliTests(unittest.TestCase):
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "config.json"
+      doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
+      config_path.write_text("{invalid\n", encoding="utf-8")
+      doc_path.write_text(make_doc([]), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_equivalence_obligations_doc.py"),
+          "--config",
+          str(config_path),
+          "--doc",
+          str(doc_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn(
+      "equivalence-obligations-doc check failed: failed to parse JSON config",
+      proc.stderr,
+    )
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_doc_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "config.json"
+      doc_path = root / "EQUIVALENCE_OBLIGATIONS.md"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+      doc_path.write_bytes(b"\xff")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_equivalence_obligations_doc.py"),
+          "--config",
+          str(config_path),
+          "--doc",
+          str(doc_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn(
+      "equivalence-obligations-doc check failed: document",
+      proc.stderr,
+    )
+    self.assertIn("is not valid UTF-8", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_missing_doc_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "config.json"
+      doc_path = root / "missing.md"
+      config_path.write_text(json.dumps(make_config()), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_equivalence_obligations_doc.py"),
+          "--config",
+          str(config_path),
+          "--doc",
+          str(doc_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn(
+      "equivalence-obligations-doc check failed: failed to read document",
+      proc.stderr,
+    )
+    self.assertNotIn("Traceback", proc.stderr)
 
   def test_extract_issue_summary_table_rejects_missing_separator(self) -> None:
     with self.assertRaisesRegex(
