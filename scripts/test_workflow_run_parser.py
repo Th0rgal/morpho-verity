@@ -363,6 +363,36 @@ class WorkflowRunParserTests(unittest.TestCase):
       {"ESCAPED_LABEL": ["Don't drift"]},
     )
 
+  def test_extract_named_step_runs_unescapes_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  test:",
+        "    steps:",
+        '      - name: "Say \\"hi\\""',
+        "        run: python3 scripts/check_alpha.py",
+      ]
+    )
+    self.assertEqual(
+      extract_named_step_runs(workflow_text),
+      (
+        {'Say "hi"': 1},
+        {'Say "hi"': ["python3 scripts/check_alpha.py"]},
+      ),
+    )
+
+  def test_extract_workflow_env_literals_unescapes_double_quoted_scalars(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "env:",
+        '  ESCAPED_PATH: "C:\\\\temp\\\\file"',
+      ]
+    )
+    self.assertEqual(
+      extract_workflow_env_literals(workflow_text),
+      {"ESCAPED_PATH": ["C:\\temp\\file"]},
+    )
+
   def test_extract_named_step_runs_handles_block_scalar(self) -> None:
     workflow_text = "\n".join(
       [

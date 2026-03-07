@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 JOBS_FIELD_RE = re.compile(r"^(\s*)jobs:\s*$")
@@ -130,7 +131,11 @@ def _parse_scalar_env_value(raw: str) -> str | None:
     inner = value[1:-1]
     if value[0] == "'":
       return inner.replace("''", "'")
-    return inner
+    try:
+      parsed = json.loads(value)
+    except json.JSONDecodeError:
+      return None
+    return parsed if isinstance(parsed, str) else None
   return value
 
 
