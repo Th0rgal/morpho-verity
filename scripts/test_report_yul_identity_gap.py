@@ -24,6 +24,7 @@ from report_yul_identity_gap import (  # noqa: E402
   build_rewrite_family_summary,
   build_name_insensitive_pairs,
   build_report,
+  can_reuse_prepared_rewrite_pipeline_report,
   copy_prepared_rewritten_verity_yul,
   copy_prepared_verity_yul,
   compare_function_hashes,
@@ -151,13 +152,33 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       tmp = pathlib.Path(d)
       prepared_dir = tmp / "prepared"
       output_path = tmp / "out" / "Morpho.rewritten.yul"
+      raw_yul = "raw-yul\n"
+      rewritten_yul = "prepared rewrite\n"
       pipeline_manifest_path = ROOT / "config" / "yul-rewrite-pipeline.json"
       proof_manifest_path = ROOT / "config" / "yul-rewrite-proof-obligations.json"
       prepared_dir.mkdir(parents=True, exist_ok=True)
-      (prepared_dir / "Morpho.rewritten.yul").write_text("prepared rewrite", encoding="utf-8")
+      (prepared_dir / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.rewritten.yul").write_text(rewritten_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
+      (prepared_dir / "Morpho.stage-times.log").write_text(
+        "stage=rewrite-yul status=ok elapsed_sec=0\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.artifact-manifest.env").write_text(
+        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=morpho-blue-0.8.28\n",
+        encoding="utf-8",
+      )
       prepared_report = {
         "pipelineManifestPath": display_path(pipeline_manifest_path),
+        "pipelineManifestSha256": hashlib.sha256(
+          pipeline_manifest_path.read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest(),
         "proofManifestPath": display_path(proof_manifest_path),
+        "proofManifestSha256": hashlib.sha256(
+          proof_manifest_path.read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest(),
+        "inputSha256": hashlib.sha256(raw_yul.encode("utf-8")).hexdigest(),
+        "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
         "stageCount": 1,
         "implementedStageCount": 0,
         "changedStageCount": 0,
@@ -167,15 +188,16 @@ class ReportYulIdentityGapTests(unittest.TestCase):
         json.dumps(prepared_report),
         encoding="utf-8",
       )
-      with mock.patch.object(report_module, "REWRITTEN_VERITY_YUL", output_path):
-        with mock.patch.object(report_module, "ensure_rewritten_verity_yul") as ensure_rewritten:
-          report = resolve_rewrite_pipeline_report(
-            prepared_dir,
-            pipeline_manifest_path,
-            proof_manifest_path,
-          )
+      with mock.patch.object(prepared_bundle_module, "_required_parity_pack", return_value="morpho-blue-0.8.28"):
+        with mock.patch.object(report_module, "REWRITTEN_VERITY_YUL", output_path):
+          with mock.patch.object(report_module, "ensure_rewritten_verity_yul") as ensure_rewritten:
+            report = resolve_rewrite_pipeline_report(
+              prepared_dir,
+              pipeline_manifest_path,
+              proof_manifest_path,
+            )
       self.assertEqual(report, prepared_report)
-      self.assertEqual(output_path.read_text(encoding="utf-8"), "prepared rewrite")
+      self.assertEqual(output_path.read_text(encoding="utf-8"), rewritten_yul)
       ensure_rewritten.assert_not_called()
 
   def test_prepared_rewrite_pipeline_report_matches_request(self) -> None:
@@ -190,6 +212,56 @@ class ReportYulIdentityGapTests(unittest.TestCase):
         report, pipeline_manifest_path, proof_manifest_path
       )
     )
+
+  def test_can_reuse_prepared_rewrite_pipeline_report_rejects_manifest_digest_drift(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      prepared_dir = tmp / "prepared"
+      prepared_dir.mkdir(parents=True, exist_ok=True)
+      raw_yul = "raw-yul\n"
+      rewritten_yul = "rewritten-yul\n"
+      pipeline_manifest_path = tmp / "rewrite-pipeline.json"
+      proof_manifest_path = tmp / "rewrite-proof.json"
+      pipeline_manifest_path.write_text('{"version":"v1","stages":[]}\n', encoding="utf-8")
+      proof_manifest_path.write_text('{"version":"v1","families":[]}\n', encoding="utf-8")
+      (prepared_dir / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.rewritten.yul").write_text(rewritten_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
+      (prepared_dir / "Morpho.stage-times.log").write_text(
+        "stage=rewrite-yul status=ok elapsed_sec=0\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.artifact-manifest.env").write_text(
+        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=test-pack\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.rewrite-report.json").write_text(
+        json.dumps(
+          {
+            "pipelineManifestPath": str(pipeline_manifest_path),
+            "pipelineManifestSha256": "0" * 64,
+            "proofManifestPath": str(proof_manifest_path),
+            "proofManifestSha256": hashlib.sha256(
+              proof_manifest_path.read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest(),
+            "inputSha256": hashlib.sha256(raw_yul.encode("utf-8")).hexdigest(),
+            "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
+            "stageCount": 1,
+            "implementedStageCount": 0,
+            "changedStageCount": 0,
+            "stages": [],
+          }
+        ),
+        encoding="utf-8",
+      )
+      with mock.patch.object(prepared_bundle_module, "_required_parity_pack", return_value="test-pack"):
+        self.assertFalse(
+          can_reuse_prepared_rewrite_pipeline_report(
+            prepared_dir,
+            pipeline_manifest_path,
+            proof_manifest_path,
+          )
+        )
 
   def test_resolve_rewrite_pipeline_report_rebuilds_when_prepared_manifest_mismatches(self) -> None:
     with tempfile.TemporaryDirectory() as d:
@@ -222,6 +294,62 @@ class ReportYulIdentityGapTests(unittest.TestCase):
             pipeline_manifest_path,
             proof_manifest_path,
           )
+      self.assertEqual(report, {"stageCount": 0})
+      self.assertFalse(output_path.exists())
+      ensure_rewritten.assert_called_once_with(pipeline_manifest_path, proof_manifest_path)
+
+  def test_resolve_rewrite_pipeline_report_rebuilds_when_prepared_manifest_digest_mismatches(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      prepared_dir = tmp / "prepared"
+      output_path = tmp / "out" / "Morpho.rewritten.yul"
+      raw_yul = "raw-yul\n"
+      rewritten_yul = "stale prepared rewrite\n"
+      pipeline_manifest_path = tmp / "rewrite-pipeline.json"
+      proof_manifest_path = tmp / "rewrite-proof.json"
+      prepared_dir.mkdir(parents=True, exist_ok=True)
+      pipeline_manifest_path.write_text('{"version":"v1","stages":[]}\n', encoding="utf-8")
+      proof_manifest_path.write_text('{"version":"v1","families":[]}\n', encoding="utf-8")
+      (prepared_dir / "Morpho.yul").write_text(raw_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.rewritten.yul").write_text(rewritten_yul, encoding="utf-8")
+      (prepared_dir / "Morpho.abi.json").write_text("[]\n", encoding="utf-8")
+      (prepared_dir / "Morpho.stage-times.log").write_text(
+        "stage=rewrite-yul status=ok elapsed_sec=0\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.artifact-manifest.env").write_text(
+        "input_digest=test\nartifact_mode=edsl\nskip_solc=1\nparity_pack=test-pack\n",
+        encoding="utf-8",
+      )
+      (prepared_dir / "Morpho.rewrite-report.json").write_text(
+        json.dumps(
+          {
+            "pipelineManifestPath": str(pipeline_manifest_path),
+            "pipelineManifestSha256": "0" * 64,
+            "proofManifestPath": str(proof_manifest_path),
+            "proofManifestSha256": hashlib.sha256(
+              proof_manifest_path.read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest(),
+            "inputSha256": hashlib.sha256(raw_yul.encode("utf-8")).hexdigest(),
+            "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
+            "stageCount": 1,
+            "implementedStageCount": 0,
+            "changedStageCount": 0,
+            "stages": [],
+          }
+        ),
+        encoding="utf-8",
+      )
+      with mock.patch.object(prepared_bundle_module, "_required_parity_pack", return_value="test-pack"):
+        with mock.patch.object(report_module, "REWRITTEN_VERITY_YUL", output_path):
+          with mock.patch.object(
+            report_module, "ensure_rewritten_verity_yul", return_value={"stageCount": 0}
+          ) as ensure_rewritten:
+            report = resolve_rewrite_pipeline_report(
+              prepared_dir,
+              pipeline_manifest_path,
+              proof_manifest_path,
+            )
       self.assertEqual(report, {"stageCount": 0})
       self.assertFalse(output_path.exists())
       ensure_rewritten.assert_called_once_with(pipeline_manifest_path, proof_manifest_path)
