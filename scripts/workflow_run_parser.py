@@ -46,11 +46,19 @@ def extract_workflow_run_text(workflow_text: str) -> str:
     match = RUN_FIELD_RE.match(line)
     # Keep support for simple top-level `run:` fixtures used by the repo's unit
     # tests while still rejecting nested non-step mappings like `defaults.run`.
-    if match is None or (current_step_indent is None and len(match.group(1)) != 0):
+    if match is None:
       i += 1
       continue
 
     run_indent = len(match.group(1))
+    if current_step_indent is None:
+      if run_indent != 0:
+        i += 1
+        continue
+    elif run_indent != current_step_indent + 2:
+      i += 1
+      continue
+
     tail = match.group(2).strip()
     if tail and not RUN_BLOCK_SCALAR_RE.fullmatch(tail):
       line_parts = [tail]
