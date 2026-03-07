@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed check that workflow artifact names stay internally consistent."""
+"""Fail-closed check that workflow artifact usage stays internally consistent."""
 
 from __future__ import annotations
 
@@ -99,6 +99,8 @@ def collect_workflow_artifact_references(
 
       action: str | None = None
       artifact_name: str | None = None
+      saw_with_block = False
+      saw_name_key = False
       with_indent: int | None = None
       step_lines = [stripped[2:].strip()]
       index += 1
@@ -121,8 +123,10 @@ def collect_workflow_artifact_references(
           elif action_ref.startswith("actions/download-artifact@"):
             action = "download"
         elif stripped == "with:":
+          saw_with_block = True
           with_indent = 0
         elif with_indent is not None and stripped.startswith("name:"):
+          saw_name_key = True
           artifact_name = _strip_yaml_scalar(stripped.split(":", 1)[1])
         elif with_indent is not None and stripped:
           with_indent = None
@@ -132,9 +136,9 @@ def collect_workflow_artifact_references(
           raise CiWorkflowArtifactRefsError("upload-artifact step missing non-empty with.name")
         uploads.append(artifact_name)
         job_uploads.append(artifact_name)
-      elif action == "download" and artifact_name is not None:
-        if not artifact_name:
-          raise CiWorkflowArtifactRefsError("download-artifact step has empty with.name")
+      elif action == "download":
+        if not saw_with_block or not saw_name_key or artifact_name is None or not artifact_name:
+          raise CiWorkflowArtifactRefsError("download-artifact step missing non-empty with.name")
         downloads.append(artifact_name)
         job_downloads.append(artifact_name)
 
