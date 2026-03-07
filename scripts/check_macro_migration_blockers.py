@@ -122,6 +122,13 @@ class MigrationGateError(RuntimeError):
   pass
 
 
+def display_path(path: pathlib.Path) -> str:
+  try:
+    return str(path.relative_to(ROOT))
+  except ValueError:
+    return str(path)
+
+
 def read_text(path: pathlib.Path) -> str:
   try:
     with path.open("r", encoding="utf-8") as f:
@@ -247,7 +254,7 @@ def write_baseline(path: pathlib.Path, data: dict[str, Any]) -> None:
     raise MigrationGateError(f"failed to write {path}: {exc}") from exc
 
 
-def build_report(usage: ConstructorUsage) -> dict[str, Any]:
+def build_report(usage: ConstructorUsage, *, source_path: pathlib.Path = SPEC_PATH) -> dict[str, Any]:
   used_stmt = set(usage.stmt_counts)
   used_expr = set(usage.expr_counts)
 
@@ -258,7 +265,7 @@ def build_report(usage: ConstructorUsage) -> dict[str, Any]:
   supported_expr_used = used_expr & SUPPORTED_EXPR
 
   return {
-    "source": str(SPEC_PATH.relative_to(ROOT)),
+    "source": display_path(source_path),
     "supportedSurface": {
       "stmt": sorted_unique(SUPPORTED_STMT),
       "expr": sorted_unique(SUPPORTED_EXPR),
@@ -391,7 +398,7 @@ def main() -> None:
   args = parser().parse_args()
   spec_text = read_text(args.spec)
   usage = parse_constructor_usage(spec_text)
-  report = build_report(usage)
+  report = build_report(usage, source_path=args.spec)
   operation_blockers = build_operation_blocker_report(spec_text)
 
   if args.write:
