@@ -6,10 +6,12 @@ from __future__ import annotations
 import json
 import hashlib
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
 
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from check_prepared_verity_artifact_bundle import (  # noqa: E402
@@ -365,6 +367,71 @@ class CheckPreparedVerityArtifactBundleTests(unittest.TestCase):
           pipeline_manifest_path=pipeline_manifest,
           proof_manifest_path=proof_manifest,
         )
+
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text("{not json", encoding="utf-8")
+      bundle_dir = write_bundle(root, include_rewrite=False)
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_prepared_verity_artifact_bundle.py"),
+          "--artifact-dir",
+          str(bundle_dir),
+          "--parity-target",
+          str(parity_target),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("prepared-verity-artifact-bundle check failed:", proc.stderr)
+    self.assertIn("Invalid JSON in", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
+
+  def test_cli_reports_invalid_utf8_pipeline_manifest_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      parity_target = root / "parity-target.json"
+      parity_target.write_text('{"verity":{"parityPackId":"test-pack"}}\n', encoding="utf-8")
+      pipeline_manifest = root / "pipeline.json"
+      pipeline_manifest.write_text('{"version":"v1"}\n', encoding="utf-8")
+      proof_manifest = root / "proof.json"
+      proof_manifest.write_text('{"families":[]}\n', encoding="utf-8")
+      bundle_dir = write_bundle(
+        root,
+        pipeline_manifest=str(pipeline_manifest.resolve()),
+        proof_manifest=str(proof_manifest.resolve()),
+      )
+      pipeline_manifest.write_bytes(b"\xff\xfe")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_prepared_verity_artifact_bundle.py"),
+          "--artifact-dir",
+          str(bundle_dir),
+          "--parity-target",
+          str(parity_target),
+          "--rewrite-pipeline-manifest",
+          str(pipeline_manifest),
+          "--rewrite-proof-manifest",
+          str(proof_manifest),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+
+    self.assertEqual(proc.returncode, 1)
+    self.assertIn("prepared-verity-artifact-bundle check failed:", proc.stderr)
+    self.assertIn("Failed to decode file", proc.stderr)
+    self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
