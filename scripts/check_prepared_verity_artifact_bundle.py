@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import sys
 from typing import Any
 
 
@@ -42,6 +43,14 @@ def _read_json(path: pathlib.Path) -> dict[str, Any]:
     raise PreparedArtifactBundleError(
       f"Invalid JSON in {_display_path(path)}: {exc.msg}"
     ) from exc
+  except UnicodeDecodeError as exc:
+    raise PreparedArtifactBundleError(
+      f"Failed to decode JSON file {_display_path(path)} as UTF-8"
+    ) from exc
+  except OSError as exc:
+    raise PreparedArtifactBundleError(
+      f"Failed to read JSON file {_display_path(path)}: {exc}"
+    ) from exc
   if not isinstance(data, dict):
     raise PreparedArtifactBundleError(f"Expected JSON object in {_display_path(path)}")
   return data
@@ -52,7 +61,14 @@ def _sha256_text(text: str) -> str:
 
 
 def _sha256_file(path: pathlib.Path) -> str:
-  return _sha256_text(path.read_text(encoding="utf-8"))
+  try:
+    return _sha256_text(path.read_text(encoding="utf-8"))
+  except UnicodeDecodeError as exc:
+    raise PreparedArtifactBundleError(
+      f"Failed to decode file {_display_path(path)} as UTF-8"
+    ) from exc
+  except OSError as exc:
+    raise PreparedArtifactBundleError(f"Failed to read file {_display_path(path)}: {exc}") from exc
 
 
 def _require_nonempty_file(path: pathlib.Path, *, label: str) -> None:
@@ -63,7 +79,17 @@ def _require_nonempty_file(path: pathlib.Path, *, label: str) -> None:
 def _parse_manifest(path: pathlib.Path) -> dict[str, str]:
   _require_nonempty_file(path, label="artifact manifest")
   parsed: dict[str, str] = {}
-  for raw_line in path.read_text(encoding="utf-8").splitlines():
+  try:
+    manifest_text = path.read_text(encoding="utf-8")
+  except UnicodeDecodeError as exc:
+    raise PreparedArtifactBundleError(
+      f"Failed to decode artifact manifest {_display_path(path)} as UTF-8"
+    ) from exc
+  except OSError as exc:
+    raise PreparedArtifactBundleError(
+      f"Failed to read artifact manifest {_display_path(path)}: {exc}"
+    ) from exc
+  for raw_line in manifest_text.splitlines():
     line = raw_line.strip()
     if not line:
       continue
@@ -299,4 +325,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-  raise SystemExit(main())
+  try:
+    raise SystemExit(main())
+  except PreparedArtifactBundleError as exc:
+    print(f"prepared-verity-artifact-bundle check failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
