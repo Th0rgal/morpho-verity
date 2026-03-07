@@ -77,12 +77,33 @@ def validate_issue_blocker_regression_coverage(
   required: dict[int, set[str]],
   covered: dict[int, dict[str, set[str]]],
 ) -> None:
+  required_issues = set(required)
+  covered_issues = set(covered)
+  missing_issue_coverage = sorted(required_issues - covered_issues)
+  if missing_issue_coverage:
+    raise RegressionCoverageError(
+      "regression coverage missing issue entries for: "
+      + ", ".join(f"#{issue}" for issue in missing_issue_coverage)
+    )
+
+  stale_issue_coverage = sorted(covered_issues - required_issues)
+  if stale_issue_coverage:
+    raise RegressionCoverageError(
+      "regression coverage has stale issue entries for: "
+      + ", ".join(f"#{issue}" for issue in stale_issue_coverage)
+    )
+
   for issue, blockers in sorted(required.items()):
-    covered_blockers = set(covered.get(issue, {}))
+    covered_blockers = set(covered[issue])
     missing = sorted(blockers - covered_blockers)
     if missing:
       raise RegressionCoverageError(
         f"issue #{issue} blocker regressions missing coverage for: {', '.join(missing)}"
+      )
+    stale = sorted(covered_blockers - blockers)
+    if stale:
+      raise RegressionCoverageError(
+        f"issue #{issue} blocker regressions contain stale coverage for: {', '.join(stale)}"
       )
 
 

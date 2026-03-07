@@ -77,6 +77,30 @@ class RegressionCaseCoverageTests(unittest.TestCase):
     ):
       validate_issue_blocker_regression_coverage(required, covered)
 
+  def test_validate_issue_blocker_regression_coverage_rejects_stale_family(self) -> None:
+    required = {124: {"callbacks", "erc20"}}
+    covered = {
+      124: {
+        "callbacks": {"callback"},
+        "erc20": {"erc20_transfer"},
+        "memoryOps": {"memory_ops"},
+      }
+    }
+    with self.assertRaisesRegex(
+      RegressionCoverageError,
+      "issue #124 blocker regressions contain stale coverage for: memoryOps",
+    ):
+      validate_issue_blocker_regression_coverage(required, covered)
+
+  def test_validate_issue_blocker_regression_coverage_rejects_stale_issue_entry(self) -> None:
+    required = {123: {"callbacks"}}
+    covered = {123: {"callbacks": {"callback"}}, 124: {"erc20": {"erc20_transfer"}}}
+    with self.assertRaisesRegex(
+      RegressionCoverageError,
+      r"regression coverage has stale issue entries for: #124",
+    ):
+      validate_issue_blocker_regression_coverage(required, covered)
+
   def test_validate_issue_blocker_regression_coverage_accepts_matching_families(self) -> None:
     required = {124: {"callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"}}
     covered = {
