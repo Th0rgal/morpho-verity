@@ -143,6 +143,9 @@ jobs:
       - name: Validate semantic bridge readiness summary
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge readiness summary" -- python3 scripts/check_semantic_bridge_readiness_summary.py
 
+      - name: Validate semantic bridge instantiation status
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge instantiation status" -- python3 scripts/check_semantic_bridge_instantiation_status.py
+
       - name: Validate README semantic bridge summary
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate README semantic bridge summary" -- python3 scripts/check_readme_semantic_bridge_summary.py
 
