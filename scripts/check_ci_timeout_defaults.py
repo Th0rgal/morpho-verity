@@ -8,12 +8,12 @@ import pathlib
 import re
 import sys
 
-from workflow_run_parser import extract_workflow_run_text
+from workflow_run_parser import extract_workflow_env_literals, extract_workflow_run_text
 
 RUN_WITH_TIMEOUT_RE = re.compile(r"run_with_timeout\.sh\s+([A-Z0-9_]+)\s+([0-9]+)\b")
-ENV_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\s*:\s*\"([0-9]+)\"")
 SCRIPT_TIMEOUT_RE = re.compile(r"\b([A-Z0-9_]*TIMEOUT[A-Z0-9_]*)\b")
 LINE_CONTINUATION_RE = re.compile(r"\\\s*\n\s*")
+TIMEOUT_LITERAL_RE = re.compile(r"^[0-9]+$")
 
 IGNORED_VARS = {
   # This timeout is intentionally overridden in timeout-wrapper tests.
@@ -63,8 +63,12 @@ def collect_run_timeout_defaults(workflow_text: str) -> dict[str, set[int]]:
 
 def collect_timeout_env_literals(workflow_text: str) -> dict[str, set[int]]:
   seen: dict[str, set[int]] = {}
-  for var, value in ENV_TIMEOUT_RE.findall(workflow_text):
-    seen.setdefault(var, set()).add(int(value))
+  for var, values in extract_workflow_env_literals(workflow_text).items():
+    if "TIMEOUT" not in var:
+      continue
+    for value in values:
+      if TIMEOUT_LITERAL_RE.fullmatch(value):
+        seen.setdefault(var, set()).add(int(value))
   return seen
 
 
