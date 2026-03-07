@@ -1,7 +1,7 @@
 {
   "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-  "inputRev": "9d9533b2",
-  "fullRev": "9d9533b2e8fd775ed673797b6a95301c8414c675",
+  "inputRev": "ad03fc64",
+  "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
   "trackedIssue": "#118",
   "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It includes the upstream bridge surface and witness support already consumed by the repo, including the two-storage-address proof path used by setFeeRecipient.",
   "remainingDivergences": [

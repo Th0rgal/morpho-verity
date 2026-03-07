@@ -31,7 +31,7 @@ private structure CLIArgs where
   patchMaxIterations : Nat := 2
   patchMaxIterationsExplicit : Bool := false
   rewriteBundleId : String := _root_.Compiler.Yul.foundationRewriteBundleId
-  requiredProofRefs : List String := []
+  requiredProofRefs : List Lean.Name := []
   mappingSlotScratchBase : Nat := 0x200
 
 private def parseBackendProfile (raw : String) : Option _root_.Compiler.BackendProfile :=

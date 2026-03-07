@@ -45,10 +45,11 @@ The Verity framework is working toward a single machine-checked theorem per
 contract function: `EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
 This will eliminate the hand-rolled `interpretSpec` interpreter from the TCB and
 enable auto-generated semantic preservation proofs in the `verity_contract` macro.
-Once `verity#1065` lands and this repo bumps to that revision, morpho-verity's
-Solidity equivalence obligations can be discharged
-against EVMYulLean's formally verified EVM semantics rather than a trusted
-reimplementation. Track upstream delivery in
+`verity#1065` has landed upstream, but bumping to the current pin still leaves
+the remaining macro frontend gaps for complex Morpho operations. Once those
+repo-local Link 1 gaps are discharged, morpho-verity's Solidity equivalence
+obligations can be discharged against EVMYulLean's formally verified EVM
+semantics rather than a trusted reimplementation. Track upstream delivery in
 [verity#1060](https://github.com/Th0rgal/verity/issues/1060) and
 [verity#1065](https://github.com/Th0rgal/verity/pull/1065).
 

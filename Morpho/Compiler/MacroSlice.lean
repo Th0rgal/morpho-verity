@@ -1,3 +1,4 @@
+import Compiler.CompilationModel
 import Verity.Core
 import Verity.Macro
 
@@ -177,12 +178,9 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    -- STUB: the current macro frontend does not bind tuple components like
-    -- `marketParams_0` inside contract bodies, does not recognize pure-expression
-    -- `externalCall` here, and still exposes `blockTimestamp` as a `Contract Uint256`
-    -- rather than a plain value for `setMappingWord`.
-    -- Full implementation preserved in git history (commit 82e5572).
-    -- Blocked on: tuple element access, externalCall primitive, blockTimestamp value.
+    -- Even at the current Verity pin, the macro frontend still rejects tuple
+    -- component refs like `marketParams_0`, bare `externalCall`, and using
+    -- `blockTimestamp` as a plain value for `setMappingWord` here.
     let marketParams' := marketParams
     let _ignored := marketParams'
     require (0 == 1) "createMarket stub"

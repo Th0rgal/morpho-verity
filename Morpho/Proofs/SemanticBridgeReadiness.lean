@@ -72,7 +72,7 @@ structure SemanticBridgeObligation where
   /-- Whether the operation has a full (non-stub) `verity_contract` macro
       implementation in MacroSlice.lean. When true, the macro-generated
       CompilationModel is ready for end-to-end semantic bridge composition
-      once verity#1065 lands. When false, macro migration must be completed
+      once the remaining Morpho-side Link 1 gaps are discharged. When false, macro migration must be completed
       before the obligation can be discharged. -/
   macroMigrated : Bool
   deriving Repr
