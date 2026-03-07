@@ -324,6 +324,14 @@ class LoadMigratedOperationsTests(unittest.TestCase):
 
             self.assertEqual(load_migrated_operations(config_path), {"setOwner"})
 
+    def test_rejects_invalid_utf8(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = pathlib.Path(tmpdir) / "semantic-bridge-obligations.json"
+            config_path.write_bytes(b"\x80")
+
+            with self.assertRaisesRegex(CorrespondenceError, "failed to read JSON config"):
+                load_migrated_operations(config_path)
+
 
 class IntegrationTests(unittest.TestCase):
     def test_real_files(self) -> None:
@@ -383,6 +391,91 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertIn("spec correspondence check failed:", proc.stderr)
         self.assertIn("failed to parse JSON config", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_invalid_utf8_spec_without_traceback(self) -> None:
+        root = pathlib.Path(__file__).resolve().parent.parent
+        script_path = root / "scripts" / "check_spec_correspondence.py"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            spec_path = tmp / "Spec.lean"
+            macro_path = tmp / "MacroSlice.lean"
+            config_path = tmp / "semantic-bridge-obligations.json"
+            spec_path.write_bytes(b"\x80")
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps({"obligations": [{"operation": "setOwner", "macroMigrated": True}]}),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--spec",
+                    str(spec_path),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("spec correspondence check failed:", proc.stderr)
+        self.assertIn("failed to read text file", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_json_out_write_failure_without_traceback(self) -> None:
+        root = pathlib.Path(__file__).resolve().parent.parent
+        script_path = root / "scripts" / "check_spec_correspondence.py"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            spec_path = tmp / "Spec.lean"
+            macro_path = tmp / "MacroSlice.lean"
+            config_path = tmp / "semantic-bridge-obligations.json"
+            json_out_dir = tmp / "report.json"
+            spec_path.write_text(SAMPLE_SPEC, encoding="utf-8")
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                            {"operation": "enableIrm", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            json_out_dir.mkdir()
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--spec",
+                    str(spec_path),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                    "--json-out",
+                    str(json_out_dir),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("spec correspondence check failed:", proc.stderr)
+        self.assertIn("failed to write JSON report", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
 
