@@ -7,9 +7,8 @@ import argparse
 import pathlib
 import sys
 
+from ci_workflow_helpers import WORKFLOW_PATH, read_text, strip_yaml_scalar
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
 APPROVED_ACTION_REFS = frozenset(
   {
     "actions/cache@v4",
@@ -29,28 +28,6 @@ def fail(message: str) -> None:
   raise SystemExit(1)
 
 
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowActionAllowlistError(
-      f"workflow {path} is not valid UTF-8: {exc}"
-    ) from exc
-  except OSError as exc:
-    raise CiWorkflowActionAllowlistError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
-
 def collect_external_uses_references(workflow_text: str) -> list[str]:
   references: list[str] = []
   for raw_line in workflow_text.splitlines():
@@ -61,7 +38,7 @@ def collect_external_uses_references(workflow_text: str) -> list[str]:
       stripped = stripped[2:].lstrip()
     if not stripped.startswith("uses:"):
       continue
-    uses_ref = _strip_yaml_scalar(stripped.split(":", 1)[1])
+    uses_ref = strip_yaml_scalar(stripped.split(":", 1)[1])
     if not uses_ref:
       raise CiWorkflowActionAllowlistError("workflow uses: reference must be a non-empty literal")
     if uses_ref.startswith("./") or uses_ref.startswith("../") or uses_ref.startswith("docker://"):
@@ -93,7 +70,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowActionAllowlistError)
     uses_references = collect_external_uses_references(workflow_text)
     validate_action_allowlist(uses_references)
   except CiWorkflowActionAllowlistError as exc:

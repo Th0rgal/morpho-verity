@@ -55,6 +55,23 @@ class CollectWorkflowActionPathsTests(unittest.TestCase):
       ],
     )
 
+  def test_preserves_hash_inside_quoted_path_value(self) -> None:
+    workflow_text = "\n".join(
+      [
+        "jobs:",
+        "  verify:",
+        "    steps:",
+        "      - uses: actions/upload-artifact@v4",
+        "        with:",
+        '          path: "out/logs#snapshot.txt"',
+      ]
+    )
+
+    self.assertEqual(
+      collect_workflow_action_paths(workflow_text),
+      [("upload-artifact", "out/logs#snapshot.txt")],
+    )
+
   def test_ignores_unsupported_action_paths(self) -> None:
     workflow_text = "\n".join(
       [

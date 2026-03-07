@@ -45,6 +45,14 @@ class CollectExternalUsesReferencesTests(unittest.TestCase):
       ],
     )
 
+  def test_preserves_hash_inside_quoted_external_reference(self) -> None:
+    workflow_text = '\n'.join(["jobs:", "  verify:", '    uses: "actions/checkout@v5#pinned"'])
+
+    self.assertEqual(
+      collect_external_uses_references(workflow_text),
+      ["actions/checkout@v5#pinned"],
+    )
+
 
 class ValidateActionAllowlistTests(unittest.TestCase):
   def test_accepts_current_allowlist(self) -> None:

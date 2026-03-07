@@ -7,9 +7,7 @@ import argparse
 import pathlib
 import sys
 
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+from ci_workflow_helpers import WORKFLOW_PATH, read_text, strip_yaml_scalar
 EXPECTED_FETCH_DEPTH = "1"
 EXPECTED_PERSIST_CREDENTIALS = "false"
 
@@ -23,28 +21,8 @@ def fail(message: str) -> None:
   raise SystemExit(1)
 
 
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowCheckoutPolicyError(f"workflow {path} is not valid UTF-8: {exc}") from exc
-  except OSError as exc:
-    raise CiWorkflowCheckoutPolicyError(f"failed to read workflow {path}: {exc}") from exc
-
-
 def _indent_of(line: str) -> int:
   return len(line) - len(line.lstrip())
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
 
 
 def collect_checkout_steps(workflow_text: str) -> list[dict[str, object]]:
@@ -55,7 +33,7 @@ def collect_checkout_steps(workflow_text: str) -> list[dict[str, object]]:
     stripped = line.strip()
     if not stripped.startswith("uses:"):
       continue
-    uses_ref = _strip_yaml_scalar(stripped.split(":", 1)[1])
+    uses_ref = strip_yaml_scalar(stripped.split(":", 1)[1])
     if not uses_ref.startswith("actions/checkout@"):
       continue
 
@@ -74,7 +52,7 @@ def collect_checkout_steps(workflow_text: str) -> list[dict[str, object]]:
       if candidate_indent < step_indent:
         break
       if candidate_indent == step_indent and candidate_stripped.startswith("- name:"):
-        name = _strip_yaml_scalar(candidate_stripped.split(":", 1)[1]) or name
+        name = strip_yaml_scalar(candidate_stripped.split(":", 1)[1]) or name
         break
       search -= 1
 
@@ -101,12 +79,12 @@ def collect_checkout_steps(workflow_text: str) -> list[dict[str, object]]:
               f"checkout step {name} must use simple with: key: value entries"
             )
           key, raw_value = entry_stripped.split(":", 1)
-          value = _strip_yaml_scalar(raw_value)
+          value = strip_yaml_scalar(raw_value)
           if not value:
             raise CiWorkflowCheckoutPolicyError(
               f"checkout step {name} key {key.strip()} must have a non-empty literal value"
             )
-          with_values[_strip_yaml_scalar(key)] = value
+          with_values[strip_yaml_scalar(key)] = value
           cursor += 1
         continue
       if candidate_indent <= uses_indent and candidate_stripped and not candidate_stripped.startswith("#"):
@@ -171,7 +149,7 @@ def main() -> int:
   workflow_path = args.workflow.resolve()
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowCheckoutPolicyError)
     checkout_steps = collect_checkout_steps(workflow_text)
   except CiWorkflowCheckoutPolicyError as exc:
     fail(str(exc))

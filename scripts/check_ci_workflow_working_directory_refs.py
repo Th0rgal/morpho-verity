@@ -7,9 +7,7 @@ import argparse
 import pathlib
 import sys
 
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
+from ci_workflow_helpers import ROOT, WORKFLOW_PATH, read_text, strip_yaml_scalar
 
 
 class CiWorkflowWorkingDirectoryRefsError(RuntimeError):
@@ -20,29 +18,6 @@ def fail(message: str) -> None:
   print(f"ci-workflow-working-directory-refs check failed: {message}", file=sys.stderr)
   raise SystemExit(1)
 
-
-def read_text(path: pathlib.Path) -> str:
-  try:
-    return path.read_text(encoding="utf-8")
-  except UnicodeDecodeError as exc:
-    raise CiWorkflowWorkingDirectoryRefsError(
-      f"workflow {path} is not valid UTF-8: {exc}"
-    ) from exc
-  except OSError as exc:
-    raise CiWorkflowWorkingDirectoryRefsError(f"failed to read workflow {path}: {exc}") from exc
-
-
-def _strip_yaml_comment(value: str) -> str:
-  return value.split("#", 1)[0].rstrip()
-
-
-def _strip_yaml_scalar(value: str) -> str:
-  value = _strip_yaml_comment(value).strip()
-  if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-    return value[1:-1]
-  return value
-
-
 def collect_workflow_working_directories(workflow_text: str) -> list[str]:
   working_directories: list[str] = []
   for raw_line in workflow_text.splitlines():
@@ -50,7 +25,7 @@ def collect_workflow_working_directories(workflow_text: str) -> list[str]:
     if not stripped.startswith("working-directory:"):
       continue
     raw_value = stripped.split(":", 1)[1]
-    working_directory = _strip_yaml_scalar(raw_value)
+    working_directory = strip_yaml_scalar(raw_value)
     if not working_directory:
       raise CiWorkflowWorkingDirectoryRefsError("working-directory must be a non-empty literal path")
     if "${{" in working_directory:
@@ -105,7 +80,7 @@ def main() -> int:
     fail(f"repository root does not exist: {repo_root}")
 
   try:
-    workflow_text = read_text(workflow_path)
+    workflow_text = read_text(workflow_path, CiWorkflowWorkingDirectoryRefsError)
     working_directories = collect_workflow_working_directories(workflow_text)
   except CiWorkflowWorkingDirectoryRefsError as exc:
     fail(str(exc))
