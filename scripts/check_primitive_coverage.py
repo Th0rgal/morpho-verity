@@ -126,17 +126,32 @@ class PrimitiveCoverageError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-    with path.open("r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return f.read()
+    except UnicodeDecodeError as exc:
+        raise PrimitiveCoverageError(
+            f"failed to decode UTF-8 text file {path}: {exc}"
+        ) from exc
+    except OSError as exc:
+        raise PrimitiveCoverageError(f"failed to read text file {path}: {exc}") from exc
 
 
 def load_migrated_operations(path: pathlib.Path) -> set[str]:
     try:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
+    except UnicodeDecodeError as exc:
+        raise PrimitiveCoverageError(
+            f"failed to decode semantic bridge obligations JSON as UTF-8: {exc}"
+        ) from exc
     except json.JSONDecodeError as exc:
         raise PrimitiveCoverageError(
             f"failed to parse semantic bridge obligations JSON: {exc}"
+        ) from exc
+    except OSError as exc:
+        raise PrimitiveCoverageError(
+            f"failed to read semantic bridge obligations JSON {path}: {exc}"
         ) from exc
 
     if not isinstance(data, dict):
@@ -348,6 +363,6 @@ if __name__ == "__main__":
     except PrimitiveCoverageError as e:
         print(f"primitive coverage analysis failed: {e}", file=sys.stderr)
         sys.exit(1)
-    except FileNotFoundError as e:
+    except OSError as e:
         print(f"primitive coverage analysis failed: {e}", file=sys.stderr)
         sys.exit(1)

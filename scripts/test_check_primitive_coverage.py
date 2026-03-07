@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -313,6 +314,71 @@ class IntegrationTests(unittest.TestCase):
 
         # At least 2 fully covered
         self.assertGreaterEqual(report["fully_covered"], 2)
+
+    def test_cli_reports_invalid_utf8_config_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            macro_path = root / "MacroSlice.lean"
+            config_path = root / "semantic-bridge-obligations.json"
+            macro_path.write_text(SAMPLE_MACRO, encoding="utf-8")
+            config_path.write_bytes(b"\xff")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_primitive_coverage.py"),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("primitive coverage analysis failed:", proc.stderr)
+            self.assertIn(
+                "failed to decode semantic bridge obligations JSON as UTF-8",
+                proc.stderr,
+            )
+            self.assertNotIn("Traceback", proc.stderr)
+
+    def test_cli_reports_missing_macro_file_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            macro_path = root / "missing-MacroSlice.lean"
+            config_path = root / "semantic-bridge-obligations.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "obligations": [
+                            {"operation": "setOwner", "macroMigrated": True},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(pathlib.Path(__file__).resolve().parent / "check_primitive_coverage.py"),
+                    "--macro-slice",
+                    str(macro_path),
+                    "--config",
+                    str(config_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("primitive coverage analysis failed:", proc.stderr)
+            self.assertIn("failed to read text file", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
