@@ -53,6 +53,10 @@ Current blocker families at this pin:
 - usable `blockTimestamp` values
 - dynamic-topic `rawLog` witnesses
 
+Tracked migration issue clusters:
+- `#123`
+- `#124`
+
 Relevant files:
 - `Morpho/Compiler/MacroSlice.lean`
 - `Morpho/Proofs/SemanticBridgeReadiness.lean`

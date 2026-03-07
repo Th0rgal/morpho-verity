@@ -8,6 +8,7 @@ import json
 import pathlib
 import re
 import sys
+from typing import Any
 
 from check_verity_pin_sync import parse_lakefile_verity, parse_manifest_verity
 
@@ -25,6 +26,28 @@ def load_provenance(path: pathlib.Path) -> dict[str, object]:
   if not isinstance(data, dict):
     fail(f"provenance file must be a JSON object: {path}")
   return data
+
+
+def load_issue_clusters(path: pathlib.Path) -> dict[str, dict[str, Any]]:
+  data = json.loads(path.read_text(encoding="utf-8"))
+  if not isinstance(data, dict):
+    fail(f"obligations file must be a JSON object: {path}")
+  raw_clusters = data.get("issueClusters")
+  if not isinstance(raw_clusters, list) or not raw_clusters:
+    fail(f"missing non-empty `issueClusters` list in {path}")
+
+  clusters: dict[str, dict[str, Any]] = {}
+  for i, item in enumerate(raw_clusters):
+    if not isinstance(item, dict):
+      fail(f"`issueClusters[{i}]` must be an object in {path}")
+    issue = item.get("issue")
+    title = item.get("title")
+    if not isinstance(issue, int):
+      fail(f"`issueClusters[{i}].issue` must be an integer in {path}")
+    if not isinstance(title, str) or not title:
+      fail(f"`issueClusters[{i}].title` must be a non-empty string in {path}")
+    clusters[f"#{issue}"] = item
+  return clusters
 
 
 def require_str(data: dict[str, object], key: str, path: pathlib.Path) -> str:
@@ -46,6 +69,7 @@ def require_divergences(data: dict[str, object], path: pathlib.Path) -> list[dic
     summary = item.get("summary")
     files = item.get("files")
     blockers = item.get("blockers")
+    issue_clusters = item.get("issueClusters")
     if not isinstance(area, str) or not area:
       fail(f"`remainingDivergences[{i}].area` must be a non-empty string in {path}")
     if not isinstance(summary, str) or not summary:
@@ -63,6 +87,18 @@ def require_divergences(data: dict[str, object], path: pathlib.Path) -> list[dic
     if area == MACRO_FRONTEND_AREA and blockers is None:
       fail(
         f"`remainingDivergences[{i}].blockers` is required for `{MACRO_FRONTEND_AREA}` in {path}"
+      )
+    if issue_clusters is not None and (
+      not isinstance(issue_clusters, list)
+      or not issue_clusters
+      or not all(isinstance(issue, str) and re.fullmatch(r"#\d+", issue) for issue in issue_clusters)
+    ):
+      fail(
+        f"`remainingDivergences[{i}].issueClusters` must be a non-empty #123-style string list in {path}"
+      )
+    if area == MACRO_FRONTEND_AREA and issue_clusters is None:
+      fail(
+        f"`remainingDivergences[{i}].issueClusters` is required for `{MACRO_FRONTEND_AREA}` in {path}"
       )
     result.append(item)
   return result
@@ -109,11 +145,18 @@ def main() -> int:
     default=pathlib.Path("README.md"),
     help="Path to README",
   )
+  parser.add_argument(
+    "--obligations",
+    type=pathlib.Path,
+    default=pathlib.Path("config/semantic-bridge-obligations.json"),
+    help="Path to the semantic-bridge obligation tracker",
+  )
   args = parser.parse_args()
 
   lakefile_url, lakefile_rev = parse_lakefile_verity(args.lakefile)
   manifest_url, manifest_rev, manifest_input_rev = parse_manifest_verity(args.manifest)
   provenance = load_provenance(args.provenance)
+  issue_clusters = load_issue_clusters(args.obligations)
 
   upstream_repo = require_str(provenance, "upstreamRepo", args.provenance)
   input_rev = require_str(provenance, "inputRev", args.provenance)
@@ -157,6 +200,14 @@ def main() -> int:
     if isinstance(blockers, list):
       for blocker in blockers:
         require_doc_mentions(doc_text, blocker, args.doc)
+    tracked_issue_clusters = item.get("issueClusters")
+    if isinstance(tracked_issue_clusters, list):
+      for issue in tracked_issue_clusters:
+        if issue not in issue_clusters:
+          fail(
+            f"documented divergence references unknown issue cluster {issue}: {args.obligations}"
+          )
+        require_doc_mentions(doc_text, issue, args.doc)
     for raw_path in item["files"]:
       require_doc_mentions(doc_text, raw_path, args.doc)
 
