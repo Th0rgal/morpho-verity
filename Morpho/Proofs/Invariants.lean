@@ -1071,7 +1071,7 @@ theorem accrueInterestPublic_rejects_uninitialized (s : MorphoState) (id : Id)
     (borrowRate : Uint256) (hasIrm : Bool)
     (h_uninit : (s.market id).lastUpdate.val = 0) :
     Morpho.accrueInterestPublic s id borrowRate hasIrm = none := by
-  unfold Morpho.accrueInterestPublic; simp [h_uninit]
+  exact (Morpho.accrueInterestPublic_none_iff s id borrowRate hasIrm).2 h_uninit
 
 /-- Public accrueInterest preserves solvency. -/
 theorem accrueInterestPublic_preserves_borrowLeSupply (s : MorphoState) (id : Id)

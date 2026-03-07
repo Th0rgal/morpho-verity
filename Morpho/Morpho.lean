@@ -136,6 +136,20 @@ theorem accrueInterestPublic_success_iff (s s' : MorphoState) (id : Id) (borrowR
     unfold accrueInterestPublic
     simp [hLast]
 
+theorem accrueInterestPublic_none_iff (s : MorphoState) (id : Id) (borrowRate : Uint256)
+    (hasIrm : Bool) :
+    accrueInterestPublic s id borrowRate hasIrm = none ↔
+      (s.market id).lastUpdate.val = 0 := by
+  constructor
+  · intro h
+    unfold accrueInterestPublic at h
+    by_cases hLast : (s.market id).lastUpdate.val = 0
+    · exact hLast
+    · simp [hLast] at h
+  · intro hLast
+    unfold accrueInterestPublic
+    simp [hLast]
+
 /-! ## Owner functions -/
 
 /-- Set a new owner. Matches `setOwner` (Morpho.sol:95). -/
