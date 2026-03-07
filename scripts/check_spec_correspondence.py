@@ -30,8 +30,11 @@ class CorrespondenceError(RuntimeError):
 
 
 def read_text(path: pathlib.Path) -> str:
-    with path.open("r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return f.read()
+    except (FileNotFoundError, OSError, UnicodeDecodeError) as exc:
+        raise CorrespondenceError(f"failed to read text file {path}: {exc}") from exc
 
 
 def load_migrated_operations(path: pathlib.Path) -> set[str]:
@@ -40,6 +43,8 @@ def load_migrated_operations(path: pathlib.Path) -> set[str]:
             config = json.load(f)
     except json.JSONDecodeError as exc:
         raise CorrespondenceError(f"failed to parse JSON config {path}: {exc}") from exc
+    except (FileNotFoundError, OSError, UnicodeDecodeError) as exc:
+        raise CorrespondenceError(f"failed to read JSON config {path}: {exc}") from exc
     if not isinstance(config, dict):
         raise CorrespondenceError(f"config root must be an object in {path}")
 
@@ -392,10 +397,15 @@ def main() -> None:
     report = build_report(spec_fns, macro_fns, migrated_ops, errors)
 
     if args.json_out:
-        args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        with args.json_out.open("w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, sort_keys=True)
-            f.write("\n")
+        try:
+            args.json_out.parent.mkdir(parents=True, exist_ok=True)
+            with args.json_out.open("w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2, sort_keys=True)
+                f.write("\n")
+        except OSError as exc:
+            raise CorrespondenceError(
+                f"failed to write JSON report {args.json_out}: {exc}"
+            ) from exc
 
     if errors:
         for e in errors:
@@ -422,8 +432,5 @@ if __name__ == "__main__":
     try:
         main()
     except CorrespondenceError as e:
-        print(f"spec correspondence check failed: {e}", file=sys.stderr)
-        sys.exit(1)
-    except FileNotFoundError as e:
         print(f"spec correspondence check failed: {e}", file=sys.stderr)
         sys.exit(1)
