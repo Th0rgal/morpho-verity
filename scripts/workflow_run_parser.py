@@ -15,8 +15,8 @@ ENV_ENTRY_RE = re.compile(r"^(\s*)([A-Z_][A-Z0-9_]*):\s*(.+?)\s*$")
 RUN_FIELD_RE = re.compile(r"^(\s*)run:\s*(.*)$")
 RUN_BLOCK_SCALAR_RE = re.compile(r"^[|>](?:[1-9][-+]?|[-+]?[1-9]|[-+])?(?:\s+#.*)?$")
 INLINE_ENV_KEY_RE = re.compile(r"^[A-Z_][A-Z0-9_]*$")
-TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?\s+(.*)$", re.DOTALL)
-ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)\s+(.*)$", re.DOTALL)
+TAG_PROPERTY_RE = re.compile(r"^!(?:<[^>]+>|[^\s]+)?(?:\s+(.*))?$", re.DOTALL)
+ANCHOR_PROPERTY_RE = re.compile(r"^&([^\s]+)(?:\s+(.*))?$", re.DOTALL)
 ALIAS_SCALAR_RE = re.compile(r"^\*([^\s]+)$")
 SINGLE_QUOTED_SCALAR_RE = re.compile(r"^'(?:[^']|'')*'(?:\s+#.*)?\s*$", re.DOTALL)
 DOUBLE_QUOTED_SCALAR_RE = re.compile(r'^"(?:[^"\\]|\\.)*"(?:\s+#.*)?\s*$', re.DOTALL)
@@ -132,24 +132,24 @@ def _extract_block_scalar_indent(tail: str) -> int | None:
   return None
 
 
-def _strip_yaml_scalar_properties(value: str) -> tuple[str, list[str]]:
+def _strip_yaml_node_properties(value: str) -> tuple[str, list[str]]:
   anchors: list[str] = []
   previous = None
   while value and value != previous:
     previous = value
     tag_match = TAG_PROPERTY_RE.match(value)
     if tag_match is not None:
-      value = tag_match.group(1).lstrip()
+      value = (tag_match.group(1) or "").lstrip()
       continue
     anchor_match = ANCHOR_PROPERTY_RE.match(value)
     if anchor_match is not None:
       anchors.append(anchor_match.group(1))
-      value = anchor_match.group(2).lstrip()
+      value = (anchor_match.group(2) or "").lstrip()
   return value, anchors
 
 
 def _starts_quoted_yaml_scalar(raw: str) -> str | None:
-  value, _ = _strip_yaml_scalar_properties(raw.strip())
+  value, _ = _strip_yaml_node_properties(raw.strip())
   if value.startswith("'"):
     return "'"
   if value.startswith('"'):
@@ -158,7 +158,7 @@ def _starts_quoted_yaml_scalar(raw: str) -> str | None:
 
 
 def _is_complete_quoted_yaml_scalar(raw: str) -> bool:
-  value, _ = _strip_yaml_scalar_properties(raw.strip())
+  value, _ = _strip_yaml_node_properties(raw.strip())
   if value.startswith("'"):
     return SINGLE_QUOTED_SCALAR_RE.fullmatch(value) is not None
   if value.startswith('"'):
@@ -234,7 +234,7 @@ def _parse_scalar_env_value(raw: str, anchors: dict[str, str] | None = None) -> 
   value = _strip_yaml_comment(raw).strip()
   if not value:
     return None
-  value, declared_anchors = _strip_yaml_scalar_properties(value)
+  value, declared_anchors = _strip_yaml_node_properties(value)
   if not value:
     return None
   alias_match = ALIAS_SCALAR_RE.fullmatch(value)
@@ -663,11 +663,12 @@ def extract_workflow_env_literals(workflow_text: str) -> dict[str, list[str]]:
       i += 1
       continue
 
-    if env_tail:
-      raw_inline_env, i = _consume_multiline_inline_env_mapping(lines, i, env_tail, env_indent)
+    env_value, _ = _strip_yaml_node_properties(env_tail.strip())
+    if env_tail and env_value:
+      raw_inline_env, i = _consume_multiline_inline_env_mapping(lines, i, env_value, env_indent)
       env_values = _parse_inline_env_mapping(raw_inline_env, anchors)
       if env_values is None:
-        if i == len(lines) or raw_inline_env == env_tail:
+        if i == len(lines) or raw_inline_env == env_value:
           i += 1
         continue
     else:
