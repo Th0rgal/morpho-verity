@@ -142,8 +142,10 @@ theorem flashLoan_semEq :
 /-! ## Discharge Status
 
 With Link 1 proven for 6 operations, the `*SemEq` obligations can be instantiated
-using the EDSL-based wrappers. The remaining gap (Links 2+3) connects the EDSL
-execution to the compiled IR and then to EVMYulLean.
+using the EDSL-based wrappers. For the supported fragment, Links 2+3 are already
+provided upstream from EDSL execution through compiled IR to EVMYulLean. The
+remaining repo-local gaps are `flashLoan`'s dynamic-topic `rawLog` witness plus
+macro/frontend unblockings for the unsupported operations.
 
 | Phase | Operations | Link 1 | Links 2+3 |
 |-------|-----------|--------|-----------|
