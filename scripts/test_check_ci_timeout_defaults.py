@@ -119,6 +119,29 @@ class CheckCiTimeoutDefaultsTests(unittest.TestCase):
       },
     )
 
+  def test_collect_timeout_env_literals_handles_multiline_inline_flow_mapping(self) -> None:
+    workflow = (
+      "env: {MORPHO_TOP_TIMEOUT_SEC: \"1\\\n"
+      "    0\", MORPHO_TOP_TIMEOUT_COPY: &top_timeout \"2\\\n"
+      "    0\", MORPHO_TOP_TIMEOUT_ALIAS: *top_timeout}\n"
+      "jobs:\n"
+      "  test:\n"
+      "    steps:\n"
+      "      - name: Validate timeout defaults\n"
+      "        env: {MORPHO_STEP_TIMEOUT_SEC: \"3\\\n"
+      "            0\"}\n"
+      "        run: ./scripts/run_with_timeout.sh MORPHO_STEP_TIMEOUT_SEC 30 \"real\" -- cmd\n"
+    )
+    self.assertEqual(
+      collect_timeout_env_literals(workflow),
+      {
+        "MORPHO_TOP_TIMEOUT_SEC": {10},
+        "MORPHO_TOP_TIMEOUT_COPY": {20},
+        "MORPHO_TOP_TIMEOUT_ALIAS": {20},
+        "MORPHO_STEP_TIMEOUT_SEC": {30},
+      },
+    )
+
   def test_collect_timeout_env_literals_handles_block_env_value_comments(self) -> None:
     workflow = (
       "env:\n"
