@@ -86,6 +86,9 @@ jobs:
       - name: Validate verity pin sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin sync" -- python3 scripts/check_verity_pin_sync.py
 
+      - name: Validate verity pin provenance
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin provenance" -- python3 scripts/check_verity_pin_provenance.py
+
       - name: Validate pinned parity target
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate pinned parity target" -- python3 scripts/check_parity_target.py
 
