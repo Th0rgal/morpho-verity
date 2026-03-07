@@ -72,8 +72,16 @@ def require_config_status(value: Any, *, context: str) -> str:
 
 
 def load_config(path: pathlib.Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with path.open("r", encoding="utf-8") as f:
+      data = json.load(f)
+  except json.JSONDecodeError as exc:
+    raise SemanticBridgeReadinessSyncError(
+      f"failed to parse JSON config {path}: {exc}"
+    ) from exc
+  if not isinstance(data, dict):
+    raise SemanticBridgeReadinessSyncError(f"config root must be an object in {path}")
+  return data
 
 
 def extract_namespace_blocks(text: str) -> list[tuple[re.Match[str], re.Match[str], str]]:
