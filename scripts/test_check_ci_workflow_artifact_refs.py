@@ -41,7 +41,12 @@ class CollectWorkflowArtifactReferencesTests(unittest.TestCase):
 
     self.assertEqual(
       collect_workflow_artifact_references(workflow_text),
-      (["verity-edsl-artifacts"], ["verity-edsl-artifacts"]),
+      (
+        ["verity-edsl-artifacts"],
+        ["verity-edsl-artifacts"],
+        {"verify": ["verity-edsl-artifacts"]},
+        {"verify": ["verity-edsl-artifacts"]},
+      ),
     )
 
   def test_ignores_download_steps_without_explicit_name(self) -> None:
@@ -56,7 +61,10 @@ class CollectWorkflowArtifactReferencesTests(unittest.TestCase):
       ]
     )
 
-    self.assertEqual(collect_workflow_artifact_references(workflow_text), ([], []))
+    self.assertEqual(
+      collect_workflow_artifact_references(workflow_text),
+      ([], [], {"verify": []}, {"verify": []}),
+    )
 
 
 class CliTests(unittest.TestCase):
@@ -137,6 +145,130 @@ class CliTests(unittest.TestCase):
         "ci-workflow-artifact-refs check failed: workflow uploads duplicate artifact names: duplicate-artifact",
         proc.stderr,
       )
+
+  def test_main_reports_download_without_dependency_on_producer_job(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      workflow_path = root / "verify.yml"
+      workflow_path.write_text(
+        "\n".join(
+          [
+            "jobs:",
+            "  build:",
+            "    steps:",
+            "      - uses: actions/upload-artifact@v4",
+            "        with:",
+            "          name: bundle",
+            "  test:",
+            "    steps:",
+            "      - uses: actions/download-artifact@v4",
+            "        with:",
+            "          name: bundle",
+          ]
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_workflow_artifact_refs.py"),
+          "--workflow",
+          str(workflow_path),
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn(
+        "ci-workflow-artifact-refs check failed: "
+        "workflow downloads artifacts without depending on producer jobs: bundle (test needs build)",
+        proc.stderr,
+      )
+
+  def test_main_allows_transitive_dependency_on_producer_job(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      workflow_path = root / "verify.yml"
+      workflow_path.write_text(
+        "\n".join(
+          [
+            "jobs:",
+            "  build:",
+            "    steps:",
+            "      - uses: actions/upload-artifact@v4",
+            "        with:",
+            "          name: bundle",
+            "  verify:",
+            "    needs: build",
+            "    steps:",
+            "      - run: echo verify",
+            "  report:",
+            "    needs: verify",
+            "    steps:",
+            "      - uses: actions/download-artifact@v4",
+            "        with:",
+            "          name: bundle",
+          ]
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_workflow_artifact_refs.py"),
+          "--workflow",
+          str(workflow_path),
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      self.assertIn("ci-workflow-artifact-refs check: OK", proc.stdout)
+
+  def test_main_allows_same_job_upload_and_download(self) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = pathlib.Path(temp_dir)
+      workflow_path = root / "verify.yml"
+      workflow_path.write_text(
+        "\n".join(
+          [
+            "jobs:",
+            "  verify:",
+            "    steps:",
+            "      - uses: actions/upload-artifact@v4",
+            "        with:",
+            "          name: bundle",
+            "      - uses: actions/download-artifact@v4",
+            "        with:",
+            "          name: bundle",
+          ]
+        ),
+        encoding="utf-8",
+      )
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_ci_workflow_artifact_refs.py"),
+          "--workflow",
+          str(workflow_path),
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      self.assertIn("ci-workflow-artifact-refs check: OK", proc.stdout)
 
   def test_main_accepts_relative_workflow_path_from_other_cwd(self) -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
