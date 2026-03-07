@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -19,6 +20,7 @@ from check_semantic_bridge_readiness_sync import (  # noqa: E402
   SemanticBridgeReadinessSyncError,
   build_config_projection,
   compare_entries,
+  load_config,
   main,
   parse_readiness_entries,
 )
@@ -291,6 +293,26 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
     ):
       build_config_projection(config)
 
+  def test_load_config_rejects_invalid_json(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "semantic-bridge-obligations.json"
+      config_path.write_text("{not json}\n", encoding="utf-8")
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "failed to parse JSON config",
+      ):
+        load_config(config_path)
+
+  def test_load_config_rejects_non_object_root(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      config_path = pathlib.Path(d) / "semantic-bridge-obligations.json"
+      config_path.write_text("[]\n", encoding="utf-8")
+      with self.assertRaisesRegex(
+        SemanticBridgeReadinessSyncError,
+        "config root must be an object",
+      ):
+        load_config(config_path)
+
   def test_main_passes_on_synced_files(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       root = pathlib.Path(d)
@@ -339,6 +361,33 @@ class SemanticBridgeReadinessSyncTests(unittest.TestCase):
           main()
       finally:
         sys.argv = old_argv
+
+  def test_cli_reports_invalid_json_without_traceback(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      root = pathlib.Path(d)
+      config_path = root / "semantic-bridge-obligations.json"
+      readiness_path = root / "SemanticBridgeReadiness.lean"
+      config_path.write_text("{not json}\n", encoding="utf-8")
+      readiness_path.write_text(make_readiness_text(), encoding="utf-8")
+
+      proc = subprocess.run(
+        [
+          sys.executable,
+          str(SCRIPT_DIR / "check_semantic_bridge_readiness_sync.py"),
+          "--config",
+          str(config_path),
+          "--readiness",
+          str(readiness_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("semantic-bridge-readiness-sync check failed:", proc.stderr)
+      self.assertIn("failed to parse JSON config", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":
