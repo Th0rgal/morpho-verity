@@ -339,7 +339,7 @@ class CreateMarketFrontendRegressionTests(unittest.TestCase):
         check=False,
       )
 
-  def test_create_market_frontend_blockers_still_fail_at_current_pin(self) -> None:
+  def test_create_market_tuple_and_struct_surface_now_compile(self) -> None:
     if shutil.which("lake") is None:
       self.skipTest("lake is not available in this test environment")
 
@@ -349,26 +349,25 @@ import Verity.Macro
 
 open Verity
 
-def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
+def externalCall (_name : String) (_args : List Uint256) : Uint256 := 0
+def setStructMember (_slot : StorageSlot (Uint256 → Uint256)) (_key : Uint256) (_member : String)
+    (_value : Uint256) :
     Contract Unit := Verity.pure ()
+def blockTimestamp : Uint256 := 0
 
 verity_contract Tmp where
   storage
-    marketSlot : Uint256 → Uint256 := slot 0
+    marketSlot : MappingStruct(Uint256,[
+      lastUpdate @word 0
+    ]) := slot 0
 
   function f (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     let loanToken := marketParams_0
     let id := externalCall "keccakMarketParams" [loanToken]
-    let ts := blockTimestamp
-    setMappingWord marketSlot id 0 ts
+    setStructMember marketSlot id "lastUpdate" blockTimestamp
 """
     proc = self.compile_contract(source)
-
-    self.assertNotEqual(proc.returncode, 0)
-    output = proc.stdout + proc.stderr
-    self.assertIn("unknown identifier 'marketParams_0'", output)
-    self.assertIn("unknown identifier 'externalCall'", output)
-    self.assertIn("Contract Uint256", output)
+    self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
   def test_core_flow_frontend_blockers_still_fail_at_current_pin(self) -> None:
     if shutil.which("lake") is None:

@@ -248,7 +248,7 @@ These theorems prove that the EDSL execution preserves Morpho invariants.
 The supported-fragment semantic bridge already has:
 
 - **Link 2**: EDSL ≡ compiled CompilationModel IR
-  (available via typed-IR framework at verity pin `4e862c54`)
+  (available via typed-IR framework at verity pin `7b7c9193`)
 - **Link 3**: compiled IR ≡ EVMYulLean(Yul)
   (proven in verity `Compiler/Proofs/EndToEnd.lean`)
 

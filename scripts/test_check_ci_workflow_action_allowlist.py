@@ -60,6 +60,7 @@ class ValidateActionAllowlistTests(unittest.TestCase):
       [
         "actions/checkout@v5",
         "actions/cache@v4",
+        "actions/cache/save@v4",
         "actions/download-artifact@v4",
         "actions/upload-artifact@v4",
       ]
@@ -120,6 +121,7 @@ class CliTests(unittest.TestCase):
             "    steps:",
             "      - uses: actions/checkout@v5",
             "      - uses: actions/cache@v4",
+            "      - uses: actions/cache/save@v4",
           ]
         ),
         encoding="utf-8",
@@ -155,6 +157,7 @@ class CliTests(unittest.TestCase):
             "    steps:",
             "      - uses: actions/checkout@v5",
             "      - uses: actions/cache@v4",
+            "      - uses: actions/cache/save@v4",
             "      - uses: actions/download-artifact@v4",
             "      - uses: actions/upload-artifact@v4",
           ]

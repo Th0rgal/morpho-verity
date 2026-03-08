@@ -3,8 +3,8 @@
 `morpho-verity` currently pins Verity to:
 
 - Repo: `https://github.com/Th0rgal/verity.git`
-- Short rev: `a026df14`
-- Full rev: `a026df147ab3996fb8f7d317a590996714547606`
+- Short rev: `7b7c9193`
+- Full rev: `7b7c9193c8fa4194b27ba110e1c2791d49bc4356`
 - Tracking issue: `#118`
 
 ## Why this pin
@@ -12,8 +12,9 @@
 This pin is the current deterministic base for morpho-verity's typed-IR
 semantic-bridge work. It keeps the upstream bridge surface already consumed by
 the repo and adds the newer macro/frontend features Morpho now uses directly,
-including executable tuple params, struct-mapping storage declarations,
-internal calls, and macro-backed `ecrecover` support.
+including linked externals, direct ERC20 helper syntax, executable tuple
+params, struct-mapping storage declarations, internal calls, and
+macro-backed `ecrecover` support.
 
 ## Remaining repo-local divergence at this pin
 
@@ -39,15 +40,13 @@ Relevant files:
 
 ### Upstream macro/frontend gaps still block operation migration
 
-Several operations remain blocked at the current pin on ERC20 helpers,
-callbacks, external contract calls, 2D struct access, and dynamic-topic
+Several operations remain blocked at the current pin on callbacks,
+target-aware external contract calls, and dynamic-topic
 `rawLog` witnesses.
 
 Current blocker families at this pin:
-- ERC20 helpers
 - callbacks
-- external contract calls
-- 2D struct access
+- target-aware external contract calls
 - dynamic-topic `rawLog` witnesses
 
 Tracked migration issue clusters:

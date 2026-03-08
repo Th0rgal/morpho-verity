@@ -27,7 +27,7 @@ This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
 Links 2+3 are already provided upstream for the supported fragment (verity#1060 / #1065).
 The remaining blockers here are Link 1 discharge and macro frontend coverage
 for complex Morpho operations.
-Verity pin: a026df14 (including executable tuple params and the struct-mapping / ecrecover macro surface now consumed by Morpho).
+Verity pin: 7b7c9193 (including linked externals, direct ERC20 helper syntax, and the executable tuple / struct / ecrecover macro surface now consumed by Morpho).
 
 ## Proof Strategy
 
@@ -158,11 +158,11 @@ macro/frontend unblockings for the unsupported operations.
 
 | Phase | Operations | Link 1 | Links 2+3 |
 |-------|-----------|--------|-----------|
-| 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `a026df14` |
-| 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `a026df14` |
+| 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `7b7c9193` |
+| 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `7b7c9193` |
 | 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` tail with caller/token topics, then external I/O bridge work |
 | 4 | createMarket | macro-migrated | semantic equivalence theorem to the handwritten `Morpho.createMarket` model still pending |
-| 5 | 11 remaining ops | blocked on macro | blocked |
+| 5 | 10 remaining ops | blocked on macro / Link 1 | blocked |
 -/
 
 end Morpho.Proofs.SemanticBridgeDischarge

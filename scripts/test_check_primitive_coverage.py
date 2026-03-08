@@ -335,8 +335,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage, macro_path, config_path)
 
-        # 7 migrated operations (admin cluster + createMarket + flashLoan)
-        self.assertEqual(report["total"], 7)
+        # 8 migrated operations (admin cluster + createMarket + setAuthorizationWithSig + flashLoan)
+        self.assertEqual(report["total"], 8)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])
@@ -352,12 +352,12 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(coverage["createMarket"]["fully_covered"])
         self.assertFalse(coverage["createMarket"]["edsl_ready"])
         self.assertIn("externalCall", coverage["createMarket"]["missing"])
-        self.assertIn("getMappingWord", coverage["createMarket"]["missing"])
-        self.assertIn("setMappingWord", coverage["createMarket"]["missing"])
+        self.assertIn("blockTimestamp", coverage["createMarket"]["primitives"])
 
-        # Newly migrated flash-loan flow should be present in the coverage set
+        # Newly migrated signature and flash-loan flows should be present in the coverage set
+        self.assertIn("setAuthorizationWithSig", coverage)
+        self.assertIn("ecrecover", coverage["setAuthorizationWithSig"]["missing"])
         self.assertIn("flashLoan", coverage)
-        self.assertNotIn("setAuthorizationWithSig", coverage)
         self.assertIn("mstore", coverage["flashLoan"]["missing"])
         self.assertIn("rawLog", coverage["flashLoan"]["missing"])
 

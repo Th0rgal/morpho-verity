@@ -143,7 +143,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "setAuthorizationWithSigSemEq"
     operation := "setAuthorizationWithSig"
     status := .assumed
-    macroMigrated := false },  -- tuple params are now available, but the repo still lacks a proof-facing signature abstraction for macro-backed ecrecover
+    macroMigrated := true },  -- macro body migrated; Link 1 still needs a proof-facing signature abstraction for executable ecrecover
   { id := "OBL-SET-OWNER-SEM-EQ"
     hypothesis := "setOwnerSemEq"
     operation := "setOwner"
@@ -196,18 +196,17 @@ theorem assumed_count :
     (obligations.filter (fun o => o.status == .assumed)).length = 12 := by
   native_decide
 
-/-- 7 of 18 operations have full (non-stub) macro implementations.
+/-- 8 of 18 operations have full (non-stub) macro implementations.
     The admin cluster has Link 1 proofs today, `createMarket` is now on the
-    macro path as well, and `flashLoan` has a state-level macro body.
-    `setAuthorizationWithSig` remains blocked by the missing proof-facing
-    signature abstraction around macro-backed `ecrecover`. -/
+    macro path as well, `setAuthorizationWithSig` now has an executable macro
+    body, and `flashLoan` has a state-level macro body. -/
 theorem macro_migrated_count :
-    (obligations.filter (fun o => o.macroMigrated)).length = 7 := by
+    (obligations.filter (fun o => o.macroMigrated)).length = 8 := by
   native_decide
 
-/-- 11 operations still need macro migration before discharge. -/
+/-- 10 operations still need macro migration before discharge. -/
 theorem macro_pending_count :
-    (obligations.filter (fun o => !o.macroMigrated)).length = 11 := by
+    (obligations.filter (fun o => !o.macroMigrated)).length = 10 := by
   native_decide
 
 end Morpho.Proofs.SemanticBridgeReadiness

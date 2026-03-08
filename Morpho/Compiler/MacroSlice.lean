@@ -13,6 +13,8 @@ def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
 def rawLog (_topics : List Uint256) (_dataOffset _dataSize : Uint256) : Contract Unit := Verity.pure ()
+def ecrecover (_hash : Uint256) (_v : Uint8) (_r : Bytes32) (_s : Bytes32) :
+    Contract Address := Verity.pure 0
 def structMember (_slot : StorageSlot (Uint256 → Uint256)) (_key : Uint256) (_member : String) :
     Contract Uint256 := Verity.pure 0
 def structMember2
@@ -210,11 +212,48 @@ verity_contract MorphoViewSlice where
 
   function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
     let sender <- msgSender
-    let authorizationArg := authorization
-    let signatureArg := signature
-    let _ignoredAuthorization := authorizationArg
-    let _ignoredSignature := signatureArg
-    require (sender == sender) "setAuthorizationWithSig noop"
+    let authorizer := authorization_0
+    let authorized := authorization_1
+    let newIsAuthorized := authorization_2
+    let expectedNonce := authorization_3
+    let deadline := authorization_4
+    let v := signature_0
+    let r := signature_1
+    let s := signature_2
+    require (deadline >= blockTimestamp) "signature expired"
+    let currentNonce <- getMapping nonceSlot authorizer
+    require (expectedNonce == currentNonce) "invalid nonce"
+    setMapping nonceSlot authorizer (add currentNonce 1)
+    let mut isAuthorizedWord := 0
+    if newIsAuthorized then
+      isAuthorizedWord := 1
+    else
+      isAuthorizedWord := 0
+    mstore 0 58375287309530710162933305390054840987079945985439883494330239665215553039505
+    mstore 32 authorizer
+    mstore 64 authorized
+    mstore 96 isAuthorizedWord
+    mstore 128 expectedNonce
+    mstore 160 deadline
+    let hashStruct := keccak256 0 192
+    mstore 32 32523383700587834770323112271211932718128200013265661849047136999858837557784
+    mstore 64 chainid
+    mstore 96 contractAddress
+    let domainSeparator := keccak256 32 96
+    mstore 0 11376154489267527918027507597793705913714985631324067728021276794371439513600
+    mstore 2 domainSeparator
+    mstore 34 hashStruct
+    let digest := keccak256 0 66
+    let signatory ← ecrecover digest v r s
+    require (signatory != 0) "invalid signature"
+    require (signatory == authorizer) "invalid signature"
+    mstore 0 currentNonce
+    rawLog [76232593431660337877225143138868361523028064348553599308396852457510026547815,
+      sender, authorizer] 0 32
+    setMapping2 isAuthorizedSlot authorizer authorized isAuthorizedWord
+    mstore 0 isAuthorizedWord
+    rawLog [96781178765147248776732963005526932015340179640649679610324219398565412161984,
+      sender, authorizer, authorized] 0 32
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     let _ignoredMarketParams := marketParams

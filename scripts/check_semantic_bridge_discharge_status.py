@@ -15,12 +15,11 @@ DISCHARGE_PATH = ROOT / "Morpho" / "Proofs" / "SemanticBridgeDischarge.lean"
 EXPECTED_ARCHITECTURE_SUMMARY = (
   "This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,\n"
   "`enableLltv`, `setAuthorization`, and `flashLoan`.\n"
-  "Links 2+3 are already provided upstream for the supported fragment "
-  "(verity#1060 / #1065).\n"
+  "Links 2+3 are already provided upstream for the supported fragment (verity#1060 / #1065).\n"
   "The remaining blockers here are Link 1 discharge and macro frontend coverage\n"
   "for complex Morpho operations.\n"
-  "Verity pin: 4e862c54 (including the two-storage-address witness needed by "
-  "`setFeeRecipient`)."
+  "Verity pin: 7b7c9193 (including linked externals, direct ERC20 helper syntax, "
+  "and the executable tuple / struct / ecrecover macro surface now consumed by Morpho)."
 )
 EXPECTED_DISCHARGE_STATUS = (
   "With Link 1 proven for 6 operations, the `*SemEq` obligations can be instantiated\n"
@@ -33,6 +32,7 @@ EXPECTED_FLASHLOAN_ROW = (
   "| 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` "
   "tail with caller/token topics, then external I/O bridge work |"
 )
+EXPECTED_REMAINING_ROW = "| 5 | 10 remaining ops | blocked on macro / Link 1 | blocked |"
 FORBIDDEN_SNIPPETS = [
   "The remaining gap (Links 2+3) connects the EDSL",
   "execution to the compiled IR and then to EVMYulLean.",
@@ -214,6 +214,7 @@ def validate_status(text: str) -> None:
     (architecture_text, EXPECTED_ARCHITECTURE_SUMMARY),
     (discharge_text, EXPECTED_DISCHARGE_STATUS),
     (discharge_text, EXPECTED_FLASHLOAN_ROW),
+    (discharge_text, EXPECTED_REMAINING_ROW),
   )
   for section_text, expected in expected_sections:
     if normalize_text(expected) not in section_text:

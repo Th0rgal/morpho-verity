@@ -47,7 +47,7 @@ The remaining gap for the full pipeline (EDSL → Yul) is connecting `SupportedS
 to `compileFunctionToTBlock` → `interpretIR` → `interpretYulFromIR`, which requires
 verity infrastructure not yet available for external contracts.
 
-As of verity pin 4e862c54 (including the two-storage-address witness used by
+As of verity pin 7b7c9193 (including the newer linked-external / ERC20 helper macro surface
 `setFeeRecipient`), the compilation proofs for all 5 admin functions are fully
 compositional within the typed-IR domain.
 -/
