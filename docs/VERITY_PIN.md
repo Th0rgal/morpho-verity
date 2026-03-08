@@ -3,17 +3,17 @@
 `morpho-verity` currently pins Verity to:
 
 - Repo: `https://github.com/Th0rgal/verity.git`
-- Short rev: `4e862c54`
-- Full rev: `4e862c54111e0f8c4dcaba61ec0a190cbe2afda8`
+- Short rev: `a026df14`
+- Full rev: `a026df147ab3996fb8f7d317a590996714547606`
 - Tracking issue: `#118`
 
 ## Why this pin
 
 This pin is the current deterministic base for morpho-verity's typed-IR
 semantic-bridge work. It keeps the upstream bridge surface already consumed by
-the repo and adds newer macro/frontend features now available on `verity`
-`main`, including typed address mapping helpers, struct-mapping storage
-declarations, and ABI-level string support.
+the repo and adds the newer macro/frontend features Morpho now uses directly,
+including executable tuple params, struct-mapping storage declarations,
+internal calls, and macro-backed `ecrecover` support.
 
 ## Remaining repo-local divergence at this pin
 
@@ -39,19 +39,15 @@ Relevant files:
 
 ### Upstream macro/frontend gaps still block operation migration
 
-Several operations remain blocked at the current pin on internal calls,
-ERC20 helpers, callbacks, 2D struct access, direct `mstore`/`mload`,
-pure-expression `externalCall`, usable `blockTimestamp` values, and
-dynamic-topic `rawLog` witnesses.
+Several operations remain blocked at the current pin on ERC20 helpers,
+callbacks, external contract calls, 2D struct access, and dynamic-topic
+`rawLog` witnesses.
 
 Current blocker families at this pin:
-- internal calls
 - ERC20 helpers
 - callbacks
+- external contract calls
 - 2D struct access
-- direct `mstore`/`mload`
-- pure-expression `externalCall`
-- usable `blockTimestamp` values
 - dynamic-topic `rawLog` witnesses
 
 Tracked migration issue clusters:

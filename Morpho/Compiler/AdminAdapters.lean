@@ -29,9 +29,35 @@ private theorem overrideBool2True_eq_if {α β : Type} [DecidableEq α] [Decidab
 private theorem eq_comm_iff {α : Type} (a b : α) : (a = b ↔ b = a) := by
   constructor <;> intro h <;> simpa using h.symm
 
+private def wordKeyId (key : Uint256) : Id :=
+  key.val / 256
+
+private def wordKeyOffset (key : Uint256) : Nat :=
+  key.val % 256
+
+private def packWord128 (lo hi : Uint256) : Uint256 :=
+  Verity.Core.Uint256.add lo (Verity.Core.Uint256.shl 128 hi)
+
+private def marketWordAt (m : Market) (offset : Nat) : Uint256 :=
+  match offset with
+  | 0 => packWord128 m.totalSupplyAssets m.totalSupplyShares
+  | 1 => packWord128 m.totalBorrowAssets m.totalBorrowShares
+  | 2 => packWord128 m.lastUpdate m.fee
+  | _ => 0
+
+private def idToParamsWordAt (params? : Option MarketParams) (offset : Nat) : Uint256 :=
+  match params?, offset with
+  | some params, 0 => params.loanToken
+  | some params, 1 => params.collateralToken
+  | some params, 2 => params.oracle
+  | some params, 3 => params.irm
+  | some params, 4 => params.lltv
+  | _, _ => 0
+
 /-- Encode `MorphoState` into the contract-state view expected by `MacroSlice`. -/
 def encodeMorphoState (s : MorphoState) : ContractState :=
   ContractState.mk
+    (fun _ => 0)
     (fun _ => 0)
     (fun n =>
       if n == 0 then s.owner
@@ -42,8 +68,14 @@ def encodeMorphoState (s : MorphoState) : ContractState :=
       else if n == 7 then s.nonce key
       else 0)
     (fun n key =>
-      if n == 5 then (if s.isLltvEnabled key then 1 else 0)
-      else 0)
+      if n == 3 then
+        marketWordAt (s.market (wordKeyId key)) (wordKeyOffset key)
+      else if n == 5 then
+        if s.isLltvEnabled key then 1 else 0
+      else if n == 8 then
+        idToParamsWordAt (s.idToParams (wordKeyId key)) (wordKeyOffset key)
+      else
+        0)
     (fun n key1 key2 =>
       if n == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
       else 0)
@@ -51,6 +83,8 @@ def encodeMorphoState (s : MorphoState) : ContractState :=
     0
     0
     s.blockTimestamp
+    0
+    0
     (fun _ => Core.FiniteAddressSet.empty)
     []
 
@@ -103,6 +137,24 @@ noncomputable def flashLoan (s : MorphoState) (assets : Uint256) : Option Unit :
   let state := encodeMorphoState s
   match (MorphoViewSlice.flashLoan 0 assets ByteArray.empty) state with
   | .success _ _ => some ()
+  | .revert _ _ => none
+
+/-- Canonical EDSL-backed adapter for `createMarket`. -/
+noncomputable def createMarket (s : MorphoState) (params : MarketParams) : Option MorphoState :=
+  let state := encodeMorphoState s
+  let marketParams :=
+    (params.loanToken, (params.collateralToken, (params.oracle, (params.irm, params.lltv))))
+  match (MorphoViewSlice.createMarket marketParams) state with
+  | .success _ _ =>
+      let id := marketId params
+      some { s with
+        market := fun id' =>
+          if id' == id then
+            { s.market id with lastUpdate := s.blockTimestamp }
+          else
+            s.market id'
+        idToParams := fun id' =>
+          if id' == id then some params else s.idToParams id' }
   | .revert _ _ => none
 
 theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :

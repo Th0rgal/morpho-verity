@@ -335,8 +335,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage, macro_path, config_path)
 
-        # 6 migrated operations (admin cluster + flashLoan)
-        self.assertEqual(report["total"], 6)
+        # 7 migrated operations (admin cluster + createMarket + flashLoan)
+        self.assertEqual(report["total"], 7)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])
@@ -347,8 +347,13 @@ class IntegrationTests(unittest.TestCase):
             self.assertFalse(coverage[op]["fully_covered"])
             self.assertTrue(coverage[op]["edsl_ready"])
 
-        # createMarket is no longer in migrated set (hard stub)
-        self.assertNotIn("createMarket", coverage)
+        # createMarket is now in the migrated set but still misses bridge lemmas
+        self.assertIn("createMarket", coverage)
+        self.assertFalse(coverage["createMarket"]["fully_covered"])
+        self.assertFalse(coverage["createMarket"]["edsl_ready"])
+        self.assertIn("externalCall", coverage["createMarket"]["missing"])
+        self.assertIn("getMappingWord", coverage["createMarket"]["missing"])
+        self.assertIn("setMappingWord", coverage["createMarket"]["missing"])
 
         # Newly migrated flash-loan flow should be present in the coverage set
         self.assertIn("flashLoan", coverage)

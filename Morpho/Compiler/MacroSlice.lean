@@ -12,7 +12,6 @@ def shl (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shl shift value
 def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
-def returnValues (_values : List Uint256) : Contract Unit := Verity.pure ()
 def rawLog (_topics : List Uint256) (_dataOffset _dataSize : Uint256) : Contract Unit := Verity.pure ()
 private def wordKey (key wordOffset : Uint256) : Uint256 :=
   add (shl 8 key) wordOffset
@@ -34,6 +33,7 @@ def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset
   ContractResult.success ()
     (ContractState.mk
       state.storage
+      state.transientStorage
       state.storageAddr
       state.storageMap
       (updatedWordMap state _slot _key _wordOffset _value)
@@ -42,6 +42,8 @@ def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset
       state.thisAddress
       state.msgValue
       state.blockTimestamp
+      state.blockNumber
+      state.chainId
       state.knownAddresses
       state.events)
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
@@ -142,33 +144,22 @@ verity_contract MorphoViewSlice where
     let irm <- getMappingWord idToMarketParamsSlot id 3
     let lltv <- getMappingWord idToMarketParamsSlot id 4
     let addrMask := 1461501637330902918203684832716283019655932542975
-    returnValues [
-      and loanToken addrMask,
-      and collateralToken addrMask,
-      and oracle addrMask,
-      and irm addrMask,
-      lltv
-    ]
+    return (wordToAddress (and loanToken addrMask), wordToAddress (and collateralToken addrMask),
+      wordToAddress (and oracle addrMask), wordToAddress (and irm addrMask), lltv)
 
   function market (id : Bytes32) : Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256] := do
     let word0 <- getMappingWord marketSlot id 0
     let word1 <- getMappingWord marketSlot id 1
     let word2 <- getMappingWord marketSlot id 2
     let loMask := 340282366920938463463374607431768211455
-    returnValues [
-      and word0 loMask,
-      and (shr 128 word0) loMask,
-      and word1 loMask,
-      and (shr 128 word1) loMask,
-      and word2 loMask,
-      and (shr 128 word2) loMask
-    ]
+    return (and word0 loMask, and (shr 128 word0) loMask, and word1 loMask,
+      and (shr 128 word1) loMask, and word2 loMask, and (shr 128 word2) loMask)
 
   function position (id : Bytes32, user : Address) : Tuple [Uint256, Uint256, Uint256] := do
     let _ignoredId := id
     let _ignoredUser := user
     -- Pending upstream storage-typing support for mapping(uint256 => mapping(address => ...)).
-    returnValues [0, 0, 0]
+    return (0, 0, 0)
 
   function extSloads (slots : Array Bytes32) : Array Uint256 := do
     returnStorageWords slots
@@ -224,12 +215,25 @@ verity_contract MorphoViewSlice where
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    -- Checked at pin `4e862c54`: tuple component binders such as `marketParams_0`
-    -- still do not elaborate inside `verity_contract` bodies, so `createMarket`
-    -- cannot move to the direct macro path yet.
-    let marketParamsArg := marketParams
-    let _ignored := marketParamsArg
-    require (0 == 1) "createMarket stub"
+    let _ignoredMarketParams := marketParams
+    let loanToken := marketParams_0
+    let collateralToken := marketParams_1
+    let oracle := marketParams_2
+    let irm := marketParams_3
+    let lltv := marketParams_4
+    let id := externalCall keccakMarketParams [loanToken, collateralToken, oracle, irm, lltv]
+    let irmEnabled <- getMapping isIrmEnabledSlot irm
+    require (irmEnabled == 1) "IRM not enabled"
+    let lltvEnabled <- getMappingUint isLltvEnabledSlot lltv
+    require (lltvEnabled == 1) "LLTV not enabled"
+    let word2 <- getMappingWord marketSlot id 2
+    require ((and word2 340282366920938463463374607431768211455) == 0) "market already created"
+    setMappingWord marketSlot id 2 (add (shl 128 (shr 128 word2)) blockTimestamp)
+    setMappingWord idToMarketParamsSlot id 0 loanToken
+    setMappingWord idToMarketParamsSlot id 1 collateralToken
+    setMappingWord idToMarketParamsSlot id 2 oracle
+    setMappingWord idToMarketParamsSlot id 3 irm
+    setMappingWord idToMarketParamsSlot id 4 lltv
 
   function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender

@@ -85,7 +85,7 @@
       "operation": "enableIrm",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4e862c54)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin a026df14)"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
@@ -93,7 +93,7 @@
       "operation": "enableLltv",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4e862c54)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin a026df14)"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
@@ -101,7 +101,7 @@
       "operation": "setAuthorization",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4e862c54)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin a026df14)"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
@@ -109,8 +109,8 @@
       "operation": "setAuthorizationWithSig",
       "status": "assumed",
       "macroMigrated": false,
-      "macroSurfaceBlockers": ["memoryOps", "precompileAccess", "tupleDestructuring"],
-      "blockedBy": "macro migration blocked on tuple-param destructuring in verity_contract, plus signature-validity/spec abstraction and typed-IR SupportedStmtList proof"
+      "macroSurfaceBlockers": ["signatureAbstraction"],
+      "blockedBy": "tuple params, memory ops, and macro-backed ecrecover are now available upstream, but the repo still lacks a proof-facing abstraction relating signatures to the current `signatureValid : Bool` model"
     },
     {
       "id": "OBL-SET-OWNER-SEM-EQ",
@@ -118,7 +118,7 @@
       "operation": "setOwner",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4e862c54)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin a026df14)"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
@@ -126,16 +126,16 @@
       "operation": "setFeeRecipient",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4e862c54)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin a026df14)"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",
       "hypothesis": "createMarketSemEq",
       "operation": "createMarket",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["blockTimestampValue", "externalCall", "tupleDestructuring"],
-      "blockedBy": "hard stub (require 0==1): tuple components are not bound in macro bodies, pure-expression externalCall is rejected there, and blockTimestamp is not materialized as a plain Uint256 value for setMappingWord; typed-IR SupportedStmtList proof still pending after frontend support lands"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice, but the semantic-equivalence theorem to the handwritten `Morpho.createMarket` model is still pending"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",
@@ -174,7 +174,7 @@
       "title": "Implement collateral and liquidation flows in the Verity EDSL"
     }
   ],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 4e862c54; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is a026df14; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
   "sourcePath": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"
