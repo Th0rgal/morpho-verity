@@ -36,6 +36,7 @@ The Lean implementation targets logical equivalence with Morpho's Solidity, not 
 Groundwork docs for closing these gaps:
 - [`docs/PARITY_TARGET.md`](docs/PARITY_TARGET.md)
 - [`docs/VERITY_PIN.md`](docs/VERITY_PIN.md)
+- [`docs/VERITY_UPGRADE_4e862c54.md`](docs/VERITY_UPGRADE_4e862c54.md)
 - [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
 - [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
 

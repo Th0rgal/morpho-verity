@@ -14,7 +14,14 @@ path no longer depends on manual `Spec.morphoSpec` authoring.
 -/
 def morphoGeneratedSpec : CompilationModel :=
   { Morpho.Compiler.MacroSlice.MorphoViewSlice.spec with
-      name := "Morpho" }
+      name := "Morpho"
+      externals := [
+        { name := "keccakMarketParams"
+          params := [.uint256, .uint256, .uint256, .uint256, .uint256]
+          returnType := some .uint256
+          returns := [.uint256]
+          axiomNames := ["market_id_deterministic"] }
+      ] }
 
 /--
 Canonical selector boundary derived from the generated spec.

@@ -8,16 +8,62 @@ open Verity
 
 def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
 def and (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
+def shl (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shl shift value
 def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
 def returnValues (_values : List Uint256) : Contract Unit := Verity.pure ()
 def rawLog (_topics : List Uint256) (_dataOffset _dataSize : Uint256) : Contract Unit := Verity.pure ()
+private def wordKey (key wordOffset : Uint256) : Uint256 :=
+  add (shl 8 key) wordOffset
+private def updatedWordMap
+    (state : ContractState)
+    (slotRef : StorageSlot (Uint256 → Uint256))
+    (key wordOffset value : Uint256) :
+    Nat → Uint256 → Uint256 :=
+  fun slotIdx mapKey =>
+    if slotIdx == slotRef.slot && mapKey == wordKey key wordOffset then value
+    else state.storageMapUint slotIdx mapKey
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
-    Contract Uint256 := Verity.pure 0
+    Contract Uint256 := fun state =>
+  ContractResult.success
+    (state.storageMapUint _slot.slot (wordKey _key _wordOffset))
+    state
 def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
-    Contract Unit := Verity.pure ()
+    Contract Unit := fun state =>
+  ContractResult.success ()
+    (ContractState.mk
+      state.storage
+      state.storageAddr
+      state.storageMap
+      (updatedWordMap state _slot _key _wordOffset _value)
+      state.storageMap2
+      state.sender
+      state.thisAddress
+      state.msgValue
+      state.blockTimestamp
+      state.knownAddresses
+      state.events)
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
+def keccakMarketParams : String := "keccakMarketParams"
+private def cantorPair (a b : Nat) : Nat :=
+  let s := a + b
+  (s * (s + 1)) / 2 + b
+private def marketIdWord (args : List Uint256) : Uint256 :=
+  match args with
+  | [loanToken, collateralToken, oracle, irm, lltv] =>
+      Verity.Core.Uint256.ofNat <|
+        cantorPair
+          (cantorPair
+            (cantorPair
+              (cantorPair loanToken.val collateralToken.val)
+              oracle.val)
+            irm.val)
+          lltv.val
+  | _ => 0
+def externalCall (name : String) (args : List Uint256) : Uint256 :=
+  if name = keccakMarketParams then marketIdWord args else 0
+def blockTimestamp : Uint256 := 0
 def chainid : Uint256 := 0
 def contractAddress : Uint256 := 0
 
@@ -171,39 +217,39 @@ verity_contract MorphoViewSlice where
 
   function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
     let sender <- msgSender
-    let authorization' := authorization
-    let signature' := signature
-    let _ignoredAuthorization := authorization'
-    let _ignoredSignature := signature'
+    let authorizationArg := authorization
+    let signatureArg := signature
+    let _ignoredAuthorization := authorizationArg
+    let _ignoredSignature := signatureArg
     require (sender == sender) "setAuthorizationWithSig noop"
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    -- Even at the current Verity pin, the macro frontend still rejects tuple
-    -- component refs like `marketParams_0`, bare `externalCall`, and using
-    -- `blockTimestamp` as a plain value for `setMappingWord` here.
-    let marketParams' := marketParams
-    let _ignored := marketParams'
+    -- Checked at pin `4e862c54`: tuple component binders such as `marketParams_0`
+    -- still do not elaborate inside `verity_contract` bodies, so `createMarket`
+    -- cannot move to the direct macro path yet.
+    let marketParamsArg := marketParams
+    let _ignored := marketParamsArg
     require (0 == 1) "createMarket stub"
 
   function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender
     let currentOwner <- getStorageAddr ownerSlot
     require (sender == currentOwner) "not owner"
-    let marketParams' := marketParams
-    let _ignored := marketParams'
+    let marketParamsArg := marketParams
+    let _ignored := marketParamsArg
     let _ignoredFee := newFee
     require (sender == sender) "setFee noop"
 
   function accrueInterest (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignored := marketParams'
+    let marketParamsArg := marketParams
+    let _ignored := marketParamsArg
     require (sender == sender) "accrueInterest noop"
 
   function supplyCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, data : Bytes) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredAssets := assets
     let _ignoredOnBehalf := onBehalf
     let _ignoredData := data
@@ -211,8 +257,8 @@ verity_contract MorphoViewSlice where
 
   function withdrawCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredAssets := assets
     let _ignoredOnBehalf := onBehalf
     let _ignoredReceiver := receiver
@@ -220,8 +266,8 @@ verity_contract MorphoViewSlice where
 
   function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredAssets := assets
     let _ignoredShares := shares
     let _ignoredOnBehalf := onBehalf
@@ -230,8 +276,8 @@ verity_contract MorphoViewSlice where
 
   function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredAssets := assets
     let _ignoredShares := shares
     let _ignoredOnBehalf := onBehalf
@@ -240,8 +286,8 @@ verity_contract MorphoViewSlice where
 
   function borrow (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredAssets := assets
     let _ignoredShares := shares
     let _ignoredOnBehalf := onBehalf
@@ -250,8 +296,8 @@ verity_contract MorphoViewSlice where
 
   function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredAssets := assets
     let _ignoredShares := shares
     let _ignoredOnBehalf := onBehalf
@@ -260,8 +306,8 @@ verity_contract MorphoViewSlice where
 
   function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) : Unit := do
     let sender <- msgSender
-    let marketParams' := marketParams
-    let _ignoredMarket := marketParams'
+    let marketParamsArg := marketParams
+    let _ignoredMarket := marketParamsArg
     let _ignoredBorrower := borrower
     let _ignoredSeizedAssets := seizedAssets
     let _ignoredRepaidShares := repaidShares

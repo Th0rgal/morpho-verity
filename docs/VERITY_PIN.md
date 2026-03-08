@@ -3,16 +3,17 @@
 `morpho-verity` currently pins Verity to:
 
 - Repo: `https://github.com/Th0rgal/verity.git`
-- Short rev: `ad03fc64`
-- Full rev: `ad03fc64ed0e390e9d8c72f7cd469397324cda3a`
+- Short rev: `4e862c54`
+- Full rev: `4e862c54111e0f8c4dcaba61ec0a190cbe2afda8`
 - Tracking issue: `#118`
 
 ## Why this pin
 
 This pin is the current deterministic base for morpho-verity's typed-IR
-semantic-bridge work. It includes the upstream bridge surface and witness
-support already consumed by the repo, including the two-storage-address proof
-path used by setFeeRecipient.
+semantic-bridge work. It keeps the upstream bridge surface already consumed by
+the repo and adds newer macro/frontend features now available on `verity`
+`main`, including typed address mapping helpers, struct-mapping storage
+declarations, and ABI-level string support.
 
 ## Remaining repo-local divergence at this pin
 

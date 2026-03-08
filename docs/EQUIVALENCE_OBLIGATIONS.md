@@ -160,7 +160,7 @@ The 12 unmigrated operations depend on upstream verity macro capabilities.
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
 translators, and `Bytes32`/`Bool` type support.
 
-At `ad03fc64`, the repo still treats tuple destructuring inside macro bodies,
+At `4e862c54`, the repo still treats tuple destructuring inside macro bodies,
 pure-expression `externalCall`, usable `blockTimestamp` values for
 `setMappingWord`, and direct `mstore`/`mload` as unresolved frontend gaps.
 
@@ -225,11 +225,11 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
 | Operation | Primitives used | Link 1 | Link 2 (CompilationCorrectness) | Link 3 |
 |-----------|----------------|:------:|:-------------------------------:|--------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4e862c54 |
+| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4e862c54 |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4e862c54 |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4e862c54 |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4e862c54 |
 | `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
 | `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
 
@@ -250,7 +250,7 @@ The discharge has three links per obligation:
 2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
-At verity pin `ad03fc64`, Link 2 is tracked on the typed-IR semantic bridge path
+At verity pin `4e862c54`, Link 2 is tracked on the typed-IR semantic bridge path
 with concrete upstream witness theorems for Morpho admin patterns.
 
 **Link 1 proof pattern** (for the 5 admin operations):
@@ -266,7 +266,7 @@ with concrete upstream witness theorems for Morpho admin patterns.
 4. Close obligations via `native_decide` (field resolution) and `decide` (literal checks)
 5. `setFeeRecipient` now uses verity's two-storage-address `SupportedStmtFragment` constructor for the owner/auth + fee-recipient inequality pattern
 
-### Discharge sequence (current pin: `ad03fc64`)
+### Discharge sequence (current pin: `4e862c54`)
 
 1. **Links 1+2 proven (5 ops), Link 3 via verity EndToEnd composition**: `setOwner`,
    `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 proven in

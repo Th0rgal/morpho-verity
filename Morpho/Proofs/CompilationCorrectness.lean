@@ -50,7 +50,7 @@ def morphoFields : List Field :=
 
 /-! ## SupportedStmtList witnesses -/
 
-/-! Upstream canonical witnesses (verity pin ad03fc64) for Morpho admin patterns.
+/-! Upstream canonical witnesses (verity pin 4e862c54) for Morpho admin patterns.
 These are reference pattern theorems over verity-owned field layouts.
 The morpho-specific proofs below keep our 8-field `morphoFields` layout. -/
 

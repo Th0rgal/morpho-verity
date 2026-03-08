@@ -40,7 +40,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
     rc = self.run_check(
       """
       require verity from git
-        "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+        "https://github.com/Th0rgal/verity.git" @ "4e862c54"
       """,
       """
       {
@@ -48,8 +48,8 @@ class CheckVerityPinSyncTests(unittest.TestCase):
           {
             "name": "verity",
             "url": "https://github.com/Th0rgal/verity.git",
-            "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
-            "inputRev": "ad03fc64"
+            "rev": "4e862c54111e0f8c4dcaba61ec0a190cbe2afda8",
+            "inputRev": "4e862c54"
           }
         ]
       }
@@ -62,7 +62,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
       self.run_check(
         """
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          "https://github.com/Th0rgal/verity.git" @ "4e862c54"
         """,
         """
         {
@@ -70,7 +70,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "rev": "4e862c54111e0f8c4dcaba61ec0a190cbe2afda8",
               "inputRev": "ffffffff"
             }
           ]
@@ -83,7 +83,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
       self.run_check(
         """
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          "https://github.com/Th0rgal/verity.git" @ "4e862c54"
         """,
         """
         {
@@ -92,7 +92,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
               "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "inputRev": "ad03fc64"
+              "inputRev": "4e862c54"
             }
           ]
         }
@@ -104,7 +104,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
       self.run_check(
         """
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          "https://github.com/Th0rgal/verity.git" @ "4e862c54"
         """,
         """{"packages": [}""",
       )
@@ -114,15 +114,15 @@ class CheckVerityPinSyncTests(unittest.TestCase):
       self.run_check(
         """
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          "https://github.com/Th0rgal/verity.git" @ "4e862c54"
         """,
         """
         [
           {
             "name": "verity",
             "url": "https://github.com/Th0rgal/verity.git",
-            "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
-            "inputRev": "ad03fc64"
+            "rev": "4e862c54111e0f8c4dcaba61ec0a190cbe2afda8",
+            "inputRev": "4e862c54"
           }
         ]
         """,
@@ -133,7 +133,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
       self.run_check(
         """
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          "https://github.com/Th0rgal/verity.git" @ "4e862c54"
         """,
         """
         {
@@ -149,7 +149,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
       self.run_check(
         """
         require verity from git
-          "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+          "https://github.com/Th0rgal/verity.git" @ "4e862c54"
         """,
         """
         {
@@ -157,7 +157,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
             {
               "name": "verity",
               "url": "https://github.com/Th0rgal/verity.git",
-              "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+              "rev": "4e862c54111e0f8c4dcaba61ec0a190cbe2afda8",
               "inputRev": null
             }
           ]
@@ -174,7 +174,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
         textwrap.dedent(
           """
           require verity from git
-            "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+            "https://github.com/Th0rgal/verity.git" @ "4e862c54"
           """
         ),
         encoding="utf-8",
@@ -209,7 +209,7 @@ class CheckVerityPinSyncTests(unittest.TestCase):
         textwrap.dedent(
           """
           require verity from git
-            "https://github.com/Th0rgal/verity.git" @ "ad03fc64"
+            "https://github.com/Th0rgal/verity.git" @ "4e862c54"
           """
         ),
         encoding="utf-8",
@@ -248,8 +248,8 @@ class CheckVerityPinSyncTests(unittest.TestCase):
               {
                 "name": "verity",
                 "url": "https://github.com/Th0rgal/verity.git",
-                "rev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
-                "inputRev": "ad03fc64"
+                "rev": "4e862c54111e0f8c4dcaba61ec0a190cbe2afda8",
+                "inputRev": "4e862c54"
               }
             ]
           }

@@ -19,7 +19,7 @@ EXPECTED_ARCHITECTURE_SUMMARY = (
   "(verity#1060 / #1065).\n"
   "The remaining blockers here are Link 1 discharge and macro frontend coverage\n"
   "for complex Morpho operations.\n"
-  "Verity pin: ad03fc64 (including the two-storage-address witness needed by "
+  "Verity pin: 4e862c54 (including the two-storage-address witness needed by "
   "`setFeeRecipient`)."
 )
 EXPECTED_DISCHARGE_STATUS = (

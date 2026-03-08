@@ -56,8 +56,8 @@ def make_text() -> str:
 
     | Phase | Operations | Link 1 | Links 2+3 |
     |-------|-----------|--------|-----------|
-    | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
-    | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
+    | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `4e862c54` |
+    | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `4e862c54` |
     {EXPECTED_FLASHLOAN_ROW}
     | 4 | createMarket | provable | needs MappingWord bridge |
     | 5 | 11 remaining ops | blocked on macro | blocked |
@@ -293,8 +293,8 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
 
       | Phase | Operations | Link 1 | Links 2+3 |
       |-------|-----------|--------|-----------|
-      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
-      | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
+      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `4e862c54` |
+      | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `4e862c54` |
       {EXPECTED_FLASHLOAN_ROW}
       | 4 | createMarket | provable | needs MappingWord bridge |
       | 5 | 11 remaining ops | blocked on macro | blocked |

@@ -1,9 +1,9 @@
 {
   "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-  "inputRev": "ad03fc64",
-  "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+  "inputRev": "4e862c54",
+  "fullRev": "4e862c54111e0f8c4dcaba61ec0a190cbe2afda8",
   "trackedIssue": "#118",
-  "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It includes the upstream bridge surface and witness support already consumed by the repo, including the two-storage-address proof path used by setFeeRecipient.",
+  "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It keeps the upstream bridge surface already consumed by the repo and adds newer macro/frontend features now available on `verity` `main`, including typed address mapping helpers, struct-mapping storage declarations, and ABI-level string support.",
   "remainingDivergences": [
     {
       "area": "Local generated-contract boundary",
