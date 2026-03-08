@@ -174,14 +174,13 @@ proof coverage or missing Morpho-side abstractions, not raw macro elaboration.
 | 2D struct mapping read/write (`structMember2`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
 | External callbacks (`Callbacks.callback`) | `liquidate`, `repay`, `supply`, `supplyCollateral` | 4 |
 | External contract calls (`Calls.withReturn`) | `accrueInterest`, `accrueInterestPublic`, `borrow`, `liquidate`, `withdrawCollateral` | 5 |
-| `.mappingStruct` storage field type declarations | `accrueInterest`, `accrueInterestPublic`, `setFee` | 3 |
 | Memory management (`mstore/mload`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
 | Signature-validity abstraction | `setAuthorizationWithSig` | 1 |
 
-**Note on createMarket**: The macro body is now implemented again using
-`getMappingWord`/`setMappingWord` plus tuple-param aliases from the newer Verity pin.
-What is still missing is the theorem that identifies that macro-backed adapter with the
-handwritten `Morpho.createMarket` state model used by the current bridge obligations.
+**Note on createMarket**: The macro body now uses the direct struct-storage path for
+`market` and `idToMarketParams`. What is still missing is the theorem that identifies
+that macro-backed adapter with the handwritten `Morpho.createMarket` state model used
+by the current bridge obligations.
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -226,7 +225,7 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 | `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin a026df14 |
 | `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin a026df14 |
 | `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
-| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | macro body migrated; bridge theorem still pending |
+| `createMarket` | getMapping, getMappingUint, structMember, setStructMember, externalCall, blockTimestamp | pending | pending | semantic bridge + SupportedStmtList witness for struct-storage write path |
 
 **Summary**: 7 operations are now macro-migrated, and 6 of those have Link 1
 (stable wrapper API ↔ EDSL) fully proven.

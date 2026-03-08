@@ -267,8 +267,8 @@ the Morpho event path logs `caller` and `token` as dynamic topics.
   supported `verity_contract` fragment. The remaining gaps here are Morpho-side:
   dynamic-topic `rawLog` support for `flashLoan`, plus macro frontend coverage for
   complex operations that still do not lower cleanly.
-- **createMarket**: `getMappingWord`/`setMappingWord` stubs in MacroSlice.lean
-- **12 remaining operations**: blocked on external call / loop / struct mapping support
+- **createMarket**: macro-migrated on struct storage; semantic-bridge discharge still pending
+- **11 remaining operations**: blocked on external call / loop / proof-surface support
 -/
 
 end Morpho.Proofs.SemanticBridgeEndToEnd

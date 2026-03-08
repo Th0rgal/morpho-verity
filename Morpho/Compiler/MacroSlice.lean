@@ -13,39 +13,22 @@ def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
 def rawLog (_topics : List Uint256) (_dataOffset _dataSize : Uint256) : Contract Unit := Verity.pure ()
-private def wordKey (key wordOffset : Uint256) : Uint256 :=
-  add (shl 8 key) wordOffset
-private def updatedWordMap
-    (state : ContractState)
-    (slotRef : StorageSlot (Uint256 → Uint256))
-    (key wordOffset value : Uint256) :
-    Nat → Uint256 → Uint256 :=
-  fun slotIdx mapKey =>
-    if slotIdx == slotRef.slot && mapKey == wordKey key wordOffset then value
-    else state.storageMapUint slotIdx mapKey
-def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
-    Contract Uint256 := fun state =>
-  ContractResult.success
-    (state.storageMapUint _slot.slot (wordKey _key _wordOffset))
-    state
-def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
-    Contract Unit := fun state =>
-  ContractResult.success ()
-    (ContractState.mk
-      state.storage
-      state.transientStorage
-      state.storageAddr
-      state.storageMap
-      (updatedWordMap state _slot _key _wordOffset _value)
-      state.storageMap2
-      state.sender
-      state.thisAddress
-      state.msgValue
-      state.blockTimestamp
-      state.blockNumber
-      state.chainId
-      state.knownAddresses
-      state.events)
+def structMember (_slot : StorageSlot (Uint256 → Uint256)) (_key : Uint256) (_member : String) :
+    Contract Uint256 := Verity.pure 0
+def structMember2
+    (_slot : StorageSlot (Uint256 → Address → Uint256))
+    (_key : Uint256) (_subKey : Address) (_member : String) :
+    Contract Uint256 := Verity.pure 0
+def setStructMember
+    {_α : Type}
+    (_slot : StorageSlot (Uint256 → Uint256))
+    (_key : Uint256) (_member : String) (_value : _α) :
+    Contract Unit := Verity.pure ()
+def setStructMember2
+    {_α : Type}
+    (_slot : StorageSlot (Uint256 → Address → Uint256))
+    (_key : Uint256) (_subKey : Address) (_member : String) (_value : _α) :
+    Contract Unit := Verity.pure ()
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
 def keccakMarketParams : String := "keccakMarketParams"
 private def cantorPair (a b : Nat) : Nat :=
@@ -75,8 +58,26 @@ verity_contract MorphoViewSlice where
   storage
     ownerSlot : Address := slot 0
     feeRecipientSlot : Address := slot 1
-    marketSlot : Uint256 -> Uint256 := slot 3
-    idToMarketParamsSlot : Uint256 -> Uint256 := slot 8
+    positionSlot : MappingStruct2(Uint256,Address,[
+      supplyShares @word 0,
+      borrowShares @word 1 packed(0,128),
+      collateral @word 1 packed(128,128)
+    ]) := slot 2
+    marketSlot : MappingStruct(Uint256,[
+      totalSupplyAssets @word 0 packed(0,128),
+      totalSupplyShares @word 0 packed(128,128),
+      totalBorrowAssets @word 1 packed(0,128),
+      totalBorrowShares @word 1 packed(128,128),
+      lastUpdate @word 2 packed(0,128),
+      fee @word 2 packed(128,128)
+    ]) := slot 3
+    idToMarketParamsSlot : MappingStruct(Uint256,[
+      loanToken @word 0,
+      collateralToken @word 1,
+      oracle @word 2,
+      irm @word 3,
+      lltv @word 4
+    ]) := slot 8
     isIrmEnabledSlot : Address -> Uint256 := slot 4
     isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
@@ -114,52 +115,53 @@ verity_contract MorphoViewSlice where
     return currentNonce
 
   function lastUpdate (id : Bytes32) : Uint256 := do
-    let word <- getMappingWord marketSlot id 2
-    return (and word 340282366920938463463374607431768211455)
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    return currentLastUpdate
 
   function totalSupplyAssets (id : Bytes32) : Uint256 := do
-    let word <- getMappingWord marketSlot id 0
-    return (and word 340282366920938463463374607431768211455)
+    let currentTotalSupplyAssets <- structMember marketSlot id "totalSupplyAssets"
+    return currentTotalSupplyAssets
 
   function totalSupplyShares (id : Bytes32) : Uint256 := do
-    let word <- getMappingWord marketSlot id 0
-    return (and (shr 128 word) 340282366920938463463374607431768211455)
+    let currentTotalSupplyShares <- structMember marketSlot id "totalSupplyShares"
+    return currentTotalSupplyShares
 
   function totalBorrowAssets (id : Bytes32) : Uint256 := do
-    let word <- getMappingWord marketSlot id 1
-    return (and word 340282366920938463463374607431768211455)
+    let currentTotalBorrowAssets <- structMember marketSlot id "totalBorrowAssets"
+    return currentTotalBorrowAssets
 
   function totalBorrowShares (id : Bytes32) : Uint256 := do
-    let word <- getMappingWord marketSlot id 1
-    return (and (shr 128 word) 340282366920938463463374607431768211455)
+    let currentTotalBorrowShares <- structMember marketSlot id "totalBorrowShares"
+    return currentTotalBorrowShares
 
   function fee (id : Bytes32) : Uint256 := do
-    let word <- getMappingWord marketSlot id 2
-    return (and (shr 128 word) 340282366920938463463374607431768211455)
+    let currentFee <- structMember marketSlot id "fee"
+    return currentFee
 
   function idToMarketParams (id : Bytes32) : Tuple [Address, Address, Address, Address, Uint256] := do
-    let loanToken <- getMappingWord idToMarketParamsSlot id 0
-    let collateralToken <- getMappingWord idToMarketParamsSlot id 1
-    let oracle <- getMappingWord idToMarketParamsSlot id 2
-    let irm <- getMappingWord idToMarketParamsSlot id 3
-    let lltv <- getMappingWord idToMarketParamsSlot id 4
-    let addrMask := 1461501637330902918203684832716283019655932542975
-    return (wordToAddress (and loanToken addrMask), wordToAddress (and collateralToken addrMask),
-      wordToAddress (and oracle addrMask), wordToAddress (and irm addrMask), lltv)
+    let loanToken <- structMember idToMarketParamsSlot id "loanToken"
+    let collateralToken <- structMember idToMarketParamsSlot id "collateralToken"
+    let oracle <- structMember idToMarketParamsSlot id "oracle"
+    let irm <- structMember idToMarketParamsSlot id "irm"
+    let lltv <- structMember idToMarketParamsSlot id "lltv"
+    return (wordToAddress loanToken, wordToAddress collateralToken, wordToAddress oracle,
+      wordToAddress irm, lltv)
 
   function market (id : Bytes32) : Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256] := do
-    let word0 <- getMappingWord marketSlot id 0
-    let word1 <- getMappingWord marketSlot id 1
-    let word2 <- getMappingWord marketSlot id 2
-    let loMask := 340282366920938463463374607431768211455
-    return (and word0 loMask, and (shr 128 word0) loMask, and word1 loMask,
-      and (shr 128 word1) loMask, and word2 loMask, and (shr 128 word2) loMask)
+    let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+    let totalSupplyShares_ <- structMember marketSlot id "totalSupplyShares"
+    let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember marketSlot id "totalBorrowShares"
+    let lastUpdate_ <- structMember marketSlot id "lastUpdate"
+    let fee_ <- structMember marketSlot id "fee"
+    return (totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowShares_,
+      lastUpdate_, fee_)
 
   function position (id : Bytes32, user : Address) : Tuple [Uint256, Uint256, Uint256] := do
-    let _ignoredId := id
-    let _ignoredUser := user
-    -- Pending upstream storage-typing support for mapping(uint256 => mapping(address => ...)).
-    return (0, 0, 0)
+    let supplyShares_ <- structMember2 positionSlot id user "supplyShares"
+    let borrowShares_ <- structMember2 positionSlot id user "borrowShares"
+    let collateral_ <- structMember2 positionSlot id user "collateral"
+    return (supplyShares_, borrowShares_, collateral_)
 
   function extSloads (slots : Array Bytes32) : Array Uint256 := do
     returnStorageWords slots
@@ -216,24 +218,30 @@ verity_contract MorphoViewSlice where
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
     let _ignoredMarketParams := marketParams
-    let loanToken := marketParams_0
-    let collateralToken := marketParams_1
-    let oracle := marketParams_2
-    let irm := marketParams_3
-    let lltv := marketParams_4
-    let id := externalCall keccakMarketParams [loanToken, collateralToken, oracle, irm, lltv]
-    let irmEnabled <- getMapping isIrmEnabledSlot irm
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0,
+      addressToWord marketParams_1,
+      addressToWord marketParams_2,
+      addressToWord marketParams_3,
+      marketParams_4
+    ]
+    let irmEnabled <- getMapping isIrmEnabledSlot marketParams_3
     require (irmEnabled == 1) "IRM not enabled"
-    let lltvEnabled <- getMappingUint isLltvEnabledSlot lltv
+    let lltvEnabled <- getMappingUint isLltvEnabledSlot marketParams_4
     require (lltvEnabled == 1) "LLTV not enabled"
-    let word2 <- getMappingWord marketSlot id 2
-    require ((and word2 340282366920938463463374607431768211455) == 0) "market already created"
-    setMappingWord marketSlot id 2 (add (shl 128 (shr 128 word2)) blockTimestamp)
-    setMappingWord idToMarketParamsSlot id 0 loanToken
-    setMappingWord idToMarketParamsSlot id 1 collateralToken
-    setMappingWord idToMarketParamsSlot id 2 oracle
-    setMappingWord idToMarketParamsSlot id 3 irm
-    setMappingWord idToMarketParamsSlot id 4 lltv
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate == 0) "market already created"
+    setStructMember marketSlot id "lastUpdate" blockTimestamp
+    setStructMember marketSlot id "fee" 0
+    setStructMember marketSlot id "totalSupplyAssets" 0
+    setStructMember marketSlot id "totalSupplyShares" 0
+    setStructMember marketSlot id "totalBorrowAssets" 0
+    setStructMember marketSlot id "totalBorrowShares" 0
+    setStructMember idToMarketParamsSlot id "loanToken" marketParams_0
+    setStructMember idToMarketParamsSlot id "collateralToken" marketParams_1
+    setStructMember idToMarketParamsSlot id "oracle" marketParams_2
+    setStructMember idToMarketParamsSlot id "irm" marketParams_3
+    setStructMember idToMarketParamsSlot id "lltv" marketParams_4
 
   function setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender

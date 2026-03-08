@@ -31,9 +31,9 @@ repo-local surface:
 2. Struct-mapping support is the clearest opportunity for the next Morpho
    cleanup. The hand-authored `CompilationModel` in `Morpho/Compiler/Spec.lean`
    already models `position`, `market`, and `idToMarketParams` with structured
-   members. That upstream surface is closer to what Morpho needs than the
-   current `MacroSlice` shims based on `getMappingWord` / `setMappingWord` and
-   placeholder zero-return getters.
+   members. That upstream surface is now close enough that `MacroSlice` can use
+   direct struct storage accessors instead of word-offset shims for those views,
+   and `createMarket` can write the same layout directly.
 
 3. Low-level call and returndata helpers reduce the amount of raw Yul-style
    reasoning needed for ERC20 compatibility and callback-heavy flows. That is
