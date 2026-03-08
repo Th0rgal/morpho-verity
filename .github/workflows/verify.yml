@@ -399,9 +399,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [verity-proofs, parity-target]
     timeout-minutes: 180
-    # EVMYulLean FFI static linking exceeds 140 min on 2-core runners.
-    # Mark non-blocking until larger runners are available.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5
