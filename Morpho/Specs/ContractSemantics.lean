@@ -43,6 +43,10 @@ noncomputable abbrev setAuthorization :
 noncomputable abbrev flashLoan : MorphoState → Uint256 → Option Unit :=
   Morpho.Compiler.AdminAdapters.flashLoan
 
+/-- Canonical Contract-monad-backed semantics for `createMarket`. -/
+noncomputable abbrev createMarket : MorphoState → MarketParams → Option MorphoState :=
+  Morpho.Compiler.AdminAdapters.createMarket
+
 theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
     setOwner s newOwner = some s' ↔
       s.sender = s.owner ∧ newOwner ≠ s.owner ∧ s' = { s with owner := newOwner } :=

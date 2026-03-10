@@ -143,7 +143,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "setAuthorizationWithSigSemEq"
     operation := "setAuthorizationWithSig"
     status := .assumed
-    macroMigrated := false },  -- still blocked on tuple-param destructuring in the macro frontend
+    macroMigrated := true },  -- macro body migrated; Link 1 still needs a proof-facing signature abstraction for executable ecrecover
   { id := "OBL-SET-OWNER-SEM-EQ"
     hypothesis := "setOwnerSemEq"
     operation := "setOwner"
@@ -158,7 +158,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "createMarketSemEq"
     operation := "createMarket"
     status := .assumed
-    macroMigrated := false },  -- hard stub; pending tuple-component binding, externalCall, and usable blockTimestamp value support
+    macroMigrated := true },  -- macro body is migrated, but the semantic-equivalence theorem to `Morpho.createMarket` is still pending
   { id := "OBL-SET-FEE-SEM-EQ"
     hypothesis := "setFeeSemEq"
     operation := "setFee"
@@ -196,17 +196,17 @@ theorem assumed_count :
     (obligations.filter (fun o => o.status == .assumed)).length = 12 := by
   native_decide
 
-/-- 6 of 18 operations have full (non-stub) macro implementations.
-    The admin cluster has Link 1 proofs today, and `flashLoan` now has a
-    state-level macro body as well. `setAuthorizationWithSig` remains blocked
-    on tuple-param destructuring in the macro frontend. -/
+/-- 8 of 18 operations have full (non-stub) macro implementations.
+    The admin cluster has Link 1 proofs today, `createMarket` is now on the
+    macro path as well, `setAuthorizationWithSig` now has an executable macro
+    body, and `flashLoan` has a state-level macro body. -/
 theorem macro_migrated_count :
-    (obligations.filter (fun o => o.macroMigrated)).length = 6 := by
+    (obligations.filter (fun o => o.macroMigrated)).length = 8 := by
   native_decide
 
-/-- 12 operations still need macro migration before discharge. -/
+/-- 10 operations still need macro migration before discharge. -/
 theorem macro_pending_count :
-    (obligations.filter (fun o => !o.macroMigrated)).length = 12 := by
+    (obligations.filter (fun o => !o.macroMigrated)).length = 10 := by
   native_decide
 
 end Morpho.Proofs.SemanticBridgeReadiness

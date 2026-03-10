@@ -335,8 +335,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage, macro_path, config_path)
 
-        # 6 migrated operations (admin cluster + flashLoan)
-        self.assertEqual(report["total"], 6)
+        # 8 migrated operations (admin cluster + createMarket + setAuthorizationWithSig + flashLoan)
+        self.assertEqual(report["total"], 8)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])
@@ -347,12 +347,17 @@ class IntegrationTests(unittest.TestCase):
             self.assertFalse(coverage[op]["fully_covered"])
             self.assertTrue(coverage[op]["edsl_ready"])
 
-        # createMarket is no longer in migrated set (hard stub)
-        self.assertNotIn("createMarket", coverage)
+        # createMarket is now in the migrated set but still misses bridge lemmas
+        self.assertIn("createMarket", coverage)
+        self.assertFalse(coverage["createMarket"]["fully_covered"])
+        self.assertFalse(coverage["createMarket"]["edsl_ready"])
+        self.assertIn("externalCall", coverage["createMarket"]["missing"])
+        self.assertIn("blockTimestamp", coverage["createMarket"]["primitives"])
 
-        # Newly migrated flash-loan flow should be present in the coverage set
+        # Newly migrated signature and flash-loan flows should be present in the coverage set
+        self.assertIn("setAuthorizationWithSig", coverage)
+        self.assertIn("ecrecover", coverage["setAuthorizationWithSig"]["missing"])
         self.assertIn("flashLoan", coverage)
-        self.assertNotIn("setAuthorizationWithSig", coverage)
         self.assertIn("mstore", coverage["flashLoan"]["missing"])
         self.assertIn("rawLog", coverage["flashLoan"]["missing"])
 

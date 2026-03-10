@@ -22,6 +22,7 @@ from check_semantic_bridge_discharge_status import (  # noqa: E402
   EXPECTED_ARCHITECTURE_SUMMARY,
   EXPECTED_DISCHARGE_STATUS,
   EXPECTED_FLASHLOAN_ROW,
+  EXPECTED_REMAINING_ROW,
   FORBIDDEN_SNIPPETS,
   NAMESPACE_HEADER,
   NAMESPACE_FOOTER,
@@ -56,11 +57,11 @@ def make_text() -> str:
 
     | Phase | Operations | Link 1 | Links 2+3 |
     |-------|-----------|--------|-----------|
-    | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
-    | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
+    | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `7b7c9193` |
+    | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `7b7c9193` |
     {EXPECTED_FLASHLOAN_ROW}
-    | 4 | createMarket | provable | needs MappingWord bridge |
-    | 5 | 11 remaining ops | blocked on macro | blocked |
+    | 4 | createMarket | macro-migrated | semantic equivalence theorem to the handwritten `Morpho.createMarket` model still pending |
+    {EXPECTED_REMAINING_ROW}
     -/
 
     {NAMESPACE_FOOTER}
@@ -293,11 +294,11 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
 
       | Phase | Operations | Link 1 | Links 2+3 |
       |-------|-----------|--------|-----------|
-      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
-      | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
+      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `7b7c9193` |
+      | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `7b7c9193` |
       {EXPECTED_FLASHLOAN_ROW}
-      | 4 | createMarket | provable | needs MappingWord bridge |
-      | 5 | 11 remaining ops | blocked on macro | blocked |
+      | 4 | createMarket | macro-migrated | semantic equivalence theorem to the handwritten `Morpho.createMarket` model still pending |
+      {EXPECTED_REMAINING_ROW}
       -/
 
       end Morpho.Proofs.SemanticBridgeDischarge

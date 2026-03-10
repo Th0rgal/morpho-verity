@@ -38,17 +38,17 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | Y | `link1_proven` |
 | `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | Y | `link1_proven` |
 | `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | Y | `link1_proven` |
-| `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | | `assumed` |
+| `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | Y | `assumed` |
 | `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `link1_proven` |
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
-| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | | `assumed` |
+| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
 | `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean`, which is the current macro-generated contract surface. 6/18 operations are
-macro-migrated; the remaining 12 are blocked on upstream macro
+`MacroSlice.lean`, which is the current macro-generated contract surface. 8/18 operations are
+macro-migrated; the remaining 10 are blocked on upstream macro
 primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
 For the 7 core/collateral flow stubs tracked under blocker-cluster labels `#123`/`#124`,
 `config/semantic-bridge-obligations.json` now also
@@ -97,8 +97,8 @@ silently drift away from the tracked migration roadmap.
 
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
-`createMarket` is a hard stub pending macro-frontend support for tuple-component binding,
-pure-expression `externalCall`, and a usable `blockTimestamp` value path.
+`createMarket` is now macro-migrated at the current pin; the remaining gap there is the
+semantic-equivalence theorem back to the handwritten `Morpho.createMarket` model.
 
 ## Semantic Bridge Discharge Path
 
@@ -154,15 +154,16 @@ Known expected differences (not checked, handled by semantic bridge):
 
 ## Macro Migration Blockers
 
-The 12 unmigrated operations depend on upstream verity macro capabilities.
+The 10 unmigrated operations depend on upstream verity macro capabilities.
 
 **Resolved/usable at the current pin**: `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
 translators, and `Bytes32`/`Bool` type support.
 
-At `ad03fc64`, the repo still treats tuple destructuring inside macro bodies,
-pure-expression `externalCall`, usable `blockTimestamp` values for
-`setMappingWord`, and direct `mstore`/`mload` as unresolved frontend gaps.
+At `7b7c9193`, the repo can now use linked externals, direct ERC20 helper syntax,
+tuple params in executable `verity_contract` definitions, `MappingStruct`/`MappingStruct2`,
+`internalCall`, `mstore`/`mload`, and macro-backed `ecrecover`. The remaining gaps are now narrower and mostly concern
+proof coverage or missing Morpho-side abstractions, not raw macro elaboration.
 
 **Remaining blockers**:
 
@@ -174,19 +175,11 @@ pure-expression `externalCall`, usable `blockTimestamp` values for
 | External callbacks (`Callbacks.callback`) | `liquidate`, `repay`, `supply`, `supplyCollateral` | 4 |
 | External contract calls (`Calls.withReturn`) | `accrueInterest`, `accrueInterestPublic`, `borrow`, `liquidate`, `withdrawCollateral` | 5 |
 | `.mappingStruct` storage field type declarations | `accrueInterest`, `accrueInterestPublic`, `setFee` | 3 |
-| Memory management (`mstore/mload`) | `borrow`, `liquidate`, `repay`, `setAuthorizationWithSig`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 8 |
-| Precompile access (`ecrecover`) | `setAuthorizationWithSig` | 1 |
-| Tuple destructuring in macro bodies | `createMarket`, `setAuthorizationWithSig` | 2 |
-| Pure-expression external calls (`externalCall`) | `createMarket` | 1 |
-| Usable `blockTimestamp` values for `setMappingWord` | `createMarket` | 1 |
-
-**Note on createMarket**: Currently a hard stub (`require (0 == 1) "createMarket stub"`).
-A full implementation using `setMappingWord`/`getMappingWord` with manual word-offset
-addressing was attempted but reverted (preserved in git history, commit 82e5572).
-At the current pin, a minimal macro repro still fails because tuple components such as
-`marketParams_0` are not introduced into the body scope, pure-expression `externalCall`
-is not recognized there, and `blockTimestamp` cannot be fed to `setMappingWord` as a
-plain `Uint256` value.
+| Memory management (`mstore/mload`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
+**Note on createMarket**: The macro body now uses the direct struct-storage path for
+`market` and `idToMarketParams`. What is still missing is the theorem that identifies
+that macro-backed adapter with the handwritten `Morpho.createMarket` state model used
+by the current bridge obligations.
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -225,20 +218,21 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
 | Operation | Primitives used | Link 1 | Link 2 (CompilationCorrectness) | Link 3 |
 |-----------|----------------|:------:|:-------------------------------:|--------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin ad03fc64 |
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
+| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
 | `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
-| `createMarket` | getMappingWord, setMappingWord, externalCall, blockTimestamp, ... | pending | pending | MappingWord + externalCall |
+| `createMarket` | getMapping, getMappingUint, structMember, setStructMember, externalCall, blockTimestamp | pending | pending | semantic bridge + SupportedStmtList witness for struct-storage write path |
 
-**Summary**: All 6 migrated operations have Link 1 (stable wrapper API ↔ EDSL) fully proven.
+**Summary**: 8 operations are now macro-migrated, and 6 of those have Link 1
+(stable wrapper API ↔ EDSL) fully proven.
 The 5 admin operations also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
 `Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
 the upstream two-storage-address witness added in verity. `flashLoan` remains
 blocked at Link 2 on the dynamic-topic `rawLog` event path.
-createMarket is a hard stub (not macro-migrated) — Link 1 not yet provable.
+`createMarket` is macro-migrated but its semantic-equivalence theorem is not yet discharged.
 
 ### Discharge proof structure
 
@@ -250,7 +244,7 @@ The discharge has three links per obligation:
 2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
-At verity pin `ad03fc64`, Link 2 is tracked on the typed-IR semantic bridge path
+At verity pin `7b7c9193`, Link 2 is tracked on the typed-IR semantic bridge path
 with concrete upstream witness theorems for Morpho admin patterns.
 
 **Link 1 proof pattern** (for the 5 admin operations):
@@ -266,15 +260,15 @@ with concrete upstream witness theorems for Morpho admin patterns.
 4. Close obligations via `native_decide` (field resolution) and `decide` (literal checks)
 5. `setFeeRecipient` now uses verity's two-storage-address `SupportedStmtFragment` constructor for the owner/auth + fee-recipient inequality pattern
 
-### Discharge sequence (current pin: `ad03fc64`)
+### Discharge sequence (current pin: `7b7c9193`)
 
 1. **Links 1+2 proven (5 ops), Link 3 via verity EndToEnd composition**: `setOwner`,
    `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 proven in
    `SemanticBridgeDischarge.lean`, Link 2 proven in `CompilationCorrectness.lean`.
-2. **After macro migration + mapping bridge**: `createMarket` — currently a hard stub;
-   once verity supports tuple access, externalCall, and blockTimestamp, the implementation
-   can be restored and will need bridge-level lemmas for word-offset mapping access
-3. **After remaining macro expansion**: 12 operations — requires internal calls, ERC20,
+2. **After semantic-bridge discharge of the new macro body**: `createMarket` — implementation
+   restored at the current pin; still needs the theorem tying the macro-backed adapter to
+   the handwritten `Morpho.createMarket` state model
+3. **After remaining macro expansion**: 11 operations — requires internal calls, ERC20,
    callbacks, external contract calls
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`

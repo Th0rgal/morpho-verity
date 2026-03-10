@@ -1,9 +1,9 @@
 {
   "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-  "inputRev": "ad03fc64",
-  "fullRev": "ad03fc64ed0e390e9d8c72f7cd469397324cda3a",
+  "inputRev": "7b7c9193",
+  "fullRev": "7b7c9193c8fa4194b27ba110e1c2791d49bc4356",
   "trackedIssue": "#118",
-  "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It includes the upstream bridge surface and witness support already consumed by the repo, including the two-storage-address proof path used by setFeeRecipient.",
+  "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It keeps the upstream bridge surface already consumed by the repo and adds the newer macro/frontend features Morpho now uses directly, including linked externals, direct ERC20 helper syntax, executable tuple params, struct-mapping storage declarations, internal calls, and macro-backed ecrecover support.",
   "remainingDivergences": [
     {
       "area": "Local generated-contract boundary",
@@ -24,16 +24,11 @@
     },
     {
       "area": "Upstream macro/frontend gaps still block operation migration",
-      "summary": "Several operations remain blocked at the current pin on internal calls, ERC20 helpers, callbacks, 2D struct access, direct mstore/mload, pure-expression externalCall, usable blockTimestamp values, and dynamic-topic rawLog witnesses.",
+      "summary": "Several operations remain blocked at the current pin on callbacks, target-aware external contract calls, and dynamic-topic rawLog witnesses.",
       "issueClusters": ["#123", "#124"],
       "blockers": [
-        "internal calls",
-        "ERC20 helpers",
         "callbacks",
-        "2D struct access",
-        "direct mstore/mload",
-        "pure-expression externalCall",
-        "usable blockTimestamp values",
+        "target-aware external contract calls",
         "dynamic-topic rawLog witnesses"
       ],
       "files": [

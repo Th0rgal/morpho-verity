@@ -60,7 +60,7 @@ verity_contract Tmp where
   function f (onBehalf : Address, data : Bytes) : Unit := do
     Callbacks.callback onBehalf 0 [] data
 """,
-    "expected": "unsupported statement in do block",
+    "expected": "unsupported expression in verity_contract body",
   },
   {
     "name": "erc20_transfer",
@@ -78,7 +78,7 @@ verity_contract Tmp where
   function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
     ERC20.safeTransfer token receiver amount
 """,
-    "expected": "unsupported statement in do block",
+    "expected": "unsupported expression in verity_contract body",
   },
   {
     "name": "erc20_transfer_from",
@@ -96,7 +96,7 @@ verity_contract Tmp where
   function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
     ERC20.safeTransferFrom token sender receiver amount
 """,
-    "expected": "unsupported statement in do block",
+    "expected": "unsupported expression in verity_contract body",
   },
   {
     "name": "struct_member2_read",
@@ -218,7 +218,7 @@ verity_contract Tmp where
   function f (onBehalf : Address, data : Bytes) : Unit := do
     Callbacks.callback onBehalf 0 [] data
 """,
-    "expected": "unsupported statement in do block",
+    "expected": "unsupported expression in verity_contract body",
   },
   {
     "name": "erc20_transfer",
@@ -236,7 +236,7 @@ verity_contract Tmp where
   function f (token : Address, receiver : Address, amount : Uint256) : Unit := do
     ERC20.safeTransfer token receiver amount
 """,
-    "expected": "unsupported statement in do block",
+    "expected": "unsupported expression in verity_contract body",
   },
   {
     "name": "erc20_transfer_from",
@@ -254,7 +254,7 @@ verity_contract Tmp where
   function f (token : Address, sender : Address, receiver : Address, amount : Uint256) : Unit := do
     ERC20.safeTransferFrom token sender receiver amount
 """,
-    "expected": "unsupported statement in do block",
+    "expected": "unsupported expression in verity_contract body",
   },
   {
     "name": "struct_member2_read",

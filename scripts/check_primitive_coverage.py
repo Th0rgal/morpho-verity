@@ -36,7 +36,7 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("getStorageAddr", re.compile(r"\bgetStorageAddr\b")),
     ("setStorageAddr", re.compile(r"\bsetStorageAddr\b")),
     ("getMapping", re.compile(r"\bgetMapping\s+\w+Slot\s+\w+(?!\w)")),
-    ("setMapping", re.compile(r"\bsetMapping\s+\w+Slot\s+\w+\s+\d+")),
+    ("setMapping", re.compile(r"\bsetMapping\s+\w+Slot\s+\w+\s+\S+")),
     ("getMappingUint", re.compile(r"\bgetMappingUint\b")),
     ("setMappingUint", re.compile(r"\bsetMappingUint\b")),
     ("getMapping2", re.compile(r"\bgetMapping2\b")),
@@ -57,6 +57,7 @@ PRIMITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("returnStorageWords", re.compile(r"\breturnStorageWords\b")),
     ("setMappingWord", re.compile(r"\bsetMappingWord\b")),
     ("externalCall", re.compile(r"\bexternalCall\b")),
+    ("ecrecover", re.compile(r"\becrecover\b")),
     ("blockTimestamp", re.compile(r"\bblockTimestamp\b")),
     ("add", re.compile(r"\badd\s+\w+\s+\w+")),
     ("and", re.compile(r"\band\s+\w+\b")),
@@ -108,6 +109,7 @@ PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     "getMappingWord": "missing",     # struct member access via slot offset
     "setMappingWord": "missing",     # struct member write via slot offset
     "externalCall": "missing",       # axiomatic external function call
+    "ecrecover": "missing",          # precompile-backed signature recovery
     "blockTimestamp": "proven",      # block.timestamp access (trivial EVM opcode)
 
     # Other missing primitives

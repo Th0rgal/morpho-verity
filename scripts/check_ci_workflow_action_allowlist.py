@@ -12,6 +12,7 @@ from ci_workflow_helpers import WORKFLOW_PATH, read_text, strip_yaml_scalar
 APPROVED_ACTION_REFS = frozenset(
   {
     "actions/cache@v4",
+    "actions/cache/save@v4",
     "actions/checkout@v5",
     "actions/download-artifact@v4",
     "actions/upload-artifact@v4",

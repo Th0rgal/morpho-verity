@@ -1,13 +1,12 @@
-import Morpho.Morpho
+import Morpho.Specs.ContractSemantics
 import Morpho.Proofs.SolidityBridge
 
 /-!
-# Semantic Bridge Discharge: Link 1 (Wrapper API ↔ EDSL)
+# Semantic Bridge Discharge: Link 1 (Canonical Contract Semantics ↔ EDSL)
 
 This module proves the first link of the semantic bridge discharge chain:
 the EDSL functions produced by `verity_contract` are equivalent to the
-stable spec-facing wrapper API exported by `Morpho.Morpho`, which in turn
-aliases the canonical execution surface in `Morpho.Specs.ContractSemantics`.
+canonical spec-facing execution surface in `Morpho.Specs.ContractSemantics`.
 
 ## Architecture
 
@@ -28,7 +27,7 @@ This file proves Link 1 for `setOwner`, `setFeeRecipient`, `enableIrm`,
 Links 2+3 are already provided upstream for the supported fragment (verity#1060 / #1065).
 The remaining blockers here are Link 1 discharge and macro frontend coverage
 for complex Morpho operations.
-Verity pin: ad03fc64 (including the two-storage-address witness needed by `setFeeRecipient`).
+Verity pin: 7b7c9193 (including linked externals, direct ERC20 helper syntax, and the executable tuple / struct / ecrecover macro surface now consumed by Morpho).
 
 ## Proof Strategy
 
@@ -52,16 +51,16 @@ open Morpho.Types
 /-! ## Canonical State Encoding
 
 `Morpho.Specs.ContractSemantics` owns the canonical spec-facing execution
-surface for the already-migrated admin operations. This file states Link 1 on
-the stable `Morpho.*` wrappers so downstream proofs can stay on the readable
-compatibility API while still reducing definitionally to the canonical module. -/
+surface for the already-migrated operations covered here. This file states
+Link 1 directly on that canonical module so the supported semantic bridge no
+longer depends on `Morpho.Morpho` for these operations. -/
 
 noncomputable abbrev edslSetOwner := Morpho.Compiler.AdminAdapters.setOwner
 
 /-- **Link 1 for setOwner**: The EDSL `setOwner` matches the pure Lean model. -/
 theorem setOwner_link1 :
     ∀ s newOwner,
-      edslSetOwner s newOwner = Morpho.setOwner s newOwner := by
+      edslSetOwner s newOwner = Morpho.Specs.ContractSemantics.setOwner s newOwner := by
   intro s newOwner
   rfl
 
@@ -75,7 +74,8 @@ noncomputable abbrev edslSetFeeRecipient := Morpho.Compiler.AdminAdapters.setFee
 /-- **Link 1 for setFeeRecipient**: EDSL matches the pure Lean model. -/
 theorem setFeeRecipient_link1 :
     ∀ s newFeeRecipient,
-      edslSetFeeRecipient s newFeeRecipient = Morpho.setFeeRecipient s newFeeRecipient := by
+      edslSetFeeRecipient s newFeeRecipient =
+        Morpho.Specs.ContractSemantics.setFeeRecipient s newFeeRecipient := by
   intro s newFeeRecipient
   rfl
 
@@ -88,7 +88,7 @@ noncomputable abbrev edslEnableIrm := Morpho.Compiler.AdminAdapters.enableIrm
 
 /-- **Link 1 for enableIrm**: The EDSL `enableIrm` matches the pure Lean model. -/
 theorem enableIrm_link1 :
-    ∀ s irm, edslEnableIrm s irm = Morpho.enableIrm s irm := by
+    ∀ s irm, edslEnableIrm s irm = Morpho.Specs.ContractSemantics.enableIrm s irm := by
   intro s irm
   rfl
 
@@ -101,7 +101,7 @@ noncomputable abbrev edslEnableLltv := Morpho.Compiler.AdminAdapters.enableLltv
 
 /-- **Link 1 for enableLltv**: The EDSL `enableLltv` matches the pure Lean model. -/
 theorem enableLltv_link1 :
-    ∀ s lltv, edslEnableLltv s lltv = Morpho.enableLltv s lltv := by
+    ∀ s lltv, edslEnableLltv s lltv = Morpho.Specs.ContractSemantics.enableLltv s lltv := by
   intro s lltv
   rfl
 
@@ -116,7 +116,7 @@ noncomputable abbrev edslSetAuthorization := Morpho.Compiler.AdminAdapters.setAu
 theorem setAuthorization_link1 :
     ∀ s authorized newIsAuthorized,
       edslSetAuthorization s authorized newIsAuthorized =
-        Morpho.setAuthorization s authorized newIsAuthorized := by
+        Morpho.Specs.ContractSemantics.setAuthorization s authorized newIsAuthorized := by
   intro s authorized newIsAuthorized
   rfl
 
@@ -127,10 +127,19 @@ theorem setAuthorization_semEq :
 
 noncomputable abbrev edslFlashLoan := Morpho.Compiler.AdminAdapters.flashLoan
 
+noncomputable abbrev edslCreateMarket := Morpho.Compiler.AdminAdapters.createMarket
+
+/-- **Link 1 for createMarket**: The EDSL `createMarket` matches the canonical state model. -/
+theorem createMarket_link1 :
+    ∀ s params,
+      edslCreateMarket s params = Morpho.Specs.ContractSemantics.createMarket s params := by
+  intro s params
+  rfl
+
 /-- **Link 1 for flashLoan**: The EDSL `flashLoan` matches the canonical state model. -/
 theorem flashLoan_link1 :
     ∀ s assets,
-      edslFlashLoan s assets = Morpho.flashLoan s assets := by
+      edslFlashLoan s assets = Morpho.Specs.ContractSemantics.flashLoan s assets := by
   intro s assets
   rfl
 
@@ -149,11 +158,11 @@ macro/frontend unblockings for the unsupported operations.
 
 | Phase | Operations | Link 1 | Links 2+3 |
 |-------|-----------|--------|-----------|
-| 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `ad03fc64` |
-| 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `ad03fc64` |
+| 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `7b7c9193` |
+| 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `7b7c9193` |
 | 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` tail with caller/token topics, then external I/O bridge work |
-| 4 | createMarket | provable | needs MappingWord bridge |
-| 5 | 11 remaining ops | blocked on macro | blocked |
+| 4 | createMarket | macro-migrated | semantic equivalence theorem to the handwritten `Morpho.createMarket` model still pending |
+| 5 | 10 remaining ops | blocked on macro / Link 1 | blocked |
 -/
 
 end Morpho.Proofs.SemanticBridgeDischarge

@@ -47,7 +47,7 @@ The remaining gap for the full pipeline (EDSL → Yul) is connecting `SupportedS
 to `compileFunctionToTBlock` → `interpretIR` → `interpretYulFromIR`, which requires
 verity infrastructure not yet available for external contracts.
 
-As of verity pin ad03fc64 (including the two-storage-address witness used by
+As of verity pin 7b7c9193 (including the newer linked-external / ERC20 helper macro surface
 `setFeeRecipient`), the compilation proofs for all 5 admin functions are fully
 compositional within the typed-IR domain.
 -/
@@ -267,8 +267,8 @@ the Morpho event path logs `caller` and `token` as dynamic topics.
   supported `verity_contract` fragment. The remaining gaps here are Morpho-side:
   dynamic-topic `rawLog` support for `flashLoan`, plus macro frontend coverage for
   complex operations that still do not lower cleanly.
-- **createMarket**: `getMappingWord`/`setMappingWord` stubs in MacroSlice.lean
-- **12 remaining operations**: blocked on external call / loop / struct mapping support
+- **createMarket**: macro-migrated on struct storage; semantic-bridge discharge still pending
+- **11 remaining operations**: blocked on external call / loop / proof-surface support
 -/
 
 end Morpho.Proofs.SemanticBridgeEndToEnd
