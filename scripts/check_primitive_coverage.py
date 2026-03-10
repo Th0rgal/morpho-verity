@@ -216,7 +216,7 @@ def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 MACRO_FUNC_RE = re.compile(
-    r"^\s+function\s+(\w+)\s*\((.*?)\)\s*:", re.MULTILINE
+    r"^\s+function\s+(\w+)\s*\((.*?)\)\s*(?:local_obligations\s*\[[^\]]*\]\s*)?:", re.MULTILINE
 )
 
 STUB_RE = re.compile(r'require\s*\(sender\s*==\s*sender\)\s*"\w+\s+noop"')

@@ -25,7 +25,7 @@ DEFAULT_CONTRACT = "MorphoViewSlice"
 
 CONTRACT_RE = re.compile(r"^\s*verity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\s*$")
 FUNCTION_RE = re.compile(
-  r"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:\s*(.+?)\s*:=\s*"
+  r"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:local_obligations\s*\[[^\]]*\]\s*)?:\s*(.+?)\s*:=\s*"
 )
 PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
 
