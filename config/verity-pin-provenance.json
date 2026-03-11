@@ -1,7 +1,7 @@
 {
   "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-  "inputRev": "7b7c9193",
-  "fullRev": "7b7c9193c8fa4194b27ba110e1c2791d49bc4356",
+  "inputRev": "f026ac0a",
+  "fullRev": "f026ac0a2e584638841f988ca05d9e0d0008ee91",
   "trackedIssue": "#118",
   "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It keeps the upstream bridge surface already consumed by the repo and adds the newer macro/frontend features Morpho now uses directly, including linked externals, direct ERC20 helper syntax, executable tuple params, struct-mapping storage declarations, internal calls, and macro-backed ecrecover support.",
   "remainingDivergences": [

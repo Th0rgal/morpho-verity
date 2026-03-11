@@ -85,7 +85,7 @@ verity_contract MorphoViewSlice where
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
     nonceSlot : Address -> Uint256 := slot 7
 
-  function DOMAIN_SEPARATOR () : Uint256 := do
+  function DOMAIN_SEPARATOR () local_obligations [domain_separator_memory := assumed "Domain separator hash computation uses direct memory writes; caller must verify the EIP-712 encoding is correct."] : Uint256 := do
     mstore 0 32523383700587834770323112271211932718128200013265661849047136999858837557784
     mstore 32 chainid
     mstore 64 contractAddress
@@ -210,7 +210,7 @@ verity_contract MorphoViewSlice where
       require (currentValue != 0) "already set"
       setMapping2 isAuthorizedSlot sender authorized 0
 
-  function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
+  function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) local_obligations [authorization_sig_memory := assumed "EIP-712 typed-data hashing and ecrecover use direct memory writes and low-level operations; caller must verify the encoding and signature verification are correct."] : Unit := do
     let sender <- msgSender
     let authorizer := authorization_0
     let authorized := authorization_1
@@ -365,7 +365,7 @@ verity_contract MorphoViewSlice where
     let _ignoredData := data
     require (sender == sender) "liquidate noop"
 
-  function flashLoan (token : Address, assets : Uint256, data : Bytes) : Unit := do
+  function flashLoan (token : Address, assets : Uint256, data : Bytes) local_obligations [flash_loan_memory := assumed "Flash loan event emission uses direct memory writes and raw log; caller must verify the encoding matches the expected FlashLoan event."] : Unit := do
     require (assets > 0) "zero assets"
     let sender <- msgSender
     let _ignoredData := data
