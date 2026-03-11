@@ -79,6 +79,7 @@ def encodeMorphoState (s : MorphoState) : ContractState :=
     (fun n key1 key2 =>
       if n == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
       else 0)
+    (fun _ => [])
     s.sender
     0
     0
