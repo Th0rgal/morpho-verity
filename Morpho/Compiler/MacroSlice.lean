@@ -50,6 +50,15 @@ private def marketIdWord (args : List Uint256) : Uint256 :=
   | _ => 0
 def externalCall (name : String) (args : List Uint256) : Uint256 :=
   if name = keccakMarketParams then marketIdWord args else 0
+def sub (a b : Uint256) : Uint256 := Verity.Core.Uint256.sub a b
+def mul (a b : Uint256) : Uint256 := Verity.Core.Uint256.mul a b
+def div (a b : Uint256) : Uint256 := Verity.Core.Uint256.div a b
+def mulDivDown (a b c : Uint256) : Uint256 := div (mul a b) c
+def mulDivUp (a b c : Uint256) : Uint256 := div (add (mul a b) (sub c 1)) c
+def wMulDown (a b : Uint256) : Uint256 := mulDivDown a b 1000000000000000000
+def wDivDown (a b : Uint256) : Uint256 := mulDivDown a 1000000000000000000 b
+def wDivUp (a b : Uint256) : Uint256 := mulDivUp a 1000000000000000000 b
+def min (a b : Uint256) : Uint256 := if a <= b then a else b
 def blockTimestamp : Uint256 := 0
 def chainid : Uint256 := 0
 def contractAddress : Uint256 := 0
@@ -286,89 +295,249 @@ verity_contract MorphoViewSlice where
     let sender <- msgSender
     let currentOwner <- getStorageAddr ownerSlot
     require (sender == currentOwner) "not owner"
-    let marketParamsArg := marketParams
-    let _ignored := marketParamsArg
-    let _ignoredFee := newFee
-    require (sender == sender) "setFee noop"
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    let currentFee <- structMember marketSlot id "fee"
+    require (newFee != currentFee) "already set"
+    require (newFee <= 250000000000000000) "max fee exceeded"
+    setStructMember marketSlot id "fee" newFee
 
   function accrueInterest (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignored := marketParamsArg
-    require (sender == sender) "accrueInterest noop"
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    let currentTimestamp := blockTimestamp
+    let elapsed := sub currentTimestamp currentLastUpdate
+    if elapsed > 0 then
+      if marketParams_3 != 0 then
+        let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+        let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+        let totalSupplyShares_ <- structMember marketSlot id "totalSupplyShares"
+        let currentFee <- structMember marketSlot id "fee"
+        let borrowRate := externalCall "borrowRate" [addressToWord marketParams_3, totalBorrowAssets_]
+        let firstTerm := mul borrowRate elapsed
+        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
+        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
+        let interest := mulDivDown totalBorrowAssets_ (add firstTerm (add secondTerm thirdTerm)) 1000000000000000000
+        let newTotalBorrowAssets := add totalBorrowAssets_ interest
+        let newTotalSupplyAssets := add totalSupplyAssets_ interest
+        setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
+        setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
+        if currentFee > 0 then
+          let feeAmount := mulDivDown interest currentFee 1000000000000000000
+          let feeShares := mulDivDown feeAmount (add totalSupplyShares_ 1000000) (add (sub newTotalSupplyAssets feeAmount) 1)
+          let feeRecipient_ <- getStorageAddr feeRecipientSlot
+          let currentFeeRecipientShares <- structMember2 positionSlot id feeRecipient_ "supplyShares"
+          setStructMember2 positionSlot id feeRecipient_ "supplyShares" (add currentFeeRecipientShares feeShares)
+          setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ feeShares)
+        else
+          require (currentFee == 0) "fee zero"
+      else
+        require (marketParams_3 == 0) "no irm"
+      setStructMember marketSlot id "lastUpdate" currentTimestamp
+    else
+      require (elapsed == 0) "no elapsed"
 
   function supplyCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, data : Bytes) : Unit := do
-    let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredAssets := assets
-    let _ignoredOnBehalf := onBehalf
-    let _ignoredData := data
-    require (sender == sender) "supplyCollateral noop"
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require (assets > 0) "zero assets"
+    require (onBehalf != 0) "zero address"
+    let currentCollateral <- structMember2 positionSlot id onBehalf "collateral"
+    setStructMember2 positionSlot id onBehalf "collateral" (add currentCollateral assets)
 
   function withdrawCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require (assets > 0) "zero assets"
+    require (receiver != 0) "zero address"
     let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredAssets := assets
-    let _ignoredOnBehalf := onBehalf
-    let _ignoredReceiver := receiver
-    require (sender == sender) "withdrawCollateral noop"
+    let isSelf := sender == onBehalf
+    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
+    require (isSelf || authWord != 0) "unauthorized"
+    let currentCollateral <- structMember2 positionSlot id onBehalf "collateral"
+    require (currentCollateral >= assets) "insufficient collateral"
+    setStructMember2 positionSlot id onBehalf "collateral" (sub currentCollateral assets)
 
   function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) : Unit := do
-    let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredAssets := assets
-    let _ignoredShares := shares
-    let _ignoredOnBehalf := onBehalf
-    let _ignoredData := data
-    require (sender == sender) "supply noop"
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require ((assets == 0) != (shares == 0)) "inconsistent input"
+    require (onBehalf != 0) "zero address"
+    let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+    let totalSupplyShares_ <- structMember marketSlot id "totalSupplyShares"
+    let mut finalAssets := assets
+    let mut finalShares := shares
+    if assets > 0 then
+      finalShares := mulDivDown assets (add totalSupplyShares_ 1000000) (add totalSupplyAssets_ 1)
+    else
+      finalAssets := mulDivUp shares (add totalSupplyAssets_ 1) (add totalSupplyShares_ 1000000)
+    let currentSupplyShares <- structMember2 positionSlot id onBehalf "supplyShares"
+    setStructMember2 positionSlot id onBehalf "supplyShares" (add currentSupplyShares finalShares)
+    setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ finalShares)
+    setStructMember marketSlot id "totalSupplyAssets" (add totalSupplyAssets_ finalAssets)
 
   function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require ((assets == 0) != (shares == 0)) "inconsistent input"
+    require (receiver != 0) "zero address"
     let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredAssets := assets
-    let _ignoredShares := shares
-    let _ignoredOnBehalf := onBehalf
-    let _ignoredReceiver := receiver
-    require (sender == sender) "withdraw noop"
+    let isSelf := sender == onBehalf
+    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
+    require (isSelf || authWord != 0) "unauthorized"
+    let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+    let totalSupplyShares_ <- structMember marketSlot id "totalSupplyShares"
+    let mut finalAssets := assets
+    let mut finalShares := shares
+    if assets > 0 then
+      finalShares := mulDivUp assets (add totalSupplyShares_ 1000000) (add totalSupplyAssets_ 1)
+    else
+      finalAssets := mulDivDown shares (add totalSupplyAssets_ 1) (add totalSupplyShares_ 1000000)
+    let currentSupplyShares <- structMember2 positionSlot id onBehalf "supplyShares"
+    require (currentSupplyShares >= finalShares) "insufficient balance"
+    setStructMember2 positionSlot id onBehalf "supplyShares" (sub currentSupplyShares finalShares)
+    setStructMember marketSlot id "totalSupplyShares" (sub totalSupplyShares_ finalShares)
+    setStructMember marketSlot id "totalSupplyAssets" (sub totalSupplyAssets_ finalAssets)
+    let newTotalSupplyAssets := sub totalSupplyAssets_ finalAssets
+    let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+    require (totalBorrowAssets_ <= newTotalSupplyAssets) "insufficient liquidity"
 
   function borrow (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require ((assets == 0) != (shares == 0)) "inconsistent input"
+    require (receiver != 0) "zero address"
     let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredAssets := assets
-    let _ignoredShares := shares
-    let _ignoredOnBehalf := onBehalf
-    let _ignoredReceiver := receiver
-    require (sender == sender) "borrow noop"
+    let isSelf := sender == onBehalf
+    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
+    require (isSelf || authWord != 0) "unauthorized"
+    let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember marketSlot id "totalBorrowShares"
+    let mut finalAssets := assets
+    let mut finalShares := shares
+    if assets > 0 then
+      finalShares := mulDivUp assets (add totalBorrowShares_ 1000000) (add totalBorrowAssets_ 1)
+    else
+      finalAssets := mulDivDown shares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
+    let currentBorrowShares <- structMember2 positionSlot id onBehalf "borrowShares"
+    setStructMember2 positionSlot id onBehalf "borrowShares" (add currentBorrowShares finalShares)
+    setStructMember marketSlot id "totalBorrowShares" (add totalBorrowShares_ finalShares)
+    setStructMember marketSlot id "totalBorrowAssets" (add totalBorrowAssets_ finalAssets)
+    let newTotalBorrowAssets := add totalBorrowAssets_ finalAssets
+    let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+    require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
 
   function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) : Unit := do
-    let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredAssets := assets
-    let _ignoredShares := shares
-    let _ignoredOnBehalf := onBehalf
-    let _ignoredData := data
-    require (sender == sender) "repay noop"
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require ((assets == 0) != (shares == 0)) "inconsistent input"
+    require (onBehalf != 0) "zero address"
+    let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember marketSlot id "totalBorrowShares"
+    let mut finalAssets := assets
+    let mut finalShares := shares
+    if assets > 0 then
+      finalShares := mulDivDown assets (add totalBorrowShares_ 1000000) (add totalBorrowAssets_ 1)
+    else
+      finalAssets := mulDivUp shares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
+    let currentBorrowShares <- structMember2 positionSlot id onBehalf "borrowShares"
+    require (currentBorrowShares >= finalShares) "insufficient balance"
+    setStructMember2 positionSlot id onBehalf "borrowShares" (sub currentBorrowShares finalShares)
+    setStructMember marketSlot id "totalBorrowShares" (sub totalBorrowShares_ finalShares)
+    if totalBorrowAssets_ >= finalAssets then
+      setStructMember marketSlot id "totalBorrowAssets" (sub totalBorrowAssets_ finalAssets)
+    else
+      setStructMember marketSlot id "totalBorrowAssets" 0
 
   function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) : Unit := do
-    let sender <- msgSender
-    let marketParamsArg := marketParams
-    let _ignoredMarket := marketParamsArg
-    let _ignoredBorrower := borrower
-    let _ignoredSeizedAssets := seizedAssets
-    let _ignoredRepaidShares := repaidShares
-    let _ignoredData := data
-    require (sender == sender) "liquidate noop"
+    let _ignoredMarketParams := marketParams
+    let id := externalCall keccakMarketParams [
+      addressToWord marketParams_0, addressToWord marketParams_1,
+      addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
+    let currentLastUpdate <- structMember marketSlot id "lastUpdate"
+    require (currentLastUpdate != 0) "market not created"
+    require ((seizedAssets == 0) != (repaidShares == 0)) "inconsistent input"
+    let lltv := marketParams_4
+    let wadMinusLltv := sub 1000000000000000000 lltv
+    let cursorTerm := mulDivDown 300000000000000000 wadMinusLltv 1000000000000000000
+    let denominator := sub 1000000000000000000 cursorTerm
+    let computedLIF := mulDivDown 1000000000000000000 1000000000000000000 denominator
+    let lif := min 1150000000000000000 computedLIF
+    let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember marketSlot id "totalBorrowShares"
+    let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+    let collateralPrice := externalCall "collateralPrice" [addressToWord marketParams_2]
+    let mut finalSeizedAssets := seizedAssets
+    let mut finalRepaidShares := repaidShares
+    if seizedAssets > 0 then
+      let seizedQuoted := mulDivUp seizedAssets collateralPrice 1000000000000000000000000000000000000
+      let repaidAmount := mulDivUp seizedQuoted 1000000000000000000 lif
+      finalRepaidShares := mulDivUp repaidAmount (add totalBorrowShares_ 1000000) (add totalBorrowAssets_ 1)
+    else
+      let repaidAmount := mulDivDown finalRepaidShares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
+      let seizedValue := mulDivDown repaidAmount lif 1000000000000000000
+      finalSeizedAssets := mulDivDown seizedValue 1000000000000000000000000000000000000 collateralPrice
+    let repaidAssets := mulDivUp finalRepaidShares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
+    let currentBorrowShares <- structMember2 positionSlot id borrower "borrowShares"
+    require (currentBorrowShares >= finalRepaidShares) "insufficient borrow"
+    let currentCollateral <- structMember2 positionSlot id borrower "collateral"
+    require (currentCollateral >= finalSeizedAssets) "insufficient collateral"
+    let newBorrowShares := sub currentBorrowShares finalRepaidShares
+    let newCollateral := sub currentCollateral finalSeizedAssets
+    setStructMember2 positionSlot id borrower "borrowShares" newBorrowShares
+    setStructMember2 positionSlot id borrower "collateral" newCollateral
+    let newTotalBorrowShares := sub totalBorrowShares_ finalRepaidShares
+    let mut newTotalBorrowAssets := 0
+    if totalBorrowAssets_ >= repaidAssets then
+      newTotalBorrowAssets := sub totalBorrowAssets_ repaidAssets
+    else
+      newTotalBorrowAssets := 0
+    if newCollateral == 0 then
+      let badDebtShares := newBorrowShares
+      let badDebtAssets := min newTotalBorrowAssets (mulDivUp badDebtShares (add newTotalBorrowAssets 1) (add newTotalBorrowShares 1000000))
+      setStructMember2 positionSlot id borrower "borrowShares" 0
+      setStructMember marketSlot id "totalBorrowShares" (sub newTotalBorrowShares badDebtShares)
+      setStructMember marketSlot id "totalBorrowAssets" (sub newTotalBorrowAssets badDebtAssets)
+      setStructMember marketSlot id "totalSupplyAssets" (sub totalSupplyAssets_ badDebtAssets)
+    else
+      setStructMember marketSlot id "totalBorrowShares" newTotalBorrowShares
+      setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
 
   function flashLoan (token : Address, assets : Uint256, data : Bytes) local_obligations [flash_loan_memory := assumed "Flash loan event emission uses direct memory writes and raw log; caller must verify the encoding matches the expected FlashLoan event."] : Unit := do
     require (assets > 0) "zero assets"
     let sender <- msgSender
-    let _ignoredData := data
     mstore 0 assets
     rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
 
