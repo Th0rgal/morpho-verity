@@ -344,15 +344,17 @@ verity_contract MorphoViewSlice where
         let newTotalSupplyAssets := add totalSupplyAssets_ interest
         setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
         setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
+        let mut feeShares := 0
         if currentFee > 0 then
           let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let feeShares := mulDivDown feeAmount (add totalSupplyShares_ 1000000) (add (sub newTotalSupplyAssets feeAmount) 1)
+          feeShares := mulDivDown feeAmount (add totalSupplyShares_ 1000000) (add (sub newTotalSupplyAssets feeAmount) 1)
           let feeRecipient_ <- getStorageAddr feeRecipientSlot
           let currentFeeRecipientShares <- structMember2 positionSlot id feeRecipient_ "supplyShares"
           setStructMember2 positionSlot id feeRecipient_ "supplyShares" (add currentFeeRecipientShares feeShares)
           setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ feeShares)
         else
           require (currentFee == 0) "fee zero"
+        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
       else
         require (marketParams_3 == 0) "no irm"
       setStructMember marketSlot id "lastUpdate" currentTimestamp
@@ -371,7 +373,7 @@ verity_contract MorphoViewSlice where
     let currentCollateral <- structMember2 positionSlot id onBehalf "collateral"
     setStructMember2 positionSlot id onBehalf "collateral" (add currentCollateral assets)
     let sender <- msgSender
-    emit "SupplyCollateral" [id, sender, onBehalf]
+    emit "SupplyCollateral" [id, sender, onBehalf, assets]
     safeTransferFrom marketParams_1 sender contractAddress assets
 
   function withdrawCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
@@ -404,7 +406,7 @@ verity_contract MorphoViewSlice where
       require (maxBorrow >= borrowedAmt) "insufficient collateral"
     else
       require (borrowShares_ == 0) "no borrow"
-    emit "WithdrawCollateral" [id, sender, onBehalf]
+    emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
     safeTransfer marketParams_1 receiver assets
 
   function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
@@ -429,7 +431,7 @@ verity_contract MorphoViewSlice where
     setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ finalShares)
     setStructMember marketSlot id "totalSupplyAssets" (add totalSupplyAssets_ finalAssets)
     let sender <- msgSender
-    emit "Supply" [id, sender, onBehalf]
+    emit "Supply" [id, sender, onBehalf, finalAssets, finalShares]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
 
   function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
@@ -461,7 +463,7 @@ verity_contract MorphoViewSlice where
     setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
     let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
     require (totalBorrowAssets_ <= newTotalSupplyAssets) "insufficient liquidity"
-    emit "Withdraw" [id, sender, onBehalf]
+    emit "Withdraw" [id, sender, onBehalf, receiver, finalAssets, finalShares]
     safeTransfer marketParams_0 receiver finalAssets
 
   function borrow (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
@@ -505,7 +507,7 @@ verity_contract MorphoViewSlice where
     let newTotalBorrowAssets := add totalBorrowAssets_ finalAssets
     let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
     require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
-    emit "Borrow" [id, sender, onBehalf]
+    emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
     safeTransfer marketParams_0 receiver finalAssets
 
   function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
@@ -534,7 +536,7 @@ verity_contract MorphoViewSlice where
     else
       setStructMember marketSlot id "totalBorrowAssets" 0
     let sender <- msgSender
-    emit "Repay" [id, sender, onBehalf]
+    emit "Repay" [id, sender, onBehalf, finalAssets, finalShares]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
 
   function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Callback invocation and ERC20 transfers use low-level calls; caller must verify the token transfers succeed."] : Unit := do
@@ -606,7 +608,7 @@ verity_contract MorphoViewSlice where
       setStructMember marketSlot id "totalBorrowShares" newTotalBorrowShares
       setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
     let sender <- msgSender
-    emit "Liquidate" [id, sender, borrower]
+    emit "Liquidate" [id, sender, borrower, repaidAssets, finalRepaidShares, finalSeizedAssets, badDebtAssets, badDebtShares]
     safeTransfer marketParams_1 sender finalSeizedAssets
     safeTransferFrom marketParams_0 sender contractAddress repaidAssets
 

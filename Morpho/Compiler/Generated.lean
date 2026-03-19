@@ -20,13 +20,14 @@ private def morphoEvents : List EventDef := [
   { name := "EnableLltv",           params := [⟨"lltv",        .uint256, .unindexed⟩] },
   { name := "CreateMarket",         params := [⟨"id",          .uint256, .unindexed⟩] },
   { name := "SetFee",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"newFee", .uint256, .unindexed⟩] },
-  { name := "SupplyCollateral",     params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
-  { name := "WithdrawCollateral",   params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
-  { name := "Supply",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
-  { name := "Withdraw",             params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
-  { name := "Borrow",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
-  { name := "Repay",                params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
-  { name := "Liquidate",            params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"borrower", .address, .unindexed⟩] },
+  { name := "SupplyCollateral",     params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
+  { name := "WithdrawCollateral",   params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩, ⟨"receiver", .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
+  { name := "Supply",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Withdraw",             params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩, ⟨"receiver", .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Borrow",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩, ⟨"receiver", .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Repay",                params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Liquidate",            params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"borrower", .address, .unindexed⟩, ⟨"repaidAssets", .uint256, .unindexed⟩, ⟨"repaidShares", .uint256, .unindexed⟩, ⟨"seizedAssets", .uint256, .unindexed⟩, ⟨"badDebtAssets", .uint256, .unindexed⟩, ⟨"badDebtShares", .uint256, .unindexed⟩] },
+  { name := "AccrueInterest",       params := [⟨"id",          .uint256, .unindexed⟩, ⟨"prevBorrowRate", .uint256, .unindexed⟩, ⟨"interest", .uint256, .unindexed⟩, ⟨"feeShares", .uint256, .unindexed⟩] },
   { name := "FlashLoan",            params := [⟨"sender",      .address, .unindexed⟩, ⟨"token",  .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩] }
 ]
 
