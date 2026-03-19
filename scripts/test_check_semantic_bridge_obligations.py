@@ -431,13 +431,16 @@ class IntegrationTests(unittest.TestCase):
             ["enableIrm", "enableLltv", "flashLoan", "setAuthorization", "setFeeRecipient", "setOwner"],
         )
 
-        # 8 should be macro-migrated (admin cluster + createMarket + setAuthorizationWithSig + flashLoan)
+        # 17 should be macro-migrated (all except accrueInterestPublic)
         migrated = [o for o in config["obligations"] if o.get("macroMigrated")]
-        self.assertEqual(len(migrated), 8)
+        self.assertEqual(len(migrated), 17)
         migrated_ops = sorted(o["operation"] for o in migrated)
         self.assertEqual(
             migrated_ops,
-            ["createMarket", "enableIrm", "enableLltv", "flashLoan", "setAuthorization", "setAuthorizationWithSig", "setFeeRecipient", "setOwner"],
+            ["accrueInterest", "borrow", "createMarket", "enableIrm", "enableLltv",
+             "flashLoan", "liquidate", "repay", "setAuthorization",
+             "setAuthorizationWithSig", "setFee", "setFeeRecipient", "setOwner",
+             "supply", "supplyCollateral", "withdraw", "withdrawCollateral"],
         )
 
 

@@ -611,7 +611,8 @@ verity_contract MorphoViewSlice where
   function flashLoan (token : Address, assets : Uint256, data : Bytes) local_obligations [flash_loan_transfers := assumed "Flash loan ERC20 transfers and callback use low-level calls; caller must verify the token transfers succeed and the callback returns."] : Unit := do
     require (assets > 0) "zero assets"
     let sender <- msgSender
-    emit "FlashLoan" [sender, token, assets]
+    mstore 0 assets
+    rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
     safeTransfer token sender assets
     safeTransferFrom token sender contractAddress assets
 

@@ -151,120 +151,20 @@ class OperationBlockerTests(unittest.TestCase):
       with self.assertRaisesRegex(MigrationGateError, "duplicate obligation operation `supply`"):
         load_obligations(path)
 
-  def test_build_operation_blocker_report_for_tracked_ops(self) -> None:
+  def test_build_operation_blocker_report_returns_empty_when_no_ops_tracked(self) -> None:
+    """All previously tracked ops are now macro-migrated, so the report is empty."""
     spec_text = """
 def morphoSpec : CompilationModel := {
   functions := [
-    {
-      name := "supply"
-      body := supplyBody
-    },
-    {
-      name := "withdraw"
-      body := withdrawBody
-    },
-    {
-      name := "supplyCollateral"
-      body := supplyCollateralBody
-    },
-    {
-      name := "borrow"
-      body := borrowBody
-    },
-    {
-      name := "repay"
-      body := repayBody
-    },
-    {
-      name := "withdrawCollateral"
-      body := withdrawCollateralBody
-    },
-    {
-      name := "liquidate"
-      body := liquidateBody
-    }
+    { name := "supply", body := supplyBody }
   ]
 }
-
 private def supplyBody : List Stmt := [
-  callAccrueInterest,
-  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "supplyShares"),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  Callbacks.callback Expr.caller 0 [] "data",
-  ERC20.safeTransferFrom (Expr.localVar "loanToken") Expr.caller Expr.contractAddress (Expr.literal 1)
-]
-private def withdrawBody : List Stmt := [
-  callAccrueInterest,
-  Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "user") "supplyShares" (Expr.literal 0),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  ERC20.safeTransfer (Expr.localVar "loanToken") (Expr.param "receiver") (Expr.literal 1)
-]
-private def supplyCollateralBody : List Stmt := [
-  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "collateral"),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  Callbacks.callback Expr.caller 0 [] "data",
-  ERC20.safeTransferFrom (Expr.localVar "token") Expr.caller Expr.contractAddress (Expr.literal 1)
-]
-private def borrowBody : List Stmt := [
-  callAccrueInterest,
-  Calls.withReturn "price" (Expr.localVar "oracle") 0 [] (isStatic := true),
-  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "borrowShares"),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  ERC20.safeTransfer (Expr.localVar "loanToken") (Expr.param "receiver") (Expr.literal 1)
-]
-private def repayBody : List Stmt := [
-  callAccrueInterest,
-  Stmt.setStructMember2 "position" (Expr.localVar "id") (Expr.param "user") "borrowShares" (Expr.literal 0),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  Callbacks.callback Expr.caller 0 [] "data",
-  ERC20.safeTransferFrom (Expr.localVar "loanToken") Expr.caller Expr.contractAddress (Expr.literal 1)
-]
-private def withdrawCollateralBody : List Stmt := [
-  callAccrueInterest,
-  Calls.withReturn "price" (Expr.localVar "oracle") 0 [] (isStatic := true),
-  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "collateral"),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  ERC20.safeTransfer (Expr.localVar "token") (Expr.param "receiver") (Expr.literal 1)
-]
-private def liquidateBody : List Stmt := [
-  callAccrueInterest,
-  Calls.withReturn "price" (Expr.localVar "oracle") 0 [] (isStatic := true),
-  Stmt.letVar "x" (Expr.structMember2 "position" (Expr.localVar "id") (Expr.param "user") "collateral"),
-  Stmt.mstore (Expr.literal 0) Expr.caller,
-  Expr.mload (Expr.literal 0),
-  Callbacks.callback Expr.caller 0 [] "data",
-  ERC20.safeTransfer (Expr.localVar "token") Expr.caller (Expr.literal 1)
+  Stmt.mstore (Expr.literal 0) Expr.caller
 ]
 """
     report = build_operation_blocker_report(spec_text)
-    self.assertEqual(
-      report["supply"],
-      ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-    )
-    self.assertEqual(
-      report["withdraw"],
-      ["erc20", "internalCall", "memoryOps", "structMember2"],
-    )
-    self.assertEqual(
-      report["supplyCollateral"],
-      ["callbacks", "erc20", "memoryOps", "structMember2"],
-    )
-    self.assertEqual(
-      report["borrow"],
-      ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-    )
-    self.assertEqual(
-      report["repay"],
-      ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-    )
-    self.assertEqual(
-      report["withdrawCollateral"],
-      ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-    )
-    self.assertEqual(
-      report["liquidate"],
-      ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-    )
+    self.assertEqual(report, {})
 
   def test_validate_operation_blockers_accepts_matching_config(self) -> None:
     report = {
@@ -282,48 +182,12 @@ private def liquidateBody : List Stmt := [
     }
     validate_operation_blockers(report, obligations)
 
-  def test_validate_operation_blockers_rejects_drift(self) -> None:
-    report = {
-      "borrow": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "liquidate": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "repay": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-      "supply": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-      "supplyCollateral": ["callbacks", "erc20", "memoryOps", "structMember2"],
-      "withdraw": ["erc20", "internalCall", "memoryOps", "structMember2"],
-      "withdrawCollateral": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-    }
-    obligations = {
-      op: {"operation": op, "macroMigrated": False, "macroSurfaceBlockers": blockers}
-      for op, blockers in report.items()
-    }
-    obligations["supply"]["macroSurfaceBlockers"] = ["erc20", "internalCall"]
-    with self.assertRaisesRegex(MigrationGateError, "macroSurfaceBlockers drift detected"):
-      validate_operation_blockers(report, obligations)
-
-  def test_validate_operation_blockers_rejects_duplicate_blocker_entries(self) -> None:
-    report = {
-      "borrow": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "liquidate": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "repay": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-      "supply": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-      "supplyCollateral": ["callbacks", "erc20", "memoryOps", "structMember2"],
-      "withdraw": ["erc20", "internalCall", "memoryOps", "structMember2"],
-      "withdrawCollateral": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-    }
-    obligations = {
-      op: {"operation": op, "macroMigrated": False, "macroSurfaceBlockers": blockers}
-      for op, blockers in report.items()
-    }
-    obligations["supply"]["macroSurfaceBlockers"] = [
-      "callbacks",
-      "erc20",
-      "internalCall",
-      "memoryOps",
-      "memoryOps",
-      "structMember2",
-    ]
-    with self.assertRaisesRegex(MigrationGateError, "duplicate entries in `macroSurfaceBlockers`"):
-      validate_operation_blockers(report, obligations)
+  def test_validate_operation_blockers_accepts_empty_tracked_set(self) -> None:
+    """With no tracked ops, validation passes trivially."""
+    report = {"supply": ["erc20"]}
+    obligations = {"supply": {"operation": "supply", "macroMigrated": False, "macroSurfaceBlockers": ["erc20"]}}
+    # Should not raise since TRACKED_OPERATION_BLOCKER_OPS is empty
+    validate_operation_blockers(report, obligations)
 
 
 class CreateMarketFrontendRegressionTests(unittest.TestCase):
