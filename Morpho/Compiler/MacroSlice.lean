@@ -392,7 +392,7 @@ verity_contract MorphoViewSlice where
     let borrowShares_ <- structMember2 positionSlot id onBehalf "borrowShares"
     if borrowShares_ > 0 then
       let collPrice := externalCall "oraclePrice" [addressToWord marketParams_2]
-      let borrowed := mulDivUp borrowShares_ (add 1 0) (add 0 1000000)
+      let _borrowed := mulDivUp borrowShares_ (add 1 0) (add 0 1000000)
       let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
       let totalBorrowShares_ <- structMember marketSlot id "totalBorrowShares"
       let borrowedAmt := mulDivUp borrowShares_ (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
