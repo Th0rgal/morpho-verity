@@ -3,8 +3,8 @@
 `morpho-verity` currently pins Verity to:
 
 - Repo: `https://github.com/Th0rgal/verity.git`
-- Short rev: `f026ac0a`
-- Full rev: `f026ac0a2e584638841f988ca05d9e0d0008ee91`
+- Short rev: `4ebe4931`
+- Full rev: `4ebe4931d25e5a1594fcd3f43ff040ecc3c4225a`
 - Tracking issue: `#118`
 
 ## Why this pin
