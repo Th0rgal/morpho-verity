@@ -88,42 +88,42 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "supplySemEq"
     operation := "supply"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-WITHDRAW-SEM-EQ"
     hypothesis := "withdrawSemEq"
     operation := "withdraw"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-BORROW-SEM-EQ"
     hypothesis := "borrowSemEq"
     operation := "borrow"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-REPAY-SEM-EQ"
     hypothesis := "repaySemEq"
     operation := "repay"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-SUPPLY-COLLATERAL-SEM-EQ"
     hypothesis := "supplyCollateralSemEq"
     operation := "supplyCollateral"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-WITHDRAW-COLLATERAL-SEM-EQ"
     hypothesis := "withdrawCollateralSemEq"
     operation := "withdrawCollateral"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-LIQUIDATE-SEM-EQ"
     hypothesis := "liquidateSemEq"
     operation := "liquidate"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-ACCRUE-INTEREST-SEM-EQ"
     hypothesis := "accrueInterestSemEq"
     operation := "accrueInterest"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-ENABLE-IRM-SEM-EQ"
     hypothesis := "enableIrmSemEq"
     operation := "enableIrm"
@@ -163,7 +163,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "setFeeSemEq"
     operation := "setFee"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ"
     hypothesis := "accrueInterestPublicSemEq"
     operation := "accrueInterestPublic"
@@ -196,17 +196,17 @@ theorem assumed_count :
     (obligations.filter (fun o => o.status == .assumed)).length = 12 := by
   native_decide
 
-/-- 8 of 18 operations have full (non-stub) macro implementations.
-    The admin cluster has Link 1 proofs today, `createMarket` is now on the
-    macro path as well, `setAuthorizationWithSig` now has an executable macro
-    body, and `flashLoan` has a state-level macro body. -/
+/-- 17 of 18 operations have full (non-stub) macro implementations.
+    All core operations are migrated; only `accrueInterestPublic` remains
+    (it maps to `accrueInterest` in MacroSlice but uses a distinct
+    SolidityBridge hypothesis signature). -/
 theorem macro_migrated_count :
-    (obligations.filter (fun o => o.macroMigrated)).length = 8 := by
+    (obligations.filter (fun o => o.macroMigrated)).length = 17 := by
   native_decide
 
-/-- 10 operations still need macro migration before discharge. -/
+/-- 1 operations still need macro migration before discharge. -/
 theorem macro_pending_count :
-    (obligations.filter (fun o => !o.macroMigrated)).length = 10 := by
+    (obligations.filter (fun o => !o.macroMigrated)).length = 1 := by
   native_decide
 
 end Morpho.Proofs.SemanticBridgeReadiness

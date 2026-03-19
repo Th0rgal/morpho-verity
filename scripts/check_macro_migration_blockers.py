@@ -17,15 +17,7 @@ SPEC_PATH = ROOT / "Morpho" / "Compiler" / "Spec.lean"
 BASELINE_PATH = ROOT / "config" / "macro-migration-blockers.json"
 OBLIGATIONS_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 
-TRACKED_OPERATION_BLOCKER_OPS = {
-  "borrow",
-  "liquidate",
-  "repay",
-  "supply",
-  "supplyCollateral",
-  "withdraw",
-  "withdrawCollateral",
-}
+TRACKED_OPERATION_BLOCKER_OPS: set[str] = set()  # All previously tracked ops are now macro-migrated
 
 # Supported constructor surface in Verity macro translation (current upstream state).
 SUPPORTED_STMT = {

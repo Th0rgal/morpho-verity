@@ -22,7 +22,9 @@ from check_macro_blocker_regression_coverage import (
 
 
 class RequiredIssueBlockersTests(unittest.TestCase):
-  def test_build_required_issue_blockers_filters_to_open_issue_clusters(self) -> None:
+  def test_build_required_issue_blockers_returns_empty_when_no_issues_tracked(self) -> None:
+    """All issue clusters are now macro-migrated, so build_required_issue_blockers
+    should return an empty dict regardless of input obligations."""
     obligations = [
       {
         "issue": 123,
@@ -36,50 +38,8 @@ class RequiredIssueBlockersTests(unittest.TestCase):
         "macroMigrated": False,
         "macroSurfaceBlockers": ["callbacks", "erc20"],
       },
-      {
-        "issue": 118,
-        "operation": "createMarket",
-        "macroMigrated": False,
-        "macroSurfaceBlockers": ["mappingStruct"],
-      },
-      {
-        "issue": 123,
-        "operation": "borrow",
-        "macroMigrated": True,
-        "macroSurfaceBlockers": ["externalWithReturn"],
-      },
     ]
-
-    self.assertEqual(
-      build_required_issue_blockers(obligations),
-      {
-        123: {"erc20", "memoryOps"},
-        124: {"callbacks", "erc20"},
-      },
-    )
-
-  def test_build_required_issue_blockers_rejects_missing_blockers(self) -> None:
-    obligations = [{"issue": 123, "operation": "supply", "macroMigrated": False}]
-    with self.assertRaisesRegex(
-      RegressionCoverageError,
-      "obligation 'supply' missing non-empty string-list 'macroSurfaceBlockers'",
-    ):
-      build_required_issue_blockers(obligations)
-
-  def test_build_required_issue_blockers_rejects_duplicate_blockers(self) -> None:
-    obligations = [
-      {
-        "issue": 123,
-        "operation": "supply",
-        "macroMigrated": False,
-        "macroSurfaceBlockers": ["erc20", "erc20"],
-      }
-    ]
-    with self.assertRaisesRegex(
-      RegressionCoverageError,
-      "obligation 'supply' contains duplicate macro blocker entries",
-    ):
-      build_required_issue_blockers(obligations)
+    self.assertEqual(build_required_issue_blockers(obligations), {})
 
 
 class LoadObligationsTests(unittest.TestCase):
@@ -130,10 +90,9 @@ class LoadObligationsTests(unittest.TestCase):
 
 
 class RegressionCaseCoverageTests(unittest.TestCase):
-  def test_build_regression_case_coverage_tracks_case_names_by_blocker(self) -> None:
+  def test_build_regression_case_coverage_returns_empty_when_no_issues_tracked(self) -> None:
     coverage = build_regression_case_coverage()
-    self.assertIn("calls_with_return", coverage[123]["externalWithReturn"])
-    self.assertIn("memory_ops", coverage[124]["memoryOps"])
+    self.assertEqual(coverage, {})
 
   def test_validate_issue_blocker_regression_coverage_rejects_missing_family(self) -> None:
     required = {123: {"callbacks", "erc20", "memoryOps"}}

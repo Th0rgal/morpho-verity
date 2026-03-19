@@ -318,7 +318,4 @@ verity_contract Tmp where
   },
 )
 
-ISSUE_FRONTEND_REGRESSION_CASES = {
-  123: CORE_FLOW_FRONTEND_REGRESSION_CASES,
-  124: COLLATERAL_FRONTEND_REGRESSION_CASES,
-}
+ISSUE_FRONTEND_REGRESSION_CASES: dict[int, tuple] = {}  # All previously tracked issue clusters are now macro-migrated

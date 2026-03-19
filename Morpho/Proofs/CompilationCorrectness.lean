@@ -1,4 +1,6 @@
 import Morpho.Compiler.MacroSlice
+import Morpho.Proofs.AdminWitnesses
+import Morpho.Proofs.AdminSemantics
 import Compiler.TypedIRCompilerCorrectness
 
 /-!
@@ -20,14 +22,20 @@ compilation proofs (Links 2+3: EDSL ↔ IR ↔ Yul).
 namespace Morpho.Proofs.CompilationCorrectness
 
 open Compiler.CompilationModel
-open Verity.Core.Free
+open Verity.Core.Free hiding
+  morphoEnableIrmFields morphoEnableLltvFields morphoSetAuthorizationFields
+  witness_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_enableIrm_supported
+  witness_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_enableLltv_supported
+  witness_letCallerLetMapping2IteParamReqSetMapping2Stop_setAuthorization_supported
 open Morpho.Compiler.MacroSlice
+open Morpho.Proofs.AdminWitnesses
 
 -- DecidableEq chain needed for `native_decide` on field resolution
 deriving instance DecidableEq for PackedBits
 deriving instance DecidableEq for MappingKeyType
 deriving instance DecidableEq for MappingType
 deriving instance DecidableEq for StructMember
+deriving instance DecidableEq for StorageArrayElemType
 deriving instance DecidableEq for FieldType
 deriving instance DecidableEq for Field
 
@@ -50,8 +58,8 @@ def morphoFields : List Field :=
 
 /-! ## SupportedStmtList witnesses -/
 
-/-! Upstream canonical witnesses (verity pin 7b7c9193) for Morpho admin patterns.
-These are reference pattern theorems over verity-owned field layouts.
+/-! Canonical witnesses for Morpho admin patterns (from AdminWitnesses.lean).
+These are reference pattern theorems over minimal field layouts.
 The morpho-specific proofs below keep our 8-field `morphoFields` layout. -/
 
 theorem setOwner_supported_upstream :

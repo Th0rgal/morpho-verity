@@ -16,9 +16,8 @@ from macro_blocker_regression_cases import (  # noqa: E402
 
 
 class SharedRegressionCaseTests(unittest.TestCase):
-  def test_issue_mapping_points_to_shared_case_catalogs(self) -> None:
-    self.assertIs(ISSUE_FRONTEND_REGRESSION_CASES[123], CORE_FLOW_FRONTEND_REGRESSION_CASES)
-    self.assertIs(ISSUE_FRONTEND_REGRESSION_CASES[124], COLLATERAL_FRONTEND_REGRESSION_CASES)
+  def test_issue_mapping_is_empty_when_all_migrated(self) -> None:
+    self.assertEqual(ISSUE_FRONTEND_REGRESSION_CASES, {})
 
   def test_case_catalogs_cover_expected_blocker_families(self) -> None:
     self.assertEqual(

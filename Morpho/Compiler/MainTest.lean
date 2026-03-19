@@ -55,8 +55,11 @@ private def fileExists (path : String) : IO Bool := do
   IO.FS.createDirAll edslAbiDir
 
   let hashLib := "artifacts/inputs/MarketParamsHash.yul"
+  let borrowRateLib := "artifacts/inputs/BorrowRate.yul"
+  let collateralPriceLib := "artifacts/inputs/CollateralPrice.yul"
+  let oraclePriceLib := "artifacts/inputs/OraclePrice.yul"
   Morpho.Compiler.Main.main
-    ["--output", edslOutDir, "--abi-output", edslAbiDir, "--link", hashLib]
+    ["--output", edslOutDir, "--abi-output", edslAbiDir, "--link", hashLib, "--link", borrowRateLib, "--link", collateralPriceLib, "--link", oraclePriceLib]
 
   let edslYulPath := s!"{edslOutDir}/Morpho.yul"
   let edslExists ← fileExists edslYulPath
@@ -68,7 +71,7 @@ private def fileExists (path : String) : IO Bool := do
   let parityOutDir := s!"/tmp/morpho-main-test-{nonce}-parity-out"
   IO.FS.createDirAll parityOutDir
   Morpho.Compiler.Main.main
-    ["--output", parityOutDir, "--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--link", hashLib]
+    ["--output", parityOutDir, "--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--link", hashLib, "--link", borrowRateLib, "--link", collateralPriceLib, "--link", oraclePriceLib]
 
   let parityYulPath := s!"{parityOutDir}/Morpho.yul"
   let parityExists ← fileExists parityYulPath

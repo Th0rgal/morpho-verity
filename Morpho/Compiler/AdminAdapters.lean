@@ -79,6 +79,7 @@ def encodeMorphoState (s : MorphoState) : ContractState :=
     (fun n key1 key2 =>
       if n == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
       else 0)
+    (fun _ => [])
     s.sender
     0
     0
@@ -162,7 +163,7 @@ theorem setOwner_success_iff (s s' : MorphoState) (newOwner : Address) :
       s.sender = s.owner ∧ newOwner ≠ s.owner ∧ s' = { s with owner := newOwner } := by
   simp only [setOwner, encodeMorphoState, MorphoViewSlice.setOwner, MorphoViewSlice.ownerSlot]
   simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
-    Verity.setStorageAddr, Verity.require]
+    Verity.setStorageAddr, Verity.require, emit, Verity.pure]
   by_cases h1 : s.sender = s.owner <;>
     by_cases h2 : newOwner = s.owner <;>
     simp_all
@@ -176,7 +177,7 @@ theorem setFeeRecipient_success_iff (s s' : MorphoState) (newFeeRecipient : Addr
   simp only [setFeeRecipient, encodeMorphoState, MorphoViewSlice.setFeeRecipient,
     MorphoViewSlice.ownerSlot, MorphoViewSlice.feeRecipientSlot]
   simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
-    Verity.setStorageAddr, Verity.require]
+    Verity.setStorageAddr, Verity.require, emit, Verity.pure]
   by_cases h1 : s.sender = s.owner <;>
     by_cases h2 : newFeeRecipient = s.feeRecipient <;>
     simp_all
@@ -191,7 +192,7 @@ theorem enableIrm_success_iff (s s' : MorphoState) (irm : Address) :
   simp only [enableIrm, encodeMorphoState, MorphoViewSlice.enableIrm,
     MorphoViewSlice.ownerSlot, MorphoViewSlice.isIrmEnabledSlot]
   simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
-    Verity.getMapping, Verity.setMapping, Verity.require]
+    Verity.getMapping, Verity.setMapping, Verity.require, emit, Verity.pure]
   by_cases h1 : s.sender = s.owner <;>
     by_cases h2 : s.isIrmEnabled irm <;>
     simp_all
@@ -207,7 +208,7 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
   simp only [enableLltv, encodeMorphoState, MorphoViewSlice.enableLltv,
     MorphoViewSlice.ownerSlot, MorphoViewSlice.isLltvEnabledSlot]
   simp only [Bind.bind, Verity.bind, Verity.msgSender, Verity.getStorageAddr,
-    Verity.getMappingUint, Verity.setMappingUint, Verity.require]
+    Verity.getMappingUint, Verity.setMappingUint, Verity.require, emit, Verity.pure]
   simp only [Morpho.Libraries.MathLib.WAD]
   have hWadVal : Verity.Core.Uint256.val (1000000000000000000 : Uint256) = 1000000000000000000 := by
     native_decide
@@ -243,7 +244,7 @@ theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
     flashLoan s assets = some () ↔ assets ≠ 0 := by
   unfold flashLoan
   simp [encodeMorphoState, MorphoViewSlice.flashLoan, Bind.bind, Verity.bind, Verity.pure,
-    Verity.require, Verity.msgSender, mstore, rawLog]
+    Verity.require, Verity.msgSender, mstore, rawLog, safeTransfer, safeTransferFrom]
   by_cases h : assets = 0
   · simp [h]
   · have hval : assets.val ≠ 0 := by

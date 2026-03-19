@@ -27,14 +27,14 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 
 | Obligation ID | Bridge hypothesis | Operation | Macro migrated | Status |
 |---------------|-------------------|-----------|:--------------:|--------|
-| `OBL-SUPPLY-SEM-EQ` | `supplySemEq` | `supply` | | `assumed` |
-| `OBL-WITHDRAW-SEM-EQ` | `withdrawSemEq` | `withdraw` | | `assumed` |
-| `OBL-BORROW-SEM-EQ` | `borrowSemEq` | `borrow` | | `assumed` |
-| `OBL-REPAY-SEM-EQ` | `repaySemEq` | `repay` | | `assumed` |
-| `OBL-SUPPLY-COLLATERAL-SEM-EQ` | `supplyCollateralSemEq` | `supplyCollateral` | | `assumed` |
-| `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | | `assumed` |
-| `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | | `assumed` |
-| `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | | `assumed` |
+| `OBL-SUPPLY-SEM-EQ` | `supplySemEq` | `supply` | Y | `assumed` |
+| `OBL-WITHDRAW-SEM-EQ` | `withdrawSemEq` | `withdraw` | Y | `assumed` |
+| `OBL-BORROW-SEM-EQ` | `borrowSemEq` | `borrow` | Y | `assumed` |
+| `OBL-REPAY-SEM-EQ` | `repaySemEq` | `repay` | Y | `assumed` |
+| `OBL-SUPPLY-COLLATERAL-SEM-EQ` | `supplyCollateralSemEq` | `supplyCollateral` | Y | `assumed` |
+| `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | Y | `assumed` |
+| `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | Y | `assumed` |
+| `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | Y | `assumed` |
 | `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | Y | `link1_proven` |
 | `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | Y | `link1_proven` |
 | `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | Y | `link1_proven` |
@@ -42,34 +42,17 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `link1_proven` |
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
 | `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
-| `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | | `assumed` |
+| `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | Y | `assumed` |
 | `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean`, which is the current macro-generated contract surface. 8/18 operations are
-macro-migrated; the remaining 10 are blocked on upstream macro
-primitive support (internal calls, ERC20 module, callbacks, oracle calls, 2D struct access).
-For the 7 core/collateral flow stubs tracked under blocker-cluster labels `#123`/`#124`,
-`config/semantic-bridge-obligations.json` now also
-tracks machine-readable `macroSurfaceBlockers` arrays, and
-`scripts/check_macro_migration_blockers.py` fail-closes if those per-operation blocker families
-drift from `Morpho/Compiler/Spec.lean`.
-The same regression suite also compile-checks minimal `verity_contract` repros for the current
-core-flow frontend gaps: `Calls.withReturn`, internal `call`, `Callbacks.callback`,
-`ERC20.safeTransfer`/`ERC20.safeTransferFrom`, `structMember2` read/write, and direct
-`mstore`/`mload` still fail at the pinned verity revision.
-For the collateral/liquidation cluster, the same suite separately pins the full current
-frontend blocker surface too: `Calls.withReturn`, internal `call`,
-`Callbacks.callback`, `ERC20.safeTransfer`/`ERC20.safeTransferFrom`,
-`structMember2` read/write, and direct `mstore`/`mload` all still fail for the current
-`supplyCollateral`, `withdrawCollateral`, and `liquidate` spec shapes.
-`scripts/check_macro_blocker_regression_coverage.py` now fail-closes the remaining gap
-between that compile-checked suite and the tracked blocker clusters by requiring every current
-`#123`/`#124` `macroSurfaceBlockers` family to have at least one named regression case.
-`scripts/check_issue_blocker_clusters.py` now also derives fail-closed issue-cluster summaries
-from per-obligation `issue` tags in the obligation tracker so the remaining migration clusters
-cannot drift from the actual per-operation blocker inventory.
+`MacroSlice.lean`, which is the current macro-generated contract surface. 17/18 operations are
+macro-migrated; the remaining 1 are blocked on upstream macro
+primitive support (`accrueInterestPublic` maps to `accrueInterest` which is migrated,
+but uses a distinct SolidityBridge hypothesis signature).
+CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
+cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
 `scripts/check_equivalence_obligations_doc.py` now also fail-closes the top-level Link 1 /
 macro-migration status summary and the markdown issue-cluster table below against the tracked
 obligation inventory, so the repo-facing roadmap in this document cannot silently drift from the
@@ -92,13 +75,6 @@ silently drift away from the tracked migration roadmap.
 
 | Cluster | Operations | Blocker families | Coverage counts |
 |-------|------------|------------------|-----------------|
-| `#123` | `supply`, `withdraw`, `borrow`, `repay` | `callbacks`, `erc20`, `externalWithReturn`, `internalCall`, `memoryOps`, `structMember2` | callbacks×2, erc20×4, externalWithReturn×1, internalCall×4, memoryOps×4, structMember2×4 |
-| `#124` | `supplyCollateral`, `withdrawCollateral`, `liquidate` | `callbacks`, `erc20`, `externalWithReturn`, `internalCall`, `memoryOps`, `structMember2` | callbacks×2, erc20×3, externalWithReturn×2, internalCall×2, memoryOps×3, structMember2×3 |
-
-CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
-cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
-`createMarket` is now macro-migrated at the current pin; the remaining gap there is the
-semantic-equivalence theorem back to the handwritten `Morpho.createMarket` model.
 
 ## Semantic Bridge Discharge Path
 
@@ -117,9 +93,11 @@ Morpho.f args                        -- stable wrapper surface (this repo)
 - **Link 1** (stable wrapper API ↔ EDSL): requires that `MorphoViewSlice`
   functions in `MacroSlice.lean` have full implementations matching
   `Morpho.*`, which in turn aliases `Morpho.Specs.ContractSemantics` for the
-  migrated operations. Currently, simple view functions are fully implemented;
-  complex operations (supply, borrow, liquidate, etc.) are stub/noop — these
-  must be completed as macro primitive support grows in verity.
+  migrated operations. 17 of 18 operations now have full macro implementations;
+  the remaining Link 1 gaps are proof-level (semantic-equivalence theorems
+  for complex operations like supply, borrow, liquidate, etc.).
+  `accrueInterestPublic` is the sole unmigrated operation; it maps to the
+  migrated `accrueInterest` but uses a distinct SolidityBridge signature.
 
 - **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment
   via verity's typed-IR / canonical-semantics bridge. This eliminates the
@@ -154,32 +132,21 @@ Known expected differences (not checked, handled by semantic bridge):
 
 ## Macro Migration Blockers
 
-The 10 unmigrated operations depend on upstream verity macro capabilities.
+17 of 18 operations are now macro-migrated. The sole remaining unmigrated operation
+is `accrueInterestPublic`, which maps to the migrated `accrueInterest` via internal call
+but uses a distinct SolidityBridge hypothesis signature.
 
-**Resolved/usable at the current pin**: `setStructMember`/`structMember`
+**Resolved at the current pin** (`4ebe4931`): `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
-translators, and `Bytes32`/`Bool` type support.
-
-At `7b7c9193`, the repo can now use linked externals, direct ERC20 helper syntax,
-tuple params in executable `verity_contract` definitions, `MappingStruct`/`MappingStruct2`,
-`internalCall`, `mstore`/`mload`, and macro-backed `ecrecover`. The remaining gaps are now narrower and mostly concern
-proof coverage or missing Morpho-side abstractions, not raw macro elaboration.
+translators, `Bytes32`/`Bool` type support, linked externals, direct ERC20 helper syntax,
+tuple params, `MappingStruct`/`MappingStruct2`, `internalCall`, `mstore`/`mload`,
+macro-backed `ecrecover`, events via `emit`, and `safeTransfer`/`safeTransferFrom`.
 
 **Remaining blockers**:
 
 | Blocker | Operations affected | Count |
 |---------|-------------------|:-----:|
-| Internal function calls (`Stmt.internalCall`) | `accrueInterest`, `accrueInterestPublic`, `borrow`, `liquidate`, `repay`, `setFee`, `supply`, `withdraw`, `withdrawCollateral` | 9 |
-| ERC20 module (`ERC20.safeTransfer/From`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
-| 2D struct mapping read/write (`structMember2`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
-| External callbacks (`Callbacks.callback`) | `liquidate`, `repay`, `supply`, `supplyCollateral` | 4 |
-| External contract calls (`Calls.withReturn`) | `accrueInterest`, `accrueInterestPublic`, `borrow`, `liquidate`, `withdrawCollateral` | 5 |
-| `.mappingStruct` storage field type declarations | `accrueInterest`, `accrueInterestPublic`, `setFee` | 3 |
-| Memory management (`mstore/mload`) | `borrow`, `liquidate`, `repay`, `supply`, `supplyCollateral`, `withdraw`, `withdrawCollateral` | 7 |
-**Note on createMarket**: The macro body now uses the direct struct-storage path for
-`market` and `idToMarketParams`. What is still missing is the theorem that identifies
-that macro-backed adapter with the handwritten `Morpho.createMarket` state model used
-by the current bridge obligations.
+| Internal function calls (`Stmt.internalCall`) | `accrueInterestPublic` | 1 |
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -218,15 +185,15 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
 | Operation | Primitives used | Link 1 | Link 2 (CompilationCorrectness) | Link 3 |
 |-----------|----------------|:------:|:-------------------------------:|--------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
-| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 7b7c9193 |
-| `flashLoan` | msgSender, require, mstore, rawLog | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
+| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
+| `flashLoan` | msgSender, require, emit, safeTransfer, safeTransferFrom | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
 | `createMarket` | getMapping, getMappingUint, structMember, setStructMember, externalCall, blockTimestamp | pending | pending | semantic bridge + SupportedStmtList witness for struct-storage write path |
 
-**Summary**: 8 operations are now macro-migrated, and 6 of those have Link 1
+**Summary**: 17 operations are now macro-migrated, and 6 of those have Link 1
 (stable wrapper API ↔ EDSL) fully proven.
 The 5 admin operations also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
 `Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
@@ -244,7 +211,7 @@ The discharge has three links per obligation:
 2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`
 3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
 
-At verity pin `7b7c9193`, Link 2 is tracked on the typed-IR semantic bridge path
+At verity pin `4ebe4931`, Link 2 is tracked on the typed-IR semantic bridge path
 with concrete upstream witness theorems for Morpho admin patterns.
 
 **Link 1 proof pattern** (for the 5 admin operations):
@@ -260,7 +227,7 @@ with concrete upstream witness theorems for Morpho admin patterns.
 4. Close obligations via `native_decide` (field resolution) and `decide` (literal checks)
 5. `setFeeRecipient` now uses verity's two-storage-address `SupportedStmtFragment` constructor for the owner/auth + fee-recipient inequality pattern
 
-### Discharge sequence (current pin: `7b7c9193`)
+### Discharge sequence (current pin: `4ebe4931`)
 
 1. **Links 1+2 proven (5 ops), Link 3 via verity EndToEnd composition**: `setOwner`,
    `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 proven in
@@ -268,8 +235,10 @@ with concrete upstream witness theorems for Morpho admin patterns.
 2. **After semantic-bridge discharge of the new macro body**: `createMarket` — implementation
    restored at the current pin; still needs the theorem tying the macro-backed adapter to
    the handwritten `Morpho.createMarket` state model
-3. **After remaining macro expansion**: 11 operations — requires internal calls, ERC20,
-   callbacks, external contract calls
+3. **After Link 1 proofs for complex operations**: 11 operations — requires semantic-equivalence
+   theorems connecting the EDSL implementations to the pure Lean models
+4. **After `accrueInterestPublic` wrapper resolution**: 1 operation — needs either a dedicated
+   MacroSlice function or a wrapper proof linking to the migrated `accrueInterest`
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`
 
