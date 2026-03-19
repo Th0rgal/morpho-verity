@@ -12,9 +12,28 @@ Canonical compiler input boundary for Morpho.
 Backed by the macro-generated `verity_contract` artifact so production compile
 path no longer depends on manual `Spec.morphoSpec` authoring.
 -/
+
+private def morphoEvents : List EventDef := [
+  { name := "SetOwner",             params := [⟨"newOwner",    .address, .unindexed⟩] },
+  { name := "SetFeeRecipient",      params := [⟨"newFeeRecipient", .address, .unindexed⟩] },
+  { name := "EnableIrm",            params := [⟨"irm",         .address, .unindexed⟩] },
+  { name := "EnableLltv",           params := [⟨"lltv",        .uint256, .unindexed⟩] },
+  { name := "CreateMarket",         params := [⟨"id",          .uint256, .unindexed⟩] },
+  { name := "SetFee",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"newFee", .uint256, .unindexed⟩] },
+  { name := "SupplyCollateral",     params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
+  { name := "WithdrawCollateral",   params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
+  { name := "Supply",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
+  { name := "Withdraw",             params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
+  { name := "Borrow",               params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
+  { name := "Repay",                params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .unindexed⟩] },
+  { name := "Liquidate",            params := [⟨"id",          .uint256, .unindexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"borrower", .address, .unindexed⟩] },
+  { name := "FlashLoan",            params := [⟨"sender",      .address, .unindexed⟩, ⟨"token",  .address, .unindexed⟩, ⟨"assets", .uint256, .unindexed⟩] }
+]
+
 def morphoGeneratedSpec : CompilationModel :=
   { Morpho.Compiler.MacroSlice.MorphoViewSlice.spec with
       name := "Morpho"
+      events := morphoEvents
       externals := [
         { name := "keccakMarketParams"
           params := [.uint256, .uint256, .uint256, .uint256, .uint256]
@@ -27,6 +46,11 @@ def morphoGeneratedSpec : CompilationModel :=
           returns := [.uint256]
           axiomNames := [] },
         { name := "collateralPrice"
+          params := [.uint256]
+          returnType := some .uint256
+          returns := [.uint256]
+          axiomNames := [] },
+        { name := "oraclePrice"
           params := [.uint256]
           returnType := some .uint256
           returns := [.uint256]
