@@ -3,81 +3,74 @@
     {
       "id": "OBL-SUPPLY-SEM-EQ",
       "hypothesis": "supplySemEq",
-      "issue": 123,
       "operation": "supply",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransferFrom; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-WITHDRAW-SEM-EQ",
       "hypothesis": "withdrawSemEq",
-      "issue": 123,
       "operation": "withdraw",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["erc20", "internalCall", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (internal calls, ERC20, authorization, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-BORROW-SEM-EQ",
       "hypothesis": "borrowSemEq",
-      "issue": 123,
       "operation": "borrow",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (internal calls, ERC20, oracle calls, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer/health checks; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-REPAY-SEM-EQ",
       "hypothesis": "repaySemEq",
-      "issue": 123,
       "operation": "repay",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["callbacks", "erc20", "internalCall", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (internal calls, ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransferFrom; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-SUPPLY-COLLATERAL-SEM-EQ",
       "hypothesis": "supplyCollateralSemEq",
-      "issue": 124,
       "operation": "supplyCollateral",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["callbacks", "erc20", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (ERC20, callbacks, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransferFrom; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-WITHDRAW-COLLATERAL-SEM-EQ",
       "hypothesis": "withdrawCollateralSemEq",
-      "issue": 124,
       "operation": "withdrawCollateral",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (ERC20, oracle calls, authorization, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer/health checks; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-LIQUIDATE-SEM-EQ",
       "hypothesis": "liquidateSemEq",
-      "issue": 124,
       "operation": "liquidate",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["callbacks", "erc20", "externalWithReturn", "internalCall", "memoryOps", "structMember2"],
-      "blockedBy": "macro migration (ERC20, oracle calls, memory mgmt, 2D struct access) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer/safeTransferFrom/health checks; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-SEM-EQ",
       "hypothesis": "accrueInterestSemEq",
       "operation": "accrueInterest",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["externalWithReturn", "internalCall", "mappingStruct"],
-      "blockedBy": "macro migration (internal calls, external contract calls) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with inlined Taylor expansion interest; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-ENABLE-IRM-SEM-EQ",
@@ -85,7 +78,7 @@
       "operation": "enableIrm",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 7b7c9193)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
@@ -93,7 +86,7 @@
       "operation": "enableLltv",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 7b7c9193)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
@@ -101,7 +94,7 @@
       "operation": "setAuthorization",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 7b7c9193)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
@@ -118,7 +111,7 @@
       "operation": "setOwner",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 7b7c9193)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
@@ -126,7 +119,7 @@
       "operation": "setFeeRecipient",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 7b7c9193)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",
@@ -142,9 +135,9 @@
       "hypothesis": "setFeeSemEq",
       "operation": "setFee",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["internalCall", "mappingStruct"],
-      "blockedBy": "macro migration (internal calls, .mappingStruct) + typed-IR SupportedStmtList proof"
+      "macroMigrated": true,
+      "macroSurfaceBlockers": [],
+      "blockedBy": "macro body migrated to MacroSlice with emit; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ",
@@ -152,8 +145,8 @@
       "operation": "accrueInterestPublic",
       "status": "assumed",
       "macroMigrated": false,
-      "macroSurfaceBlockers": ["externalWithReturn", "internalCall", "mappingStruct"],
-      "blockedBy": "macro migration (internal calls, external contract calls) + typed-IR SupportedStmtList proof"
+      "macroSurfaceBlockers": ["internalCall"],
+      "blockedBy": "operation name 'accrueInterestPublic' does not exist as a separate function in MacroSlice; it maps to 'accrueInterest' which is migrated via internalCall, but the SolidityBridge hypothesis uses a distinct signature"
     },
     {
       "id": "OBL-FLASH-LOAN-SEM-EQ",
@@ -164,17 +157,8 @@
       "blockedBy": "Link 1 proven (SemanticBridgeDischarge); remaining gap is external ERC20/callback proof surface plus a typed-IR SupportedStmtList witness for the rawLog tail with caller/token topics"
     }
   ],
-  "issueClusters": [
-    {
-      "issue": 123,
-      "title": "Implement supply/withdraw/borrow/repay in the Verity EDSL"
-    },
-    {
-      "issue": 124,
-      "title": "Implement collateral and liquidation flows in the Verity EDSL"
-    }
-  ],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 7b7c9193; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
+  "issueClusters": [],
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 4ebe4931; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
   "sourcePath": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"

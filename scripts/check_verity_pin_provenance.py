@@ -77,8 +77,10 @@ def load_issue_clusters(path: pathlib.Path) -> dict[str, dict[str, Any]]:
   if not isinstance(data, dict):
     fail(f"obligations file must be a JSON object: {path}")
   raw_clusters = data.get("issueClusters")
-  if not isinstance(raw_clusters, list) or not raw_clusters:
-    fail(f"missing non-empty `issueClusters` list in {path}")
+  if not isinstance(raw_clusters, list):
+    fail(f"missing `issueClusters` list in {path}")
+  if not raw_clusters:
+    return {}
 
   clusters: dict[str, dict[str, Any]] = {}
   for i, item in enumerate(raw_clusters):

@@ -38,26 +38,6 @@ Relevant files:
 - `Morpho/Proofs/SemanticBridgeDischarge.lean`
 - `Morpho/Proofs/SemanticBridgeInstantiation.lean`
 
-### Upstream macro/frontend gaps still block operation migration
-
-Several operations remain blocked at the current pin on callbacks,
-target-aware external contract calls, and dynamic-topic
-`rawLog` witnesses.
-
-Current blocker families at this pin:
-- callbacks
-- target-aware external contract calls
-- dynamic-topic `rawLog` witnesses
-
-Tracked migration issue clusters:
-- `#123`
-- `#124`
-
-Relevant files:
-- `Morpho/Compiler/MacroSlice.lean`
-- `Morpho/Proofs/SemanticBridgeReadiness.lean`
-- `scripts/check_macro_migration_blockers.py`
-
 ## Enforcement
 
 The machine-readable source of truth is
