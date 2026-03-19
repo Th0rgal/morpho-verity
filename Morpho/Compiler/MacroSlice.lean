@@ -4,6 +4,8 @@ import Verity.Macro
 
 namespace Morpho.Compiler.MacroSlice
 
+set_option linter.unusedVariables false
+
 open Verity
 
 def add (a b : Uint256) : Uint256 := Verity.Core.Uint256.add a b
