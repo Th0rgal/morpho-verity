@@ -55,9 +55,6 @@ def mul (a b : Uint256) : Uint256 := Verity.Core.Uint256.mul a b
 def div (a b : Uint256) : Uint256 := Verity.Core.Uint256.div a b
 def mulDivDown (a b c : Uint256) : Uint256 := div (mul a b) c
 def mulDivUp (a b c : Uint256) : Uint256 := div (add (mul a b) (sub c 1)) c
-def wMulDown (a b : Uint256) : Uint256 := mulDivDown a b 1000000000000000000
-def wDivDown (a b : Uint256) : Uint256 := mulDivDown a 1000000000000000000 b
-def wDivUp (a b : Uint256) : Uint256 := mulDivUp a 1000000000000000000 b
 def min (a b : Uint256) : Uint256 := if a <= b then a else b
 def blockTimestamp : Uint256 := 0
 def chainid : Uint256 := 0
@@ -93,6 +90,11 @@ verity_contract MorphoViewSlice where
     isLltvEnabledSlot : Uint256 -> Uint256 := slot 5
     isAuthorizedSlot : Address -> Address -> Uint256 := slot 6
     nonceSlot : Address -> Uint256 := slot 7
+
+  linked_externals
+    external keccakMarketParams(Uint256, Uint256, Uint256, Uint256, Uint256) -> (Uint256)
+    external borrowRate(Uint256, Uint256) -> (Uint256)
+    external collateralPrice(Uint256) -> (Uint256)
 
   function DOMAIN_SEPARATOR () local_obligations [domain_separator_memory := assumed "Domain separator hash computation uses direct memory writes; caller must verify the EIP-712 encoding is correct."] : Uint256 := do
     mstore 0 32523383700587834770323112271211932718128200013265661849047136999858837557784
@@ -419,10 +421,10 @@ verity_contract MorphoViewSlice where
       finalAssets := mulDivDown shares (add totalSupplyAssets_ 1) (add totalSupplyShares_ 1000000)
     let currentSupplyShares <- structMember2 positionSlot id onBehalf "supplyShares"
     require (currentSupplyShares >= finalShares) "insufficient balance"
+    let newTotalSupplyAssets := sub totalSupplyAssets_ finalAssets
     setStructMember2 positionSlot id onBehalf "supplyShares" (sub currentSupplyShares finalShares)
     setStructMember marketSlot id "totalSupplyShares" (sub totalSupplyShares_ finalShares)
-    setStructMember marketSlot id "totalSupplyAssets" (sub totalSupplyAssets_ finalAssets)
-    let newTotalSupplyAssets := sub totalSupplyAssets_ finalAssets
+    setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
     let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
     require (totalBorrowAssets_ <= newTotalSupplyAssets) "insufficient liquidity"
 
@@ -501,15 +503,15 @@ verity_contract MorphoViewSlice where
     let collateralPrice := externalCall "collateralPrice" [addressToWord marketParams_2]
     let mut finalSeizedAssets := seizedAssets
     let mut finalRepaidShares := repaidShares
+    let mut repaidAssets := 0
     if seizedAssets > 0 then
       let seizedQuoted := mulDivUp seizedAssets collateralPrice 1000000000000000000000000000000000000
-      let repaidAmount := mulDivUp seizedQuoted 1000000000000000000 lif
-      finalRepaidShares := mulDivUp repaidAmount (add totalBorrowShares_ 1000000) (add totalBorrowAssets_ 1)
+      repaidAssets := mulDivUp seizedQuoted 1000000000000000000 lif
+      finalRepaidShares := mulDivUp repaidAssets (add totalBorrowShares_ 1000000) (add totalBorrowAssets_ 1)
     else
-      let repaidAmount := mulDivDown finalRepaidShares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
-      let seizedValue := mulDivDown repaidAmount lif 1000000000000000000
+      repaidAssets := mulDivDown finalRepaidShares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
+      let seizedValue := mulDivDown repaidAssets lif 1000000000000000000
       finalSeizedAssets := mulDivDown seizedValue 1000000000000000000000000000000000000 collateralPrice
-    let repaidAssets := mulDivUp finalRepaidShares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
     let currentBorrowShares <- structMember2 positionSlot id borrower "borrowShares"
     require (currentBorrowShares >= finalRepaidShares) "insufficient borrow"
     let currentCollateral <- structMember2 positionSlot id borrower "collateral"

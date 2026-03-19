@@ -22,7 +22,11 @@ compilation proofs (Links 2+3: EDSL ↔ IR ↔ Yul).
 namespace Morpho.Proofs.CompilationCorrectness
 
 open Compiler.CompilationModel
-open Verity.Core.Free
+open Verity.Core.Free hiding
+  morphoEnableIrmFields morphoEnableLltvFields morphoSetAuthorizationFields
+  witness_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_enableIrm_supported
+  witness_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_enableLltv_supported
+  witness_letCallerLetMapping2IteParamReqSetMapping2Stop_setAuthorization_supported
 open Morpho.Compiler.MacroSlice
 open Morpho.Proofs.AdminWitnesses
 
@@ -31,6 +35,7 @@ deriving instance DecidableEq for PackedBits
 deriving instance DecidableEq for MappingKeyType
 deriving instance DecidableEq for MappingType
 deriving instance DecidableEq for StructMember
+deriving instance DecidableEq for StorageArrayElemType
 deriving instance DecidableEq for FieldType
 deriving instance DecidableEq for Field
 

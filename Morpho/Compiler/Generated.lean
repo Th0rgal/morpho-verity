@@ -20,7 +20,17 @@ def morphoGeneratedSpec : CompilationModel :=
           params := [.uint256, .uint256, .uint256, .uint256, .uint256]
           returnType := some .uint256
           returns := [.uint256]
-          axiomNames := ["market_id_deterministic"] }
+          axiomNames := ["market_id_deterministic"] },
+        { name := "borrowRate"
+          params := [.uint256, .uint256]
+          returnType := some .uint256
+          returns := [.uint256]
+          axiomNames := [] },
+        { name := "collateralPrice"
+          params := [.uint256]
+          returnType := some .uint256
+          returns := [.uint256]
+          axiomNames := [] }
       ] }
 
 /--
