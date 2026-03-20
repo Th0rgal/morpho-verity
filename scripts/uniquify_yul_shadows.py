@@ -61,7 +61,18 @@ def uniquify(source: str) -> tuple[str, int]:
         m = let_re.search(line)
         let_col = m.start() if m else len(line)
 
-        for ci in range(len(line)):
+        # Only process braces BEFORE the let declaration (or full line if no let)
+        for ci in range(let_col):
+            ch = line[ci]
+            if ch == "{":
+                scope_stack.append(set())
+            elif ch == "}":
+                if len(scope_stack) > 1:
+                    scope_stack.pop()
+
+        # Process braces AFTER the let declaration (or full line if no let)
+        after_start = m.end() if m else let_col
+        for ci in range(after_start, len(line)):
             ch = line[ci]
             if ch == "{":
                 scope_stack.append(set())
@@ -77,8 +88,13 @@ def uniquify(source: str) -> tuple[str, int]:
                 global_counter[var_name] = global_counter.get(var_name, 0) + 1
                 new_name = f"{var_name}_{global_counter[var_name]}"
                 rename_count += 1
-                # Rename declaration
-                lines[i] = line[:m.start(2)] + new_name + line[m.end(2):]
+                # Rename declaration and any references after it on the same line
+                before_decl = line[:m.start(2)]
+                after_decl = line[m.end(2):]
+                after_decl = re.sub(
+                    rf"\b{re.escape(var_name)}\b", new_name, after_decl
+                )
+                lines[i] = before_decl + new_name + after_decl
                 # Rename refs in subsequent lines until block closes
                 depth = 0
                 for j in range(i + 1, len(lines)):

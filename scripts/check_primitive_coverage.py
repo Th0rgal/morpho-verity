@@ -146,7 +146,7 @@ def read_text(path: pathlib.Path) -> str:
         raise PrimitiveCoverageError(f"failed to read text file {path}: {exc}") from exc
 
 
-def load_migrated_operations(path: pathlib.Path) -> set[str]:
+def load_migrated_operations(path: pathlib.Path) -> tuple[set[str], dict[str, str]]:
     try:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
@@ -175,6 +175,7 @@ def load_migrated_operations(path: pathlib.Path) -> set[str]:
         )
 
     migrated_ops: set[str] = set()
+    macro_aliases: dict[str, str] = {}
     for index, obligation in enumerate(obligations):
         if not isinstance(obligation, dict):
             raise PrimitiveCoverageError(
@@ -195,8 +196,11 @@ def load_migrated_operations(path: pathlib.Path) -> set[str]:
 
         if macro_migrated:
             migrated_ops.add(operation)
+            alias = obligation.get("macroAlias")
+            if isinstance(alias, str) and alias.strip():
+                macro_aliases[operation] = alias
 
-    return migrated_ops
+    return migrated_ops, macro_aliases
 
 
 def write_json_report(path: pathlib.Path, report: dict[str, Any]) -> None:
@@ -256,17 +260,20 @@ def extract_primitives(fn_body: str) -> set[str]:
 def analyze_coverage(
     macro_text: str,
     migrated_ops: set[str],
+    macro_aliases: dict[str, str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Analyze primitive coverage for each migrated operation."""
     fn_blocks = split_macro_functions(macro_text)
+    aliases = macro_aliases or {}
     result: dict[str, dict[str, Any]] = {}
 
     for op in sorted(migrated_ops):
-        if op not in fn_blocks:
+        fn_name = aliases.get(op, op)
+        if fn_name not in fn_blocks:
             result[op] = {"error": "not found in MacroSlice.lean"}
             continue
 
-        block = fn_blocks[op]
+        block = fn_blocks[fn_name]
         if is_stub(block):
             result[op] = {"error": "function is a stub"}
             continue
@@ -345,9 +352,9 @@ def main() -> None:
     config_path = args.config.resolve()
 
     macro_text = read_text(macro_slice_path)
-    migrated_ops = load_migrated_operations(config_path)
+    migrated_ops, macro_aliases = load_migrated_operations(config_path)
 
-    coverage = analyze_coverage(macro_text, migrated_ops)
+    coverage = analyze_coverage(macro_text, migrated_ops, macro_aliases)
     report = build_report(coverage, macro_slice_path, config_path)
 
     if args.json_out:

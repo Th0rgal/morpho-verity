@@ -250,7 +250,9 @@ class LoadMigratedOperationsTests(unittest.TestCase):
                 {"operation": "flashLoan", "macroMigrated": False},
             ]
         }))
-        self.assertEqual(load_migrated_operations(path), {"setOwner"})
+        ops, aliases = load_migrated_operations(path)
+        self.assertEqual(ops, {"setOwner"})
+        self.assertEqual(aliases, {})
 
     def test_rejects_malformed_json(self) -> None:
         path = self.write_config("{")
@@ -330,9 +332,9 @@ class IntegrationTests(unittest.TestCase):
             self.skipTest("repo files not available")
 
         macro_text = macro_path.read_text(encoding="utf-8")
-        migrated_ops = load_migrated_operations(config_path)
+        migrated_ops, macro_aliases = load_migrated_operations(config_path)
 
-        coverage = analyze_coverage(macro_text, migrated_ops)
+        coverage = analyze_coverage(macro_text, migrated_ops, macro_aliases)
         report = build_report(coverage, macro_path, config_path)
 
         # 18 migrated operations (admin cluster + createMarket + setAuthorizationWithSig + flashLoan + core ops + accrueInterestPublic)
