@@ -28,12 +28,12 @@ MACRO_STATUS_PREFIX = (
   "`MacroSlice.lean`, which is the current macro-generated contract surface."
 )
 UPSTREAM_BRIDGE_PREFIX = (
-  "- **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment\n"
-  "  via verity's typed-IR / canonical-semantics bridge."
+  "- **Links 2+3** (EDSL ↔ EVMYulLean): delegated to Verity's compiler\n"
+  "  framework."
 )
 UPSTREAM_BRIDGE_STATUS_RE = re.compile(
-  r"- \*\*Link 2\*\* \(EDSL ↔ EVMYulLean\): provided upstream for the supported fragment\s+"
-  r"via verity's typed-IR / canonical-semantics bridge\.",
+  r"- \*\*Links 2\+3\*\* \(EDSL ↔ EVMYulLean\): delegated to Verity's compiler\s+"
+  r"framework\.",
   re.DOTALL,
 )
 LINK1_SUMMARY_RE = re.compile(

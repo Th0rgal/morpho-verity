@@ -1,6 +1,5 @@
 import Morpho.Proofs.SemanticBridgeDischarge
 import Morpho.Proofs.Invariants
-import Morpho.Proofs.CompilationCorrectness
 
 /-!
 # Semantic Bridge End-to-End Composition
@@ -12,16 +11,14 @@ This module composes all available links of the semantic bridge:
 ```
 Canonical contract semantics            ← Link 1 (SemanticBridgeDischarge)
   ↕
-EDSL (MorphoViewSlice.setOwner)          ← Link 2 (SupportedStmtList, CompilationCorrectness)
-  ↕
-Compiled typed-IR                        ← Link 3 (verity EndToEnd, future)
+EDSL (MorphoViewSlice.setOwner)          ← Link 2+3 (Verity compiler, trusted)
   ↕
 EVMYulLean (Yul execution)
 ```
 
 ## What this proves (no sorry)
 
-For the 5 admin functions with Link 1 proofs, we compose:
+For the 6 operations with Link 1 proofs, we compose:
 - **Link 1** (`SemanticBridgeDischarge`): `edslF = Morpho.F`
 - **Canonical invariants** (`Invariants`): `Morpho.F` preserves all 4 invariants
 
@@ -29,27 +26,13 @@ Result: 20 direct composition theorems for the admin cluster, plus 2
 additional monotonicity theorems for enableIrm, and a direct flash-loan
 composition theorem for the canonical zero-assets rejection property.
 
-## Link 2+3 status
+## Link 2+3: trust assumption
 
-All 5 admin functions have `SupportedStmtList` proofs (`CompilationCorrectness.lean`),
-which gives free compilation correctness via verity's typed-IR framework:
-- `compile_supported_stmt_list_direct_semantics`: `execCompiled = execSource`
-
-| Function         | Link 1 | SupportedStmtList | Link 3 (IR→Yul) |
-|------------------|--------|-------------------|-----------------|
-| setOwner         | proven | proven            | verity generic  |
-| setFeeRecipient  | proven | proven            | verity generic  |
-| enableIrm        | proven | proven            | verity generic  |
-| enableLltv       | proven | proven            | verity generic  |
-| setAuthorization | proven | proven            | verity generic  |
-
-The remaining gap for the full pipeline (EDSL → Yul) is connecting `SupportedStmtList`
-to `compileFunctionToTBlock` → `interpretIR` → `interpretYulFromIR`, which requires
-verity infrastructure not yet available for external contracts.
-
-As of verity pin 7b7c9193 (including the newer linked-external / ERC20 helper macro surface
-`setFeeRecipient`), the compilation proofs for all 5 admin functions are fully
-compositional within the typed-IR domain.
+Layer 2 (EDSL → typed-IR) and Layer 3 (IR → Yul) compilation correctness are
+**delegated to Verity's compiler framework**. The `verity_contract` macro generates
+code exclusively from supported patterns, so `SupportedStmtList`/`SupportedSpec`
+witnesses should be constructive — produced by the macro, not proven manually.
+We assume Verity will widen the supported fragment and automate these witnesses.
 -/
 
 namespace Morpho.Proofs.SemanticBridgeEndToEnd
@@ -245,30 +228,14 @@ In addition, `flashLoan` now has Link 1 discharged onto the canonical
 contract-semantics surface and inherits the repo's direct zero-assets rejection
 theorem.
 
-### SupportedStmtList coverage (CompilationCorrectness.lean)
+### Compilation correctness (Layer 2+3)
 
-All 5 admin functions have `SupportedStmtList` proofs, giving free
-compilation correctness via `compile_supported_stmt_list_direct_semantics`:
+Delegated to Verity's compiler framework. See trust assumption above.
 
-- setOwner: `letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop`
-- setFeeRecipient: `letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop`
-- enableIrm: `letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop`
-- enableLltv: `letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop`
-- setAuthorization: `letCallerLetMapping2IteParamReqSetMapping2Stop`
+### Remaining Link 1 gaps
 
-`flashLoan` does not yet have the analogous witness because the current
-`SupportedStmtFragment` raw-log family only covers literal topic lists, while
-the Morpho event path logs `caller` and `token` as dynamic topics.
-
-### Remaining gaps
-
-- **EDSL → IR → Yul bridge**: verity's `compileFunctionToTBlock` + `interpretIR` +
-  `layer3_contract_preserves_semantics` pipeline is now available upstream for the
-  supported `verity_contract` fragment. The remaining gaps here are Morpho-side:
-  dynamic-topic `rawLog` support for `flashLoan`, plus macro frontend coverage for
-  complex operations that still do not lower cleanly.
-- **createMarket**: macro-migrated on struct storage; semantic-bridge discharge still pending
-- **11 remaining operations**: blocked on external call / loop / proof-surface support
+- **12 remaining operations**: Link 1 (Lean model = EDSL) proofs not yet written
+- All 18 operations are macro-migrated in MacroSlice.lean
 -/
 
 end Morpho.Proofs.SemanticBridgeEndToEnd

@@ -7,7 +7,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransferFrom; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-WITHDRAW-SEM-EQ",
@@ -16,7 +16,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-BORROW-SEM-EQ",
@@ -25,7 +25,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer/health checks; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-REPAY-SEM-EQ",
@@ -34,7 +34,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransferFrom; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-SUPPLY-COLLATERAL-SEM-EQ",
@@ -43,7 +43,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransferFrom; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-WITHDRAW-COLLATERAL-SEM-EQ",
@@ -52,7 +52,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer/health checks; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-LIQUIDATE-SEM-EQ",
@@ -61,7 +61,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit/safeTransfer/safeTransferFrom/health checks; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-SEM-EQ",
@@ -70,7 +70,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with inlined Taylor expansion interest; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-ENABLE-IRM-SEM-EQ",
@@ -78,7 +78,7 @@
       "operation": "enableIrm",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-ENABLE-LLTV-SEM-EQ",
@@ -86,7 +86,7 @@
       "operation": "enableLltv",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-SET-AUTH-SEM-EQ",
@@ -94,7 +94,7 @@
       "operation": "setAuthorization",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-SET-AUTH-SIG-SEM-EQ",
@@ -103,7 +103,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated at verity pin 7b7c9193, but the semantic-equivalence theorem still needs a proof-facing abstraction relating the executable ecrecover path to the current `signatureValid : Bool` model"
+      "blockedBy": "macro body migrated, but Link 1 still needs a proof-facing abstraction relating the executable ecrecover path to the current signatureValid model; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-SET-OWNER-SEM-EQ",
@@ -111,7 +111,7 @@
       "operation": "setOwner",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-SET-FEE-RECIPIENT-SEM-EQ",
@@ -119,7 +119,7 @@
       "operation": "setFeeRecipient",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework (verity pin 4ebe4931)"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-CREATE-MARKET-SEM-EQ",
@@ -128,7 +128,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice, but the semantic-equivalence theorem to the handwritten `Morpho.createMarket` model is still pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem to Morpho.createMarket) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",
@@ -137,7 +137,7 @@
       "status": "assumed",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "macro body migrated to MacroSlice with emit; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "Link 1 (semantic-equivalence theorem) not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ",
@@ -147,7 +147,7 @@
       "macroMigrated": true,
       "macroAlias": "accrueInterest",
       "macroSurfaceBlockers": [],
-      "blockedBy": "maps to 'accrueInterest' which is fully migrated in MacroSlice with inlined body; typed-IR SupportedStmtList proof pending"
+      "blockedBy": "maps to accrueInterest (fully migrated); Link 1 not yet proven; Links 2+3 delegated to Verity compiler framework"
     },
     {
       "id": "OBL-FLASH-LOAN-SEM-EQ",
@@ -155,11 +155,11 @@
       "operation": "flashLoan",
       "status": "in_progress",
       "macroMigrated": true,
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); remaining gap is external ERC20/callback proof surface plus a typed-IR SupportedStmtList witness for the rawLog tail with caller/token topics"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework"
     }
   ],
   "issueClusters": [],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Current verity pin is 4ebe4931; Links 2+3 are tracked via the typed-IR compilation-correctness framework. Old manual SpecCorrectness proofs removed.",
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Links 2+3 (EDSL → IR → Yul compilation correctness) are delegated to Verity's compiler framework — the verity_contract macro generates code exclusively from supported patterns, so SupportedStmtList/SupportedSpec witnesses should be constructive.",
   "sourcePath": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"
