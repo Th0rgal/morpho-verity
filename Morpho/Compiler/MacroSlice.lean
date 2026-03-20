@@ -65,6 +65,11 @@ def emit (_name : String) (_args : List Uint256) : Contract Unit := Verity.pure 
 def safeTransfer (_token _to : Uint256) (_amount : Uint256) : Contract Unit := Verity.pure ()
 def safeTransferFrom (_token _from _to : Uint256) (_amount : Uint256) : Contract Unit := Verity.pure ()
 
+-- uint128 overflow guard: 2^128 - 1, matching Solidity's UtilsLib.toUint128()
+-- Note: inlined as literal inside verity_contract because the macro translator
+-- does not resolve external definitions in expression position.
+
+
 -- Incremental macro-native Morpho slice for migration progress tracking.
 -- This intentionally models a selector-exact subset with supported constructs.
 verity_contract MorphoViewSlice where
@@ -101,6 +106,9 @@ verity_contract MorphoViewSlice where
     external borrowRate(Uint256, Uint256) -> (Uint256)
     external collateralPrice(Uint256) -> (Uint256)
     external oraclePrice(Uint256) -> (Uint256)
+
+  constructor (initialOwner : Address) := do
+    setStorageAddr ownerSlot initialOwner
 
   function DOMAIN_SEPARATOR () local_obligations [domain_separator_memory := assumed "Domain separator hash computation uses direct memory writes; caller must verify the EIP-712 encoding is correct."] : Uint256 := do
     mstore 0 32523383700587834770323112271211932718128200013265661849047136999858837557784
@@ -342,6 +350,8 @@ verity_contract MorphoViewSlice where
         let interest := mulDivDown totalBorrowAssets_ (add firstTerm (add secondTerm thirdTerm)) 1000000000000000000
         let newTotalBorrowAssets := add totalBorrowAssets_ interest
         let newTotalSupplyAssets := add totalSupplyAssets_ interest
+        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
         setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
         setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
         let mut feeShares := 0
@@ -350,8 +360,12 @@ verity_contract MorphoViewSlice where
           feeShares := mulDivDown feeAmount (add totalSupplyShares_ 1000000) (add (sub newTotalSupplyAssets feeAmount) 1)
           let feeRecipient_ <- getStorageAddr feeRecipientSlot
           let currentFeeRecipientShares <- structMember2 positionSlot id feeRecipient_ "supplyShares"
-          setStructMember2 positionSlot id feeRecipient_ "supplyShares" (add currentFeeRecipientShares feeShares)
-          setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ feeShares)
+          let newFeeRecipientShares := add currentFeeRecipientShares feeShares
+          let newTotalSupplyShares := add totalSupplyShares_ feeShares
+          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+          setStructMember2 positionSlot id feeRecipient_ "supplyShares" newFeeRecipientShares
+          setStructMember marketSlot id "totalSupplyShares" newTotalSupplyShares
         else
           require (currentFee == 0) "fee zero"
         emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
@@ -371,7 +385,9 @@ verity_contract MorphoViewSlice where
     require (assets > 0) "zero assets"
     require (onBehalf != 0) "zero address"
     let currentCollateral <- structMember2 positionSlot id onBehalf "collateral"
-    setStructMember2 positionSlot id onBehalf "collateral" (add currentCollateral assets)
+    let newCollateral := add currentCollateral assets
+    require (newCollateral <= 340282366920938463463374607431768211455) "uint128 overflow"
+    setStructMember2 positionSlot id onBehalf "collateral" newCollateral
     let sender <- msgSender
     emit "SupplyCollateral" [id, sender, onBehalf, assets]
     safeTransferFrom marketParams_1 sender contractAddress assets
@@ -427,9 +443,15 @@ verity_contract MorphoViewSlice where
     else
       finalAssets := mulDivUp shares (add totalSupplyAssets_ 1) (add totalSupplyShares_ 1000000)
     let currentSupplyShares <- structMember2 positionSlot id onBehalf "supplyShares"
-    setStructMember2 positionSlot id onBehalf "supplyShares" (add currentSupplyShares finalShares)
-    setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ finalShares)
-    setStructMember marketSlot id "totalSupplyAssets" (add totalSupplyAssets_ finalAssets)
+    let newPosSupplyShares := add currentSupplyShares finalShares
+    let newTotalSupplyShares := add totalSupplyShares_ finalShares
+    let newTotalSupplyAssets := add totalSupplyAssets_ finalAssets
+    require (newPosSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+    require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+    require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+    setStructMember2 positionSlot id onBehalf "supplyShares" newPosSupplyShares
+    setStructMember marketSlot id "totalSupplyShares" newTotalSupplyShares
+    setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
     let sender <- msgSender
     emit "Supply" [id, sender, onBehalf, finalAssets, finalShares]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
@@ -488,9 +510,15 @@ verity_contract MorphoViewSlice where
     else
       finalAssets := mulDivDown shares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
     let currentBorrowShares <- structMember2 positionSlot id onBehalf "borrowShares"
-    setStructMember2 positionSlot id onBehalf "borrowShares" (add currentBorrowShares finalShares)
-    setStructMember marketSlot id "totalBorrowShares" (add totalBorrowShares_ finalShares)
-    setStructMember marketSlot id "totalBorrowAssets" (add totalBorrowAssets_ finalAssets)
+    let newPosBorrowShares := add currentBorrowShares finalShares
+    let newTotalBorrowShares := add totalBorrowShares_ finalShares
+    let newTotalBorrowAssets := add totalBorrowAssets_ finalAssets
+    require (newPosBorrowShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+    require (newTotalBorrowShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+    require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+    setStructMember2 positionSlot id onBehalf "borrowShares" newPosBorrowShares
+    setStructMember marketSlot id "totalBorrowShares" newTotalBorrowShares
+    setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
     -- Health check: _isHealthy(marketParams, id, onBehalf)
     let borrowShares_ <- structMember2 positionSlot id onBehalf "borrowShares"
     if borrowShares_ > 0 then
@@ -504,7 +532,6 @@ verity_contract MorphoViewSlice where
       require (maxBorrow >= borrowedAmt) "insufficient collateral"
     else
       require (borrowShares_ == 0) "no borrow"
-    let newTotalBorrowAssets := add totalBorrowAssets_ finalAssets
     let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
     require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
     emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]

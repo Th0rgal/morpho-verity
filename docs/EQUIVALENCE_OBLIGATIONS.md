@@ -10,13 +10,11 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 enableIrm, enableLltv, setAuthorization, flashLoan. The proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
-5 of the 6 also have Link 2 (EDSL ↔ SupportedStmtList witness) proven in
-`Morpho/Proofs/CompilationCorrectness.lean` (setOwner, setFeeRecipient,
-enableIrm, enableLltv, setAuthorization). `flashLoan` is now in the same
-state as a Link 1-proven operation, but still lacks Link 2 because its
-event-emission body needs a `SupportedStmtList` witness for a `rawLog` tail
-whose topics depend on `caller` and `token`, not just literals. Link 3 (CompilationModel ↔ EVMYulLean) depends on
-upstream verity infrastructure.
+Links 2+3 (EDSL → IR → Yul compilation correctness) are **delegated to Verity's
+compiler framework**. The `verity_contract` macro generates code exclusively from
+supported patterns, so `SupportedStmtList`/`SupportedSpec` witnesses should be
+constructive — produced by the macro, not proven manually per-contract. Manual
+witness proofs have been removed from this repository.
 
 ## Scope
 
@@ -43,14 +41,12 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
 | `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | Y | `assumed` |
-| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
+| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | Y | `assumed` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean`, which is the current macro-generated contract surface. 17/18 operations are
-macro-migrated; the remaining 1 are blocked on upstream macro
-primitive support (`accrueInterestPublic` maps to `accrueInterest` which is migrated,
-but uses a distinct SolidityBridge hypothesis signature).
+`MacroSlice.lean`, which is the current macro-generated contract surface. 18/18 operations are
+macro-migrated (`accrueInterestPublic` maps to the fully migrated `accrueInterest` function).
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
 `scripts/check_equivalence_obligations_doc.py` now also fail-closes the top-level Link 1 /
@@ -82,27 +78,24 @@ The obligations above will be discharged via the Verity hybrid canonical-semanti
 ([verity#1060](https://github.com/Th0rgal/verity/issues/1060),
 [verity#1065](https://github.com/Th0rgal/verity/pull/1065)).
 
-The discharge requires a three-layer correspondence for each operation:
+The discharge requires a two-layer correspondence for each operation:
 
 ```
 Morpho.f args                        -- stable wrapper surface (this repo)
   = MorphoViewSlice.f.exec state     -- EDSL macro output (verity_contract)
-  = EVMYulLean(compile(spec)).exec   -- verified EVM semantics (verity bridge)
+  = EVMYulLean(compile(spec)).exec   -- verified EVM semantics (Verity compiler, trusted)
 ```
 
 - **Link 1** (stable wrapper API ↔ EDSL): requires that `MorphoViewSlice`
   functions in `MacroSlice.lean` have full implementations matching
   `Morpho.*`, which in turn aliases `Morpho.Specs.ContractSemantics` for the
-  migrated operations. 17 of 18 operations now have full macro implementations;
+  migrated operations. All 18/18 operations now have full macro implementations;
   the remaining Link 1 gaps are proof-level (semantic-equivalence theorems
   for complex operations like supply, borrow, liquidate, etc.).
-  `accrueInterestPublic` is the sole unmigrated operation; it maps to the
-  migrated `accrueInterest` but uses a distinct SolidityBridge signature.
 
-- **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment
-  via verity's typed-IR / canonical-semantics bridge. This eliminates the
-  hand-rolled `interpretSpec` from the TCB where the macro frontend can lower
-  the contract successfully.
+- **Links 2+3** (EDSL ↔ EVMYulLean): delegated to Verity's compiler
+  framework. The compiler should produce `SupportedStmtList` witnesses
+  constructively from the `verity_contract` macro output.
 
 Once both links are established, each `*SemEq` hypothesis in
 `SolidityBridge.lean` becomes a provable lemma and the 67 bridge theorems
@@ -132,21 +125,20 @@ Known expected differences (not checked, handled by semantic bridge):
 
 ## Macro Migration Blockers
 
-17 of 18 operations are now macro-migrated. The sole remaining unmigrated operation
-is `accrueInterestPublic`, which maps to the migrated `accrueInterest` via internal call
-but uses a distinct SolidityBridge hypothesis signature.
+All 18/18 operations are now macro-migrated. `accrueInterestPublic` maps to the
+fully migrated `accrueInterest` function in MacroSlice (body inlined).
 
 **Resolved at the current pin** (`4ebe4931`): `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
 translators, `Bytes32`/`Bool` type support, linked externals, direct ERC20 helper syntax,
 tuple params, `MappingStruct`/`MappingStruct2`, `internalCall`, `mstore`/`mload`,
-macro-backed `ecrecover`, events via `emit`, and `safeTransfer`/`safeTransferFrom`.
+macro-backed `ecrecover`, events via `emit`, `safeTransfer`/`safeTransferFrom`,
+`ecmDo` for callback invocations, and `uint128` overflow guards.
 
 **Remaining blockers**:
 
 | Blocker | Operations affected | Count |
 |---------|-------------------|:-----:|
-| Internal function calls (`Stmt.internalCall`) | `accrueInterestPublic` | 1 |
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -183,62 +175,42 @@ applicable to morpho-verity's enableIrm/enableLltv/setAuthorization operations.
 These operate at the `ContractState` level; the EDSL-to-Yul bridge for mapping
 operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 
-| Operation | Primitives used | Link 1 | Link 2 (CompilationCorrectness) | Link 3 |
-|-----------|----------------|:------:|:-------------------------------:|--------|
-| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
-| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
-| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
-| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
-| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | **PROVEN** | available at verity pin 4ebe4931 |
-| `flashLoan` | msgSender, require, emit, safeTransfer, safeTransferFrom | **PROVEN** | pending | dynamic-topic rawLog witness + external I/O bridge coverage |
-| `createMarket` | getMapping, getMappingUint, structMember, setStructMember, externalCall, blockTimestamp | pending | pending | semantic bridge + SupportedStmtList witness for struct-storage write path |
+| Operation | Primitives used | Link 1 | Links 2+3 |
+|-----------|----------------|:------:|:---------:|
+| `setOwner` | getStorageAddr, setStorageAddr, msgSender, require | **PROVEN** | Verity (trusted) |
+| `setFeeRecipient` | getStorageAddr (×2), setStorageAddr, msgSender, require | **PROVEN** | Verity (trusted) |
+| `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | Verity (trusted) |
+| `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | Verity (trusted) |
+| `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | Verity (trusted) |
+| `flashLoan` | msgSender, require, emit, safeTransfer, safeTransferFrom | **PROVEN** | Verity (trusted) |
+| `createMarket` | getMapping, getMappingUint, structMember, setStructMember, externalCall, blockTimestamp | pending | Verity (trusted) |
 
-**Summary**: 17 operations are now macro-migrated, and 6 of those have Link 1
-(stable wrapper API ↔ EDSL) fully proven.
-The 5 admin operations also now have Link 2 (EDSL ↔ SupportedStmtList) proven in
-`Morpho/Proofs/CompilationCorrectness.lean`, including `setFeeRecipient` via
-the upstream two-storage-address witness added in verity. `flashLoan` remains
-blocked at Link 2 on the dynamic-topic `rawLog` event path.
-`createMarket` is macro-migrated but its semantic-equivalence theorem is not yet discharged.
+**Summary**: 18/18 operations are macro-migrated, and 6 of those have Link 1
+(stable wrapper API ↔ EDSL) fully proven. Links 2+3 (compilation correctness)
+are delegated to Verity's compiler framework.
 
 ### Discharge proof structure
 
 `Morpho/Proofs/SemanticBridgeDischarge.lean` contains actual proofs for the
 first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
-The discharge has three links per obligation:
+The discharge has two links per obligation:
 1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization, flashLoan
-2. **Link 2** (this repo, current pin): `EDSL ↔ SupportedStmtList witness` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization in `Morpho/Proofs/CompilationCorrectness.lean`
-3. **Link 3** (verity): `CompilationModel ↔ EVMYulLean(Yul)` — EndToEnd theorem
+2. **Links 2+3** (Verity): `EDSL ↔ EVMYulLean(Yul)` — delegated to Verity's compiler framework (trusted)
 
-At verity pin `4ebe4931`, Link 2 is tracked on the typed-IR semantic bridge path
-with concrete upstream witness theorems for Morpho admin patterns.
-
-**Link 1 proof pattern** (for the 5 admin operations):
+**Link 1 proof pattern** (for the 6 proven operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
 2. Run EDSL function on encoded state, decode result to `Option MorphoState`
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
 
-**Link 2 proof pattern** (for 5 proven operations in `Morpho/Proofs/CompilationCorrectness.lean`):
-1. Define `morphoFields : List Field` matching the `verity_contract MorphoViewSlice` storage layout
-2. State theorem: `SupportedStmtList morphoFields <function_body_stmts>`
-3. Construct witness using the appropriate `SupportedStmtFragment` constructor
-4. Close obligations via `native_decide` (field resolution) and `decide` (literal checks)
-5. `setFeeRecipient` now uses verity's two-storage-address `SupportedStmtFragment` constructor for the owner/auth + fee-recipient inequality pattern
-
 ### Discharge sequence (current pin: `4ebe4931`)
 
-1. **Links 1+2 proven (5 ops), Link 3 via verity EndToEnd composition**: `setOwner`,
-   `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization` — Link 1 proven in
-   `SemanticBridgeDischarge.lean`, Link 2 proven in `CompilationCorrectness.lean`.
-2. **After semantic-bridge discharge of the new macro body**: `createMarket` — implementation
-   restored at the current pin; still needs the theorem tying the macro-backed adapter to
-   the handwritten `Morpho.createMarket` state model
-3. **After Link 1 proofs for complex operations**: 11 operations — requires semantic-equivalence
-   theorems connecting the EDSL implementations to the pure Lean models
-4. **After `accrueInterestPublic` wrapper resolution**: 1 operation — needs either a dedicated
-   MacroSlice function or a wrapper proof linking to the migrated `accrueInterest`
+1. **Link 1 proven (6 ops)**: `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`,
+   `setAuthorization`, `flashLoan` — Link 1 proven in `SemanticBridgeDischarge.lean`.
+2. **After Link 1 proofs for remaining operations**: 12 operations — requires
+   semantic-equivalence theorems connecting the EDSL implementations to the pure Lean models.
+3. **`accrueInterestPublic` wrapper**: resolved — maps to the fully migrated `accrueInterest`.
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`
 

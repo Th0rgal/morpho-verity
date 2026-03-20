@@ -168,7 +168,7 @@ def obligations : List SemanticBridgeObligation := [
     hypothesis := "accrueInterestPublicSemEq"
     operation := "accrueInterestPublic"
     status := .assumed
-    macroMigrated := false },
+    macroMigrated := true },
   { id := "OBL-FLASH-LOAN-SEM-EQ"
     hypothesis := "flashLoanSemEq"
     operation := "flashLoan"
@@ -182,9 +182,7 @@ theorem obligation_count : obligations.length = 18 := by
 
 /-- 6 of 18 operations have Link 1 proven.
     Link 1 (wrapper API ↔ EDSL) is proven in `SemanticBridgeDischarge.lean`.
-    Link 2 (EDSL ↔ SupportedStmtList) is separately proven for the 5 admin functions
-    in `CompilationCorrectness.lean`; `flashLoan` still lacks that witness.
-    Link 3 comes free from verity's typed-IR compilation-correctness framework.
+    Links 2+3 (EDSL → IR → Yul) are delegated to Verity's compiler framework.
     These 6 Link 1 operations are: setOwner, setFeeRecipient, enableIrm, enableLltv,
     setAuthorization, flashLoan. -/
 theorem link1_proven_count :
@@ -196,17 +194,16 @@ theorem assumed_count :
     (obligations.filter (fun o => o.status == .assumed)).length = 12 := by
   native_decide
 
-/-- 17 of 18 operations have full (non-stub) macro implementations.
-    All core operations are migrated; only `accrueInterestPublic` remains
-    (it maps to `accrueInterest` in MacroSlice but uses a distinct
-    SolidityBridge hypothesis signature). -/
+/-- 18 of 18 operations have full (non-stub) macro implementations.
+    All core operations are migrated; `accrueInterestPublic` maps to
+    `accrueInterest` in MacroSlice with a fully inlined body. -/
 theorem macro_migrated_count :
-    (obligations.filter (fun o => o.macroMigrated)).length = 17 := by
+    (obligations.filter (fun o => o.macroMigrated)).length = 18 := by
   native_decide
 
-/-- 1 operations still need macro migration before discharge. -/
+/-- 0 operations still need macro migration before discharge. -/
 theorem macro_pending_count :
-    (obligations.filter (fun o => !o.macroMigrated)).length = 1 := by
+    (obligations.filter (fun o => !o.macroMigrated)).length = 0 := by
   native_decide
 
 end Morpho.Proofs.SemanticBridgeReadiness

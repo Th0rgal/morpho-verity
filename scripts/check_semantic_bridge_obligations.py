@@ -208,7 +208,8 @@ def validate_config(
                 raise ObligationError(
                     f"obligation[{i}] ({op}): macroMigrated must be boolean"
                 )
-            actual = macro_functions.get(op)
+            alias = obl.get("macroAlias", op)
+            actual = macro_functions.get(alias)
             if actual is None:
                 # Operation not found in MacroSlice — only valid if claimed false
                 if claimed:

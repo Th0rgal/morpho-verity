@@ -28,12 +28,12 @@ MACRO_STATUS_PREFIX = (
   "`MacroSlice.lean`, which is the current macro-generated contract surface."
 )
 UPSTREAM_BRIDGE_PREFIX = (
-  "- **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment\n"
-  "  via verity's typed-IR / canonical-semantics bridge."
+  "- **Links 2+3** (EDSL ↔ EVMYulLean): delegated to Verity's compiler\n"
+  "  framework."
 )
 UPSTREAM_BRIDGE_STATUS_RE = re.compile(
-  r"- \*\*Link 2\*\* \(EDSL ↔ EVMYulLean\): provided upstream for the supported fragment\s+"
-  r"via verity's typed-IR / canonical-semantics bridge\.",
+  r"- \*\*Links 2\+3\*\* \(EDSL ↔ EVMYulLean\): delegated to Verity's compiler\s+"
+  r"framework\.",
   re.DOTALL,
 )
 LINK1_SUMMARY_RE = re.compile(
@@ -43,8 +43,9 @@ LINK1_SUMMARY_RE = re.compile(
   re.DOTALL,
 )
 MACRO_MIGRATED_RE = re.compile(
-  r"(?P<count>\d+)/(?P<total>\d+)\s+operations\s+are\s+macro-migrated; the remaining "
-  r"(?P<pending>\d+)\s+are blocked on upstream macro",
+  r"(?P<count>\d+)/(?P<total>\d+)\s+operations\s+are\s*\n?\s*macro-migrated"
+  r"(?:; the remaining (?P<pending>\d+)\s+are blocked on upstream macro"
+  r"|\s*\()",
   re.DOTALL,
 )
 
@@ -239,7 +240,8 @@ def validate_status_summary(doc_text: str, summary: dict[str, object]) -> None:
   )
   actual_migrated = int(macro_match.group("count"))
   actual_migrated_total = int(macro_match.group("total"))
-  actual_pending = int(macro_match.group("pending"))
+  pending_str = macro_match.group("pending")
+  actual_pending = int(pending_str) if pending_str is not None else 0
   expected_migrated = int(summary["macro_migrated_count"])
   expected_pending = int(summary["macro_pending_count"])
   if (

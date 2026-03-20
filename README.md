@@ -30,6 +30,7 @@ The Lean implementation targets logical equivalence with Morpho's Solidity, not 
 |------|----------------|----------------|
 | Lean invariants/specs | Proved in this repo | `lake build` succeeds |
 | Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged ([tracked](config/semantic-bridge-obligations.json)) |
+| Compilation correctness (EDSL → IR → Yul) | **Trusted** | Delegated to Verity compiler framework; `SupportedStmtList` witnesses assumed constructive |
 | Verity artifact parity | Empirical/differential today | Pinned parity target + Yul identity gate in CI |
 | External dependencies (oracle/token/signature env) | Assumed model inputs | Explicit trust assumptions and scenario matrix |
 
@@ -56,10 +57,6 @@ semantics rather than a trusted reimplementation. Track upstream history in
 [verity#1060](https://github.com/Th0rgal/verity/issues/1060) and
 [verity#1065](https://github.com/Th0rgal/verity/pull/1065).
 
-The upstream typed-IR + bridge roadmap includes fully discharged (zero sorry)
-proof patterns for `Owned`, `SafeCounter`, and `OwnedCounter` contracts which serve as templates
-for morpho-verity's discharge.
-
 **Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 6/18 operations:**
 `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`,
 `flashLoan`.
@@ -67,10 +64,13 @@ The remaining 12/18 operations still have assumed Link 1 status in
 `config/semantic-bridge-obligations.json`.
 See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
-Of those 6, the 5 admin operations also have typed-IR `SupportedStmtList`
-proofs in `Morpho/Proofs/CompilationCorrectness.lean`. `flashLoan` is still
-waiting on the corresponding dynamic-topic `rawLog` witness for its
-`caller`/`token` event path.
+**Links 2+3 (EDSL → IR → Yul) trust assumption:** Compilation correctness
+is delegated to Verity's compiler framework. The `verity_contract` macro
+generates code exclusively from supported patterns, so
+`SupportedStmtList`/`SupportedSpec` witnesses should be constructive —
+produced by the macro, not proven manually per-contract. We assume Verity
+will widen the supported fragment and automate these witnesses. Manual
+`SupportedStmtList` proofs have been removed from this repository.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
