@@ -197,7 +197,6 @@ private theorem mul_div_strict (a b c : Nat) (h_c_pos : 0 < c) (h_bound : (a + 1
 theorem liquidation_always_profitable
     (lltv : Nat)
     (h_lltv_lt_wad : lltv < MathLib.WAD)
-    (h_lltv_pos : lltv > 0)
     (h_practical : ConstantsLib.LIQUIDATION_CURSOR * (MathLib.WAD - lltv) / MathLib.WAD > 0)
     : liquidationIncentiveFactor lltv > MathLib.WAD := by
   unfold liquidationIncentiveFactor
