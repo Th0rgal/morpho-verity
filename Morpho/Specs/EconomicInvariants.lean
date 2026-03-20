@@ -179,8 +179,15 @@ private theorem mul_div_strict (a b c : Nat) (h_c_pos : 0 < c) (h_bound : (a + 1
   have h := (Nat.le_div_iff_mul_le h_c_pos).mpr h_bound
   omega
 
-/-- The liquidation incentive factor always exceeds WAD (100%), meaning
-    liquidators always profit.
+/-- The liquidation incentive factor always exceeds WAD (100%).
+
+    This proves that the *computed factor* is strictly above 100%, meaning the
+    protocol *intends* to give liquidators a bonus. However, this does not
+    guarantee profit on every liquidation: the actual seized collateral in
+    `Morpho.liquidate` is computed via `wMulDown`/`wDivUp`/`toSharesUp`/`toAssetsUp`,
+    and rounding in very small liquidations (e.g., repaying 1 wei) can erase
+    the bonus entirely. This theorem establishes incentive compatibility at
+    the formula level, not at the implementation level for dust amounts.
 
     The hypothesis `h_practical` requires that the LLTV is far enough below 100%
     for the cursor contribution to be nonzero after integer division. Concretely,

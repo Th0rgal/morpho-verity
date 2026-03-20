@@ -8,6 +8,7 @@ import Morpho.Specs.Invariants
 import Morpho.Specs.Rounding
 import Morpho.Specs.Authorization
 import Morpho.Specs.ContractSemantics
+import Morpho.Specs.EconomicInvariants
 import Morpho.Proofs.Invariants
 import Morpho.Proofs.Authorization
 import Morpho.Proofs.Rounding
