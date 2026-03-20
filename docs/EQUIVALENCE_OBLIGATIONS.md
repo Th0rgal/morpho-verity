@@ -43,14 +43,12 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
 | `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
 | `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | Y | `assumed` |
-| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | | `assumed` |
+| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | Y | `assumed` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean`, which is the current macro-generated contract surface. 17/18 operations are
-macro-migrated; the remaining 1 are blocked on upstream macro
-primitive support (`accrueInterestPublic` maps to `accrueInterest` which is migrated,
-but uses a distinct SolidityBridge hypothesis signature).
+`MacroSlice.lean`, which is the current macro-generated contract surface. 18/18 operations are
+macro-migrated (`accrueInterestPublic` maps to the fully migrated `accrueInterest` function).
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
 cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
 `scripts/check_equivalence_obligations_doc.py` now also fail-closes the top-level Link 1 /
@@ -93,11 +91,9 @@ Morpho.f args                        -- stable wrapper surface (this repo)
 - **Link 1** (stable wrapper API ↔ EDSL): requires that `MorphoViewSlice`
   functions in `MacroSlice.lean` have full implementations matching
   `Morpho.*`, which in turn aliases `Morpho.Specs.ContractSemantics` for the
-  migrated operations. 17 of 18 operations now have full macro implementations;
+  migrated operations. All 18/18 operations now have full macro implementations;
   the remaining Link 1 gaps are proof-level (semantic-equivalence theorems
   for complex operations like supply, borrow, liquidate, etc.).
-  `accrueInterestPublic` is the sole unmigrated operation; it maps to the
-  migrated `accrueInterest` but uses a distinct SolidityBridge signature.
 
 - **Link 2** (EDSL ↔ EVMYulLean): provided upstream for the supported fragment
   via verity's typed-IR / canonical-semantics bridge. This eliminates the
@@ -132,21 +128,20 @@ Known expected differences (not checked, handled by semantic bridge):
 
 ## Macro Migration Blockers
 
-17 of 18 operations are now macro-migrated. The sole remaining unmigrated operation
-is `accrueInterestPublic`, which maps to the migrated `accrueInterest` via internal call
-but uses a distinct SolidityBridge hypothesis signature.
+All 18/18 operations are now macro-migrated. `accrueInterestPublic` maps to the
+fully migrated `accrueInterest` function in MacroSlice (body inlined).
 
 **Resolved at the current pin** (`4ebe4931`): `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
 translators, `Bytes32`/`Bool` type support, linked externals, direct ERC20 helper syntax,
 tuple params, `MappingStruct`/`MappingStruct2`, `internalCall`, `mstore`/`mload`,
-macro-backed `ecrecover`, events via `emit`, and `safeTransfer`/`safeTransferFrom`.
+macro-backed `ecrecover`, events via `emit`, `safeTransfer`/`safeTransferFrom`,
+`ecmDo` for callback invocations, and `uint128` overflow guards.
 
 **Remaining blockers**:
 
 | Blocker | Operations affected | Count |
 |---------|-------------------|:-----:|
-| Internal function calls (`Stmt.internalCall`) | `accrueInterestPublic` | 1 |
 
 ## Primitive Coverage & Discharge Readiness
 
@@ -237,8 +232,7 @@ with concrete upstream witness theorems for Morpho admin patterns.
    the handwritten `Morpho.createMarket` state model
 3. **After Link 1 proofs for complex operations**: 11 operations — requires semantic-equivalence
    theorems connecting the EDSL implementations to the pure Lean models
-4. **After `accrueInterestPublic` wrapper resolution**: 1 operation — needs either a dedicated
-   MacroSlice function or a wrapper proof linking to the migrated `accrueInterest`
+4. **`accrueInterestPublic` wrapper**: resolved — maps to the fully migrated `accrueInterest`
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`
 

@@ -144,9 +144,10 @@
       "hypothesis": "accrueInterestPublicSemEq",
       "operation": "accrueInterestPublic",
       "status": "assumed",
-      "macroMigrated": false,
-      "macroSurfaceBlockers": ["internalCall"],
-      "blockedBy": "operation name 'accrueInterestPublic' does not exist as a separate function in MacroSlice; it maps to 'accrueInterest' which is migrated via internalCall, but the SolidityBridge hypothesis uses a distinct signature"
+      "macroMigrated": true,
+      "macroAlias": "accrueInterest",
+      "macroSurfaceBlockers": [],
+      "blockedBy": "maps to 'accrueInterest' which is fully migrated in MacroSlice with inlined body; typed-IR SupportedStmtList proof pending"
     },
     {
       "id": "OBL-FLASH-LOAN-SEM-EQ",

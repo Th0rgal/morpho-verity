@@ -1,4 +1,5 @@
 import Compiler.CompilationModel
+import Compiler.Modules.Callbacks
 import Verity.Core
 import Verity.Macro
 
@@ -64,6 +65,16 @@ def contractAddress : Uint256 := 0
 def emit (_name : String) (_args : List Uint256) : Contract Unit := Verity.pure ()
 def safeTransfer (_token _to : Uint256) (_amount : Uint256) : Contract Unit := Verity.pure ()
 def safeTransferFrom (_token _from _to : Uint256) (_amount : Uint256) : Contract Unit := Verity.pure ()
+
+-- uint128 overflow guard matching Solidity's UtilsLib.toUint128()
+def uint128Max : Uint256 := 340282366920938463463374607431768211455
+
+-- Callback selectors (4-byte function selectors for IMorphoBase callbacks)
+private def onMorphoSupplySelector : Nat := 0x2075be03
+private def onMorphoRepaySelector : Nat := 0x05b4591c
+private def onMorphoSupplyCollateralSelector : Nat := 0xb1022fdf
+private def onMorphoLiquidateSelector : Nat := 0xcf7ea196
+private def onMorphoFlashLoanSelector : Nat := 0x31f57072
 
 -- Incremental macro-native Morpho slice for migration progress tracking.
 -- This intentionally models a selector-exact subset with supported constructs.
@@ -342,6 +353,8 @@ verity_contract MorphoViewSlice where
         let interest := mulDivDown totalBorrowAssets_ (add firstTerm (add secondTerm thirdTerm)) 1000000000000000000
         let newTotalBorrowAssets := add totalBorrowAssets_ interest
         let newTotalSupplyAssets := add totalSupplyAssets_ interest
+        require (newTotalBorrowAssets <= uint128Max) "uint128 overflow"
+        require (newTotalSupplyAssets <= uint128Max) "uint128 overflow"
         setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
         setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
         let mut feeShares := 0
@@ -350,8 +363,12 @@ verity_contract MorphoViewSlice where
           feeShares := mulDivDown feeAmount (add totalSupplyShares_ 1000000) (add (sub newTotalSupplyAssets feeAmount) 1)
           let feeRecipient_ <- getStorageAddr feeRecipientSlot
           let currentFeeRecipientShares <- structMember2 positionSlot id feeRecipient_ "supplyShares"
-          setStructMember2 positionSlot id feeRecipient_ "supplyShares" (add currentFeeRecipientShares feeShares)
-          setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ feeShares)
+          let newFeeRecipientShares := add currentFeeRecipientShares feeShares
+          let newTotalSupplyShares := add totalSupplyShares_ feeShares
+          require (newFeeRecipientShares <= uint128Max) "uint128 overflow"
+          require (newTotalSupplyShares <= uint128Max) "uint128 overflow"
+          setStructMember2 positionSlot id feeRecipient_ "supplyShares" newFeeRecipientShares
+          setStructMember marketSlot id "totalSupplyShares" newTotalSupplyShares
         else
           require (currentFee == 0) "fee zero"
         emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
@@ -361,7 +378,7 @@ verity_contract MorphoViewSlice where
     else
       require (elapsed == 0) "no elapsed"
 
-  function supplyCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_collateral_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
+  function supplyCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_collateral_callback := assumed "Callback invocation (onMorphoSupplyCollateral) and ERC20 safeTransferFrom use low-level calls with trust axioms callback_target_interface and erc20_transfer_success."] : Unit := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -371,9 +388,12 @@ verity_contract MorphoViewSlice where
     require (assets > 0) "zero assets"
     require (onBehalf != 0) "zero address"
     let currentCollateral <- structMember2 positionSlot id onBehalf "collateral"
-    setStructMember2 positionSlot id onBehalf "collateral" (add currentCollateral assets)
+    let newCollateral := add currentCollateral assets
+    require (newCollateral <= uint128Max) "uint128 overflow"
+    setStructMember2 positionSlot id onBehalf "collateral" newCollateral
     let sender <- msgSender
     emit "SupplyCollateral" [id, sender, onBehalf, assets]
+    ecmDo (Compiler.Modules.Callbacks.callbackModule onMorphoSupplyCollateralSelector 1 "data") [sender, assets]
     safeTransferFrom marketParams_1 sender contractAddress assets
 
   function withdrawCollateral (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
@@ -409,7 +429,7 @@ verity_contract MorphoViewSlice where
     emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
     safeTransfer marketParams_1 receiver assets
 
-  function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
+  function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Callback invocation (onMorphoSupply) and ERC20 safeTransferFrom use low-level calls with trust axioms callback_target_interface and erc20_transfer_success."] : Unit := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -427,11 +447,18 @@ verity_contract MorphoViewSlice where
     else
       finalAssets := mulDivUp shares (add totalSupplyAssets_ 1) (add totalSupplyShares_ 1000000)
     let currentSupplyShares <- structMember2 positionSlot id onBehalf "supplyShares"
-    setStructMember2 positionSlot id onBehalf "supplyShares" (add currentSupplyShares finalShares)
-    setStructMember marketSlot id "totalSupplyShares" (add totalSupplyShares_ finalShares)
-    setStructMember marketSlot id "totalSupplyAssets" (add totalSupplyAssets_ finalAssets)
+    let newPosSupplyShares := add currentSupplyShares finalShares
+    let newTotalSupplyShares := add totalSupplyShares_ finalShares
+    let newTotalSupplyAssets := add totalSupplyAssets_ finalAssets
+    require (newPosSupplyShares <= uint128Max) "uint128 overflow"
+    require (newTotalSupplyShares <= uint128Max) "uint128 overflow"
+    require (newTotalSupplyAssets <= uint128Max) "uint128 overflow"
+    setStructMember2 positionSlot id onBehalf "supplyShares" newPosSupplyShares
+    setStructMember marketSlot id "totalSupplyShares" newTotalSupplyShares
+    setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
     let sender <- msgSender
     emit "Supply" [id, sender, onBehalf, finalAssets, finalShares]
+    ecmDo (Compiler.Modules.Callbacks.callbackModule onMorphoSupplySelector 1 "data") [sender, finalAssets]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
 
   function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
@@ -488,9 +515,15 @@ verity_contract MorphoViewSlice where
     else
       finalAssets := mulDivDown shares (add totalBorrowAssets_ 1) (add totalBorrowShares_ 1000000)
     let currentBorrowShares <- structMember2 positionSlot id onBehalf "borrowShares"
-    setStructMember2 positionSlot id onBehalf "borrowShares" (add currentBorrowShares finalShares)
-    setStructMember marketSlot id "totalBorrowShares" (add totalBorrowShares_ finalShares)
-    setStructMember marketSlot id "totalBorrowAssets" (add totalBorrowAssets_ finalAssets)
+    let newPosBorrowShares := add currentBorrowShares finalShares
+    let newTotalBorrowShares := add totalBorrowShares_ finalShares
+    let newTotalBorrowAssets := add totalBorrowAssets_ finalAssets
+    require (newPosBorrowShares <= uint128Max) "uint128 overflow"
+    require (newTotalBorrowShares <= uint128Max) "uint128 overflow"
+    require (newTotalBorrowAssets <= uint128Max) "uint128 overflow"
+    setStructMember2 positionSlot id onBehalf "borrowShares" newPosBorrowShares
+    setStructMember marketSlot id "totalBorrowShares" newTotalBorrowShares
+    setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
     -- Health check: _isHealthy(marketParams, id, onBehalf)
     let borrowShares_ <- structMember2 positionSlot id onBehalf "borrowShares"
     if borrowShares_ > 0 then
@@ -510,7 +543,7 @@ verity_contract MorphoViewSlice where
     emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
     safeTransfer marketParams_0 receiver finalAssets
 
-  function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
+  function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Callback invocation (onMorphoRepay) and ERC20 safeTransferFrom use low-level calls with trust axioms callback_target_interface and erc20_transfer_success."] : Unit := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -537,9 +570,10 @@ verity_contract MorphoViewSlice where
       setStructMember marketSlot id "totalBorrowAssets" 0
     let sender <- msgSender
     emit "Repay" [id, sender, onBehalf, finalAssets, finalShares]
+    ecmDo (Compiler.Modules.Callbacks.callbackModule onMorphoRepaySelector 1 "data") [sender, finalAssets]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
 
-  function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Callback invocation and ERC20 transfers use low-level calls; caller must verify the token transfers succeed."] : Unit := do
+  function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Callback invocation (onMorphoLiquidate) and ERC20 transfers use low-level calls with trust axioms callback_target_interface and erc20_transfer_success."] : Unit := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -610,6 +644,7 @@ verity_contract MorphoViewSlice where
     let sender <- msgSender
     emit "Liquidate" [id, sender, borrower, repaidAssets, finalRepaidShares, finalSeizedAssets, badDebtAssets, badDebtShares]
     safeTransfer marketParams_1 sender finalSeizedAssets
+    ecmDo (Compiler.Modules.Callbacks.callbackModule onMorphoLiquidateSelector 1 "data") [sender, repaidAssets]
     safeTransferFrom marketParams_0 sender contractAddress repaidAssets
 
   function flashLoan (token : Address, assets : Uint256, data : Bytes) local_obligations [flash_loan_transfers := assumed "Flash loan ERC20 transfers and callback use low-level calls; caller must verify the token transfers succeed and the callback returns."] : Unit := do
@@ -618,6 +653,7 @@ verity_contract MorphoViewSlice where
     mstore 0 assets
     rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
     safeTransfer token sender assets
+    ecmDo (Compiler.Modules.Callbacks.callbackModule onMorphoFlashLoanSelector 1 "data") [sender, assets]
     safeTransferFrom token sender contractAddress assets
 
 end Morpho.Compiler.MacroSlice

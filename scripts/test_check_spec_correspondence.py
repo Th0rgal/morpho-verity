@@ -354,7 +354,9 @@ class LoadMigratedOperationsTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self.assertEqual(load_migrated_operations(config_path), {"setOwner"})
+            ops, aliases = load_migrated_operations(config_path)
+            self.assertEqual(ops, {"setOwner"})
+            self.assertEqual(aliases, {})
 
     def test_rejects_invalid_utf8(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -384,10 +386,11 @@ class IntegrationTests(unittest.TestCase):
         spec_fields = extract_spec_fields(spec_text)
         macro_slots = extract_macro_slots(macro_text)
 
-        migrated = load_migrated_operations(config_path)
+        migrated, macro_aliases = load_migrated_operations(config_path)
 
         errors = validate_correspondence(
-            spec_fns, macro_fns, spec_fields, macro_slots, migrated
+            spec_fns, macro_fns, spec_fields, macro_slots, migrated,
+            macro_aliases=macro_aliases,
         )
         self.assertEqual(errors, [], f"Correspondence errors: {errors}")
 

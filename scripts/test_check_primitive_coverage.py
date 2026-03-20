@@ -335,8 +335,8 @@ class IntegrationTests(unittest.TestCase):
         coverage = analyze_coverage(macro_text, migrated_ops)
         report = build_report(coverage, macro_path, config_path)
 
-        # 17 migrated operations (admin cluster + createMarket + setAuthorizationWithSig + flashLoan + core ops)
-        self.assertEqual(report["total"], 17)
+        # 18 migrated operations (admin cluster + createMarket + setAuthorizationWithSig + flashLoan + core ops + accrueInterestPublic)
+        self.assertEqual(report["total"], 18)
 
         # setOwner and setFeeRecipient should be fully covered
         self.assertTrue(coverage["setOwner"]["fully_covered"])

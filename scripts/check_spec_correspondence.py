@@ -44,7 +44,7 @@ def read_text(path: pathlib.Path) -> str:
         raise CorrespondenceError(f"failed to read text file {path}: {exc}") from exc
 
 
-def load_migrated_operations(path: pathlib.Path) -> set[str]:
+def load_migrated_operations(path: pathlib.Path) -> tuple[set[str], dict[str, str]]:
     try:
         with path.open("r", encoding="utf-8") as f:
             config = json.load(f)
@@ -60,6 +60,8 @@ def load_migrated_operations(path: pathlib.Path) -> set[str]:
         raise CorrespondenceError(f"missing `obligations` list in {path}")
 
     migrated_ops: set[str] = set()
+    # Maps operation name → macroAlias (the function name in MacroSlice)
+    macro_aliases: dict[str, str] = {}
     for i, obligation in enumerate(obligations):
         if not isinstance(obligation, dict):
             raise CorrespondenceError(f"obligation[{i}] is not an object in {path}")
@@ -78,8 +80,11 @@ def load_migrated_operations(path: pathlib.Path) -> set[str]:
 
         if macro_migrated:
             migrated_ops.add(operation)
+            alias = obligation.get("macroAlias")
+            if isinstance(alias, str) and alias:
+                macro_aliases[operation] = alias
 
-    return migrated_ops
+    return migrated_ops, macro_aliases
 
 
 # ---------------------------------------------------------------------------
@@ -295,9 +300,12 @@ def validate_correspondence(
     spec_fields: dict[str, int],
     macro_slots: dict[str, int],
     migrated_ops: set[str],
+    macro_aliases: dict[str, str] | None = None,
 ) -> list[str]:
     """Validate structural correspondence for migrated functions."""
     errors: list[str] = []
+    if macro_aliases is None:
+        macro_aliases = {}
 
     # 1. Storage slot correspondence
     for macro_name, macro_slot in macro_slots.items():
@@ -310,15 +318,18 @@ def validate_correspondence(
 
     # 2. Per-function checks for migrated operations
     for op in sorted(migrated_ops):
-        if op not in macro_fns:
+        # Resolve alias: if the operation maps to a different MacroSlice function name
+        macro_name = macro_aliases.get(op, op)
+        if macro_name not in macro_fns:
             errors.append(f"migrated op '{op}' not found in MacroSlice.lean")
             continue
-        if op not in spec_fns:
+        spec_name = macro_aliases.get(op, op)
+        if spec_name not in spec_fns:
             errors.append(f"migrated op '{op}' not found in Spec.lean")
             continue
 
-        macro = macro_fns[op]
-        spec = spec_fns[op]
+        macro = macro_fns[macro_name]
+        spec = spec_fns[spec_name]
 
         if macro["is_stub"]:
             errors.append(f"migrated op '{op}' is a stub in MacroSlice.lean")
@@ -355,18 +366,23 @@ def build_report(
     spec_path: pathlib.Path,
     macro_path: pathlib.Path,
     config_path: pathlib.Path,
+    macro_aliases: dict[str, str] | None = None,
 ) -> dict[str, Any]:
+    if macro_aliases is None:
+        macro_aliases = {}
     correspondences = []
     for op in sorted(migrated_ops):
+        macro_name = macro_aliases.get(op, op)
         entry: dict[str, Any] = {"operation": op}
-        if op in macro_fns and op in spec_fns:
-            entry["macroParams"] = macro_fns[op]["param_count"]
-            entry["specParams"] = spec_fns[op]["param_count"]
-            entry["macroRequires"] = macro_fns[op]["require_count"]
-            entry["specRequires"] = spec_fns[op]["require_count"]
-            entry["macroMutations"] = macro_fns[op]["mutation_count"]
-            entry["specMutations"] = spec_fns[op]["mutation_count"]
-            entry["isStub"] = macro_fns[op].get("is_stub", False)
+        spec_name = macro_aliases.get(op, op)
+        if macro_name in macro_fns and spec_name in spec_fns:
+            entry["macroParams"] = macro_fns[macro_name]["param_count"]
+            entry["specParams"] = spec_fns[spec_name]["param_count"]
+            entry["macroRequires"] = macro_fns[macro_name]["require_count"]
+            entry["specRequires"] = spec_fns[spec_name]["require_count"]
+            entry["macroMutations"] = macro_fns[macro_name]["mutation_count"]
+            entry["specMutations"] = spec_fns[spec_name]["mutation_count"]
+            entry["isStub"] = macro_fns[macro_name].get("is_stub", False)
         correspondences.append(entry)
 
     return {
@@ -406,10 +422,11 @@ def main() -> None:
     spec_fields = extract_spec_fields(spec_text)
     macro_slots = extract_macro_slots(macro_text)
 
-    migrated_ops = load_migrated_operations(config_path)
+    migrated_ops, macro_aliases = load_migrated_operations(config_path)
 
     errors = validate_correspondence(
         spec_fns, macro_fns, spec_fields, macro_slots, migrated_ops,
+        macro_aliases=macro_aliases,
     )
 
     report = build_report(
@@ -420,6 +437,7 @@ def main() -> None:
         spec_path=spec_path,
         macro_path=macro_path,
         config_path=config_path,
+        macro_aliases=macro_aliases,
     )
 
     if args.json_out:
