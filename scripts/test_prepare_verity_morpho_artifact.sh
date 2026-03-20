@@ -31,6 +31,7 @@ setup_fake_repo() {
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   cp "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   cp "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" "${fake_root}/scripts/check_yul_rewrite_proof_obligations.py"
+  cp "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" "${fake_root}/scripts/uniquify_yul_shadows.py"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   chmod +x "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
