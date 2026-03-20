@@ -7,18 +7,21 @@
   they can say about economic safety (e.g., "suppliers never lose money").
 
   This file introduces a second layer of properties that assume explicit economic
-  axioms — bounded oracle price movement, rational liquidator behavior, and bounded
-  bad debt. Under these assumptions we can prove stronger conclusions:
+  axioms — bounded oracle price movement and bounded bad debt. Under these assumptions
+  we can prove stronger conclusions:
 
-  - Positions remain overcollateralized (not just collateral > 0, but with margin)
+  - Collateral values are bounded below even after sustained price drops
   - Supplier share value grows monotonically (interest income exceeds bad debt)
   - Liquidation is always profitable (incentive compatibility)
-  - No cascading liquidations across isolated markets
 
   **Trust model**: The axioms in this file are declared locally and do not affect
   the unconditional proofs elsewhere. Auditors should evaluate whether each axiom
   is reasonable for a given deployment (e.g., "is 2% max price drop per block
   realistic for ETH/USDC on mainnet with Chainlink?").
+
+  **Market isolation**: Cascading liquidation safety (operations on market A cannot
+  affect market B) is proven unconditionally in `Proofs/Invariants.lean` via
+  `marketIsolated` and `crossMarketPositionIsolated`. No economic axioms needed.
 -/
 import Morpho.Types
 import Morpho.Libraries.MathLib
@@ -31,22 +34,11 @@ open Verity
 open Morpho.Types
 open Morpho.Libraries
 
-/-! ## Economic model parameters -/
+/-! ## Oracle and price modeling
 
-/-- Parameters describing the economic environment of a Morpho deployment. -/
-structure EconomicModel where
-  /-- Maximum oracle price drop per block, in WAD (e.g., 2e16 = 2%). -/
-  maxPriceDropPerBlock : Nat
-  /-- Maximum number of blocks before a liquidatable position is liquidated. -/
-  liquidationWindow : Nat
-  /-- Oracle error bound in WAD (e.g., 1e16 = 1%). -/
-  oracleErrorBound : Nat
-  /-- Price drop bound is meaningful (< 100%). -/
-  h_drop_lt_wad : maxPriceDropPerBlock < MathLib.WAD
-  /-- Liquidation window is positive. -/
-  h_window_pos : liquidationWindow > 0
-
-/-! ## Oracle and price modeling -/
+  We model oracle prices as a function from block number to price (Nat-valued,
+  WAD-scaled). The axioms below constrain how much the price can move.
+-/
 
 /-- An oracle price trajectory: block number → WAD-scaled price. -/
 abbrev PriceTrajectory := Nat → Nat
@@ -69,24 +61,16 @@ theorem price_bound_inductive
   | zero => simp
   | succ n ih =>
     have hb := h_bounded n
-    -- hb : prices (n+1) * WAD ≥ prices n * (WAD - δ)
-    -- ih : prices 0 * (WAD - δ)^n ≤ prices n * WAD^n
     rw [Nat.pow_succ, Nat.pow_succ]
-    -- Goal: prices 0 * ((WAD-δ)^n * (WAD-δ)) ≤ prices (n+1) * (WAD^n * WAD)
-    -- Step 1: reassociate LHS
     have lhs_assoc : prices 0 * ((MathLib.WAD - δ) ^ n * (MathLib.WAD - δ))
         = prices 0 * (MathLib.WAD - δ) ^ n * (MathLib.WAD - δ) := by
       rw [← Nat.mul_assoc]
-    -- Step 2: reassociate RHS
     have rhs_assoc : prices (n + 1) * (MathLib.WAD ^ n * MathLib.WAD)
         = prices (n + 1) * MathLib.WAD * MathLib.WAD ^ n := by
       rw [← Nat.mul_assoc]
-      -- Goal: prices (n+1) * MathLib.WAD ^ n * MathLib.WAD = prices (n+1) * MathLib.WAD * MathLib.WAD ^ n
       rw [Nat.mul_assoc (prices (n + 1)) (MathLib.WAD ^ n) MathLib.WAD,
           Nat.mul_comm (MathLib.WAD ^ n) MathLib.WAD, ← Nat.mul_assoc]
     rw [lhs_assoc, rhs_assoc]
-    -- Goal: prices 0 * (WAD-δ)^n * (WAD-δ) ≤ prices (n+1) * WAD * WAD^n
-    -- Transitivity through prices n * (WAD-δ) * WAD^n
     have step1 : prices 0 * (MathLib.WAD - δ) ^ n * (MathLib.WAD - δ) ≤
         prices n * MathLib.WAD ^ n * (MathLib.WAD - δ) :=
       Nat.mul_le_mul_right _ ih
@@ -144,9 +128,6 @@ theorem exchange_rate_preserved_on_proportional_mint
                       Δa * (s + SharesMathLib.VIRTUAL_SHARES))
     : (a + SharesMathLib.VIRTUAL_ASSETS) * (s + Δs + SharesMathLib.VIRTUAL_SHARES) ≤
       (a + Δa + SharesMathLib.VIRTUAL_ASSETS) * (s + SharesMathLib.VIRTUAL_SHARES) := by
-  -- LHS = (a+VA) * ((s+VS) + Δs) = (a+VA)*(s+VS) + (a+VA)*Δs
-  -- RHS = ((a+VA) + Δa) * (s+VS) = (a+VA)*(s+VS) + Δa*(s+VS)
-  -- Need: (a+VA)*Δs ≤ Δa*(s+VS), which is h_proportional (commuted)
   have lhs_eq : (a + SharesMathLib.VIRTUAL_ASSETS) * (s + Δs + SharesMathLib.VIRTUAL_SHARES)
       = (a + SharesMathLib.VIRTUAL_ASSETS) * (s + SharesMathLib.VIRTUAL_SHARES)
         + (a + SharesMathLib.VIRTUAL_ASSETS) * Δs := by
@@ -237,18 +218,5 @@ theorem liquidation_always_profitable
     unfold ConstantsLib.MAX_LIQUIDATION_INCENTIVE_FACTOR ConstantsLib.WAD MathLib.WAD; omega
   simp [Nat.min_def]
   split <;> omega
-
-/-! ## Market isolation (cascading liquidation safety) -/
-
-/-- A liquidation event in one market cannot affect positions in another market. -/
-theorem no_cascading_liquidations
-    (s s' : MorphoState)
-    (h_isolated_pos : ∀ user, s.position id' user = s'.position id' user)
-    : ∀ user,
-        (s.position id' user).borrowShares = (s'.position id' user).borrowShares ∧
-        (s.position id' user).collateral = (s'.position id' user).collateral := by
-  intro user
-  have h := h_isolated_pos user
-  exact ⟨congrArg Position.borrowShares h, congrArg Position.collateral h⟩
 
 end Morpho.Specs.EconomicInvariants
