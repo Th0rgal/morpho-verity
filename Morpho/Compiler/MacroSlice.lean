@@ -229,15 +229,17 @@ verity_contract MorphoViewSlice where
     setMappingUint isLltvEnabledSlot lltv 1
     emit "EnableLltv" [lltv]
 
-  function setAuthorization (authorized : Address, newIsAuthorized : Bool) : Unit := do
+  function setAuthorization (authorized : Address, newIsAuthorized : Bool) local_obligations [set_authorization_event := assumed "SetAuthorization event emission uses direct memory writes and rawLog; caller must verify the event encoding is correct."] : Unit := do
     let sender <- msgSender
-    let currentValue <- getMapping2 isAuthorizedSlot sender authorized
+    let mut isAuthorizedWord := 0
     if newIsAuthorized then
-      require (currentValue == 0) "already set"
-      setMapping2 isAuthorizedSlot sender authorized 1
+      isAuthorizedWord := 1
     else
-      require (currentValue != 0) "already set"
-      setMapping2 isAuthorizedSlot sender authorized 0
+      isAuthorizedWord := 0
+    setMapping2 isAuthorizedSlot sender authorized isAuthorizedWord
+    mstore 0 isAuthorizedWord
+    rawLog [96755043271346810483655308149819952342970126887685366761742111973171219597760,
+      sender, sender, authorized] 0 32
 
   function setAuthorizationWithSig (authorization : Tuple [Address, Address, Bool, Uint256, Uint256], signature : Tuple [Uint8, Bytes32, Bytes32]) local_obligations [authorization_sig_memory := assumed "EIP-712 typed-data hashing and ecrecover use direct memory writes and low-level operations; caller must verify the encoding and signature verification are correct."] : Unit := do
     let sender <- msgSender
@@ -258,7 +260,7 @@ verity_contract MorphoViewSlice where
       isAuthorizedWord := 1
     else
       isAuthorizedWord := 0
-    mstore 0 58375287309530710162933305390054840987079945985439883494330239665215553039505
+    mstore 0 58716139875033191547423680425660227735028985010655085009261943264615620979857
     mstore 32 authorizer
     mstore 64 authorized
     mstore 96 isAuthorizedWord
@@ -269,7 +271,7 @@ verity_contract MorphoViewSlice where
     mstore 64 chainid
     mstore 96 contractAddress
     let domainSeparator := keccak256 32 96
-    mstore 0 11376154489267527918027507597793705913714985631324067728021276794371439513600
+    mstore 0 11309588061646438093662687302255421419811724423900836950936401294474059186176
     mstore 2 domainSeparator
     mstore 34 hashStruct
     let digest := keccak256 0 66
@@ -281,7 +283,7 @@ verity_contract MorphoViewSlice where
       sender, authorizer] 0 32
     setMapping2 isAuthorizedSlot authorizer authorized isAuthorizedWord
     mstore 0 isAuthorizedWord
-    rawLog [96781178765147248776732963005526932015340179640649679610324219398565412161984,
+    rawLog [96755043271346810483655308149819952342970126887685366761742111973171219597760,
       sender, authorizer, authorized] 0 32
 
   function createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
@@ -322,9 +324,48 @@ verity_contract MorphoViewSlice where
       addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
     let currentLastUpdate <- structMember marketSlot id "lastUpdate"
     require (currentLastUpdate != 0) "market not created"
-    let currentFee <- structMember marketSlot id "fee"
-    require (newFee != currentFee) "already set"
     require (newFee <= 250000000000000000) "max fee exceeded"
+    -- inline accrueInterest
+    let currentTimestamp := blockTimestamp
+    let elapsed := sub currentTimestamp currentLastUpdate
+    if elapsed > 0 then
+      if marketParams_3 != 0 then
+        let totalBorrowAssets_ <- structMember marketSlot id "totalBorrowAssets"
+        let totalSupplyAssets_ <- structMember marketSlot id "totalSupplyAssets"
+        let totalSupplyShares_ <- structMember marketSlot id "totalSupplyShares"
+        let currentFeeOld <- structMember marketSlot id "fee"
+        let borrowRateVal := externalCall "borrowRate" [addressToWord marketParams_3, totalBorrowAssets_]
+        let firstTerm := mul borrowRateVal elapsed
+        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
+        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
+        let interest := mulDivDown totalBorrowAssets_ (add firstTerm (add secondTerm thirdTerm)) 1000000000000000000
+        let newTotalBorrowAssets := add totalBorrowAssets_ interest
+        let newTotalSupplyAssets := add totalSupplyAssets_ interest
+        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+        setStructMember marketSlot id "totalBorrowAssets" newTotalBorrowAssets
+        setStructMember marketSlot id "totalSupplyAssets" newTotalSupplyAssets
+        let mut feeShares := 0
+        if currentFeeOld > 0 then
+          let feeAmount := mulDivDown interest currentFeeOld 1000000000000000000
+          feeShares := mulDivDown feeAmount (add totalSupplyShares_ 1000000) (add (sub newTotalSupplyAssets feeAmount) 1)
+          let feeRecipient_ <- getStorageAddr feeRecipientSlot
+          let currentFeeRecipientShares <- structMember2 positionSlot id feeRecipient_ "supplyShares"
+          let newFeeRecipientShares := add currentFeeRecipientShares feeShares
+          let newTotalSupplyShares := add totalSupplyShares_ feeShares
+          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+          setStructMember2 positionSlot id feeRecipient_ "supplyShares" newFeeRecipientShares
+          setStructMember marketSlot id "totalSupplyShares" newTotalSupplyShares
+        else
+          require (currentFeeOld == 0) "fee zero"
+        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
+      else
+        require (marketParams_3 == 0) "no irm"
+      setStructMember marketSlot id "lastUpdate" currentTimestamp
+    else
+      require (elapsed == 0) "elapsed zero"
+    -- end inline accrueInterest
     setStructMember marketSlot id "fee" newFee
     emit "SetFee" [id, newFee]
 
@@ -425,7 +466,7 @@ verity_contract MorphoViewSlice where
     emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
     safeTransfer marketParams_1 receiver assets
 
-  function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
+  function supply (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -455,8 +496,9 @@ verity_contract MorphoViewSlice where
     let sender <- msgSender
     emit "Supply" [id, sender, onBehalf, finalAssets, finalShares]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
+    return (finalAssets, finalShares)
 
-  function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+  function withdraw (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -487,8 +529,9 @@ verity_contract MorphoViewSlice where
     require (totalBorrowAssets_ <= newTotalSupplyAssets) "insufficient liquidity"
     emit "Withdraw" [id, sender, onBehalf, receiver, finalAssets, finalShares]
     safeTransfer marketParams_0 receiver finalAssets
+    return (finalAssets, finalShares)
 
-  function borrow (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Unit := do
+  function borrow (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -536,8 +579,9 @@ verity_contract MorphoViewSlice where
     require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
     emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
     safeTransfer marketParams_0 receiver finalAssets
+    return (finalAssets, finalShares)
 
-  function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Unit := do
+  function repay (marketParams : Tuple [Address, Address, Address, Address, Uint256], assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Callback invocation and ERC20 safeTransferFrom use low-level calls; caller must verify the token transfer succeeds."] : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -565,8 +609,9 @@ verity_contract MorphoViewSlice where
     let sender <- msgSender
     emit "Repay" [id, sender, onBehalf, finalAssets, finalShares]
     safeTransferFrom marketParams_0 sender contractAddress finalAssets
+    return (finalAssets, finalShares)
 
-  function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Callback invocation and ERC20 transfers use low-level calls; caller must verify the token transfers succeed."] : Unit := do
+  function liquidate (marketParams : Tuple [Address, Address, Address, Address, Uint256], borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Callback invocation and ERC20 transfers use low-level calls; caller must verify the token transfers succeed."] : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0, addressToWord marketParams_1,
@@ -638,6 +683,7 @@ verity_contract MorphoViewSlice where
     emit "Liquidate" [id, sender, borrower, repaidAssets, finalRepaidShares, finalSeizedAssets, badDebtAssets, badDebtShares]
     safeTransfer marketParams_1 sender finalSeizedAssets
     safeTransferFrom marketParams_0 sender contractAddress repaidAssets
+    return (finalSeizedAssets, repaidAssets)
 
   function flashLoan (token : Address, assets : Uint256, data : Bytes) local_obligations [flash_loan_transfers := assumed "Flash loan ERC20 transfers and callback use low-level calls; caller must verify the token transfers succeed and the callback returns."] : Unit := do
     require (assets > 0) "zero assets"
@@ -645,6 +691,7 @@ verity_contract MorphoViewSlice where
     mstore 0 assets
     rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
     safeTransfer token sender assets
+    let _callbackResult := externalCall "flashLoanCallback" [sender, assets]
     safeTransferFrom token sender contractAddress assets
 
 end Morpho.Compiler.MacroSlice

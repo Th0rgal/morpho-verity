@@ -1,7 +1,10 @@
 {
   function borrowRate(irm, totalBorrowAssets) -> rate {
-    // Stub: calls the external IRM contract to get the borrow rate.
-    // In production, this would be a staticcall to the IRM address.
-    rate := 0
+    // staticcall to IRM contract fallback — returns borrow rate
+    // Use scratch space at 0x300 to avoid clobbering memory 0-0x200
+    mstore(0x300, totalBorrowAssets)
+    let success := staticcall(gas(), irm, 0x300, 32, 0x300, 32)
+    if iszero(success) { revert(0, 0) }
+    rate := mload(0x300)
   }
 }
