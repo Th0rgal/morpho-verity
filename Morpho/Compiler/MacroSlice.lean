@@ -107,6 +107,9 @@ verity_contract MorphoViewSlice where
     external collateralPrice(Uint256) -> (Uint256)
     external oraclePrice(Uint256) -> (Uint256)
 
+  constructor (initialOwner : Address) := do
+    setStorageAddr ownerSlot initialOwner
+
   function DOMAIN_SEPARATOR () local_obligations [domain_separator_memory := assumed "Domain separator hash computation uses direct memory writes; caller must verify the EIP-712 encoding is correct."] : Uint256 := do
     mstore 0 32523383700587834770323112271211932718128200013265661849047136999858837557784
     mstore 32 chainid
