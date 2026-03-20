@@ -61,6 +61,27 @@ jobs:
       # need the compiler (verity-compiled-tests) build it themselves with a
       # dedicated budget.
 
+      - name: Upload verified Lean workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace
+          path: |
+            .lake/packages
+            .lake/build
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Save Lean/Lake cache
+        if: success() && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.elan
+            ~/.lake
+            .lake/packages
+            .lake/build
+          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+
   parity-target:
     name: Parity target tuple check
     runs-on: ubuntu-latest
@@ -410,19 +431,11 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore Lean/Lake compiler cache
-        id: restore-lean-lake-compiler-cache
-        uses: actions/cache@v4
+      - name: Download verified Lean workspace
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-compiler-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-          restore-keys: |
-            ${{ runner.os }}-lean-lake-compiler-
-            ${{ runner.os }}-lean-lake-
+          name: lean-workspace
+          path: .lake
 
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
@@ -470,17 +483,6 @@ jobs:
 
       - name: Validate prepared EDSL artifact bundle
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
-
-      - name: Save Lean/Lake compiler cache
-        if: success() && steps.restore-lean-lake-compiler-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-compiler-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
 
       - name: Upload verified EDSL artifact bundle
         uses: actions/upload-artifact@v4
