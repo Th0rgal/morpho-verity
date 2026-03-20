@@ -11,6 +11,9 @@ MANIFEST_FILE="${OUT_DIR}/Morpho.artifact-manifest.env"
 TIMINGS_LOG="${OUT_DIR}/Morpho.stage-times.log"
 REWRITE_REPORT="${OUT_DIR}/Morpho.rewrite-report.json"
 HASH_LIB="${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul"
+BORROW_RATE_LIB="${ROOT_DIR}/artifacts/inputs/BorrowRate.yul"
+ORACLE_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/OraclePrice.yul"
+COLLATERAL_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
 require_command() {
@@ -91,6 +94,9 @@ compute_input_digest() {
     "${ROOT_DIR}/config/yul-rewrite-pipeline.json" \
     "${ROOT_DIR}/config/yul-rewrite-proof-obligations.json" \
     "${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul" \
+    "${ROOT_DIR}/artifacts/inputs/BorrowRate.yul" \
+    "${ROOT_DIR}/artifacts/inputs/OraclePrice.yul" \
+    "${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul" \
     "${ROOT_DIR}/Morpho"; do
     if [[ -f "${path}" ]]; then
       files+=("${path}")
@@ -164,6 +170,12 @@ run_lake_exe() {
   )
 }
 
+run_uniquify_yul_shadows() {
+  python3 "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" \
+    --input "${MORPHO_YUL}" \
+    --output "${MORPHO_YUL}"
+}
+
 run_solc_bin() {
   solc --strict-assembly --bin "${MORPHO_YUL}" \
     | awk '/Binary representation:/{getline; print; exit}' \
@@ -222,10 +234,12 @@ PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
 mkdir -p "${OUT_DIR}"
 : > "${TIMINGS_LOG}"
 
-if [[ ! -f "${HASH_LIB}" ]]; then
-  echo "ERROR: missing hash library: ${HASH_LIB}"
-  exit 2
-fi
+for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLLATERAL_PRICE_LIB}"; do
+  if [[ ! -f "${lib_file}" ]]; then
+    echo "ERROR: missing linked library: ${lib_file}"
+    exit 2
+  fi
+done
 
 require_command "lake" "lake is required to build and compile Morpho artifacts"
 
@@ -240,7 +254,7 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
   run_stage "lake-build" run_lake_build
 fi
 
-compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --link "${HASH_LIB}" --verbose)
+compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --link "${HASH_LIB}" --link "${BORROW_RATE_LIB}" --link "${ORACLE_PRICE_LIB}" --link "${COLLATERAL_PRICE_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"
@@ -259,6 +273,7 @@ EOF
 fi
 
 require_command "python3" "python3 is required to run the Yul rewrite pipeline"
+run_stage "uniquify-yul-shadows" run_uniquify_yul_shadows
 run_stage "rewrite-yul" run_rewrite_yul
 
 if [[ "${SKIP_SOLC}" != "1" ]]; then

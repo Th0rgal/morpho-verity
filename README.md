@@ -184,13 +184,13 @@ Prepared bundle reuse is also fail-closed behind
 bundle manifest, parity-pack pin, and rewrite metadata before downstream jobs
 trust it.
 Even in skip mode, artifact preparation stays fail-closed behind the shared
-timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `900`).
+timeout wrapper via `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `8400`).
 When parity preflight is enabled, the full preflight command is also bounded by
 `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` (default `1800`).
 `run_morpho_blue_parity.sh` also fails closed if the parity/prep stage does not
 produce non-empty `Morpho.yul`, `Morpho.bin`, and `Morpho.abi.json` artifacts.
 The full differential suite can also be fail-closed with
-`MORPHO_BLUE_SUITE_TIMEOUT_SEC` (default `0`, disabled).
+`MORPHO_BLUE_SUITE_TIMEOUT_SEC` (script default `0`/disabled; CI sets `3300` via `ci-timeout-defaults.env`).
 `MORPHO_VERITY_PARITY_PREFLIGHT_TIMEOUT_SEC` and
 `MORPHO_BLUE_SUITE_TIMEOUT_SEC` must be non-negative integers.
 When this guard is enabled, `timeout` must be available in `PATH`.

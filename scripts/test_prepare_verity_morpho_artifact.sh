@@ -31,6 +31,7 @@ setup_fake_repo() {
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   cp "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   cp "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" "${fake_root}/scripts/check_yul_rewrite_proof_obligations.py"
+  cp "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" "${fake_root}/scripts/uniquify_yul_shadows.py"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   chmod +x "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
@@ -39,6 +40,21 @@ setup_fake_repo() {
   cat > "${fake_root}/artifacts/inputs/MarketParamsHash.yul" <<'EOF_LIB'
 {
   function hashMarketParams() -> result { result := 0 }
+}
+EOF_LIB
+  cat > "${fake_root}/artifacts/inputs/BorrowRate.yul" <<'EOF_LIB'
+{
+  function borrowRate(irm, totalBorrowAssets) -> rate { rate := 0 }
+}
+EOF_LIB
+  cat > "${fake_root}/artifacts/inputs/OraclePrice.yul" <<'EOF_LIB'
+{
+  function oraclePrice(oracle) -> price { price := 0 }
+}
+EOF_LIB
+  cat > "${fake_root}/artifacts/inputs/CollateralPrice.yul" <<'EOF_LIB'
+{
+  function collateralPrice(oracle) -> price { price := 0 }
 }
 EOF_LIB
 }
@@ -250,7 +266,7 @@ test_fail_closed_when_hash_library_missing() {
     echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
     exit 1
   fi
-  assert_contains "ERROR: missing hash library: ${fake_root}/artifacts/inputs/MarketParamsHash.yul" "${output_file}"
+  assert_contains "ERROR: missing linked library: ${fake_root}/artifacts/inputs/MarketParamsHash.yul" "${output_file}"
 }
 
 test_fail_closed_when_python3_missing_for_parity_target_read() {
