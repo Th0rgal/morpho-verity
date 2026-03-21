@@ -344,10 +344,16 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(coverage["setOwner"]["fully_covered"])
         self.assertTrue(coverage["setFeeRecipient"]["fully_covered"])
 
-        # enableIrm, enableLltv, setAuthorization: EDSL-ready (bridge lemmas needed)
-        for op in ["enableIrm", "enableLltv", "setAuthorization"]:
+        # enableIrm, enableLltv: EDSL-ready (bridge lemmas needed)
+        for op in ["enableIrm", "enableLltv"]:
             self.assertFalse(coverage[op]["fully_covered"])
             self.assertTrue(coverage[op]["edsl_ready"])
+
+        # setAuthorization now uses mstore/rawLog for event emission, so not edsl_ready
+        self.assertFalse(coverage["setAuthorization"]["fully_covered"])
+        self.assertFalse(coverage["setAuthorization"]["edsl_ready"])
+        self.assertIn("mstore", coverage["setAuthorization"]["missing"])
+        self.assertIn("rawLog", coverage["setAuthorization"]["missing"])
 
         # createMarket is now in the migrated set but still misses bridge lemmas
         self.assertIn("createMarket", coverage)

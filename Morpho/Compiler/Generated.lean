@@ -18,17 +18,18 @@ private def morphoEvents : List EventDef := [
   { name := "SetFeeRecipient",      params := [⟨"newFeeRecipient", .address, .indexed⟩] },
   { name := "EnableIrm",            params := [⟨"irm",         .address, .indexed⟩] },
   { name := "EnableLltv",           params := [⟨"lltv",        .uint256, .unindexed⟩] },
-  { name := "CreateMarket",         params := [⟨"id",          .uint256, .indexed⟩] },
-  { name := "SetFee",               params := [⟨"id",          .uint256, .indexed⟩, ⟨"newFee", .uint256, .unindexed⟩] },
-  { name := "SupplyCollateral",     params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
-  { name := "WithdrawCollateral",   params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
-  { name := "Supply",               params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
-  { name := "Withdraw",             params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
-  { name := "Borrow",               params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
-  { name := "Repay",                params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
-  { name := "Liquidate",            params := [⟨"id",          .uint256, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"borrower", .address, .indexed⟩, ⟨"repaidAssets", .uint256, .unindexed⟩, ⟨"repaidShares", .uint256, .unindexed⟩, ⟨"seizedAssets", .uint256, .unindexed⟩, ⟨"badDebtAssets", .uint256, .unindexed⟩, ⟨"badDebtShares", .uint256, .unindexed⟩] },
-  { name := "AccrueInterest",       params := [⟨"id",          .uint256, .indexed⟩, ⟨"prevBorrowRate", .uint256, .unindexed⟩, ⟨"interest", .uint256, .unindexed⟩, ⟨"feeShares", .uint256, .unindexed⟩] },
-  { name := "FlashLoan",            params := [⟨"sender",      .address, .indexed⟩, ⟨"token",  .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] }
+  { name := "CreateMarket",         params := [⟨"id",          .bytes32, .indexed⟩] },
+  { name := "SetFee",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"newFee", .uint256, .unindexed⟩] },
+  { name := "SupplyCollateral",     params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
+  { name := "WithdrawCollateral",   params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
+  { name := "Supply",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Withdraw",             params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Borrow",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Repay",                params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Liquidate",            params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"borrower", .address, .indexed⟩, ⟨"repaidAssets", .uint256, .unindexed⟩, ⟨"repaidShares", .uint256, .unindexed⟩, ⟨"seizedAssets", .uint256, .unindexed⟩, ⟨"badDebtAssets", .uint256, .unindexed⟩, ⟨"badDebtShares", .uint256, .unindexed⟩] },
+  { name := "AccrueInterest",       params := [⟨"id",          .bytes32, .indexed⟩, ⟨"prevBorrowRate", .uint256, .unindexed⟩, ⟨"interest", .uint256, .unindexed⟩, ⟨"feeShares", .uint256, .unindexed⟩] },
+  { name := "FlashLoan",            params := [⟨"sender",      .address, .indexed⟩, ⟨"token",  .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
+  { name := "SetAuthorization",    params := [⟨"caller",      .address, .indexed⟩, ⟨"authorizer", .address, .indexed⟩, ⟨"authorized", .address, .indexed⟩, ⟨"isAuthorized", .bool, .unindexed⟩] }
 ]
 
 def morphoGeneratedSpec : CompilationModel :=
@@ -53,6 +54,11 @@ def morphoGeneratedSpec : CompilationModel :=
           axiomNames := [] },
         { name := "oraclePrice"
           params := [.uint256]
+          returnType := some .uint256
+          returns := [.uint256]
+          axiomNames := [] },
+        { name := "flashLoanCallback"
+          params := [.uint256, .uint256]
           returnType := some .uint256
           returns := [.uint256]
           axiomNames := [] }

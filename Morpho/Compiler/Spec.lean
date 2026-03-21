@@ -996,11 +996,6 @@ def morphoSpec : CompilationModel := {
       ]
       returnType := none
       body := [
-        Stmt.require
-          (Expr.logicalNot (Expr.eq
-            (Expr.mapping2 "isAuthorized" Expr.caller (Expr.param "authorized"))
-            (Expr.param "newIsAuthorized")))
-          "already set",
         Stmt.setMapping2 "isAuthorized" Expr.caller (Expr.param "authorized") (Expr.param "newIsAuthorized"),
         Stmt.emit "SetAuthorization" [
           Expr.caller,

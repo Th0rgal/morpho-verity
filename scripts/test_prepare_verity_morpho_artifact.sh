@@ -32,6 +32,7 @@ setup_fake_repo() {
   cp "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   cp "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" "${fake_root}/scripts/check_yul_rewrite_proof_obligations.py"
   cp "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" "${fake_root}/scripts/uniquify_yul_shadows.py"
+  cp "${ROOT_DIR}/scripts/fix_market_params_hash.py" "${fake_root}/scripts/fix_market_params_hash.py"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   chmod +x "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
@@ -55,6 +56,11 @@ EOF_LIB
   cat > "${fake_root}/artifacts/inputs/CollateralPrice.yul" <<'EOF_LIB'
 {
   function collateralPrice(oracle) -> price { price := 0 }
+}
+EOF_LIB
+  cat > "${fake_root}/artifacts/inputs/FlashLoanCallback.yul" <<'EOF_LIB'
+{
+  function flashLoanCallback(borrower, assets) -> ret { ret := 0 }
 }
 EOF_LIB
 }

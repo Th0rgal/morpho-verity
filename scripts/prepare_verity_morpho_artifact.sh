@@ -14,6 +14,7 @@ HASH_LIB="${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul"
 BORROW_RATE_LIB="${ROOT_DIR}/artifacts/inputs/BorrowRate.yul"
 ORACLE_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/OraclePrice.yul"
 COLLATERAL_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul"
+FLASH_LOAN_CALLBACK_LIB="${ROOT_DIR}/artifacts/inputs/FlashLoanCallback.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
 require_command() {
@@ -176,6 +177,10 @@ run_uniquify_yul_shadows() {
     --output "${MORPHO_YUL}"
 }
 
+run_fix_market_params_hash() {
+  python3 "${ROOT_DIR}/scripts/fix_market_params_hash.py" "${MORPHO_YUL}"
+}
+
 run_solc_bin() {
   solc --strict-assembly --bin "${MORPHO_YUL}" \
     | awk '/Binary representation:/{getline; print; exit}' \
@@ -234,7 +239,7 @@ PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
 mkdir -p "${OUT_DIR}"
 : > "${TIMINGS_LOG}"
 
-for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLLATERAL_PRICE_LIB}"; do
+for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLLATERAL_PRICE_LIB}" "${FLASH_LOAN_CALLBACK_LIB}"; do
   if [[ ! -f "${lib_file}" ]]; then
     echo "ERROR: missing linked library: ${lib_file}"
     exit 2
@@ -254,7 +259,7 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
   run_stage "lake-build" run_lake_build
 fi
 
-compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --link "${HASH_LIB}" --link "${BORROW_RATE_LIB}" --link "${ORACLE_PRICE_LIB}" --link "${COLLATERAL_PRICE_LIB}" --verbose)
+compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --link "${HASH_LIB}" --link "${BORROW_RATE_LIB}" --link "${ORACLE_PRICE_LIB}" --link "${COLLATERAL_PRICE_LIB}" --link "${FLASH_LOAN_CALLBACK_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"
@@ -274,6 +279,7 @@ fi
 
 require_command "python3" "python3 is required to run the Yul rewrite pipeline"
 run_stage "uniquify-yul-shadows" run_uniquify_yul_shadows
+run_stage "fix-market-params-hash" run_fix_market_params_hash
 run_stage "rewrite-yul" run_rewrite_yul
 
 if [[ "${SKIP_SOLC}" != "1" ]]; then
