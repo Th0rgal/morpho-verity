@@ -190,7 +190,7 @@ theorem edsl_setAuthorization_irmMonotone
     (h_enabled : s.isIrmEnabled irm)
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem edsl_setAuthorization_lltvMonotone
@@ -199,7 +199,7 @@ theorem edsl_setAuthorization_lltvMonotone
     (h_enabled : s.isLltvEnabled lltv)
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 /-! ## flashLoan: Link 1 + canonical rejection theorem -/

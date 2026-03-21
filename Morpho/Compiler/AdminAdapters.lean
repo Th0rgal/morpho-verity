@@ -230,7 +230,7 @@ theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
   cases newIsAuthorized <;>
     simp [setAuthorization, encodeMorphoState, MorphoViewSlice.setAuthorization,
       MorphoViewSlice.isAuthorizedSlot, Bind.bind, Verity.bind, Verity.msgSender,
-      Verity.setMapping2, mstore, rawLog, Verity.pure,
+      Verity.setMapping2, mstore, rawLog, Verity.pure, Pure.pure,
       overrideBool2False_eq_if, overrideBool2True_eq_if]
   all_goals exact eq_comm_iff _ _
 

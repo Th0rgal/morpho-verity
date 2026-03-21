@@ -381,7 +381,7 @@ theorem setAuthorization_preserves_borrowLeSupply (s : MorphoState) (authorized 
     (h_solvent : borrowLeSupply s id)
     (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     borrowLeSupply s' id := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_solvent
 
 /-- setAuthorizationWithSig doesn't touch market records, so solvency is trivially preserved. -/
@@ -730,7 +730,7 @@ theorem setAuthorization_preserves_alwaysCollateralized (s : MorphoState)
     (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     alwaysCollateralized s' id user := by
   unfold alwaysCollateralized at h_collat ⊢; intro h_borrow
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_collat h_borrow
 
 /-- setAuthorizationWithSig doesn't touch positions. -/
@@ -1398,7 +1398,7 @@ theorem setAuthorization_preserves_irmMonotone (s : MorphoState) (authorized : A
     (newIsAuthorized : Bool) (irm : Address) (h_enabled : s.isIrmEnabled irm)
     (h_ok : Morpho.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem setAuthorizationWithSig_preserves_irmMonotone (s : MorphoState)
@@ -1530,7 +1530,7 @@ theorem setAuthorization_preserves_lltvMonotone (s : MorphoState) (authorized : 
     (newIsAuthorized : Bool) (lltv : Uint256) (h_enabled : s.isLltvEnabled lltv)
     (h_ok : Morpho.setAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem setAuthorizationWithSig_preserves_lltvMonotone (s : MorphoState)
