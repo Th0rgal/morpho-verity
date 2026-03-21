@@ -22,7 +22,7 @@ private def morphoEvents : List EventDef := [
   { name := "SetFee",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"newFee", .uint256, .unindexed⟩] },
   { name := "SupplyCollateral",     params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
   { name := "WithdrawCollateral",   params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
-  { name := "Supply",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
+  { name := "Supply",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
   { name := "Withdraw",             params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
   { name := "Borrow",               params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .unindexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"receiver", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
   { name := "Repay",                params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
