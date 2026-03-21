@@ -28,7 +28,8 @@ private def morphoEvents : List EventDef := [
   { name := "Repay",                params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"onBehalf", .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩, ⟨"shares", .uint256, .unindexed⟩] },
   { name := "Liquidate",            params := [⟨"id",          .bytes32, .indexed⟩, ⟨"sender", .address, .indexed⟩, ⟨"borrower", .address, .indexed⟩, ⟨"repaidAssets", .uint256, .unindexed⟩, ⟨"repaidShares", .uint256, .unindexed⟩, ⟨"seizedAssets", .uint256, .unindexed⟩, ⟨"badDebtAssets", .uint256, .unindexed⟩, ⟨"badDebtShares", .uint256, .unindexed⟩] },
   { name := "AccrueInterest",       params := [⟨"id",          .bytes32, .indexed⟩, ⟨"prevBorrowRate", .uint256, .unindexed⟩, ⟨"interest", .uint256, .unindexed⟩, ⟨"feeShares", .uint256, .unindexed⟩] },
-  { name := "FlashLoan",            params := [⟨"sender",      .address, .indexed⟩, ⟨"token",  .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] }
+  { name := "FlashLoan",            params := [⟨"sender",      .address, .indexed⟩, ⟨"token",  .address, .indexed⟩, ⟨"assets", .uint256, .unindexed⟩] },
+  { name := "SetAuthorization",    params := [⟨"caller",      .address, .indexed⟩, ⟨"authorizer", .address, .indexed⟩, ⟨"authorized", .address, .indexed⟩, ⟨"isAuthorized", .bool, .unindexed⟩] }
 ]
 
 def morphoGeneratedSpec : CompilationModel :=

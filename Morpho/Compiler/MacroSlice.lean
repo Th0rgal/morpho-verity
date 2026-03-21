@@ -106,6 +106,7 @@ verity_contract MorphoViewSlice where
     external borrowRate(Uint256, Uint256) -> (Uint256)
     external collateralPrice(Uint256) -> (Uint256)
     external oraclePrice(Uint256) -> (Uint256)
+    external flashLoanCallback(Uint256, Uint256) -> (Uint256)
 
   constructor (initialOwner : Address) := do
     setStorageAddr ownerSlot initialOwner
