@@ -52,7 +52,6 @@ if __name__ == '__main__':
     with open(path, 'w') as f:
         f.write(fixed)
     # Count replacements
-    import re as re2
     orig_count = content.count('keccak256(0, 160)')
     new_count = fixed.count('keccak256(0, 160)')
     print(f"Replaced {orig_count - new_count} inline keccak256(0,160) patterns with keccakMarketParams calls")
