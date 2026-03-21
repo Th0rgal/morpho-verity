@@ -223,22 +223,16 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
 theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) :
     setAuthorization s authorized newIsAuthorized = some s' ↔
-      newIsAuthorized ≠ s.isAuthorized s.sender authorized ∧
       s' = { s with
         isAuthorized := fun authorizer auth =>
           if authorizer == s.sender && auth == authorized then newIsAuthorized
           else s.isAuthorized authorizer auth } := by
-  have h01 : (1 : Uint256) ≠ 0 := by decide
   cases newIsAuthorized <;>
-    by_cases h : s.isAuthorized s.sender authorized <;>
     simp [setAuthorization, encodeMorphoState, MorphoViewSlice.setAuthorization,
       MorphoViewSlice.isAuthorizedSlot, Bind.bind, Verity.bind, Verity.msgSender,
-      Verity.getMapping2, Verity.require, Verity.setMapping2, h,
-      overrideBool2False_eq_if, overrideBool2True_eq_if, h01]
-  all_goals
-    first
-    | exact eq_comm_iff _ _
-    | assumption
+      Verity.setMapping2, mstore, rawLog, Verity.pure,
+      overrideBool2False_eq_if, overrideBool2True_eq_if]
+  all_goals exact eq_comm_iff _ _
 
 theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
     flashLoan s assets = some () ↔ assets ≠ 0 := by
