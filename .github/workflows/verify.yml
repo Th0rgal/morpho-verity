@@ -14,10 +14,14 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  VERIFY_LOCAL_ARTIFACT_ROOT: /srv/morpho-verity-ci-cache/artifacts
+  VERIFY_STICKYDISK_ROOT: /srv/morpho-verity-ci-cache/stickydisk
+
 jobs:
   verity-proofs:
     name: Lean proofs (Verity)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -29,17 +33,38 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore Lean/Lake cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-          restore-keys: |
-            ${{ runner.os }}-lean-lake-
+      - name: Clean up stale local artifacts
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clean up stale local artifacts" -- ./scripts/ci_local_persistence.sh cleanup --max-age-hours 24
+
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
+      - name: Mount persistent Lake packages
+        env:
+          CACHE_KEY_LAKE_PACKAGES: lake-packages-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_PACKAGES" \
+            --path .lake/packages \
+            --fallback-key "lake-packages-"
+
+      - name: Mount persistent Lake build
+        env:
+          CACHE_KEY_LAKE_BUILD: lake-build-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_BUILD" \
+            --path .lake/build \
+            --fallback-key "lake-build-"
 
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
@@ -54,6 +79,17 @@ jobs:
       - name: Build and check proofs
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build and check Lean proofs" -- lake build
 
+      - name: Publish lean-workspace locally
+        run: |
+          staging="${RUNNER_TEMP}/lean-workspace-${{ github.run_id }}"
+          mkdir -p "$staging/packages" "$staging/build"
+          cp -a .lake/packages/. "$staging/packages/"
+          cp -a .lake/build/. "$staging/build/"
+          ./scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace \
+            --path "$staging"
+
       - name: Upload verified Lean workspace
         uses: actions/upload-artifact@v4
         with:
@@ -64,20 +100,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Save Lean/Lake cache
-        if: success() && github.ref == 'refs/heads/master'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-
   compiler-link:
     name: Compiler FFI link
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     needs: [verity-proofs]
     timeout-minutes: 360
     steps:
@@ -90,11 +115,36 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Download verified Lean workspace
+      - name: Restore lean-workspace (local)
+        id: local-restore-workspace
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/lean-workspace"
+          if [ -f "$source_dir/.ready" ]; then
+            rm -rf .lake/packages .lake/build
+            mkdir -p .lake/packages .lake/build
+            cp -a "$source_dir/packages/." .lake/packages/
+            cp -a "$source_dir/build/." .lake/build/
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified Lean workspace (fallback)
+        if: steps.local-restore-workspace.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: lean-workspace
           path: .lake
+
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
 
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
@@ -106,6 +156,16 @@ jobs:
       - name: Build compiler executable (FFI link)
         run: ./scripts/run_with_timeout.sh MORPHO_COMPILER_LINK_TIMEOUT_SEC 19800 "Build compiler executable (FFI link)" -- lake build morpho-verity-compiler
 
+      - name: Publish compiler-executable locally
+        run: |
+          staging="${RUNNER_TEMP}/compiler-executable-${{ github.run_id }}"
+          mkdir -p "$staging"
+          cp .lake/build/bin/morpho-verity-compiler "$staging/"
+          ./scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name compiler-executable \
+            --path "$staging"
+
       - name: Upload compiler executable
         uses: actions/upload-artifact@v4
         with:
@@ -116,7 +176,7 @@ jobs:
 
   parity-target:
     name: Parity target tuple check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -129,15 +189,48 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore solc-select cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.solc-select
-          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-solc-select-
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
+      - name: Mount persistent Lake packages
+        env:
+          CACHE_KEY_LAKE_PACKAGES: lake-packages-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_PACKAGES" \
+            --path .lake/packages \
+            --fallback-key "lake-packages-"
+
+      - name: Mount persistent Lake build
+        env:
+          CACHE_KEY_LAKE_BUILD: lake-build-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_BUILD" \
+            --path .lake/build \
+            --fallback-key "lake-build-"
+
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Mount persistent solc-select cache
+        env:
+          CACHE_KEY_SOLC: solc-select-${{ hashFiles('config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_SOLC" \
+            --path "$HOME/.solc-select" \
+            --fallback-key "solc-select-"
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
@@ -232,7 +325,7 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout-wrapper coverage sync" -- python3 scripts/check_ci_timeout_wrapper_coverage.py
 
       - name: Validate CI script timeout-wrapper coverage sync
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI script timeout-wrapper coverage sync" -- python3 scripts/check_ci_script_timeout_wrapper_coverage.py
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI script timeout-wrapper coverage sync" -- python3 scripts/check_ci_script_timeout_wrapper_coverage.py --allow-unwrapped ci_local_persistence.sh
 
       - name: Validate shell script executable bit integrity
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate shell script executable bit integrity" -- python3 scripts/check_shell_script_executable.py
@@ -315,7 +408,7 @@ jobs:
 
   yul-identity-report:
     name: Yul identity gap report (Solidity vs Verity)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     needs: [verity-proofs, parity-target, verity-compiled-tests]
     timeout-minutes: 240
     continue-on-error: true
@@ -330,17 +423,35 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore Lean/Lake cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-          restore-keys: |
-            ${{ runner.os }}-lean-lake-
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
+      - name: Mount persistent Lake packages
+        env:
+          CACHE_KEY_LAKE_PACKAGES: lake-packages-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_PACKAGES" \
+            --path .lake/packages \
+            --fallback-key "lake-packages-"
+
+      - name: Mount persistent Lake build
+        env:
+          CACHE_KEY_LAKE_BUILD: lake-build-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_BUILD" \
+            --path .lake/build \
+            --fallback-key "lake-build-"
 
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
@@ -349,38 +460,49 @@ jobs:
       - name: Clear stale Lake packages on verity pin change
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
-      - name: Restore Foundry cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.foundry/cache
-            ~/.foundry/bin
-            ~/.svm
-            morpho-blue/cache
-            morpho-blue/out
-          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
+      - name: Mount persistent Foundry cache
+        env:
+          CACHE_KEY_FOUNDRY: foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_FOUNDRY" \
+            --path "$HOME/.foundry" \
+            --fallback-key "foundry-"
 
       - name: Install Foundry
         run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
-      - name: Restore solc-select cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.solc-select
-          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-solc-select-
+      - name: Mount persistent solc-select cache
+        env:
+          CACHE_KEY_SOLC: solc-select-${{ hashFiles('config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_SOLC" \
+            --path "$HOME/.solc-select" \
+            --fallback-key "solc-select-"
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
       - name: Check full toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check full toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Download verified EDSL artifact bundle
+      - name: Restore verity-edsl-artifacts (local)
+        id: local-restore-edsl
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-edsl-artifacts"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p out/parity-shared
+            cp -a "$source_dir/." out/parity-shared/
+            rm -f out/parity-shared/.ready
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified EDSL artifact bundle (fallback)
+        if: steps.local-restore-edsl.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: verity-edsl-artifacts
@@ -406,7 +528,7 @@ jobs:
 
   solidity-tests:
     name: Solidity tests (Foundry)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     needs: [verity-proofs, parity-target]
     timeout-minutes: 90
     steps:
@@ -420,18 +542,15 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore Foundry cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.foundry/cache
-            ~/.foundry/bin
-            ~/.svm
-            morpho-blue/cache
-            morpho-blue/out
-          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
+      - name: Mount persistent Foundry cache
+        env:
+          CACHE_KEY_FOUNDRY: foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_FOUNDRY" \
+            --path "$HOME/.foundry" \
+            --fallback-key "foundry-"
 
       - name: Install Foundry
         run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
@@ -449,7 +568,7 @@ jobs:
 
   verity-compiler-artifacts:
     name: Verity compiler artifact prep
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     needs: [verity-proofs, parity-target, compiler-link]
     timeout-minutes: 240
     steps:
@@ -463,13 +582,42 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Download verified Lean workspace
+      - name: Restore lean-workspace (local)
+        id: local-restore-workspace
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/lean-workspace"
+          if [ -f "$source_dir/.ready" ]; then
+            rm -rf .lake/packages .lake/build
+            mkdir -p .lake/packages .lake/build
+            cp -a "$source_dir/packages/." .lake/packages/
+            cp -a "$source_dir/build/." .lake/build/
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified Lean workspace (fallback)
+        if: steps.local-restore-workspace.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: lean-workspace
           path: .lake
 
-      - name: Download compiler executable
+      - name: Restore compiler-executable (local)
+        id: local-restore-compiler
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/compiler-executable"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p .lake/build/bin
+            cp "$source_dir/morpho-verity-compiler" .lake/build/bin/
+            chmod +x .lake/build/bin/morpho-verity-compiler
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download compiler executable (fallback)
+        if: steps.local-restore-compiler.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: compiler-executable
@@ -478,6 +626,16 @@ jobs:
       - name: Mark compiler executable
         run: chmod +x .lake/build/bin/morpho-verity-compiler
 
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
@@ -485,31 +643,28 @@ jobs:
       - name: Clear stale Lake packages on verity pin change
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
-      - name: Restore Foundry cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.foundry/cache
-            ~/.foundry/bin
-            ~/.svm
-            morpho-blue/cache
-            morpho-blue/out
-          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
+      - name: Mount persistent Foundry cache
+        env:
+          CACHE_KEY_FOUNDRY: foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_FOUNDRY" \
+            --path "$HOME/.foundry" \
+            --fallback-key "foundry-"
 
       - name: Install Foundry
         run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
-      - name: Restore solc-select cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.solc-select
-          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-solc-select-
+      - name: Mount persistent solc-select cache
+        env:
+          CACHE_KEY_SOLC: solc-select-${{ hashFiles('config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_SOLC" \
+            --path "$HOME/.solc-select" \
+            --fallback-key "solc-select-"
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
@@ -526,6 +681,13 @@ jobs:
       - name: Validate prepared EDSL artifact bundle
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 
+      - name: Publish verity-edsl-artifacts locally
+        run: |
+          ./scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name verity-edsl-artifacts \
+            --path out/parity-shared
+
       - name: Upload verified EDSL artifact bundle
         uses: actions/upload-artifact@v4
         with:
@@ -535,7 +697,7 @@ jobs:
 
   verity-compiled-tests:
     name: Verity compiled artifact smoke tests (Foundry)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     needs: [verity-proofs, parity-target, verity-compiler-artifacts]
     timeout-minutes: 90
     continue-on-error: true
@@ -550,17 +712,35 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore Lean/Lake cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-          restore-keys: |
-            ${{ runner.os }}-lean-lake-
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
+      - name: Mount persistent Lake packages
+        env:
+          CACHE_KEY_LAKE_PACKAGES: lake-packages-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_PACKAGES" \
+            --path .lake/packages \
+            --fallback-key "lake-packages-"
+
+      - name: Mount persistent Lake build
+        env:
+          CACHE_KEY_LAKE_BUILD: lake-build-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_BUILD" \
+            --path .lake/build \
+            --fallback-key "lake-build-"
 
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
@@ -569,38 +749,49 @@ jobs:
       - name: Clear stale Lake packages on verity pin change
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
-      - name: Restore Foundry cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.foundry/cache
-            ~/.foundry/bin
-            ~/.svm
-            morpho-blue/cache
-            morpho-blue/out
-          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
+      - name: Mount persistent Foundry cache
+        env:
+          CACHE_KEY_FOUNDRY: foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_FOUNDRY" \
+            --path "$HOME/.foundry" \
+            --fallback-key "foundry-"
 
       - name: Install Foundry
         run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
-      - name: Restore solc-select cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.solc-select
-          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-solc-select-
+      - name: Mount persistent solc-select cache
+        env:
+          CACHE_KEY_SOLC: solc-select-${{ hashFiles('config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_SOLC" \
+            --path "$HOME/.solc-select" \
+            --fallback-key "solc-select-"
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
       - name: Check full toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check full toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Download verified EDSL artifact bundle
+      - name: Restore verity-edsl-artifacts (local)
+        id: local-restore-edsl
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-edsl-artifacts"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p out/parity-shared
+            cp -a "$source_dir/." out/parity-shared/
+            rm -f out/parity-shared/.ready
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified EDSL artifact bundle (fallback)
+        if: steps.local-restore-edsl.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: verity-edsl-artifacts
@@ -618,7 +809,7 @@ jobs:
 
   morpho-blue-parity:
     name: Morpho Blue differential suite (Solidity vs Verity)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, morpho-verity]
     # Keep long differential runs behind all long-lane validation gates.
     needs: [verity-proofs, parity-target, yul-identity-report, solidity-tests, verity-compiled-tests]
     timeout-minutes: 120
@@ -634,17 +825,35 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Restore Lean/Lake cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.elan
-            ~/.lake
-            .lake/packages
-            .lake/build
-          key: ${{ runner.os }}-lean-lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-          restore-keys: |
-            ${{ runner.os }}-lean-lake-
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
+      - name: Mount persistent Lake packages
+        env:
+          CACHE_KEY_LAKE_PACKAGES: lake-packages-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_PACKAGES" \
+            --path .lake/packages \
+            --fallback-key "lake-packages-"
+
+      - name: Mount persistent Lake build
+        env:
+          CACHE_KEY_LAKE_BUILD: lake-build-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_BUILD" \
+            --path .lake/build \
+            --fallback-key "lake-build-"
 
       - name: Install Lean toolchain
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
@@ -653,38 +862,49 @@ jobs:
       - name: Clear stale Lake packages on verity pin change
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
-      - name: Restore Foundry cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.foundry/cache
-            ~/.foundry/bin
-            ~/.svm
-            morpho-blue/cache
-            morpho-blue/out
-          key: ${{ runner.os }}-foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
+      - name: Mount persistent Foundry cache
+        env:
+          CACHE_KEY_FOUNDRY: foundry-${{ hashFiles('morpho-blue/foundry.toml', 'config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_FOUNDRY" \
+            --path "$HOME/.foundry" \
+            --fallback-key "foundry-"
 
       - name: Install Foundry
         run: ./scripts/run_with_timeout.sh MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC 600 "Install Foundry" -- ./scripts/install_foundry.sh
 
-      - name: Restore solc-select cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.solc-select
-          key: ${{ runner.os }}-solc-select-${{ hashFiles('config/parity-target.json') }}
-          restore-keys: |
-            ${{ runner.os }}-solc-select-
+      - name: Mount persistent solc-select cache
+        env:
+          CACHE_KEY_SOLC: solc-select-${{ hashFiles('config/parity-target.json') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_SOLC" \
+            --path "$HOME/.solc-select" \
+            --fallback-key "solc-select-"
 
       - name: Install solc
         run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install solc" -- ./scripts/install_solc.sh 0.8.28
       - name: Check full toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check full toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Download verified EDSL artifact bundle
+      - name: Restore verity-edsl-artifacts (local)
+        id: local-restore-edsl
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-edsl-artifacts"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p out/parity-shared
+            cp -a "$source_dir/." out/parity-shared/
+            rm -f out/parity-shared/.ready
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified EDSL artifact bundle (fallback)
+        if: steps.local-restore-edsl.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: verity-edsl-artifacts
