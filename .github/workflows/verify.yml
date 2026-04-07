@@ -189,6 +189,39 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
+      - name: Mount persistent elan cache
+        env:
+          CACHE_KEY_ELAN: elan-${{ hashFiles('lean-toolchain') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_ELAN" \
+            --path "$HOME/.elan" \
+            --fallback-key "elan-"
+
+      - name: Mount persistent Lake packages
+        env:
+          CACHE_KEY_LAKE_PACKAGES: lake-packages-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_PACKAGES" \
+            --path .lake/packages \
+            --fallback-key "lake-packages-"
+
+      - name: Mount persistent Lake build
+        env:
+          CACHE_KEY_LAKE_BUILD: lake-build-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+        run: |
+          ./scripts/ci_local_persistence.sh mount \
+            --root "$VERIFY_STICKYDISK_ROOT" \
+            --key "$CACHE_KEY_LAKE_BUILD" \
+            --path .lake/build \
+            --fallback-key "lake-build-"
+
+      - name: Add elan bin to PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
       - name: Mount persistent solc-select cache
         env:
           CACHE_KEY_SOLC: solc-select-${{ hashFiles('config/parity-target.json') }}
