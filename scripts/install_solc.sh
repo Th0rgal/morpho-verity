@@ -35,7 +35,8 @@ if ! command -v solc-select >/dev/null 2>&1; then
     echo "ERROR: solc-select is missing and pip3 is unavailable; cannot install solc-select" >&2
     exit 2
   fi
-  retry 4 pip3 install --user solc-select
+  # --break-system-packages needed on Ubuntu 24.04+ (PEP 668)
+  retry 4 pip3 install --user --break-system-packages solc-select
   export PATH="$HOME/.local/bin:$PATH"
   if [[ -n "${GITHUB_PATH:-}" ]]; then
     echo "$HOME/.local/bin" >> "$GITHUB_PATH"
