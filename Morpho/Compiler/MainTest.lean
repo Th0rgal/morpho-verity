@@ -47,6 +47,8 @@ private def fileExists (path : String) : IO Bool := do
     ["--backend-profile", "semantic", "--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai"]
     "Cannot combine --parity-pack with --backend-profile"
   expectErrorContains "unknown argument still reported" ["--definitely-unknown-flag"] "Unknown argument: --definitely-unknown-flag"
+  Morpho.Compiler.Main.main ["--list-parity-packs"]
+  IO.println "✓ list supported parity packs"
 
   let nonce ← IO.monoMsNow
   let edslOutDir := s!"/tmp/morpho-main-test-{nonce}-edsl-out"

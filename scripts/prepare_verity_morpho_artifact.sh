@@ -171,6 +171,55 @@ run_lake_exe() {
   )
 }
 
+run_list_parity_packs() {
+  (
+    cd "${ROOT_DIR}"
+    lake exe morpho-verity-compiler --list-parity-packs
+  )
+}
+
+resolve_parity_pack_support() {
+  if [[ -z "${PARITY_PACK}" ]]; then
+    return 0
+  fi
+
+  local supported_packs
+  if ! supported_packs="$(run_list_parity_packs)"; then
+    echo "ERROR: failed to query supported Verity parity packs"
+    exit 2
+  fi
+
+  local found_pack="0"
+  local supported_display=""
+  local supported_pack
+  while IFS= read -r supported_pack; do
+    if [[ -z "${supported_pack}" ]]; then
+      continue
+    fi
+    if [[ -n "${supported_display}" ]]; then
+      supported_display="${supported_display}, ${supported_pack}"
+    else
+      supported_display="${supported_pack}"
+    fi
+    if [[ "${supported_pack}" == "${PARITY_PACK}" ]]; then
+      found_pack="1"
+    fi
+  done <<< "${supported_packs}"
+
+  if [[ "${found_pack}" == "1" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${supported_packs//[[:space:]]/}" && -z "${MORPHO_VERITY_PARITY_PACK:-}" ]]; then
+    echo "Skipping Verity parity pack ${PARITY_PACK}: current Verity pin exposes no supported parity packs."
+    PARITY_PACK=""
+    return 0
+  fi
+
+  echo "ERROR: configured Verity parity pack ${PARITY_PACK} is not supported by this compiler (supported: ${supported_display})"
+  exit 2
+}
+
 run_uniquify_yul_shadows() {
   python3 "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" \
     --input "${MORPHO_YUL}" \
@@ -247,6 +296,7 @@ for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLL
 done
 
 require_command "lake" "lake is required to build and compile Morpho artifacts"
+resolve_parity_pack_support
 
 input_digest="$(compute_input_digest)"
 if manifest_matches "${input_digest}" && artifacts_ready; then
