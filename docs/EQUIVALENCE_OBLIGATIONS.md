@@ -118,8 +118,10 @@ manual spec (`Spec.lean`):
   branching expansion (2x tolerance)
 - **Stub detection**: macro-migrated operations must not be stubs
 
-Known expected differences (not checked, handled by semantic bridge):
-- **Events**: `Spec.lean` has `Stmt.emit` calls that MacroSlice omits (events don't affect state)
+Known expected differences (handled by semantic bridge or dedicated gates):
+- **Events**: generated event metadata is checked against Morpho Blue
+  `EventsLib.sol` by `scripts/check_morpho_event_surface.py`; raw-log payload
+  mechanics remain part of the event/log proof boundary.
 - **Stop**: `Spec.lean` ends functions with `Stmt.stop` (implicit in EDSL do-blocks)
 - **Require expansion**: MacroSlice expands `requireOwner` into explicit `msgSender` + `require`
 
@@ -128,7 +130,7 @@ Known expected differences (not checked, handled by semantic bridge):
 All 18/18 operations are now macro-migrated. `accrueInterestPublic` maps to the
 fully migrated `accrueInterest` function in MacroSlice (body inlined).
 
-**Resolved at the current pin** (`4ebe4931`): `setStructMember`/`structMember`
+**Resolved at the current pin** (`b699e300`): `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
 translators, `Bytes32`/`Bool` type support, linked externals, direct ERC20 helper syntax,
 tuple params, `MappingStruct`/`MappingStruct2`, `internalCall`, `mstore`/`mload`,
