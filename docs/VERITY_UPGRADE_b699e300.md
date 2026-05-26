@@ -44,8 +44,8 @@ After the pin migration, the macro slice also picked up several direct
   setting the new fee.
 - `createMarket` now performs the post-create IRM initialization call when
   `marketParams.irm != address(0)`.
-- `flashLoan` keeps an explicit linked `flashLoanCallback` call between
-  `safeTransfer` and `safeTransferFrom`.
+- `flashLoan` now uses Verity's callback ECM between `safeTransfer` and
+  `safeTransferFrom` instead of a generic linked `flashLoanCallback` external.
 - The constructor now rejects a zero initial owner and emits `SetOwner`.
 - The local `ecrecover` and generic non-market `externalCall` shims now route
   through Verity/Contracts helpers instead of returning hard-coded zeroes.

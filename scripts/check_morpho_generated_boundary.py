@@ -23,7 +23,6 @@ REQUIRED_EXTERNAL_AXIOMS = {
   "borrowRate": "irm_borrow_rate_boundary",
   "collateralPrice": "oracle_collateral_price_boundary",
   "oraclePrice": "oracle_price_boundary",
-  "flashLoanCallback": "flash_loan_callback_boundary",
 }
 LOCAL_OBLIGATION_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*assumed\b")
 

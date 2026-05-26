@@ -254,7 +254,7 @@ theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
   unfold flashLoan
   simp [encodeMorphoState, MorphoViewSlice.flashLoan, Bind.bind, Verity.bind, Verity.pure,
     Verity.require, Verity.msgSender, MacroSlice.contractAddress, Verity.contractAddress,
-    mstore, rawLog, safeTransfer, safeTransferFrom]
+    mstore, rawLog, Contracts.safeTransfer, Contracts.safeTransferFrom, Pure.pure]
   by_cases h : assets = 0
   · simp [h]
   · have hval : assets.val ≠ 0 := by

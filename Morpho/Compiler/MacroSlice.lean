@@ -1,4 +1,5 @@
 import Compiler.CompilationModel
+import Compiler.Modules.Callbacks
 import Contracts.Common
 import Verity.Core
 import Verity.Macro
@@ -64,8 +65,6 @@ def blockTimestamp : Contract Uint256 := Verity.blockTimestamp
 def chainid : Contract Uint256 := Verity.chainid
 def contractAddress : Contract Address := Verity.contractAddress
 def emit (_name : String) (_args : List Uint256) : Contract Unit := Verity.pure ()
-def safeTransfer (_token _to : Uint256) (_amount : Uint256) : Contract Unit := Verity.pure ()
-def safeTransferFrom (_token _from _to : Uint256) (_amount : Uint256) : Contract Unit := Verity.pure ()
 
 -- uint128 overflow guard: 2^128 - 1, matching Solidity's UtilsLib.toUint128()
 -- Note: inlined as literal inside verity_contract because the macro translator
@@ -111,7 +110,6 @@ verity_contract MorphoViewSlice where
     external borrowRate(Uint256, Uint256) -> (Uint256)
     external collateralPrice(Uint256) -> (Uint256)
     external oraclePrice(Uint256) -> (Uint256)
-    external flashLoanCallback(Uint256, Uint256) -> (Uint256)
 
   constructor (initialOwner : Address) := do
     require (initialOwner != 0) "zero address"
@@ -724,7 +722,8 @@ verity_contract MorphoViewSlice where
     mstore 0 assets
     rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
     safeTransfer token sender assets
-    let _callbackResult := add (externalCall "flashLoanCallback" [addressToWord sender, assets]) ZERO
+    ecmDo (Compiler.Modules.Callbacks.callbackModule 0x31f57072 1 "data")
+      [addressToWord sender, assets]
     safeTransferFrom token sender thisAddress assets
 
 end Morpho.Compiler.MacroSlice

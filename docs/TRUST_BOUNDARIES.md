@@ -17,7 +17,6 @@ compiler boundary. CI enforces these names through
 | `borrowRate` | `irm_borrow_rate_boundary` | IRM `borrowRate(marketParams, market)` environment boundary; return value, no-revert behavior, and no-reentrancy remain assumed. |
 | `collateralPrice` | `oracle_collateral_price_boundary` | Legacy oracle-price adapter boundary retained for parity with the old spec surface. |
 | `oraclePrice` | `oracle_price_boundary` | Oracle `price()` environment boundary; scale, bounds, no-revert behavior, and freshness remain assumed. |
-| `flashLoanCallback` | `flash_loan_callback_boundary` | Borrower callback boundary between `safeTransfer` and `safeTransferFrom`; callback execution and repayment-side external behavior remain assumed. |
 
 ## Local Obligations
 
@@ -39,6 +38,8 @@ Verity proof fragment does not yet cover the mechanics:
 - ERC-20 optional-return SafeTransferLib behavior, token no-fee/no-reentrancy
   economic assumptions, and external callee liveness.
 - ECDSA/ecrecover cryptographic correctness and exact EIP-712 digest layout.
+- Callback ECM target behavior, including the flash-loan callback between
+  `safeTransfer` and `safeTransferFrom`.
 - Event/log memory mechanics for raw-log paths, including `CreateMarket`'s
   encoded `MarketParams` payload.
 - Low-level returndata and revert bubbling for external calls.

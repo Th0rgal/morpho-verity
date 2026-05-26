@@ -58,11 +58,6 @@ EOF_LIB
   function collateralPrice(oracle) -> price { price := 0 }
 }
 EOF_LIB
-  cat > "${fake_root}/artifacts/inputs/FlashLoanCallback.yul" <<'EOF_LIB'
-{
-  function flashLoanCallback(borrower, assets) -> ret { ret := 0 }
-}
-EOF_LIB
 }
 
 install_fake_lake() {

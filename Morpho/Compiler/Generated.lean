@@ -57,12 +57,7 @@ def morphoGeneratedSpec : CompilationModel :=
           params := [.uint256]
           returnType := some .uint256
           returns := [.uint256]
-          axiomNames := ["oracle_price_boundary"] },
-        { name := "flashLoanCallback"
-          params := [.uint256, .uint256]
-          returnType := some .uint256
-          returns := [.uint256]
-          axiomNames := ["flash_loan_callback_boundary"] }
+          axiomNames := ["oracle_price_boundary"] }
       ] }
 
 /--
