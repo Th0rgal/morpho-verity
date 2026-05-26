@@ -29,6 +29,12 @@ private theorem overrideBool2True_eq_if {α β : Type} [DecidableEq α] [Decidab
 private theorem eq_comm_iff {α : Type} (a b : α) : (a = b ↔ b = a) := by
   constructor <;> intro h <;> simpa using h.symm
 
+private theorem uint256_one_ne_zero : (1 : Uint256) ≠ 0 := by
+  decide
+
+private theorem uint256_zero_ne_one : (0 : Uint256) ≠ 1 := by
+  decide
+
 private def wordKeyId (key : Uint256) : Id :=
   key.val / 256
 
@@ -227,16 +233,21 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
 theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) :
     setAuthorization s authorized newIsAuthorized = some s' ↔
+      s.isAuthorized s.sender authorized ≠ newIsAuthorized ∧
       s' = { s with
         isAuthorized := fun authorizer auth =>
           if authorizer == s.sender && auth == authorized then newIsAuthorized
           else s.isAuthorized authorizer auth } := by
-  cases newIsAuthorized <;>
+  cases newIsAuthorized <;> by_cases hcur : s.isAuthorized s.sender authorized <;>
     simp [setAuthorization, encodeMorphoState, MorphoViewSlice.setAuthorization,
       MorphoViewSlice.isAuthorizedSlot, Bind.bind, Verity.bind, Verity.msgSender,
-      Verity.setMapping2, mstore, rawLog, Verity.pure, Pure.pure,
+      Verity.getMapping2, Verity.require, Verity.setMapping2, mstore, rawLog,
+      Verity.pure, Pure.pure, hcur,
+      uint256_one_ne_zero, uint256_zero_ne_one,
       overrideBool2False_eq_if, overrideBool2True_eq_if]
-  all_goals exact eq_comm_iff _ _
+  all_goals
+    try norm_num
+    exact eq_comm_iff _ _
 
 theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
     flashLoan s assets = some () ↔ assets ≠ 0 := by

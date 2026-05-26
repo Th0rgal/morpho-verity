@@ -244,6 +244,8 @@ verity_contract MorphoViewSlice where
       isAuthorizedWord := 1
     else
       isAuthorizedWord := 0
+    let currentAuthorization <- getMapping2 isAuthorizedSlot sender authorized
+    require (currentAuthorization != isAuthorizedWord) "already set"
     setMapping2 isAuthorizedSlot sender authorized isAuthorizedWord
     mstore 0 isAuthorizedWord
     rawLog [96755043271346810483655308149819952342970126887685366761742111973171219597760,
@@ -325,6 +327,11 @@ verity_contract MorphoViewSlice where
     setStructMember "idToMarketParamsSlot" id "irm" marketParams_3
     setStructMember "idToMarketParamsSlot" id "lltv" marketParams_4
     emit "CreateMarket" [id]
+    if marketParams_3 != 0 then
+      let _irmInit := add (externalCall "borrowRate" [addressToWord marketParams_3, ZERO]) ZERO
+      require (_irmInit >= ZERO) "irm initialized"
+    else
+      require (marketParams_3 == 0) "no irm"
 
   function allow_post_interaction_writes setFee (marketParams : Tuple [Address, Address, Address, Address, Uint256], newFee : Uint256) : Unit := do
     let sender <- msgSender
@@ -336,6 +343,8 @@ verity_contract MorphoViewSlice where
       addressToWord marketParams_2, addressToWord marketParams_3, marketParams_4]
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
+    let currentFeeBefore <- structMember "marketSlot" id "fee"
+    require (newFee != currentFeeBefore) "already set"
     require (newFee <= 250000000000000000) "max fee exceeded"
     -- inline accrueInterest
     let currentTimestamp ← blockTimestamp

@@ -77,6 +77,7 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
 theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) :
     setAuthorization s authorized newIsAuthorized = some s' ↔
+      s.isAuthorized s.sender authorized ≠ newIsAuthorized ∧
       s' = { s with
         isAuthorized := fun authorizer auth =>
           if authorizer == s.sender && auth == authorized then newIsAuthorized
