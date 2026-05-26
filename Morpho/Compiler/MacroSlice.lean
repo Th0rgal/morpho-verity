@@ -294,7 +294,7 @@ verity_contract MorphoViewSlice where
     require (signatory != 0) "invalid signature"
     require (signatory == authorizer) "invalid signature"
     mstore 0 currentNonce
-    rawLog [76232593431660337877225143138868361523028064348553599308396852457510026547815,
+    rawLog [74877112566602207289719083317754815751689506509892373221050099368687940661959,
       sender, authorizer] 0 32
     setMapping2 isAuthorizedSlot authorizer authorized isAuthorizedWord
     mstore 0 isAuthorizedWord

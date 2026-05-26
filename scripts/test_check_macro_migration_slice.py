@@ -285,6 +285,20 @@ class BaselineValidationTests(unittest.TestCase):
 
 
 class RepoCheckTests(unittest.TestCase):
+  def test_increment_nonce_event_topic_matches_spec(self) -> None:
+    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
+    spec_text = (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text()
+    spec_match = re.search(
+      r"incrementNonceEventTopic\s*:\s*Nat\s*:=\s*(0x[0-9a-f]+)",
+      spec_text,
+    )
+    self.assertIsNotNone(spec_match)
+    expected_topic = str(int(spec_match.group(1), 16))
+    self.assertIn(
+      f"rawLog [{expected_topic},\n      sender, authorizer] 0 32",
+      macro_text,
+    )
+
   def test_create_market_event_topic_and_payload_are_logged(self) -> None:
     macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
     self.assertIn(
