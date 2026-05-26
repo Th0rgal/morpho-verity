@@ -60,6 +60,21 @@ def validate_generated_external_axioms(text: str) -> None:
       )
 
 
+def validate_generated_uses_contract_boundary(text: str) -> None:
+  if "import Morpho.Contract" not in text:
+    raise MorphoGeneratedBoundaryError(
+      "Generated.lean must import Morpho.Contract as the canonical contract boundary"
+    )
+  if "import Morpho.Compiler.MacroSlice" in text:
+    raise MorphoGeneratedBoundaryError(
+      "Generated.lean must not import Morpho.Compiler.MacroSlice directly"
+    )
+  if "Morpho.Contract.spec" not in text:
+    raise MorphoGeneratedBoundaryError(
+      "morphoGeneratedSpec must wrap Morpho.Contract.spec"
+    )
+
+
 def extract_local_obligation_names(macro_text: str) -> set[str]:
   return set(LOCAL_OBLIGATION_RE.findall(macro_text))
 
@@ -95,6 +110,7 @@ def main() -> None:
 
   generated_text = read_text(GENERATED_PATH)
   macro_text = read_text(MACRO_PATH)
+  validate_generated_uses_contract_boundary(generated_text)
   validate_generated_external_axioms(generated_text)
   validate_trust_boundaries_doc(generated_text, macro_text, read_text(TRUST_DOC_PATH))
 

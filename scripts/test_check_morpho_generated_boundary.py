@@ -73,6 +73,25 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
     finally:
       GENERATED_PATH.write_text(original, encoding="utf-8")
 
+  def test_detects_generated_macro_slice_import(self) -> None:
+    original = GENERATED_PATH.read_text(encoding="utf-8")
+    try:
+      GENERATED_PATH.write_text(
+        original.replace("import Morpho.Contract", "import Morpho.Compiler.MacroSlice"),
+        encoding="utf-8",
+      )
+      proc = subprocess.run(
+        ["python3", str(SCRIPT)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("Generated.lean must import Morpho.Contract", proc.stderr)
+    finally:
+      GENERATED_PATH.write_text(original, encoding="utf-8")
+
   def test_external_axiom_validator_accepts_required_boundaries(self) -> None:
     from check_morpho_generated_boundary import validate_generated_external_axioms
 
