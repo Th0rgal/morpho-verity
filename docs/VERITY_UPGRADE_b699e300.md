@@ -63,6 +63,8 @@ The remaining blockers are local and explicit:
   Verity modules and discharged
 - event/log and linear-memory mechanics are still outside the fully proved
   fragment for some Morpho-critical paths
+- generated external boundaries now carry stable axiom names and are summarized
+  in `docs/TRUST_BOUNDARIES.md`
 
 The practical target remains incremental: keep the upgraded Verity pin, make
 the macro source closer to `Morpho.sol`, and only remove repo-local wrappers
