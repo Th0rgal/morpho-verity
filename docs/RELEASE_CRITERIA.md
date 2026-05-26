@@ -21,7 +21,7 @@ Partially enforced:
 12. Machine-tracked `equivalence-obligations` status summary and blocker-cluster drift gates are enforced in CI (`scripts/check_equivalence_obligations_doc.py`, `scripts/check_issue_blocker_clusters.py`).
 13. Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); Links 2+3 are already provided upstream for the supported fragment, and Solidity equivalence status remains "Conditional" rather than "Proved" until all 18 obligations are discharged across the remaining repo-local Link 1 proofs and macro/frontend blockers.
 14. Release-criteria semantic-bridge/equivalence status drift gate is enforced in CI (`scripts/check_release_criteria_status.py`).
-15. Generated compiler boundary and Morpho event-surface drift gates are enforced in CI (`scripts/check_morpho_generated_boundary.py`, `scripts/check_morpho_event_surface.py`).
+15. Generated compiler boundary, Morpho event-surface, and arithmetic-fidelity drift gates are enforced in CI (`scripts/check_morpho_generated_boundary.py`, `scripts/check_morpho_event_surface.py`, `scripts/check_arithmetic_fidelity.py`).
 
 Not yet enforced:
 1. strict `yul-identity-check` (zero structural AST mismatch for supported fragment).

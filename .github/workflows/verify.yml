@@ -171,6 +171,9 @@ jobs:
       - name: Validate morpho event surface sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho event surface sync" -- python3 scripts/check_morpho_event_surface.py
 
+      - name: Validate arithmetic fidelity assumptions
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate arithmetic fidelity assumptions" -- python3 scripts/check_arithmetic_fidelity.py
+
       - name: Validate CI timeout defaults sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout defaults sync" -- python3 scripts/check_ci_timeout_defaults.py
 

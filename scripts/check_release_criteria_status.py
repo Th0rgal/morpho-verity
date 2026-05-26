@@ -26,7 +26,7 @@ EXPECTED_PARTIALLY_ENFORCED_ITEMS = [
   "Machine-tracked `equivalence-obligations` status summary and blocker-cluster drift gates are enforced in CI (`scripts/check_equivalence_obligations_doc.py`, `scripts/check_issue_blocker_clusters.py`).",
   "Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); Links 2+3 are already provided upstream for the supported fragment, and Solidity equivalence status remains \"Conditional\" rather than \"Proved\" until all 18 obligations are discharged across the remaining repo-local Link 1 proofs and macro/frontend blockers.",
   "Release-criteria semantic-bridge/equivalence status drift gate is enforced in CI (`scripts/check_release_criteria_status.py`).",
-  "Generated compiler boundary and Morpho event-surface drift gates are enforced in CI (`scripts/check_morpho_generated_boundary.py`, `scripts/check_morpho_event_surface.py`).",
+  "Generated compiler boundary, Morpho event-surface, and arithmetic-fidelity drift gates are enforced in CI (`scripts/check_morpho_generated_boundary.py`, `scripts/check_morpho_event_surface.py`, `scripts/check_arithmetic_fidelity.py`).",
 ]
 
 FORBIDDEN_NOT_YET_ENFORCED_ITEMS = [
@@ -41,6 +41,7 @@ EXPECTED_WORKFLOW_STEPS = [
   "Validate semantic bridge readiness summary",
   "Validate morpho generated boundary",
   "Validate morpho event surface sync",
+  "Validate arithmetic fidelity assumptions",
   "Validate README semantic bridge summary",
   "Validate issue blocker clusters",
   "Validate equivalence obligations doc sync",
@@ -57,6 +58,8 @@ EXPECTED_WORKFLOW_RUN_LINES = {
     './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho generated boundary" -- python3 scripts/check_morpho_generated_boundary.py',
   "Validate morpho event surface sync":
     './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho event surface sync" -- python3 scripts/check_morpho_event_surface.py',
+  "Validate arithmetic fidelity assumptions":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate arithmetic fidelity assumptions" -- python3 scripts/check_arithmetic_fidelity.py',
   "Validate README semantic bridge summary":
     './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate README semantic bridge summary" -- python3 scripts/check_readme_semantic_bridge_summary.py',
   "Validate issue blocker clusters":
@@ -73,6 +76,7 @@ TRACKED_STATUS_ITEM_MARKERS = (
   "`semantic-bridge-obligations`",
   "Generated compiler boundary",
   "event-surface",
+  "arithmetic-fidelity",
 )
 
 

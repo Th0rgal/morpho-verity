@@ -41,7 +41,7 @@ of fully discharged reachability facts:
 | File | Representative assumptions |
 |------|----------------------------|
 | `Morpho/Proofs/Invariants.lean` | `h_no_overflow`, `h_supply_no_overflow`, `h_shares_no_overflow`, `h_denom_no_overflow` |
-| `Morpho/Proofs/ShareConsistency.lean` | position/total share no-overflow assumptions for supply, borrow, accrue-interest, and set-fee paths |
+| `Morpho/Proofs/ShareConsistency.lean` | `h_pos_no_overflow`, `h_total_no_overflow` for position/total share no-overflow assumptions across supply, borrow, accrue-interest, and set-fee paths |
 | `Morpho/Proofs/SolidityBridge.lean` | transfer theorems that require the same arithmetic side conditions before applying pure-model invariants |
 
 These hypotheses are valid proof obligations, not unconditional Solidity
