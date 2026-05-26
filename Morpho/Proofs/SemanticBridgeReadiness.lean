@@ -30,7 +30,7 @@ To discharge morpho-verity's obligations, we need the chain:
 
 ```
 Morpho.f args                          -- pure Lean model
-  = MorphoViewSlice.f.exec state       -- EDSL macro output (currently stub for complex ops)
+  = MorphoViewSlice.f.exec state       -- EDSL macro output (macro-migrated for all tracked ops)
   = EVMYulLean(compile(spec)).exec     -- verified EVM semantics (verity bridge)
 ```
 
@@ -40,7 +40,7 @@ execution API in `Morpho.Specs.ContractSemantics`. The repo now states those
 obligations against the stable `Morpho.*` wrappers, which reduce
 definitionally to the canonical contract-semantics surface. Links 2+3 are
 provided upstream for the supported fragment; the remaining blockers in this
-repo are Link 1 gaps and macro frontend coverage for complex operations.
+repo are Link 1 proof gaps plus explicit external/event/hash trust boundaries.
 
 ## Obligation Registry
 
