@@ -27,6 +27,9 @@ Verity proof fragment does not yet cover the mechanics:
 | Local obligation | Usage |
 |------------------|-------|
 | `domain_separator_memory` | `DOMAIN_SEPARATOR()` memory writes and EIP-712 domain hash layout. |
+| `set_authorization_event` | `SetAuthorization` raw-log memory encoding in `setAuthorization`. |
+| `authorization_sig_memory` | EIP-712 typed-data hashing plus ecrecover memory layout in `setAuthorizationWithSig`. |
+| `authorization_post_ecrecover_write` | Intentional nonce increment before signature recovery and authorization write after ecrecover, matching Solidity ordering. |
 | `create_market_irm_init` | Post-create IRM initialization call in `createMarket`. |
 | `supply_callback`, `repay_callback`, `supply_collateral_callback`, `liquidate_callback` | Morpho callback ordering plus token transfer mechanics around the callback boundary. |
 | `flash_loan_transfers` | Flash-loan token transfer and callback mechanics. |

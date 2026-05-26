@@ -15,6 +15,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check_morpho_generated_boundary.py"
 MAIN_PATH = ROOT / "Morpho" / "Compiler" / "Main.lean"
 GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
+TRUST_DOC_PATH = ROOT / "docs" / "TRUST_BOUNDARIES.md"
 
 
 class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
@@ -76,6 +77,26 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
     from check_morpho_generated_boundary import validate_generated_external_axioms
 
     validate_generated_external_axioms(GENERATED_PATH.read_text(encoding="utf-8"))
+
+  def test_detects_missing_trust_boundary_doc_entry(self) -> None:
+    original = TRUST_DOC_PATH.read_text(encoding="utf-8")
+    try:
+      TRUST_DOC_PATH.write_text(
+        original.replace("`flash_loan_transfers`", "`flash_loan_transfers_removed`"),
+        encoding="utf-8",
+      )
+      proc = subprocess.run(
+        ["python3", str(SCRIPT)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("TRUST_BOUNDARIES.md drift", proc.stderr)
+      self.assertIn("flash_loan_transfers", proc.stderr)
+    finally:
+      TRUST_DOC_PATH.write_text(original, encoding="utf-8")
 
   def test_reports_invalid_utf8_without_traceback(self) -> None:
     original = MAIN_PATH.read_bytes()

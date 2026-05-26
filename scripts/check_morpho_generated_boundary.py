@@ -16,6 +16,8 @@ ALLOWED_FILES = {
 TARGET_GLOB = ROOT / "Morpho" / "Compiler"
 SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
 GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
+MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+TRUST_DOC_PATH = ROOT / "docs" / "TRUST_BOUNDARIES.md"
 REQUIRED_EXTERNAL_AXIOMS = {
   "keccakMarketParams": "market_id_deterministic",
   "borrowRate": "irm_borrow_rate_boundary",
@@ -23,6 +25,7 @@ REQUIRED_EXTERNAL_AXIOMS = {
   "oraclePrice": "oracle_price_boundary",
   "flashLoanCallback": "flash_loan_callback_boundary",
 }
+LOCAL_OBLIGATION_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*assumed\b")
 
 
 class MorphoGeneratedBoundaryError(RuntimeError):
@@ -57,6 +60,29 @@ def validate_generated_external_axioms(text: str) -> None:
       )
 
 
+def extract_local_obligation_names(macro_text: str) -> set[str]:
+  return set(LOCAL_OBLIGATION_RE.findall(macro_text))
+
+
+def validate_trust_boundaries_doc(generated_text: str, macro_text: str, doc_text: str) -> None:
+  missing_axioms = [
+    axiom_name
+    for axiom_name in REQUIRED_EXTERNAL_AXIOMS.values()
+    if f"`{axiom_name}`" not in doc_text
+  ]
+  local_obligations = sorted(extract_local_obligation_names(macro_text))
+  missing_obligations = [
+    name for name in local_obligations if f"`{name}`" not in doc_text
+  ]
+  if missing_axioms or missing_obligations:
+    parts: list[str] = []
+    if missing_axioms:
+      parts.append("missing external axiom docs: " + ", ".join(missing_axioms))
+    if missing_obligations:
+      parts.append("missing local obligation docs: " + ", ".join(missing_obligations))
+    raise MorphoGeneratedBoundaryError("TRUST_BOUNDARIES.md drift: " + "; ".join(parts))
+
+
 def main() -> None:
   offenders: list[str] = []
 
@@ -67,7 +93,10 @@ def main() -> None:
     if SYMBOL_RE.search(text):
       offenders.append(str(path.relative_to(ROOT)))
 
-  validate_generated_external_axioms(read_text(GENERATED_PATH))
+  generated_text = read_text(GENERATED_PATH)
+  macro_text = read_text(MACRO_PATH)
+  validate_generated_external_axioms(generated_text)
+  validate_trust_boundaries_doc(generated_text, macro_text, read_text(TRUST_DOC_PATH))
 
   if offenders:
     print("morpho-generated-boundary check failed:", file=sys.stderr)
