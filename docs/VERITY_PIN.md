@@ -27,6 +27,7 @@ entrypoints instead of importing a direct upstream canonical contract
 definition.
 
 Relevant files:
+- `Morpho/Contract.lean`
 - `Morpho/Compiler/MacroSlice.lean`
 - `Morpho/Compiler/Generated.lean`
 

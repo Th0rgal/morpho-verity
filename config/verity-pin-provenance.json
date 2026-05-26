@@ -9,6 +9,7 @@
       "area": "Local generated-contract boundary",
       "summary": "Morpho still routes through repo-local MacroSlice/Generated compiler entrypoints instead of importing a direct upstream canonical contract definition.",
       "files": [
+        "Morpho/Contract.lean",
         "Morpho/Compiler/MacroSlice.lean",
         "Morpho/Compiler/Generated.lean"
       ]
