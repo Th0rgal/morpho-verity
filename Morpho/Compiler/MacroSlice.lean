@@ -17,8 +17,8 @@ def shr (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shr shift value
 def mstore (_offset _value : Uint256) : Contract Unit := Verity.pure ()
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := Verity.pure #[]
 def rawLog (_topics : List Uint256) (_dataOffset _dataSize : Uint256) : Contract Unit := Verity.pure ()
-def ecrecover (_hash : Uint256) (_v : Uint8) (_r : Bytes32) (_s : Bytes32) :
-    Contract Address := Verity.pure 0
+def ecrecover (_hash : Uint256) (_v : Uint256) (_r : Bytes32) (_s : Bytes32) :
+    Contract Address := Contracts.ecrecover _hash _v _r _s
 def structMember (_slot : StorageSlot (Uint256 → Uint256)) (_key : Uint256) (_member : String) :
     Contract Uint256 := Verity.pure 0
 def structMember2
@@ -53,7 +53,7 @@ private def marketIdWord (args : List Uint256) : Uint256 :=
           lltv.val
   | _ => 0
 def externalCall (name : String) (args : List Uint256) : Uint256 :=
-  if name = keccakMarketParams then marketIdWord args else 0
+  if name = keccakMarketParams then marketIdWord args else Contracts.externalCallWords name args
 def sub (a b : Uint256) : Uint256 := Verity.Core.Uint256.sub a b
 def mul (a b : Uint256) : Uint256 := Verity.Core.Uint256.mul a b
 def div (a b : Uint256) : Uint256 := Verity.Core.Uint256.div a b
