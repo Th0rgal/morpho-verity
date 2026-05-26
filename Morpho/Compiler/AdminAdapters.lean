@@ -56,18 +56,17 @@ private def idToParamsWordAt (params? : Option MarketParams) (offset : Nat) : Ui
 
 /-- Encode `MorphoState` into the contract-state view expected by `MacroSlice`. -/
 def encodeMorphoState (s : MorphoState) : ContractState :=
-  ContractState.mk
-    (fun _ => 0)
-    (fun _ => 0)
-    (fun n =>
+  { «storage» := fun _ => 0,
+    transientStorage := fun _ => 0,
+    storageAddr := fun n =>
       if n == 0 then s.owner
       else if n == 1 then s.feeRecipient
-      else 0)
-    (fun n key =>
+      else 0,
+    storageMap := fun n key =>
       if n == 4 then (if s.isIrmEnabled key then 1 else 0)
       else if n == 7 then s.nonce key
-      else 0)
-    (fun n key =>
+      else 0,
+    storageMapUint := fun n key =>
       if n == 3 then
         marketWordAt (s.market (wordKeyId key)) (wordKeyOffset key)
       else if n == 5 then
@@ -75,19 +74,24 @@ def encodeMorphoState (s : MorphoState) : ContractState :=
       else if n == 8 then
         idToParamsWordAt (s.idToParams (wordKeyId key)) (wordKeyOffset key)
       else
-        0)
-    (fun n key1 key2 =>
+        0,
+    storageMap2 := fun n key1 key2 =>
       if n == 6 then (if s.isAuthorized key1 key2 then 1 else 0)
-      else 0)
-    (fun _ => [])
-    s.sender
-    0
-    0
-    s.blockTimestamp
-    0
-    0
-    (fun _ => Core.FiniteAddressSet.empty)
-    []
+      else 0,
+    storageArray := fun _ => [],
+    sender := s.sender,
+    thisAddress := 0,
+    msgValue := 0,
+    selfBalance := 0,
+    blockTimestamp := s.blockTimestamp,
+    blockNumber := 0,
+    chainId := 0,
+    blobBaseFee := 0,
+    calldataSize := 0,
+    calldata := [],
+    memory := fun _ => 0,
+    knownAddresses := fun _ => Core.FiniteAddressSet.empty,
+    events := [] }
 
 /-- Canonical EDSL-backed adapter for `setOwner`. -/
 noncomputable def setOwner (s : MorphoState) (newOwner : Address) : Option MorphoState :=
@@ -214,7 +218,7 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
     native_decide
   by_cases h1 : s.sender = s.owner <;>
     by_cases h2 : s.isLltvEnabled lltv <;>
-    simp_all <;>
+    simp_all;
     (by_cases h3 : lltv.val < (1000000000000000000 : Nat)
      · simp [h3]
        exact eq_comm_iff _ _
@@ -238,7 +242,8 @@ theorem flashLoan_success_iff (s : MorphoState) (assets : Uint256) :
     flashLoan s assets = some () ↔ assets ≠ 0 := by
   unfold flashLoan
   simp [encodeMorphoState, MorphoViewSlice.flashLoan, Bind.bind, Verity.bind, Verity.pure,
-    Verity.require, Verity.msgSender, mstore, rawLog, safeTransfer, safeTransferFrom]
+    Verity.require, Verity.msgSender, MacroSlice.contractAddress, Verity.contractAddress,
+    mstore, rawLog, safeTransfer, safeTransferFrom]
   by_cases h : assets = 0
   · simp [h]
   · have hval : assets.val ≠ 0 := by

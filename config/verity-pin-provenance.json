@@ -1,9 +1,9 @@
 {
   "upstreamRepo": "https://github.com/Th0rgal/verity.git",
-  "inputRev": "4ebe4931",
-  "fullRev": "4ebe4931d25e5a1594fcd3f43ff040ecc3c4225a",
+  "inputRev": "b699e30060cb80b3fd26c62010ecf5b151f31ab2",
+  "fullRev": "b699e30060cb80b3fd26c62010ecf5b151f31ab2",
   "trackedIssue": "#118",
-  "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work. It keeps the upstream bridge surface already consumed by the repo and adds the newer macro/frontend features Morpho now uses directly, including linked externals, direct ERC20 helper syntax, executable tuple params, struct-mapping storage declarations, internal calls, and macro-backed ecrecover support.",
+  "whyPinned": "This pin is the current deterministic base for morpho-verity's typed-IR semantic-bridge work after the Verity refresh requested in the refactor plan. It keeps the bridge surface already consumed by the repo and adds newer macro/frontend behavior Morpho now needs directly, including monadic runtime context accessors, typed router ABI support, expanded bridged call fragments, split native primitive proof support, linked externals, direct ERC20 helper syntax, executable tuple params, struct-mapping storage declarations, internal calls, and macro-backed ecrecover support.",
   "remainingDivergences": [
     {
       "area": "Local generated-contract boundary",

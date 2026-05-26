@@ -1,20 +1,22 @@
 # Verity Pin
 
-`morpho-verity` currently pins Verity to:
+morpho-verity currently pins Verity to:
 
 - Repo: `https://github.com/Th0rgal/verity.git`
-- Short rev: `4ebe4931`
-- Full rev: `4ebe4931d25e5a1594fcd3f43ff040ecc3c4225a`
+- Short rev: `b699e30060cb80b3fd26c62010ecf5b151f31ab2`
+- Full rev: `b699e30060cb80b3fd26c62010ecf5b151f31ab2`
 - Tracking issue: `#118`
 
 ## Why this pin
 
 This pin is the current deterministic base for morpho-verity's typed-IR
-semantic-bridge work. It keeps the upstream bridge surface already consumed by
-the repo and adds the newer macro/frontend features Morpho now uses directly,
-including linked externals, direct ERC20 helper syntax, executable tuple
-params, struct-mapping storage declarations, internal calls, and
-macro-backed `ecrecover` support.
+semantic-bridge work after the Verity refresh requested in the refactor plan.
+It keeps the bridge surface already consumed by the repo and adds newer
+macro/frontend behavior Morpho now needs directly, including monadic runtime
+context accessors, typed router ABI support, expanded bridged call fragments,
+split native primitive proof support, linked externals, direct ERC20 helper
+syntax, executable tuple params, struct-mapping storage declarations, internal
+calls, and macro-backed `ecrecover` support.
 
 ## Remaining repo-local divergence at this pin
 

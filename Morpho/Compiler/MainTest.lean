@@ -69,13 +69,17 @@ private def fileExists (path : String) : IO Bool := do
   let edslAbiExists ← fileExists edslAbiPath
   expectTrue "edsl mode emits Morpho.abi.json" edslAbiExists
 
-  let parityOutDir := s!"/tmp/morpho-main-test-{nonce}-parity-out"
-  IO.FS.createDirAll parityOutDir
-  Morpho.Compiler.Main.main
-    ["--output", parityOutDir, "--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--link", hashLib, "--link", borrowRateLib, "--link", collateralPriceLib, "--link", oraclePriceLib, "--link", flashLoanCallbackLib]
+  match _root_.Compiler.supportedParityPackIds with
+  | [] =>
+      IO.println "✓ parity-pack mode skipped: current Verity pin exposes no parity packs"
+  | packId :: _ =>
+      let parityOutDir := s!"/tmp/morpho-main-test-{nonce}-parity-out"
+      IO.FS.createDirAll parityOutDir
+      Morpho.Compiler.Main.main
+        ["--output", parityOutDir, "--parity-pack", packId, "--link", hashLib, "--link", borrowRateLib, "--link", collateralPriceLib, "--link", oraclePriceLib, "--link", flashLoanCallbackLib]
 
-  let parityYulPath := s!"{parityOutDir}/Morpho.yul"
-  let parityExists ← fileExists parityYulPath
-  expectTrue "parity-pack mode emits Morpho.yul" parityExists
+      let parityYulPath := s!"{parityOutDir}/Morpho.yul"
+      let parityExists ← fileExists parityYulPath
+      expectTrue "parity-pack mode emits Morpho.yul" parityExists
 
 end Morpho.Compiler.MainTest

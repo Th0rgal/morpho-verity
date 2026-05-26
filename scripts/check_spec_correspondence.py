@@ -182,7 +182,8 @@ def extract_spec_functions(text: str) -> dict[str, dict[str, Any]]:
 
 # Matches function declarations
 MACRO_FUNC_RE = re.compile(
-    r"^\s+function\s+(\w+)\s*\((.*?)\)\s*(?:local_obligations\s*\[[^\]]*\]\s*)?:", re.MULTILINE
+    r"^\s+function\s+(?:allow_post_interaction_writes\s+)?(\w+)\s*\((.*?)\)\s*(?:local_obligations\s*\[[^\]]*\]\s*)?:",
+    re.MULTILINE,
 )
 
 # Matches macro params like: newOwner : Address

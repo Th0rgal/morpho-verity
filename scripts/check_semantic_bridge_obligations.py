@@ -28,7 +28,10 @@ SEM_EQ_RE = re.compile(r"^def\s+(\w+SemEq)\b", re.MULTILINE)
 
 # Match function declarations in verity_contract macro syntax.
 # Captures function name from lines like: "  function setOwner (..."
-MACRO_FN_RE = re.compile(r"^\s+function\s+(\w+)\s*\(", re.MULTILINE)
+MACRO_FN_RE = re.compile(
+    r"^\s+function\s+(?:allow_post_interaction_writes\s+)?(\w+)\s*\(",
+    re.MULTILINE,
+)
 
 # Detect stub functions by the noop tautology pattern: require (sender == sender)
 STUB_RE = re.compile(r'require\s*\(sender\s*==\s*sender\)\s*"(\w+)\s+noop"')
