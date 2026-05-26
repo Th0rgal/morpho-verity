@@ -1,6 +1,6 @@
 import Compiler.CompilationModel
 import Compiler.Selector
-import Morpho.Compiler.MacroSlice
+import Morpho.Contract
 
 namespace Morpho.Compiler.Generated
 
@@ -34,7 +34,7 @@ private def morphoEvents : List EventDef := [
 ]
 
 def morphoGeneratedSpec : CompilationModel :=
-  { Morpho.Compiler.MacroSlice.MorphoViewSlice.spec with
+  { Morpho.Contract.spec with
       name := "Morpho"
       events := morphoEvents
       externals := [

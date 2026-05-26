@@ -1,7 +1,8 @@
 # Solidity Correspondence
 
-This table tracks how the current `Morpho/Compiler/MacroSlice.lean`
-`verity_contract` surface corresponds to Morpho Blue `src/Morpho.sol`.
+This table tracks how the current `Morpho/Contract.lean` generated-spec
+boundary, backed by the `Morpho/Compiler/MacroSlice.lean` `verity_contract`,
+corresponds to Morpho Blue `src/Morpho.sol`.
 It is intentionally conservative: "translated" means the macro body has a
 recognizable Solidity-facing implementation, not that full Solidity equivalence
 has been proved.

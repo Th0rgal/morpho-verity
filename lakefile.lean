@@ -16,6 +16,7 @@ lean_lib «Morpho» where
   globs := #[
     .one `Morpho,
     .one `Morpho.Types,
+    .one `Morpho.Contract,
     .one `Morpho.Morpho,
     .submodules `Morpho.Libraries,
     .submodules `Morpho.Specs,

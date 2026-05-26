@@ -1,4 +1,5 @@
 import Morpho.Types
+import Morpho.Contract
 import Morpho.Morpho
 import Morpho.Libraries.MathLib
 import Morpho.Libraries.SharesMathLib
