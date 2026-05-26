@@ -82,6 +82,18 @@ private def morphoEvents : List EventDef := [
     with self.assertRaisesRegex(MorphoEventSurfaceError, "CreateMarket"):
       validate_event_surface(solidity, generated)
 
+  def test_validate_event_surface_reports_order_drift(self) -> None:
+    solidity = {
+      "SetOwner": [EventParam("newOwner", "address", True)],
+      "SetFee": [EventParam("newFee", "uint256", False)],
+    }
+    generated = {
+      "SetFee": [EventParam("newFee", "uint256", False)],
+      "SetOwner": [EventParam("newOwner", "address", True)],
+    }
+    with self.assertRaisesRegex(MorphoEventSurfaceError, "event order drift"):
+      validate_event_surface(solidity, generated)
+
   def test_current_repo_event_surface_matches(self) -> None:
     solidity = extract_solidity_events((ROOT / "morpho-blue" / "src" / "libraries" / "EventsLib.sol").read_text())
     generated = extract_generated_events((ROOT / "Morpho" / "Compiler" / "Generated.lean").read_text())

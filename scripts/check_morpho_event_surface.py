@@ -201,6 +201,8 @@ def format_event(name: str, params: list[EventParam]) -> str:
 
 
 def validate_event_surface(solidity: EventSurface, generated: EventSurface) -> None:
+  solidity_order = list(solidity)
+  generated_order = list(generated)
   missing = sorted(set(solidity) - set(generated))
   extra = sorted(set(generated) - set(solidity))
   mismatched: list[str] = []
@@ -215,6 +217,13 @@ def validate_event_surface(solidity: EventSurface, generated: EventSurface) -> N
     problems.append("missing generated events: " + ", ".join(missing))
   if extra:
     problems.append("extra generated events: " + ", ".join(extra))
+  if not missing and not extra and generated_order != solidity_order:
+    problems.append(
+      "generated event order drift: expected "
+      + ", ".join(solidity_order)
+      + "; got "
+      + ", ".join(generated_order)
+    )
   if mismatched:
     problems.append("event parameter mismatches: " + "; ".join(mismatched))
   if problems:
