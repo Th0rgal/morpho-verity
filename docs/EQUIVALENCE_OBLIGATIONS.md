@@ -206,7 +206,7 @@ The discharge has two links per obligation:
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
 
-### Discharge sequence (current pin: `4ebe4931`)
+### Discharge sequence (current pin: `b699e300`)
 
 1. **Link 1 proven (6 ops)**: `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`,
    `setAuthorization`, `flashLoan` — Link 1 proven in `SemanticBridgeDischarge.lean`.
