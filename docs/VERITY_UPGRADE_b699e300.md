@@ -33,6 +33,23 @@ The immediate source migration is small but semantically useful:
    surface, remove no-op stubs where Verity now has ECM/precompile support, and
    discharge Link 1 semantic bridge obligations operation by operation.
 
+## Implemented fidelity cleanups in this PR
+
+After the pin migration, the macro slice also picked up several direct
+`Morpho.sol` ordering and guard fixes:
+
+- `setAuthorization` now checks `ALREADY_SET` before writing
+  `isAuthorized[msg.sender][authorized]`.
+- `setFee` now checks `newFee != market[id].fee` before accruing interest and
+  setting the new fee.
+- `createMarket` now performs the post-create IRM initialization call when
+  `marketParams.irm != address(0)`.
+- `flashLoan` keeps an explicit linked `flashLoanCallback` call between
+  `safeTransfer` and `safeTransferFrom`.
+- The constructor now rejects a zero initial owner and emits `SetOwner`.
+- The local `ecrecover` and generic non-market `externalCall` shims now route
+  through Verity/Contracts helpers instead of returning hard-coded zeroes.
+
 ## What still blocks a pure `verity_contract` path
 
 This upgrade does not by itself prove full Solidity equivalence.
