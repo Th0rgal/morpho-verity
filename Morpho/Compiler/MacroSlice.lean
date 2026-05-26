@@ -708,7 +708,7 @@ verity_contract MorphoViewSlice where
     mstore 0 assets
     rawLog [90206565393282384481013871153915153991969900064758434107982401003955406262034, sender, token] 0 32
     safeTransfer token sender assets
-    mstore 0 (externalCall "flashLoanCallback" [addressToWord sender, assets])
+    let _callbackResult := add (externalCall "flashLoanCallback" [addressToWord sender, assets]) ZERO
     safeTransferFrom token sender thisAddress assets
 
 end Morpho.Compiler.MacroSlice

@@ -210,14 +210,10 @@ class CreateMarketFrontendRegressionTests(unittest.TestCase):
     source = """\
 import Verity.Core
 import Verity.Macro
+import Contracts.Common
 
-open Verity
-
-def externalCall (_name : String) (_args : List Uint256) : Uint256 := 0
-def setStructMember (_slot : StorageSlot (Uint256 → Uint256)) (_key : Uint256) (_member : String)
-    (_value : Uint256) :
-    Contract Unit := Verity.pure ()
-def blockTimestamp : Uint256 := 0
+open Contracts hiding blockTimestamp chainid contractAddress
+open Verity hiding pure bind
 
 verity_contract Tmp where
   storage
@@ -226,9 +222,9 @@ verity_contract Tmp where
     ]) := slot 0
 
   function f (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
-    let loanToken := marketParams_0
-    let id := externalCall "keccakMarketParams" [loanToken]
-    setStructMember marketSlot id "lastUpdate" blockTimestamp
+    let id := marketParams_4
+    let currentTimestamp ← blockTimestamp
+    setStructMember "marketSlot" id "lastUpdate" currentTimestamp
 """
     proc = self.compile_contract(source)
     self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
