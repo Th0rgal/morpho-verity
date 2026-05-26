@@ -114,7 +114,9 @@ verity_contract MorphoViewSlice where
     external flashLoanCallback(Uint256, Uint256) -> (Uint256)
 
   constructor (initialOwner : Address) := do
+    require (initialOwner != 0) "zero address"
     setStorageAddr ownerSlot initialOwner
+    emit "SetOwner" [initialOwner]
 
   function DOMAIN_SEPARATOR () local_obligations [domain_separator_memory := assumed "Domain separator hash computation uses direct memory writes; caller must verify the EIP-712 encoding is correct."] : Uint256 := do
     let cid ← chainid
