@@ -26,7 +26,7 @@ EXPECTED_PARTIALLY_ENFORCED_ITEMS = [
   "Machine-tracked `equivalence-obligations` status summary and blocker-cluster drift gates are enforced in CI (`scripts/check_equivalence_obligations_doc.py`, `scripts/check_issue_blocker_clusters.py`).",
   "Machine-tracked `semantic-bridge-obligations` status is enforced in CI (`scripts/check_semantic_bridge_obligations.py`); Links 2+3 are already provided upstream for the supported fragment, and Solidity equivalence status remains \"Conditional\" rather than \"Proved\" until all 18 obligations are discharged across the remaining repo-local Link 1 proofs and macro/frontend blockers.",
   "Release-criteria semantic-bridge/equivalence status drift gate is enforced in CI (`scripts/check_release_criteria_status.py`).",
-  "Generated compiler boundary, Morpho event-surface, and arithmetic-fidelity drift gates are enforced in CI (`scripts/check_morpho_generated_boundary.py`, `scripts/check_morpho_event_surface.py`, `scripts/check_arithmetic_fidelity.py`).",
+  "Generated compiler boundary, Morpho event-surface, arithmetic-fidelity, and Solidity-correspondence drift gates are enforced in CI (`scripts/check_morpho_generated_boundary.py`, `scripts/check_morpho_event_surface.py`, `scripts/check_arithmetic_fidelity.py`, `scripts/check_solidity_correspondence_doc.py`).",
 ]
 
 FORBIDDEN_NOT_YET_ENFORCED_ITEMS = [
@@ -46,6 +46,7 @@ EXPECTED_WORKFLOW_STEPS = [
   "Validate issue blocker clusters",
   "Validate equivalence obligations doc sync",
   "Validate release criteria status sync",
+  "Validate Solidity correspondence doc sync",
 ]
 EXPECTED_WORKFLOW_RUN_LINES = {
   "Validate semantic bridge obligations":
@@ -68,6 +69,8 @@ EXPECTED_WORKFLOW_RUN_LINES = {
     './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate equivalence obligations doc sync" -- python3 scripts/check_equivalence_obligations_doc.py',
   "Validate release criteria status sync":
     './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate release criteria status sync" -- python3 scripts/check_release_criteria_status.py',
+  "Validate Solidity correspondence doc sync":
+    './scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate Solidity correspondence doc sync" -- python3 scripts/check_solidity_correspondence_doc.py',
 }
 
 TRACKED_STATUS_ITEM_MARKERS = (
@@ -77,6 +80,7 @@ TRACKED_STATUS_ITEM_MARKERS = (
   "Generated compiler boundary",
   "event-surface",
   "arithmetic-fidelity",
+  "Solidity-correspondence",
 )
 
 

@@ -64,5 +64,7 @@ has been proved.
   against Morpho Blue `EventsLib.sol`.
 - `scripts/check_spec_correspondence.py` verifies structural correspondence
   against the legacy `CompilationModel` spec for migrated operations.
+- `scripts/check_solidity_correspondence_doc.py` verifies this table stays
+  synchronized with macro-migrated semantic bridge obligations.
 - `config/semantic-bridge-obligations.json` records which translated operations
   are still conditional on semantic-equivalence hypotheses.
