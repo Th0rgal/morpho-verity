@@ -285,6 +285,21 @@ class BaselineValidationTests(unittest.TestCase):
 
 
 class RepoCheckTests(unittest.TestCase):
+  def test_create_market_event_topic_and_payload_are_logged(self) -> None:
+    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
+    self.assertIn(
+      "rawLog [77930571974472193577215730001454066985566282397930517691434906231634542363564, id] 0 160",
+      macro_text,
+    )
+    for offset, field in (
+      (0, "addressToWord marketParams_0"),
+      (32, "addressToWord marketParams_1"),
+      (64, "addressToWord marketParams_2"),
+      (96, "addressToWord marketParams_3"),
+      (128, "marketParams_4"),
+    ):
+      self.assertIn(f"mstore {offset} ({field})" if offset < 128 else f"mstore {offset} {field}", macro_text)
+
   def test_flash_loan_event_topic_matches_spec(self) -> None:
     macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
     spec_text = (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text()

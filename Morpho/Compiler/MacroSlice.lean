@@ -328,7 +328,12 @@ verity_contract MorphoViewSlice where
     setStructMember "idToMarketParamsSlot" id "oracle" marketParams_2
     setStructMember "idToMarketParamsSlot" id "irm" marketParams_3
     setStructMember "idToMarketParamsSlot" id "lltv" marketParams_4
-    emit "CreateMarket" [id]
+    mstore 0 (addressToWord marketParams_0)
+    mstore 32 (addressToWord marketParams_1)
+    mstore 64 (addressToWord marketParams_2)
+    mstore 96 (addressToWord marketParams_3)
+    mstore 128 marketParams_4
+    rawLog [77930571974472193577215730001454066985566282397930517691434906231634542363564, id] 0 160
     if marketParams_3 != 0 then
       let _irmInit := add (externalCall "borrowRate" [addressToWord marketParams_3, ZERO]) ZERO
       require (_irmInit >= ZERO) "irm initialized"
