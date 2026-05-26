@@ -389,15 +389,13 @@ theorem liquidate_preserves_supplySharesConsistent (s : MorphoState) (lid : Id)
   all_goals (
     try (split at h_ok <;> simp at h_ok)
     all_goals (
-      try (split at h_ok <;> simp at h_ok)
-      all_goals (
-        obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
-        rw [← h_eq]
-        apply supplyConsistent_of_eq_market_position _ _ h_consistent
-        · simp
-        · intro u; simp [true_and]; split
-          · subst ‹u = borrower›; rfl
-          · rfl)))
+      obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
+      rw [← h_eq]
+      apply supplyConsistent_of_eq_market_position _ _ h_consistent
+      · simp
+      · intro u; simp [true_and]; split
+        · subst ‹u = borrower›; rfl
+        · rfl))
 
 theorem liquidate_preserves_borrowSharesConsistent (s : MorphoState) (lid : Id)
     (borrower : Address) (seizedAssets repaidShares collateralPrice lltv : Uint256)
@@ -412,27 +410,25 @@ theorem liquidate_preserves_borrowSharesConsistent (s : MorphoState) (lid : Id)
   all_goals (
     try (split at h_ok <;> simp at h_ok)
     all_goals (
-      try (split at h_ok <;> simp at h_ok)
-      all_goals (
-        obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
-        rw [← h_eq]
-        unfold borrowSharesConsistent
-        simp only [ite_true, true_and, apply_ite, Morpho.u256_val, Nat.zero_mod]
-        have elim_mod_pos (n : Nat) :
-            (s.position lid borrower).borrowShares.val - n < Core.Uint256.modulus :=
-          Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.position lid borrower).borrowShares.isLt
-        have elim_mod_total (n : Nat) :
-            (s.market lid).totalBorrowShares.val - n < Core.Uint256.modulus :=
-          Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market lid).totalBorrowShares.isLt
-        simp only [Nat.mod_eq_of_lt (elim_mod_pos _), Nat.mod_eq_of_lt (elim_mod_total _)]
-        try simp only [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) (elim_mod_total _))]
-        first
-        | (rw [list_sum_map_sub allUsers (fun u => (s.position lid u).borrowShares.val) borrower _
-             h_mem h_nodup (by dsimp; omega)]
-           unfold borrowSharesConsistent at h_consistent; omega)
-        | (rw [list_sum_map_zero allUsers (fun u => (s.position lid u).borrowShares.val) borrower
-             h_mem h_nodup]
-           unfold borrowSharesConsistent at h_consistent; omega))))
+      obtain ⟨_, _, _, _, _, _, _, h_eq⟩ := h_ok
+      rw [← h_eq]
+      unfold borrowSharesConsistent
+      simp only [ite_true, true_and, apply_ite, Morpho.u256_val, Nat.zero_mod]
+      have elim_mod_pos (n : Nat) :
+          (s.position lid borrower).borrowShares.val - n < Core.Uint256.modulus :=
+        Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.position lid borrower).borrowShares.isLt
+      have elim_mod_total (n : Nat) :
+          (s.market lid).totalBorrowShares.val - n < Core.Uint256.modulus :=
+        Nat.lt_of_le_of_lt (Nat.sub_le _ _) (s.market lid).totalBorrowShares.isLt
+      simp only [Nat.mod_eq_of_lt (elim_mod_pos _), Nat.mod_eq_of_lt (elim_mod_total _)]
+      try simp only [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) (elim_mod_total _))]
+      first
+      | (rw [list_sum_map_sub allUsers (fun u => (s.position lid u).borrowShares.val) borrower _
+           h_mem h_nodup (by dsimp; omega)]
+         unfold borrowSharesConsistent at h_consistent; omega)
+      | (rw [list_sum_map_zero allUsers (fun u => (s.position lid u).borrowShares.val) borrower
+           h_mem h_nodup]
+         unfold borrowSharesConsistent at h_consistent; omega)))
 
 /-! ## accrueInterest -/
 
