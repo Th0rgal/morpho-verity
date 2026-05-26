@@ -38,6 +38,7 @@ Groundwork docs for closing these gaps:
 - [`docs/PARITY_TARGET.md`](docs/PARITY_TARGET.md)
 - [`docs/VERITY_PIN.md`](docs/VERITY_PIN.md)
 - [`docs/VERITY_UPGRADE_b699e300.md`](docs/VERITY_UPGRADE_b699e300.md)
+- [`docs/SOLIDITY_CORRESPONDENCE.md`](docs/SOLIDITY_CORRESPONDENCE.md)
 - [`docs/TRUST_BOUNDARIES.md`](docs/TRUST_BOUNDARIES.md)
 - [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
 - [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
