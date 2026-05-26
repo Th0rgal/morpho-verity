@@ -301,7 +301,7 @@ verity_contract MorphoViewSlice where
     rawLog [96755043271346810483655308149819952342970126887685366761742111973171219597760,
       sender, authorizer, authorized] 0 32
 
-  function allow_post_interaction_writes createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) : Unit := do
+  function allow_post_interaction_writes createMarket (marketParams : Tuple [Address, Address, Address, Address, Uint256]) local_obligations [create_market_irm_init := assumed "Morpho.sol initializes stateful IRMs with a post-create borrowRate call; caller must verify the IRM call ABI and returned rate boundary."] : Unit := do
     let _ignoredMarketParams := marketParams
     let id := externalCall keccakMarketParams [
       addressToWord marketParams_0,
