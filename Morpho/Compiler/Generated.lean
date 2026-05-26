@@ -47,22 +47,22 @@ def morphoGeneratedSpec : CompilationModel :=
           params := [.uint256, .uint256]
           returnType := some .uint256
           returns := [.uint256]
-          axiomNames := [] },
+          axiomNames := ["irm_borrow_rate_boundary"] },
         { name := "collateralPrice"
           params := [.uint256]
           returnType := some .uint256
           returns := [.uint256]
-          axiomNames := [] },
+          axiomNames := ["oracle_collateral_price_boundary"] },
         { name := "oraclePrice"
           params := [.uint256]
           returnType := some .uint256
           returns := [.uint256]
-          axiomNames := [] },
+          axiomNames := ["oracle_price_boundary"] },
         { name := "flashLoanCallback"
           params := [.uint256, .uint256]
           returnType := some .uint256
           returns := [.uint256]
-          axiomNames := [] }
+          axiomNames := ["flash_loan_callback_boundary"] }
       ] }
 
 /--

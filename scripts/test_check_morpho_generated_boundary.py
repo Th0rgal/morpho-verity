@@ -5,12 +5,16 @@ from __future__ import annotations
 
 import pathlib
 import subprocess
+import sys
 import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check_morpho_generated_boundary.py"
 MAIN_PATH = ROOT / "Morpho" / "Compiler" / "Main.lean"
+GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
 
 
 class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
@@ -43,6 +47,35 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
       self.assertIn("Main.lean", proc.stderr)
     finally:
       MAIN_PATH.write_text(original, encoding="utf-8")
+
+  def test_detects_missing_external_axiom_name(self) -> None:
+    original = GENERATED_PATH.read_text(encoding="utf-8")
+    try:
+      GENERATED_PATH.write_text(
+        original.replace(
+          'axiomNames := ["irm_borrow_rate_boundary"]',
+          'axiomNames := []',
+          1,
+        ),
+        encoding="utf-8",
+      )
+      proc = subprocess.run(
+        ["python3", str(SCRIPT)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("borrowRate", proc.stderr)
+      self.assertIn("irm_borrow_rate_boundary", proc.stderr)
+    finally:
+      GENERATED_PATH.write_text(original, encoding="utf-8")
+
+  def test_external_axiom_validator_accepts_required_boundaries(self) -> None:
+    from check_morpho_generated_boundary import validate_generated_external_axioms
+
+    validate_generated_external_axioms(GENERATED_PATH.read_text(encoding="utf-8"))
 
   def test_reports_invalid_utf8_without_traceback(self) -> None:
     original = MAIN_PATH.read_bytes()

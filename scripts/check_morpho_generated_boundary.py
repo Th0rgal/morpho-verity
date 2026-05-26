@@ -15,6 +15,14 @@ ALLOWED_FILES = {
 }
 TARGET_GLOB = ROOT / "Morpho" / "Compiler"
 SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
+GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
+REQUIRED_EXTERNAL_AXIOMS = {
+  "keccakMarketParams": "market_id_deterministic",
+  "borrowRate": "irm_borrow_rate_boundary",
+  "collateralPrice": "oracle_collateral_price_boundary",
+  "oraclePrice": "oracle_price_boundary",
+  "flashLoanCallback": "flash_loan_callback_boundary",
+}
 
 
 class MorphoGeneratedBoundaryError(RuntimeError):
@@ -30,6 +38,25 @@ def read_text(path: pathlib.Path) -> str:
     raise MorphoGeneratedBoundaryError(f"{path} is not valid UTF-8: {exc}") from exc
 
 
+def validate_generated_external_axioms(text: str) -> None:
+  for external_name, axiom_name in REQUIRED_EXTERNAL_AXIOMS.items():
+    block_match = re.search(
+      r'\{\s*name\s*:=\s*"'
+      + re.escape(external_name)
+      + r'".*?axiomNames\s*:=\s*\[(.*?)\]\s*\}',
+      text,
+      flags=re.DOTALL,
+    )
+    if not block_match:
+      raise MorphoGeneratedBoundaryError(
+        f"generated external {external_name!r} is missing or has no axiomNames block"
+      )
+    if f'"{axiom_name}"' not in block_match.group(1):
+      raise MorphoGeneratedBoundaryError(
+        f"generated external {external_name!r} must include axiom name {axiom_name!r}"
+      )
+
+
 def main() -> None:
   offenders: list[str] = []
 
@@ -39,6 +66,8 @@ def main() -> None:
     text = read_text(path)
     if SYMBOL_RE.search(text):
       offenders.append(str(path.relative_to(ROOT)))
+
+  validate_generated_external_axioms(read_text(GENERATED_PATH))
 
   if offenders:
     print("morpho-generated-boundary check failed:", file=sys.stderr)
