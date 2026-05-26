@@ -10,7 +10,10 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from check_arithmetic_fidelity import extract_uint128_guard_names  # noqa: E402
+from check_arithmetic_fidelity import (  # noqa: E402
+  extract_proof_overflow_assumptions,
+  extract_uint128_guard_names,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -39,6 +42,12 @@ class CheckArithmeticFidelityTests(unittest.TestCase):
     self.assertIn("newTotalBorrowAssets", names)
     self.assertIn("newFeeRecipientShares", names)
     self.assertIn("newCollateral", names)
+
+  def test_extracts_proof_overflow_assumption_names(self) -> None:
+    names = extract_proof_overflow_assumptions(
+      "theorem sample (h_no_overflow : True) (h_supply_no_overflow : True) : True := by trivial"
+    )
+    self.assertEqual(names, {"h_no_overflow", "h_supply_no_overflow"})
 
   def test_detects_missing_uint128_guard_doc(self) -> None:
     original = DOC_PATH.read_text(encoding="utf-8")

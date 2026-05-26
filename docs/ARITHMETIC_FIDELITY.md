@@ -40,9 +40,9 @@ of fully discharged reachability facts:
 
 | File | Representative assumptions |
 |------|----------------------------|
-| `Morpho/Proofs/Invariants.lean` | `h_no_overflow`, `h_supply_no_overflow`, `h_shares_no_overflow`, `h_denom_no_overflow` |
-| `Morpho/Proofs/ShareConsistency.lean` | `h_pos_no_overflow`, `h_total_no_overflow` for position/total share no-overflow assumptions across supply, borrow, accrue-interest, and set-fee paths |
-| `Morpho/Proofs/SolidityBridge.lean` | transfer theorems that require the same arithmetic side conditions before applying pure-model invariants |
+| `Morpho/Proofs/Invariants.lean` | `h_no_overflow`, `h_supply_no_overflow`, `h_borrow_no_overflow`, `h_shares_no_overflow`, `h_shares_vs_no_overflow`, `h_denom_no_overflow` |
+| `Morpho/Proofs/ShareConsistency.lean` | `h_no_overflow`, `h_pos_no_overflow`, `h_total_no_overflow` for position/total share no-overflow assumptions across supply, borrow, accrue-interest, and set-fee paths |
+| `Morpho/Proofs/SolidityBridge.lean` | `h_no_overflow` transfer theorem conditions required before applying pure-model invariants |
 
 These hypotheses are valid proof obligations, not unconditional Solidity
 equivalence claims. A future discharge should either prove they are implied by

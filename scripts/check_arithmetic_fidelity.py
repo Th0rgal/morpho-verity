@@ -12,25 +12,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOC_PATH = ROOT / "docs" / "ARITHMETIC_FIDELITY.md"
 MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
 MATH_PATH = ROOT / "Morpho" / "Libraries" / "MathLib.lean"
-PROOF_ASSUMPTIONS = {
-  ROOT / "Morpho" / "Proofs" / "Invariants.lean": {
-    "h_no_overflow",
-    "h_supply_no_overflow",
-    "h_shares_no_overflow",
-    "h_denom_no_overflow",
-  },
-  ROOT / "Morpho" / "Proofs" / "ShareConsistency.lean": {
-    "h_pos_no_overflow",
-    "h_total_no_overflow",
-  },
-  ROOT / "Morpho" / "Proofs" / "SolidityBridge.lean": {
-    "h_no_overflow",
-  },
-}
+PROOF_PATHS = (
+  ROOT / "Morpho" / "Proofs" / "Invariants.lean",
+  ROOT / "Morpho" / "Proofs" / "ShareConsistency.lean",
+  ROOT / "Morpho" / "Proofs" / "SolidityBridge.lean",
+)
 UINT128_MAX = "340282366920938463463374607431768211455"
 UINT128_GUARD_RE = re.compile(
   rf'require\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*<=\s*{UINT128_MAX}\s*\)\s*"uint128 overflow"'
 )
+PROOF_OVERFLOW_RE = re.compile(r"\bh_[A-Za-z0-9_]*overflow[A-Za-z0-9_]*\b")
 
 
 class ArithmeticFidelityError(RuntimeError):
@@ -50,6 +41,10 @@ def extract_uint128_guard_names(macro_text: str) -> set[str]:
   return set(UINT128_GUARD_RE.findall(macro_text))
 
 
+def extract_proof_overflow_assumptions(proof_text: str) -> set[str]:
+  return set(PROOF_OVERFLOW_RE.findall(proof_text))
+
+
 def validate_uint128_guard_docs(macro_text: str, doc_text: str) -> None:
   guarded_names = extract_uint128_guard_names(macro_text)
   missing = sorted(name for name in guarded_names if f"`{name}`" not in doc_text)
@@ -63,18 +58,17 @@ def validate_uint128_guard_docs(macro_text: str, doc_text: str) -> None:
 
 
 def validate_proof_assumption_docs(doc_text: str) -> None:
-  for path, assumptions in PROOF_ASSUMPTIONS.items():
+  for path in PROOF_PATHS:
     proof_text = read_text(path)
+    assumptions = extract_proof_overflow_assumptions(proof_text)
     rel = path.relative_to(ROOT).as_posix()
     if f"`{rel}`" not in doc_text:
       raise ArithmeticFidelityError(
         f"ARITHMETIC_FIDELITY.md is missing proof file `{rel}`"
       )
+    if not assumptions:
+      raise ArithmeticFidelityError(f"`{rel}` has no tracked overflow assumptions")
     for assumption in sorted(assumptions):
-      if assumption not in proof_text:
-        raise ArithmeticFidelityError(
-          f"expected arithmetic assumption `{assumption}` in `{rel}`"
-        )
       if f"`{assumption}`" not in doc_text:
         raise ArithmeticFidelityError(
           f"ARITHMETIC_FIDELITY.md is missing assumption `{assumption}` from `{rel}`"
