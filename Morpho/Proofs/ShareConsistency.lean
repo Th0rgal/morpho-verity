@@ -133,7 +133,7 @@ theorem setAuthorization_preserves_supplySharesConsistent (s : MorphoState)
     (h_consistent : supplySharesConsistent s id allUsers)
     (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     supplySharesConsistent s' id allUsers := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_consistent
 
 theorem setAuthorization_preserves_borrowSharesConsistent (s : MorphoState)
@@ -142,7 +142,7 @@ theorem setAuthorization_preserves_borrowSharesConsistent (s : MorphoState)
     (h_consistent : borrowSharesConsistent s id allUsers)
     (h_ok : Morpho.setAuthorization s authorized newIsAuth = some s') :
     borrowSharesConsistent s' id allUsers := by
-  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
+  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuth).1 h_ok
   exact h_consistent
 
 theorem setAuthorizationWithSig_preserves_supplySharesConsistent (s : MorphoState)

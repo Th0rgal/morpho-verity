@@ -288,7 +288,6 @@ theorem enableLltv_success_iff (s s' : MorphoState) (lltv : Uint256) :
 theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     (newIsAuthorized : Bool) :
     setAuthorization s authorized newIsAuthorized = some s' ↔
-      s.isAuthorized s.sender authorized ≠ newIsAuthorized ∧
       s' = { s with
         isAuthorized := fun authorizer auth =>
           if authorizer == s.sender && auth == authorized then newIsAuthorized
@@ -301,7 +300,7 @@ theorem setAuthorization_success_iff (s s' : MorphoState) (authorized : Address)
     consistent with how oracle prices and IRM rates are externalized.
     The pure state logic — nonce check, nonce increment, deadline check — is fully modeled.
 
-    Note: unlike `setAuthorization`, there is NO `ALREADY_SET` check. The Solidity comment
+    Note: as with `setAuthorization`, there is NO `ALREADY_SET` check. The Solidity comment
     says "Do not check whether authorization is already set because the nonce increment
     is a desired side effect." (Morpho.sol:446). -/
 def setAuthorizationWithSig (s : MorphoState) (auth : Authorization) (signatureValid : Bool)

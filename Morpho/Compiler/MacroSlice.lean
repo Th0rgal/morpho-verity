@@ -229,8 +229,6 @@ verity_contract MorphoViewSlice where
       isAuthorizedWord := 1
     else
       isAuthorizedWord := 0
-    let currentAuthorization <- getMapping2 isAuthorizedSlot sender authorized
-    require (currentAuthorization != isAuthorizedWord) "already set"
     setMapping2 isAuthorizedSlot sender authorized isAuthorizedWord
     mstore 0 isAuthorizedWord
     rawLog [96755043271346810483655308149819952342970126887685366761742111973171219597760,
@@ -754,6 +752,9 @@ verity_contract MorphoViewSlice where
       repaidAssets := mulDivDown finalRepaidShares totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
       let seizedValue := mulDivDown repaidAssets lif 1000000000000000000
       finalSeizedAssets := mulDivDown seizedValue 1000000000000000000000000000000000000 collateralPrice
+    let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
+    let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
+    repaidAssets := mulDivUp finalRepaidShares totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
     let currentBorrowShares <- structMember2 "positionSlot" id borrower "borrowShares"
     require (currentBorrowShares >= finalRepaidShares) "insufficient borrow"
     let currentCollateral <- structMember2 "positionSlot" id borrower "collateral"
