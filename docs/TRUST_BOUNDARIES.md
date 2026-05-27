@@ -1,9 +1,12 @@
 # Trust Boundaries
 
 This document records the current Morpho-specific assumptions that remain after
-the `b699e300` Verity upgrade. It is an inventory, not a proof claim: each item
-must either be discharged, replaced by a concrete Verity module, or remain an
-explicit assumption before stronger Solidity-equivalence claims are made.
+the `b699e300` Verity upgrade, plus the actionability update after upstream
+Verity PR `lfglabs-dev/verity#1939` merged at
+`00c18e3a694201cc0dfd8d8f52abaa0bf308887c`. It is an inventory, not a proof
+claim: each item must either be discharged, replaced by a concrete Verity
+module, or remain an explicit assumption before stronger Solidity-equivalence
+claims are made.
 
 ## Generated Externals
 
@@ -33,7 +36,7 @@ Verity proof fragment does not yet cover the mechanics:
 | `supply_callback`, `repay_callback`, `supply_collateral_callback`, `liquidate_callback` | Morpho callback ordering plus token transfer mechanics around the callback boundary. |
 | `flash_loan_transfers` | Flash-loan token transfer and callback mechanics. |
 
-## Still Assumed
+## Still Assumed At The Current Pin
 
 - ERC-20 optional-return SafeTransferLib behavior, token no-fee/no-reentrancy
   economic assumptions, and external callee liveness.
@@ -48,33 +51,26 @@ Verity proof fragment does not yet cover the mechanics:
 
 ## Verity Coverage Audit
 
-The current Verity pin has important compiler and differential-testing support
-for Morpho-shaped EVM features, but those features are not all in the same
-proof-complete fragment as simple storage transitions. The upstream
-`docs/INTERPRETER_FEATURE_MATRIX.md`, `docs/EXTERNAL_CALL_MODULES.md`, and
-`docs/ARITHMETIC_PROFILE.md` show the following coverage gaps:
+At the current Morpho pin (`b699e300`), several EVM-shaped features are still
+represented through local obligations or linked externals. Upstream Verity merge
+commit `00c18e3a` changes the status of those items: the framework now exposes
+static ABI Keccak helpers, EIP-712 digest helpers, Solmate-compatible ERC-20
+optional-return ECMs, bubbling call/callback modules, raw-log validation tests,
+and Solidity-0.8 checked-arithmetic helpers.
 
-- Fully proving `keccak256(abi.encode(...))` needs stronger first-class
-  ABI/memory-slice Keccak support. Current Verity can compile/use Keccak through
-  hashing helpers and direct memory slices, but
-  `keccak256_memory_slice_matches_evm` remains a trust boundary.
-- Fully proving low-level calls, returndata, revert bubbling, optional ERC-20
-  bool returns, and callbacks needs Verity's low-level call/returndata proof
-  interpreter support to mature. The standard ECMs model the call choreography
-  and surface assumptions, but `call`, `returndataCopy`, `revertReturndata`, and
-  ECM execution are still proof-boundary features.
-- Fully proving EIP-712 needs first-class typed-data / ABI-encoding helpers plus
-  memory Keccak proofs. `ecrecover` cryptographic correctness will always remain
-  an EVM/precompile assumption.
-- Raw-log/event memory equivalence, especially dynamic/manual event payloads
-  like `CreateMarket`, needs Verity event/memory proof support beyond simple
-  `emit`. `rawLog` and general linear-memory mechanics remain outside the
-  current proof interpreter coverage.
-- Global Solidity 0.8 checked-arithmetic equivalence would benefit from
-  Verity-level checked arithmetic syntax/lowering/proof automation, though local
-  guards can be added in Morpho now. Verity currently exposes explicit
-  `safeAdd`/`safeSub`/`safeMul`/`safeDiv` constructs; it does not insert
-  Solidity-style overflow checks for bare arithmetic automatically.
+That means the next fidelity work is mostly in Morpho:
+
+- replace generic placeholders with the new Verity modules,
+- add Morpho-specific typed ECMs for IRM and oracle calls,
+- preserve Solidity source ordering around callbacks and signature recovery,
+- replace broad arithmetic assumptions with checked operations or local guards,
+- and discharge the remaining repo-local Link 1 proofs.
+
+Keccak memory-slice correctness, raw `rawLog` mechanics, low-level call
+execution, and precompile correctness can still appear in Verity trust reports,
+but Morpho no longer needs to invent ad hoc stand-ins for these Solidity
+constructs. The Morpho source should use the upstream primitives so the
+remaining report entries are narrow and auditable.
 
 ## Current Gates
 
@@ -86,3 +82,36 @@ proof-complete fragment as simple storage transitions. The upstream
   keep stable axiom names.
 - `scripts/check_primitive_coverage.py` reports which EDSL primitives still sit
   outside the proven bridge fragment.
+
+## Post-Verity #1939 Actionability
+
+After Morpho advances its Verity pin to a revision at or after `00c18e3a`, the
+following boundaries should be treated as Morpho-local cleanup work rather than
+missing Verity features:
+
+- `keccakMarketParams`: replace the linked external with
+  `Compiler.Modules.Hashing.abiEncodeStaticWords` over the exact five
+  `MarketParams` words.
+- `DOMAIN_SEPARATOR()` and `setAuthorizationWithSig`: build the EIP-712 domain,
+  authorization struct hash, and final digest with the new static ABI and
+  `eip712Digest` helpers. Keep only `ecrecover` cryptographic correctness as an
+  EVM/precompile assumption.
+- ERC-20 transfer helpers: use `Compiler.Modules.ERC20.solmateSafeTransfer` and
+  `solmateSafeTransferFrom`, matching Morpho Blue's Solmate `SafeTransferLib`
+  optional-return semantics.
+- Callback and low-level-call paths: use the upstream callback and bubbling-call
+  modules so calldata layout, free-memory-pointer handling, and revert-data
+  bubbling are source-level translated instead of broadly assumed.
+- IRM and oracle calls: introduce typed ECMs with exact selector/calldata,
+  staticcall/call kind, one-word return decoding, and returndata bubbling.
+- Events: prefer `emit` for fixed events and retain raw logs only where the
+  Solidity source uses manual/dynamic payload construction, with exact topic and
+  payload-size tests.
+- Arithmetic: translate Solidity 0.8 checked operations with Verity's checked
+  panic helpers or explicit guards, then retire operation-level overflow
+  hypotheses as the individual proofs are discharged.
+
+The durable assumptions after those changes should be external behavior:
+oracle/IRM truthfulness and liveness, token economics, gas-sensitive behavior,
+and EVM primitive/precompile correctness. The detailed worklist is in
+[`POST_VERITY_1939_MORPHO_ACTIONS.md`](POST_VERITY_1939_MORPHO_ACTIONS.md).

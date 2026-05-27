@@ -38,6 +38,7 @@ Groundwork docs for closing these gaps:
 - [`docs/PARITY_TARGET.md`](docs/PARITY_TARGET.md)
 - [`docs/VERITY_PIN.md`](docs/VERITY_PIN.md)
 - [`docs/VERITY_UPGRADE_b699e300.md`](docs/VERITY_UPGRADE_b699e300.md)
+- [`docs/POST_VERITY_1939_MORPHO_ACTIONS.md`](docs/POST_VERITY_1939_MORPHO_ACTIONS.md)
 - [`docs/SOLIDITY_CORRESPONDENCE.md`](docs/SOLIDITY_CORRESPONDENCE.md)
 - [`docs/TRUST_BOUNDARIES.md`](docs/TRUST_BOUNDARIES.md)
 - [`docs/ARITHMETIC_FIDELITY.md`](docs/ARITHMETIC_FIDELITY.md)
@@ -75,25 +76,17 @@ produced by the macro, not proven manually per-contract. We assume Verity
 will widen the supported fragment and automate these witnesses. Manual
 `SupportedStmtList` proofs have been removed from this repository.
 
-**Complex Morpho flow coverage still needed in Verity:** Upstream Verity can
-compile and differentially test more EVM-shaped features than its current proof
-interpreters fully model. In particular:
-
-- Fully proving `keccak256(abi.encode(...))` needs stronger first-class
-  ABI/memory-slice Keccak support. Current Verity can compile/use Keccak, but
-  `keccak256_memory_slice_matches_evm` remains a trust boundary.
-- Fully proving low-level calls, returndata, revert bubbling, optional ERC-20
-  bool returns, and callbacks needs Verity's low-level call/returndata proof
-  interpreter support to mature.
-- Fully proving EIP-712 needs first-class typed-data / ABI-encoding helpers plus
-  memory Keccak proofs. `ecrecover` cryptographic correctness will always remain
-  an EVM/precompile assumption.
-- Raw-log/event memory equivalence, especially dynamic/manual event payloads
-  like `CreateMarket`, needs Verity event/memory proof support beyond simple
-  `emit`.
-- Global Solidity 0.8 checked-arithmetic equivalence would benefit from
-  Verity-level checked arithmetic syntax/lowering/proof automation, though local
-  guards can be added in Morpho now.
+**Post-Verity #1939 Morpho work:** Verity merge commit
+`00c18e3a694201cc0dfd8d8f52abaa0bf308887c` added the primitives needed to move
+several former framework gaps into Morpho-local translation work. After this
+repo advances its Verity pin, Morpho can directly replace placeholder market-id
+hashing with static ABI Keccak helpers, express EIP-712 digest construction with
+Verity hashing modules, use Solmate-compatible ERC-20 ECMs, use bubbling
+callback and low-level-call helpers, and model Solidity 0.8 arithmetic with
+checked/panic helpers. The remaining assumptions should then be narrowed to
+external environment behavior plus EVM primitive/precompile semantics. See
+[`docs/POST_VERITY_1939_MORPHO_ACTIONS.md`](docs/POST_VERITY_1939_MORPHO_ACTIONS.md)
+for the concrete Morpho-side action list.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
