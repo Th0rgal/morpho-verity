@@ -14,8 +14,8 @@ INSTANTIATION_PATH = ROOT / "Morpho" / "Proofs" / "SemanticBridgeInstantiation.l
 
 EXPECTED_INTRO_STATUS = (
   "Links 2+3 are already provided upstream for the supported fragment, so for the\n"
-  "operations instantiated here the remaining repo-local work is Link 1 discharge\n"
-  "plus macro/frontend unblockings on the unsupported surface. Composing these\n"
+  "operations instantiated here the remaining repo-local work is trust-boundary\n"
+  "discharge for raw-log, callback, ECM, and arithmetic behavior. Composing these\n"
   "theorems with the upstream typed-IR/compiler results extends them to the\n"
   "compiled on-chain Morpho contract for the supported operations."
 )
@@ -26,8 +26,9 @@ EXPECTED_SUMMARY_STATUS = (
 EXPECTED_SUMMARY_COMPOSITION = (
   "Composing those upstream results with these 21 instantiation theorems yields\n"
   "compiled-bytecode invariant preservation for the operations above. The\n"
-  "remaining repo-local work is proving Link 1 and completing macro/frontend\n"
-  "migration for the other Morpho operations."
+  "remaining repo-local work is extending these concrete instantiations beyond the\n"
+  "representative admin/flash-loan surface and discharging raw-log, callback, ECM,\n"
+  "and arithmetic trust boundaries."
 )
 FORBIDDEN_SNIPPETS = [
   "The remaining gap (Links 2+3) will eventually show that the compiled EVM",
