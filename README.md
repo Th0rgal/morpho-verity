@@ -53,7 +53,7 @@ This removes the hand-rolled `interpretSpec` interpreter from the target trust
 story and enables auto-generated semantic preservation proofs in the
 `verity_contract` macro where the frontend can lower the contract successfully.
 At the current morpho-verity pin, the remaining blockers are repo-local Link 1
-gaps and upstream macro frontend limitations for complex Morpho operations.
+gaps plus Verity proof-interpreter coverage for complex Morpho operations.
 Once those repo-local gaps are discharged, morpho-verity's Solidity equivalence
 obligations can be discharged against EVMYulLean's formally verified EVM
 semantics rather than a trusted reimplementation. Track upstream history in
@@ -74,6 +74,26 @@ generates code exclusively from supported patterns, so
 produced by the macro, not proven manually per-contract. We assume Verity
 will widen the supported fragment and automate these witnesses. Manual
 `SupportedStmtList` proofs have been removed from this repository.
+
+**Complex Morpho flow coverage still needed in Verity:** Upstream Verity can
+compile and differentially test more EVM-shaped features than its current proof
+interpreters fully model. In particular:
+
+- Fully proving `keccak256(abi.encode(...))` needs stronger first-class
+  ABI/memory-slice Keccak support. Current Verity can compile/use Keccak, but
+  `keccak256_memory_slice_matches_evm` remains a trust boundary.
+- Fully proving low-level calls, returndata, revert bubbling, optional ERC-20
+  bool returns, and callbacks needs Verity's low-level call/returndata proof
+  interpreter support to mature.
+- Fully proving EIP-712 needs first-class typed-data / ABI-encoding helpers plus
+  memory Keccak proofs. `ecrecover` cryptographic correctness will always remain
+  an EVM/precompile assumption.
+- Raw-log/event memory equivalence, especially dynamic/manual event payloads
+  like `CreateMarket`, needs Verity event/memory proof support beyond simple
+  `emit`.
+- Global Solidity 0.8 checked-arithmetic equivalence would benefit from
+  Verity-level checked arithmetic syntax/lowering/proof automation, though local
+  guards can be added in Morpho now.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
