@@ -3,7 +3,7 @@
 Verity PR `lfglabs-dev/verity#1939` landed in upstream Verity at merge commit
 `00c18e3a694201cc0dfd8d8f52abaa0bf308887c`. This changes the Morpho plan:
 several items that were previously Verity feature gaps are now repo-local
-translation work once `morpho-verity` advances its Verity pin from `b699e300`.
+translation work once `morpho-verity` advances its Verity pin to `00c18e3a`.
 
 The target is the same standard used by the Unlink Verity translation: keep the
 Solidity control flow, ABI boundaries, revert behavior, event surface, and
@@ -12,9 +12,9 @@ true environment assumptions explicit.
 
 ## Directly Actionable In Morpho
 
-These changes no longer require new Verity framework features. They require
-updating the Morpho pin to a Verity revision at or after `00c18e3a`, importing
-the new modules, and replacing Morpho-local placeholders.
+These changes no longer require new Verity framework features. The Morpho pin is
+now `00c18e3a`; the remaining work is replacing any remaining Morpho-local
+placeholders and discharging proof obligations.
 
 | Area | Current Morpho shape | Direct replacement |
 |------|----------------------|--------------------|
@@ -87,12 +87,12 @@ part of Morpho's proof:
 
 ## Updated Claim
 
-After adopting Verity `#1939`, it is reasonable to say that Morpho can become a
-much more faithful Solidity translation directly in this repository. It is not
-yet correct to say the current branch is Unlink-level faithful: the current
-Morpho branch still has placeholder market-id hashing, broad external-call
-word-list adapters, raw-log obligations, and several assumption-backed core-flow
-equivalence proofs.
+After adopting Verity `#1939`, Morpho now expresses market-id hashing,
+EIP-712 digest construction, ERC-20 transfers, and IRM/oracle reads through
+Verity ECMs instead of linked placeholders. It is not yet correct to say the
+current branch is Unlink-level faithful: non-flash callback paths, raw-log
+obligations, checked-arithmetic discharge, and several assumption-backed
+core-flow equivalence proofs remain.
 
 The next faithful-translation milestone is:
 

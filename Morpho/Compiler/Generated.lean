@@ -37,28 +37,7 @@ def morphoGeneratedSpec : CompilationModel :=
   { Morpho.Contract.spec with
       name := "Morpho"
       events := morphoEvents
-      externals := [
-        { name := "keccakMarketParams"
-          params := [.uint256, .uint256, .uint256, .uint256, .uint256]
-          returnType := some .uint256
-          returns := [.uint256]
-          axiomNames := ["market_id_deterministic"] },
-        { name := "borrowRate"
-          params := [.uint256, .uint256]
-          returnType := some .uint256
-          returns := [.uint256]
-          axiomNames := ["irm_borrow_rate_boundary"] },
-        { name := "collateralPrice"
-          params := [.uint256]
-          returnType := some .uint256
-          returns := [.uint256]
-          axiomNames := ["oracle_collateral_price_boundary"] },
-        { name := "oraclePrice"
-          params := [.uint256]
-          returnType := some .uint256
-          returns := [.uint256]
-          axiomNames := ["oracle_price_boundary"] }
-      ] }
+      externals := [] }
 
 /--
 Canonical selector boundary derived from the generated spec.

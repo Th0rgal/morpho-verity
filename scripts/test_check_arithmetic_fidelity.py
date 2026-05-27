@@ -13,6 +13,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_arithmetic_fidelity import (  # noqa: E402
   extract_proof_overflow_assumptions,
   extract_uint128_guard_names,
+  validate_checked_helper_docs,
 )
 
 
@@ -48,6 +49,26 @@ class CheckArithmeticFidelityTests(unittest.TestCase):
       "theorem sample (h_no_overflow : True) (h_supply_no_overflow : True) : True := by trivial"
     )
     self.assertEqual(names, {"h_no_overflow", "h_supply_no_overflow"})
+
+  def test_checked_helpers_are_documented(self) -> None:
+    validate_checked_helper_docs(
+      MACRO_PATH.read_text(encoding="utf-8"),
+      DOC_PATH.read_text(encoding="utf-8"),
+    )
+
+  def test_detects_missing_checked_helper_doc(self) -> None:
+    original = DOC_PATH.read_text(encoding="utf-8")
+    try:
+      DOC_PATH.write_text(
+        original.replace("`addPanic`", "`addPanic_removed`"),
+        encoding="utf-8",
+      )
+      proc = self.run_script()
+      self.assertNotEqual(proc.returncode, 0)
+      self.assertIn("missing checked helper docs", proc.stderr)
+      self.assertIn("addPanic", proc.stderr)
+    finally:
+      DOC_PATH.write_text(original, encoding="utf-8")
 
   def test_detects_missing_uint128_guard_doc(self) -> None:
     original = DOC_PATH.read_text(encoding="utf-8")

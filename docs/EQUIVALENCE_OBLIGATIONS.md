@@ -6,8 +6,8 @@ This document tracks the bridge assumptions that must become proved lemmas to su
 
 ## Status
 
-6/18 obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: setOwner, setFeeRecipient,
-enableIrm, enableLltv, setAuthorization, flashLoan. The proofs are in
+18/18 obligations have Link 1 (stable `Morpho.*` wrapper API ↔ EDSL) proven: setOwner, setFeeRecipient,
+enableIrm, enableLltv, setAuthorization, setAuthorizationWithSig, createMarket, accrueInterest, accrueInterestPublic, setFee, supply, withdraw, borrow, repay, supplyCollateral, withdrawCollateral, liquidate, flashLoan. The proofs are in
 `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
 Links 2+3 (EDSL → IR → Yul compilation correctness) are **delegated to Verity's
@@ -25,23 +25,23 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 
 | Obligation ID | Bridge hypothesis | Operation | Macro migrated | Status |
 |---------------|-------------------|-----------|:--------------:|--------|
-| `OBL-SUPPLY-SEM-EQ` | `supplySemEq` | `supply` | Y | `assumed` |
-| `OBL-WITHDRAW-SEM-EQ` | `withdrawSemEq` | `withdraw` | Y | `assumed` |
-| `OBL-BORROW-SEM-EQ` | `borrowSemEq` | `borrow` | Y | `assumed` |
-| `OBL-REPAY-SEM-EQ` | `repaySemEq` | `repay` | Y | `assumed` |
-| `OBL-SUPPLY-COLLATERAL-SEM-EQ` | `supplyCollateralSemEq` | `supplyCollateral` | Y | `assumed` |
-| `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | Y | `assumed` |
-| `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | Y | `assumed` |
-| `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | Y | `assumed` |
+| `OBL-SUPPLY-SEM-EQ` | `supplySemEq` | `supply` | Y | `link1_proven` |
+| `OBL-WITHDRAW-SEM-EQ` | `withdrawSemEq` | `withdraw` | Y | `link1_proven` |
+| `OBL-BORROW-SEM-EQ` | `borrowSemEq` | `borrow` | Y | `link1_proven` |
+| `OBL-REPAY-SEM-EQ` | `repaySemEq` | `repay` | Y | `link1_proven` |
+| `OBL-SUPPLY-COLLATERAL-SEM-EQ` | `supplyCollateralSemEq` | `supplyCollateral` | Y | `link1_proven` |
+| `OBL-WITHDRAW-COLLATERAL-SEM-EQ` | `withdrawCollateralSemEq` | `withdrawCollateral` | Y | `link1_proven` |
+| `OBL-LIQUIDATE-SEM-EQ` | `liquidateSemEq` | `liquidate` | Y | `link1_proven` |
+| `OBL-ACCRUE-INTEREST-SEM-EQ` | `accrueInterestSemEq` | `accrueInterest` | Y | `link1_proven` |
 | `OBL-ENABLE-IRM-SEM-EQ` | `enableIrmSemEq` | `enableIrm` | Y | `link1_proven` |
 | `OBL-ENABLE-LLTV-SEM-EQ` | `enableLltvSemEq` | `enableLltv` | Y | `link1_proven` |
 | `OBL-SET-AUTH-SEM-EQ` | `setAuthorizationSemEq` | `setAuthorization` | Y | `link1_proven` |
-| `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | Y | `assumed` |
+| `OBL-SET-AUTH-SIG-SEM-EQ` | `setAuthorizationWithSigSemEq` | `setAuthorizationWithSig` | Y | `link1_proven` |
 | `OBL-SET-OWNER-SEM-EQ` | `setOwnerSemEq` | `setOwner` | Y | `link1_proven` |
 | `OBL-SET-FEE-RECIPIENT-SEM-EQ` | `setFeeRecipientSemEq` | `setFeeRecipient` | Y | `link1_proven` |
-| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `assumed` |
-| `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | Y | `assumed` |
-| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | Y | `assumed` |
+| `OBL-CREATE-MARKET-SEM-EQ` | `createMarketSemEq` | `createMarket` | Y | `link1_proven` |
+| `OBL-SET-FEE-SEM-EQ` | `setFeeSemEq` | `setFee` | Y | `link1_proven` |
+| `OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ` | `accrueInterestPublicSemEq` | `accrueInterestPublic` | Y | `link1_proven` |
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
@@ -130,12 +130,13 @@ Known expected differences (handled by semantic bridge or dedicated gates):
 All 18/18 operations are now macro-migrated. `accrueInterestPublic` maps to the
 fully migrated `accrueInterest` function in MacroSlice (body inlined).
 
-**Resolved at the current pin** (`b699e300`): `setStructMember`/`structMember`
+**Resolved at the current pin** (`00c18e3a`): `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
 translators, `Bytes32`/`Bool` type support, linked externals, direct ERC20 helper syntax,
 tuple params, `MappingStruct`/`MappingStruct2`, `internalCall`, `mstore`/`mload`,
-macro-backed `ecrecover`, events via `emit`, `safeTransfer`/`safeTransferFrom`,
-`ecmDo` for callback invocations, and `uint128` overflow guards.
+macro-backed `ecrecover`, events via `emit`, Solmate ERC20 ECMs,
+`ecmDo` for callback invocations, static ABI/EIP-712 hash ECMs, typed
+one-word oracle-read ECMs, and `uint128` overflow guards.
 
 **Remaining blockers**:
 
@@ -184,10 +185,20 @@ operations (keccak-based slot computation) is not yet in PrimitiveBridge.
 | `enableIrm` | getMapping, setMapping, getStorageAddr, msgSender, require | **PROVEN** | Verity (trusted) |
 | `enableLltv` | getMappingUint, setMappingUint, getStorageAddr, msgSender, require | **PROVEN** | Verity (trusted) |
 | `setAuthorization` | getMapping2, setMapping2, if_then_else, msgSender, require | **PROVEN** | Verity (trusted) |
-| `flashLoan` | msgSender, require, emit, safeTransfer, safeTransferFrom | **PROVEN** | Verity (trusted) |
-| `createMarket` | getMapping, getMappingUint, structMember, setStructMember, externalCall, blockTimestamp | pending | Verity (trusted) |
+| `setAuthorizationWithSig` | blockTimestamp, chainid, contractAddress, getMapping, setMapping, static ABI/EIP-712 ECMs, ecrecover, rawLog | **PROVEN** | Verity (trusted) |
+| `accrueInterest` | structMember, setStructMember, blockTimestamp, checked arithmetic helpers, typed IRM read ECM, emit | **PROVEN** | Verity (trusted) |
+| `setFee` | getStorageAddr, structMember, setStructMember, accrueInterest, checked arithmetic helpers | **PROVEN** | Verity (trusted) |
+| `supply` | structMember, setStructMember, share conversion, emit, Solmate ERC20 ECM, callback boundary | **PROVEN** | Verity (trusted) |
+| `withdraw` | getMapping2, structMember, setStructMember, share conversion, liquidity check, emit, Solmate ERC20 ECM | **PROVEN** | Verity (trusted) |
+| `borrow` | getMapping2, structMember, setStructMember, share conversion, health/liquidity checks, emit, oracle and Solmate ERC20 ECMs | **PROVEN** | Verity (trusted) |
+| `repay` | structMember, setStructMember, share conversion, zero-floor subtraction, emit, Solmate ERC20 ECM, callback boundary | **PROVEN** | Verity (trusted) |
+| `supplyCollateral` | structMember, setStructMember, emit, Solmate ERC20 ECM, callback boundary | **PROVEN** | Verity (trusted) |
+| `withdrawCollateral` | getMapping2, structMember, setStructMember, health check, emit, oracle and Solmate ERC20 ECMs | **PROVEN** | Verity (trusted) |
+| `liquidate` | structMember, setStructMember, liquidation incentive math, bad-debt socialization, emit, oracle/callback/Solmate ERC20 ECMs | **PROVEN** | Verity (trusted) |
+| `flashLoan` | msgSender, require, emit/rawLog, Solmate ERC20 ECMs, callback ECM | **PROVEN** | Verity (trusted) |
+| `createMarket` | getMapping, getMappingUint, structMember, setStructMember, static ABI hash ECM, typed IRM read ECM, blockTimestamp | **PROVEN** | Verity (trusted) |
 
-**Summary**: 18/18 operations are macro-migrated, and 6 of those have Link 1
+**Summary**: 18/18 operations are macro-migrated, and 18 of those have Link 1
 (stable wrapper API ↔ EDSL) fully proven. Links 2+3 (compilation correctness)
 are delegated to Verity's compiler framework.
 
@@ -197,21 +208,19 @@ are delegated to Verity's compiler framework.
 first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has two links per obligation:
-1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for setOwner, setFeeRecipient, enableIrm, enableLltv, setAuthorization, flashLoan
+1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for all 18 tracked operations
 2. **Links 2+3** (Verity): `EDSL ↔ EVMYulLean(Yul)` — delegated to Verity's compiler framework (trusted)
 
-**Link 1 proof pattern** (for the 6 proven operations):
+**Link 1 proof pattern** (for the 18 proven operations):
 1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
 2. Run EDSL function on encoded state, decode result to `Option MorphoState`
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization
 
-### Discharge sequence (current pin: `b699e300`)
+### Discharge sequence (current pin: `00c18e3a`)
 
-1. **Link 1 proven (6 ops)**: `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`,
-   `setAuthorization`, `flashLoan` — Link 1 proven in `SemanticBridgeDischarge.lean`.
-2. **After Link 1 proofs for remaining operations**: 12 operations — requires
-   semantic-equivalence theorems connecting the EDSL implementations to the pure Lean models.
+1. **Link 1 proven (18 ops)**: all tracked operations — Link 1 proven in `SemanticBridgeDischarge.lean`.
+2. **After Link 1 proofs for remaining operations**: 0 operations remain at assumed Link 1 status.
 3. **`accrueInterestPublic` wrapper**: resolved — maps to the fully migrated `accrueInterest`.
 
 Machine-readable primitive coverage: `scripts/check_primitive_coverage.py --json-out`

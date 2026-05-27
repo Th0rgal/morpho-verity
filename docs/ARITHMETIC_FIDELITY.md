@@ -11,9 +11,27 @@ panic path automatically, so arithmetic fidelity is tracked explicitly here.
   full-precision `mulDiv512` semantics.
 - Proofs that need Solidity checked-arithmetic reachability carry explicit
   `h_no_overflow`-style hypotheses. Those are not discharged globally today.
-- `Morpho/Compiler/MacroSlice.lean` adds explicit `uint128 overflow` guards for
-  macro writes that model Solidity `toUint128()` casts after additions or
-  interest accrual.
+- `Morpho/Compiler/MacroSlice.lean` uses Verity's Solidity-0.8 panic helpers
+  (`addPanic`, `subPanic`, and `mulPanic`) for translated checked arithmetic
+  sites where the Solidity source would revert on overflow or underflow.
+- The macro slice also adds explicit `uint128 overflow` guards for macro writes
+  that model Solidity `toUint128()` casts after additions or interest accrual.
+
+## Checked/Panic Helper Coverage
+
+The macro slice now uses checked helpers for these source-level arithmetic
+families:
+
+| Solidity family | Macro helper coverage |
+|-----------------|-----------------------|
+| Timestamp elapsed calculation | `subPanic currentTimestamp currentLastUpdate` |
+| Accrual Taylor first term | `mulPanic borrowRateVal elapsed` |
+| Accrual term summation | `addPanic secondTerm thirdTerm`, `addPanic firstTerm secondPlusThird` |
+| Accrual asset growth | `addPanic totalBorrowAssets_ interest`, `addPanic totalSupplyAssets_ interest` |
+| Fee-share denominator construction | `addPanic totalSupplyShares_ 1000000`, `subPanic newTotalSupplyAssets feeAmount`, `addPanic supplyAssetsAfterFee 1` |
+| Position and market share/asset updates | `addPanic` / `subPanic` around supply, withdraw, borrow, repay, and liquidation field updates |
+| Virtual asset/share terms | `addPanic` for `+ 1` and `+ 1000000` denominators before share conversions |
+| Liquidation LIF and bad-debt reductions | `subPanic` for WAD/LLTV terms and total/position reductions |
 
 ## Guarded `uint128` Cast Sites
 

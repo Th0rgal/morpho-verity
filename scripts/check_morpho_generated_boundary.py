@@ -18,12 +18,7 @@ SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
 GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
 MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
 TRUST_DOC_PATH = ROOT / "docs" / "TRUST_BOUNDARIES.md"
-REQUIRED_EXTERNAL_AXIOMS = {
-  "keccakMarketParams": "market_id_deterministic",
-  "borrowRate": "irm_borrow_rate_boundary",
-  "collateralPrice": "oracle_collateral_price_boundary",
-  "oraclePrice": "oracle_price_boundary",
-}
+REQUIRED_EXTERNAL_AXIOMS: dict[str, str] = {}
 LOCAL_OBLIGATION_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*assumed\b")
 
 
@@ -41,6 +36,12 @@ def read_text(path: pathlib.Path) -> str:
 
 
 def validate_generated_external_axioms(text: str) -> None:
+  if not REQUIRED_EXTERNAL_AXIOMS:
+    if "axiomNames :=" in text:
+      raise MorphoGeneratedBoundaryError(
+        "Generated.lean must not declare linked externals at the current Verity pin"
+      )
+    return
   for external_name, axiom_name in REQUIRED_EXTERNAL_AXIOMS.items():
     block_match = re.search(
       r'\{\s*name\s*:=\s*"'

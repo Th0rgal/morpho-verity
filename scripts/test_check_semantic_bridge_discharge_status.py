@@ -20,9 +20,12 @@ from check_semantic_bridge_discharge_status import (  # noqa: E402
   ARCHITECTURE_SECTION_HEADER,
   DISCHARGE_SECTION_HEADER,
   EXPECTED_ARCHITECTURE_SUMMARY,
+  EXPECTED_ACCRUE_INTEREST_ROW,
+  EXPECTED_COMPLEX_OPS_ROW,
+  EXPECTED_CREATE_MARKET_ROW,
   EXPECTED_DISCHARGE_STATUS,
   EXPECTED_FLASHLOAN_ROW,
-  EXPECTED_REMAINING_ROW,
+  EXPECTED_SET_FEE_ROW,
   FORBIDDEN_SNIPPETS,
   NAMESPACE_HEADER,
   NAMESPACE_FOOTER,
@@ -57,11 +60,13 @@ def make_text() -> str:
 
     | Phase | Operations | Link 1 | Links 2+3 |
     |-------|-----------|--------|-----------|
-    | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `7b7c9193` |
-    | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `7b7c9193` |
+    | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `00c18e3a` |
+    | 2 | enableIrm, enableLltv, setAuthorization, setAuthorizationWithSig | **proven** | typed-IR bridge available at pin `00c18e3a` |
     {EXPECTED_FLASHLOAN_ROW}
-    | 4 | createMarket | macro-migrated | semantic equivalence theorem to the handwritten `Morpho.createMarket` model still pending |
-    {EXPECTED_REMAINING_ROW}
+    {EXPECTED_CREATE_MARKET_ROW}
+    {EXPECTED_ACCRUE_INTEREST_ROW}
+    {EXPECTED_SET_FEE_ROW}
+    {EXPECTED_COMPLEX_OPS_ROW}
     -/
 
     {NAMESPACE_FOOTER}
@@ -294,11 +299,13 @@ class SemanticBridgeDischargeStatusTests(unittest.TestCase):
 
       | Phase | Operations | Link 1 | Links 2+3 |
       |-------|-----------|--------|-----------|
-      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `7b7c9193` |
-      | 2 | enableIrm, enableLltv, setAuthorization | **proven** | typed-IR bridge available at pin `7b7c9193` |
+      | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `00c18e3a` |
+      | 2 | enableIrm, enableLltv, setAuthorization, setAuthorizationWithSig | **proven** | typed-IR bridge available at pin `00c18e3a` |
       {EXPECTED_FLASHLOAN_ROW}
-      | 4 | createMarket | macro-migrated | semantic equivalence theorem to the handwritten `Morpho.createMarket` model still pending |
-      {EXPECTED_REMAINING_ROW}
+      {EXPECTED_CREATE_MARKET_ROW}
+      {EXPECTED_ACCRUE_INTEREST_ROW}
+      {EXPECTED_SET_FEE_ROW}
+      {EXPECTED_COMPLEX_OPS_ROW}
       -/
 
       end Morpho.Proofs.SemanticBridgeDischarge

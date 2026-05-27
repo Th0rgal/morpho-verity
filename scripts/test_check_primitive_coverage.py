@@ -359,7 +359,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("createMarket", coverage)
         self.assertFalse(coverage["createMarket"]["fully_covered"])
         self.assertFalse(coverage["createMarket"]["edsl_ready"])
-        self.assertIn("externalCall", coverage["createMarket"]["missing"])
+        self.assertNotIn("externalCall", coverage["createMarket"]["missing"])
+        self.assertIn("rawLog", coverage["createMarket"]["missing"])
         self.assertIn("blockTimestamp", coverage["createMarket"]["primitives"])
 
         # Newly migrated signature and flash-loan flows should be present in the coverage set

@@ -10,7 +10,7 @@ concrete EDSL implementations proven equivalent to the pure Lean model in
 
 ## What this proves
 
-For each of the 5 admin operations with Link 1 discharged (setOwner,
+For each of the 5 admin operations instantiated here (setOwner,
 setFeeRecipient, enableIrm, enableLltv, setAuthorization), we instantiate all
 4 invariant preservation theorems (borrowLeSupply, alwaysCollateralized,
 irmMonotone, lltvMonotone), producing **20 concrete, sorry-free theorems** that
@@ -28,8 +28,8 @@ This is the **first real validation of the semantic bridge pipeline**:
 3. This file combines them: EDSL impl preserves all invariants
 
 Links 2+3 are already provided upstream for the supported fragment, so for the
-operations instantiated here the remaining repo-local work is Link 1 discharge
-plus macro/frontend unblockings on the unsupported surface. Composing these
+operations instantiated here the remaining repo-local work is trust-boundary
+discharge for raw-log, callback, ECM, and arithmetic behavior. Composing these
 theorems with the upstream typed-IR/compiler results extends them to the
 compiled on-chain Morpho contract for the supported operations.
 -/
@@ -232,7 +232,7 @@ theorem edsl_flashLoan_rejects_zero_assets
 
 21 concrete bridge instantiation theorems, zero sorry.
 
-For the 5 admin operations with Link 1 discharged, we have proven that the EDSL
+For the 5 admin operations instantiated here, we have proven that the EDSL
 implementation preserves:
 - `borrowLeSupply`: total borrow assets ≤ total supply assets per market
 - `alwaysCollateralized`: every borrower's position is adequately collateralized
@@ -248,14 +248,15 @@ These theorems prove that the EDSL execution preserves Morpho invariants.
 The supported-fragment semantic bridge already has:
 
 - **Link 2**: EDSL ≡ compiled CompilationModel IR
-  (available via typed-IR framework at verity pin `7b7c9193`)
+  (available via typed-IR framework at verity pin `00c18e3a`)
 - **Link 3**: compiled IR ≡ EVMYulLean(Yul)
   (proven in verity `Compiler/Proofs/EndToEnd.lean`)
 
 Composing those upstream results with these 21 instantiation theorems yields
 compiled-bytecode invariant preservation for the operations above. The
-remaining repo-local work is proving Link 1 and completing macro/frontend
-migration for the other Morpho operations.
+remaining repo-local work is extending these concrete instantiations beyond the
+representative admin/flash-loan surface and discharging raw-log, callback, ECM,
+and arithmetic trust boundaries.
 -/
 
 end Morpho.Proofs.SemanticBridgeInstantiation

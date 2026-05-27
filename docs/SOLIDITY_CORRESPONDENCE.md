@@ -20,7 +20,7 @@ has been proved.
 
 | Solidity surface | Macro status | Proof/equivalence status | Notes |
 |------------------|--------------|--------------------------|-------|
-| `DOMAIN_SEPARATOR()` | Translated | Assumed boundary | `domain_separator_memory` covers EIP-712 memory/hash layout. |
+| `DOMAIN_SEPARATOR()` | Translated | ECM boundary | Uses Verity static ABI Keccak over domain typehash, chain id, and contract address. |
 | `owner()` | Translated | Read-only generated surface | Reads `ownerSlot`. |
 | `feeRecipient()` | Translated | Read-only generated surface | Reads `feeRecipientSlot`. |
 | `isIrmEnabled(address)` | Translated | Read-only generated surface | Reads `isIrmEnabledSlot`. |
@@ -43,17 +43,17 @@ has been proved.
 | `enableIrm(address)` | Translated | Link 1 proven | Owner guard, zero-address, and already-enabled checks modeled. |
 | `enableLltv(uint256)` | Translated | Link 1 proven | Owner guard, max-LLTV, and already-enabled checks modeled. |
 | `setAuthorization(address,bool)` | Translated | Link 1 proven | `ALREADY_SET` check modeled; `set_authorization_event` covers raw-log encoding. |
-| `setAuthorizationWithSig(Authorization,Signature)` | Translated | Assumed boundary | Nonce ordering, EIP-712 hashing, ecrecover, and raw-log mechanics are local obligations. |
-| `createMarket(MarketParams)` | Translated | Assumed boundary | Includes enabled checks, storage initialization, event payload log, and post-create IRM init boundary. |
-| `setFee(MarketParams,uint256)` | Translated | Assumed boundary | Includes market-created, `ALREADY_SET`, max-fee, accrue-interest, and owner checks. |
-| `accrueInterest(MarketParams)` | Translated | Assumed boundary | IRM `borrowRate` remains `irm_borrow_rate_boundary`. |
-| `supply(MarketParams,uint256,uint256,address,bytes)` | Translated | Assumed boundary | Accrues interest and updates shares/assets; token/callback mechanics remain assumptions. |
-| `withdraw(MarketParams,uint256,uint256,address,address)` | Translated | Assumed boundary | Accrues interest, checks authorization/health, then transfers assets. |
-| `supplyCollateral(MarketParams,uint256,address,bytes)` | Translated | Assumed boundary | Does not accrue interest, matching Solidity; token/callback mechanics remain assumptions. |
-| `withdrawCollateral(MarketParams,uint256,address,address)` | Translated | Assumed boundary | Checks authorization/health before collateral transfer. |
-| `borrow(MarketParams,uint256,uint256,address,address)` | Translated | Assumed boundary | Accrues interest, checks authorization/health, then transfers borrowed assets. |
-| `repay(MarketParams,uint256,uint256,address,bytes)` | Translated | Assumed boundary | Uses zero-floor behavior for total-borrow asset reduction; callback/token mechanics remain assumptions. |
-| `liquidate(MarketParams,address,uint256,uint256,bytes)` | Translated | Assumed boundary | Models unhealthy-position check, LIF calculation, bad debt, and transfer order. |
+| `setAuthorizationWithSig(Authorization,Signature)` | Translated | Link 1 proven | Nonce ordering and signature-validity abstraction are modeled; EIP-712 hashing uses Verity static ABI/digest ECMs, while ecrecover and raw-log mechanics remain boundaries. |
+| `createMarket(MarketParams)` | Translated | Link 1 proven | Static ABI market-id hashing, enabled checks, and state initialization are modeled; event payload log and typed post-create IRM init ECM remain trust boundaries. |
+| `setFee(MarketParams,uint256)` | Translated | Link 1 proven | Includes market-created, `ALREADY_SET`, max-fee, accrue-interest, and owner checks. |
+| `accrueInterest(MarketParams)` | Translated | Link 1 proven | Interest arithmetic and state updates are modeled; IRM `borrowRate(MarketParams,Market)` uses a typed one-word read ECM and remains an external boundary. |
+| `supply(MarketParams,uint256,uint256,address,bytes)` | Translated | Link 1 proven | Accrues interest and updates shares/assets; token behavior and non-flash callback mechanics remain assumptions. |
+| `withdraw(MarketParams,uint256,uint256,address,address)` | Translated | Link 1 proven | Accrues interest, checks authorization and liquidity, then transfers assets. |
+| `supplyCollateral(MarketParams,uint256,address,bytes)` | Translated | Link 1 proven | Does not accrue interest, matching Solidity; token behavior and callback mechanics remain assumptions. |
+| `withdrawCollateral(MarketParams,uint256,address,address)` | Translated | Link 1 proven | Checks authorization/health before collateral transfer; oracle and token behavior remain assumptions. |
+| `borrow(MarketParams,uint256,uint256,address,address)` | Translated | Link 1 proven | Accrues interest, checks authorization/health, then transfers borrowed assets; oracle and token behavior remain assumptions. |
+| `repay(MarketParams,uint256,uint256,address,bytes)` | Translated | Link 1 proven | Uses zero-floor behavior for total-borrow asset reduction; token behavior and callback mechanics remain assumptions. |
+| `liquidate(MarketParams,address,uint256,uint256,bytes)` | Translated | Link 1 proven | Models unhealthy-position check, LIF calculation, bad debt, and transfer order; oracle, callback, and token behavior remain assumptions. |
 | `flashLoan(address,uint256,bytes)` | Translated | Link 1 proven | Callback call remains an external trust boundary, but ordering is proven against the pure wrapper model. |
 
 ## Cross-Cutting Gates

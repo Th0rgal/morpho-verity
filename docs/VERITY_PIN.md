@@ -3,20 +3,18 @@
 morpho-verity currently pins Verity to:
 
 - Repo: `https://github.com/Th0rgal/verity.git`
-- Short rev: `b699e30060cb80b3fd26c62010ecf5b151f31ab2`
-- Full rev: `b699e30060cb80b3fd26c62010ecf5b151f31ab2`
-- Tracking issue: `#118`
+- Short rev: `00c18e3a694201cc0dfd8d8f52abaa0bf308887c`
+- Full rev: `00c18e3a694201cc0dfd8d8f52abaa0bf308887c`
+- Tracking issue: `#1939`
 
 ## Why this pin
 
-This pin is the current deterministic base for morpho-verity's typed-IR
-semantic-bridge work after the Verity refresh requested in the refactor plan.
-It keeps the bridge surface already consumed by the repo and adds newer
-macro/frontend behavior Morpho now needs directly, including monadic runtime
-context accessors, typed router ABI support, expanded bridged call fragments,
-split native primitive proof support, linked externals, direct ERC20 helper
-syntax, executable tuple params, struct-mapping storage declarations, internal
-calls, and macro-backed `ecrecover` support.
+This pin is the current deterministic base for morpho-verity's post-#1939
+Solidity-fidelity work. It keeps the bridge surface already consumed by the repo
+and adds the Verity ECM modules Morpho now uses directly, including static ABI
+Keccak helpers, EIP-712 digest hashing, Solmate ERC20 transfer wrappers,
+callback and bubbling low-level-call support, typed one-word oracle reads, and
+Solidity-0.8 checked arithmetic helpers.
 
 ## Remaining repo-local divergence at this pin
 

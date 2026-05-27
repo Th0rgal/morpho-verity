@@ -36,7 +36,7 @@ class CheckSolidityCorrespondenceDocTests(unittest.TestCase):
   def test_extracts_table_rows_by_function_name(self) -> None:
     rows = extract_table_rows(DOC_PATH.read_text(encoding="utf-8"))
     self.assertEqual(rows["setOwner"]["macro_status"], "Translated")
-    self.assertEqual(rows["supply"]["proof_status"], "Assumed boundary")
+    self.assertEqual(rows["supply"]["proof_status"], "Link 1 proven")
 
   def test_detects_missing_operation_row(self) -> None:
     original = DOC_PATH.read_text(encoding="utf-8")

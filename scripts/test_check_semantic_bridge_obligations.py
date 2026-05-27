@@ -420,15 +420,19 @@ class IntegrationTests(unittest.TestCase):
         # Should not raise
         validate_config(config, bridge_hyps, macro_fns)
 
-        # 6 with Link 1 proofs should be in_progress, rest assumed
+        # All 18 Link 1 proofs should be in_progress; none remain assumed.
         in_progress = [o for o in config["obligations"] if o["status"] == "in_progress"]
         assumed = [o for o in config["obligations"] if o["status"] == "assumed"]
-        self.assertEqual(len(in_progress), 6)
-        self.assertEqual(len(assumed), 12)
+        self.assertEqual(len(in_progress), 18)
+        self.assertEqual(len(assumed), 0)
         in_progress_ops = sorted(o["operation"] for o in in_progress)
         self.assertEqual(
             in_progress_ops,
-            ["enableIrm", "enableLltv", "flashLoan", "setAuthorization", "setFeeRecipient", "setOwner"],
+            ["accrueInterest", "accrueInterestPublic", "borrow", "createMarket",
+             "enableIrm", "enableLltv", "flashLoan", "liquidate", "repay",
+             "setAuthorization", "setAuthorizationWithSig", "setFee",
+             "setFeeRecipient", "setOwner", "supply", "supplyCollateral",
+             "withdraw", "withdrawCollateral"],
         )
 
         # 18 should be macro-migrated (all operations including accrueInterestPublic via alias)

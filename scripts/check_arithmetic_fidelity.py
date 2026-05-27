@@ -22,6 +22,7 @@ UINT128_GUARD_RE = re.compile(
   rf'require\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*<=\s*{UINT128_MAX}\s*\)\s*"uint128 overflow"'
 )
 PROOF_OVERFLOW_RE = re.compile(r"\bh_[A-Za-z0-9_]*overflow[A-Za-z0-9_]*\b")
+CHECKED_HELPERS = ("addPanic", "subPanic", "mulPanic")
 
 
 class ArithmeticFidelityError(RuntimeError):
@@ -55,6 +56,21 @@ def validate_uint128_guard_docs(macro_text: str, doc_text: str) -> None:
     )
   if not guarded_names:
     raise ArithmeticFidelityError("MacroSlice.lean has no documented uint128 overflow guards")
+
+
+def validate_checked_helper_docs(macro_text: str, doc_text: str) -> None:
+  missing_macro = [helper for helper in CHECKED_HELPERS if helper not in macro_text]
+  if missing_macro:
+    raise ArithmeticFidelityError(
+      "MacroSlice.lean is missing checked arithmetic helper(s): "
+      + ", ".join(missing_macro)
+    )
+  missing_doc = [helper for helper in CHECKED_HELPERS if f"`{helper}`" not in doc_text]
+  if missing_doc:
+    raise ArithmeticFidelityError(
+      "ARITHMETIC_FIDELITY.md is missing checked helper docs for: "
+      + ", ".join(missing_doc)
+    )
 
 
 def validate_proof_assumption_docs(doc_text: str) -> None:
@@ -96,7 +112,9 @@ def validate_mathlib_boundary(math_text: str, doc_text: str) -> None:
 
 def main() -> int:
   doc_text = read_text(DOC_PATH)
-  validate_uint128_guard_docs(read_text(MACRO_PATH), doc_text)
+  macro_text = read_text(MACRO_PATH)
+  validate_uint128_guard_docs(macro_text, doc_text)
+  validate_checked_helper_docs(macro_text, doc_text)
   validate_proof_assumption_docs(doc_text)
   validate_mathlib_boundary(read_text(MATH_PATH), doc_text)
   print("arithmetic-fidelity check: OK")

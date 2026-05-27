@@ -87,42 +87,42 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-SUPPLY-SEM-EQ"
     hypothesis := "supplySemEq"
     operation := "supply"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing callback/token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-WITHDRAW-SEM-EQ"
     hypothesis := "withdrawSemEq"
     operation := "withdraw"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-BORROW-SEM-EQ"
     hypothesis := "borrowSemEq"
     operation := "borrow"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing oracle/token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-REPAY-SEM-EQ"
     hypothesis := "repaySemEq"
     operation := "repay"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing callback/token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-SUPPLY-COLLATERAL-SEM-EQ"
     hypothesis := "supplyCollateralSemEq"
     operation := "supplyCollateral"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing callback/token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-WITHDRAW-COLLATERAL-SEM-EQ"
     hypothesis := "withdrawCollateralSemEq"
     operation := "withdrawCollateral"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing oracle/token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-LIQUIDATE-SEM-EQ"
     hypothesis := "liquidateSemEq"
     operation := "liquidate"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing oracle/callback/token abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-ACCRUE-INTEREST-SEM-EQ"
     hypothesis := "accrueInterestSemEq"
     operation := "accrueInterest"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven with proof-facing borrow-rate abstraction; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-ENABLE-IRM-SEM-EQ"
     hypothesis := "enableIrmSemEq"
@@ -142,8 +142,8 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-SET-AUTH-SIG-SEM-EQ"
     hypothesis := "setAuthorizationWithSigSemEq"
     operation := "setAuthorizationWithSig"
-    status := .assumed
-    macroMigrated := true },  -- macro body migrated; Link 1 still needs a proof-facing signature abstraction for executable ecrecover
+    status := .inProgress  -- Link 1 proven with proof-facing signature abstraction; Links 2+3 via typed-IR framework
+    macroMigrated := true },
   { id := "OBL-SET-OWNER-SEM-EQ"
     hypothesis := "setOwnerSemEq"
     operation := "setOwner"
@@ -157,17 +157,17 @@ def obligations : List SemanticBridgeObligation := [
   { id := "OBL-CREATE-MARKET-SEM-EQ"
     hypothesis := "createMarketSemEq"
     operation := "createMarket"
-    status := .assumed
-    macroMigrated := true },  -- macro body is migrated, but the semantic-equivalence theorem to `Morpho.createMarket` is still pending
+    status := .inProgress  -- Link 1 proven (SemanticBridgeDischarge); Links 2+3 via typed-IR framework
+    macroMigrated := true },
   { id := "OBL-SET-FEE-SEM-EQ"
     hypothesis := "setFeeSemEq"
     operation := "setFee"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven via accrueInterest adapter; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-ACCRUE-INTEREST-PUBLIC-SEM-EQ"
     hypothesis := "accrueInterestPublicSemEq"
     operation := "accrueInterestPublic"
-    status := .assumed
+    status := .inProgress  -- Link 1 proven as public wrapper over accrueInterest; Links 2+3 via typed-IR framework
     macroMigrated := true },
   { id := "OBL-FLASH-LOAN-SEM-EQ"
     hypothesis := "flashLoanSemEq"
@@ -180,18 +180,20 @@ def obligations : List SemanticBridgeObligation := [
 theorem obligation_count : obligations.length = 18 := by
   native_decide
 
-/-- 6 of 18 operations have Link 1 proven.
+/-- 18 of 18 operations have Link 1 proven.
     Link 1 (wrapper API ↔ EDSL) is proven in `SemanticBridgeDischarge.lean`.
     Links 2+3 (EDSL → IR → Yul) are delegated to Verity's compiler framework.
-    These 6 Link 1 operations are: setOwner, setFeeRecipient, enableIrm, enableLltv,
-    setAuthorization, flashLoan. -/
+    These 18 Link 1 operations are: setOwner, setFeeRecipient, enableIrm, enableLltv,
+    setAuthorization, setAuthorizationWithSig, createMarket, accrueInterest,
+    accrueInterestPublic, setFee, supply, withdraw, borrow, repay, supplyCollateral,
+    withdrawCollateral, liquidate, flashLoan. -/
 theorem link1_proven_count :
-    (obligations.filter (fun o => o.status != .assumed)).length = 6 := by
+    (obligations.filter (fun o => o.status != .assumed)).length = 18 := by
   native_decide
 
-/-- 12 operations still have assumed status (Link 1 not yet proven). -/
+/-- 0 operations still have assumed status (Link 1 not yet proven). -/
 theorem assumed_count :
-    (obligations.filter (fun o => o.status == .assumed)).length = 12 := by
+    (obligations.filter (fun o => o.status == .assumed)).length = 0 := by
   native_decide
 
 /-- 18 of 18 operations have full (non-stub) macro implementations.

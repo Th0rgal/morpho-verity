@@ -119,7 +119,7 @@ compute_input_digest() {
     done
     printf 'artifact_mode=%s\n' "${ARTIFACT_MODE}"
     printf 'skip_solc=%s\n' "${SKIP_SOLC}"
-    printf 'parity_pack=%s\n' "${PARITY_PACK}"
+    printf 'parity_pack=%s\n' "${REQUESTED_PARITY_PACK}"
   } | sha256sum)"
   printf '%s\n' "${digest_line%% *}"
 }
@@ -143,7 +143,7 @@ manifest_matches() {
   [[ "${recorded_digest}" == "${digest}" ]] \
     && [[ "${recorded_mode}" == "${ARTIFACT_MODE}" ]] \
     && [[ "${recorded_skip_solc}" == "${SKIP_SOLC}" ]] \
-    && [[ "${recorded_pack}" == "${PARITY_PACK}" ]]
+    && [[ "${recorded_pack}" == "${REQUESTED_PARITY_PACK}" ]]
 }
 
 write_manifest() {
@@ -152,7 +152,7 @@ write_manifest() {
 input_digest=${digest}
 artifact_mode=${ARTIFACT_MODE}
 skip_solc=${SKIP_SOLC}
-parity_pack=${PARITY_PACK}
+parity_pack=${REQUESTED_PARITY_PACK}
 EOF
 }
 
@@ -283,6 +283,7 @@ PY
   fi
 fi
 PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
+REQUESTED_PARITY_PACK="${PARITY_PACK}"
 
 mkdir -p "${OUT_DIR}"
 : > "${TIMINGS_LOG}"

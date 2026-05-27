@@ -28,6 +28,9 @@ INPUT_DIGEST_PATHS = (
   pathlib.Path("config/yul-rewrite-pipeline.json"),
   pathlib.Path("config/yul-rewrite-proof-obligations.json"),
   pathlib.Path("artifacts/inputs/MarketParamsHash.yul"),
+  pathlib.Path("artifacts/inputs/BorrowRate.yul"),
+  pathlib.Path("artifacts/inputs/OraclePrice.yul"),
+  pathlib.Path("artifacts/inputs/CollateralPrice.yul"),
   pathlib.Path("Morpho"),
 )
 

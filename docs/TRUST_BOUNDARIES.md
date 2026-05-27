@@ -1,25 +1,18 @@
 # Trust Boundaries
 
 This document records the current Morpho-specific assumptions that remain after
-the `b699e300` Verity upgrade, plus the actionability update after upstream
-Verity PR `lfglabs-dev/verity#1939` merged at
-`00c18e3a694201cc0dfd8d8f52abaa0bf308887c`. It is an inventory, not a proof
+the `00c18e3a` Verity upgrade, which includes upstream Verity PR
+`lfglabs-dev/verity#1939`. It is an inventory, not a proof
 claim: each item must either be discharged, replaced by a concrete Verity
 module, or remain an explicit assumption before stronger Solidity-equivalence
 claims are made.
 
 ## Generated Externals
 
-`Morpho/Compiler/Generated.lean` names every linked external in the generated
-compiler boundary. CI enforces these names through
-`scripts/check_morpho_generated_boundary.py`.
-
-| External | Axiom name | Current role |
-|----------|------------|--------------|
-| `keccakMarketParams` | `market_id_deterministic` | Placeholder for `MarketParamsLib.id`; must become exact `keccak256(abi.encode(marketParams))` over the five-word tuple. |
-| `borrowRate` | `irm_borrow_rate_boundary` | IRM `borrowRate(marketParams, market)` environment boundary; return value, no-revert behavior, and no-reentrancy remain assumed. |
-| `collateralPrice` | `oracle_collateral_price_boundary` | Legacy oracle-price adapter boundary retained for parity with the old spec surface. |
-| `oraclePrice` | `oracle_price_boundary` | Oracle `price()` environment boundary; scale, bounds, no-revert behavior, and freshness remain assumed. |
+`Morpho/Compiler/Generated.lean` currently carries no linked externals. Former
+placeholders for `keccakMarketParams`, `borrowRate`, and `oraclePrice` have been
+replaced in `Morpho/Compiler/MacroSlice.lean` with Verity ECM modules. CI
+enforces this boundary through `scripts/check_morpho_generated_boundary.py`.
 
 ## Local Obligations
 
@@ -28,9 +21,7 @@ Verity proof fragment does not yet cover the mechanics:
 
 | Local obligation | Usage |
 |------------------|-------|
-| `domain_separator_memory` | `DOMAIN_SEPARATOR()` memory writes and EIP-712 domain hash layout. |
 | `set_authorization_event` | `SetAuthorization` raw-log memory encoding in `setAuthorization`. |
-| `authorization_sig_memory` | EIP-712 typed-data hashing plus ecrecover memory layout in `setAuthorizationWithSig`. |
 | `authorization_post_ecrecover_write` | Intentional nonce increment before signature recovery and authorization write after ecrecover, matching Solidity ordering. |
 | `create_market_irm_init` | Post-create IRM initialization call in `createMarket`. |
 | `supply_callback`, `repay_callback`, `supply_collateral_callback`, `liquidate_callback` | Morpho callback ordering plus token transfer mechanics around the callback boundary. |
@@ -38,9 +29,11 @@ Verity proof fragment does not yet cover the mechanics:
 
 ## Still Assumed At The Current Pin
 
-- ERC-20 optional-return SafeTransferLib behavior, token no-fee/no-reentrancy
+- ERC-20 optional-return SafeTransferLib target behavior, token no-fee/no-reentrancy
   economic assumptions, and external callee liveness.
-- ECDSA/ecrecover cryptographic correctness and exact EIP-712 digest layout.
+- ECDSA/ecrecover cryptographic correctness.
+- Static ABI/EIP-712/Keccak memory-slice correctness as surfaced by Verity ECM
+  trust reports.
 - Callback ECM target behavior, including the flash-loan callback between
   `safeTransfer` and `safeTransferFrom`.
 - Event/log memory mechanics for raw-log paths, including `CreateMarket`'s
@@ -51,9 +44,9 @@ Verity proof fragment does not yet cover the mechanics:
 
 ## Verity Coverage Audit
 
-At the current Morpho pin (`b699e300`), several EVM-shaped features are still
-represented through local obligations or linked externals. Upstream Verity merge
-commit `00c18e3a` changes the status of those items: the framework now exposes
+At the current Morpho pin (`00c18e3a`), several EVM-shaped features that were
+previously represented through local obligations or linked externals are now
+directly actionable: the framework exposes
 static ABI Keccak helpers, EIP-712 digest helpers, Solmate-compatible ERC-20
 optional-return ECMs, bubbling call/callback modules, raw-log validation tests,
 and Solidity-0.8 checked-arithmetic helpers.
@@ -85,9 +78,8 @@ remaining report entries are narrow and auditable.
 
 ## Post-Verity #1939 Actionability
 
-After Morpho advances its Verity pin to a revision at or after `00c18e3a`, the
-following boundaries should be treated as Morpho-local cleanup work rather than
-missing Verity features:
+After Morpho advanced its Verity pin to `00c18e3a`, the following boundaries are
+Morpho-local cleanup work rather than missing Verity features:
 
 - `keccakMarketParams`: replace the linked external with
   `Compiler.Modules.Hashing.abiEncodeStaticWords` over the exact five

@@ -49,13 +49,13 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
     finally:
       MAIN_PATH.write_text(original, encoding="utf-8")
 
-  def test_detects_missing_external_axiom_name(self) -> None:
+  def test_detects_unexpected_linked_external(self) -> None:
     original = GENERATED_PATH.read_text(encoding="utf-8")
     try:
       GENERATED_PATH.write_text(
         original.replace(
-          'axiomNames := ["irm_borrow_rate_boundary"]',
-          'axiomNames := []',
+          "externals := []",
+          'externals := [{ name := "borrowRate", params := [.uint256], returnType := some .uint256, returns := [.uint256], axiomNames := ["irm_borrow_rate_boundary"] }]',
           1,
         ),
         encoding="utf-8",
@@ -68,8 +68,7 @@ class CheckMorphoGeneratedBoundaryTests(unittest.TestCase):
         check=False,
       )
       self.assertNotEqual(proc.returncode, 0)
-      self.assertIn("borrowRate", proc.stderr)
-      self.assertIn("irm_borrow_rate_boundary", proc.stderr)
+      self.assertIn("must not declare linked externals", proc.stderr)
     finally:
       GENERATED_PATH.write_text(original, encoding="utf-8")
 

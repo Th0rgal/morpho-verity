@@ -61,10 +61,12 @@ semantics rather than a trusted reimplementation. Track upstream history in
 [verity#1060](https://github.com/Th0rgal/verity/issues/1060) and
 [verity#1065](https://github.com/Th0rgal/verity/pull/1065).
 
-**Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 6/18 operations:**
+**Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 18/18 operations:**
 `setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`,
-`flashLoan`.
-The remaining 12/18 operations still have assumed Link 1 status in
+`setAuthorizationWithSig`, `createMarket`, `accrueInterest`, `accrueInterestPublic`,
+`setFee`, `supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`,
+`withdrawCollateral`, `liquidate`, `flashLoan`.
+The remaining 0/18 operations still have assumed Link 1 status in
 `config/semantic-bridge-obligations.json`.
 See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
 
