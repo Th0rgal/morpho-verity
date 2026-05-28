@@ -618,6 +618,14 @@ jobs:
       - name: Validate prepared EDSL artifact bundle
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 
+      - name: Stage Verity artifact for Foundry smoke tests
+        run: |
+          mkdir -p artifacts/yul
+          cp out/parity-shared/edsl/Morpho.yul artifacts/yul/Morpho.yul
+          cp out/parity-shared/edsl/Morpho.rewritten.yul artifacts/yul/Morpho.rewritten.yul
+          cp out/parity-shared/edsl/Morpho.bin artifacts/yul/Morpho.bin
+          cp out/parity-shared/edsl/Morpho.abi.json artifacts/yul/Morpho.abi.json
+
       - name: Run Verity artifact smoke tests
         working-directory: verity-foundry
         run: ../scripts/run_with_timeout.sh MORPHO_VERITY_SMOKE_TIMEOUT_SEC 3000 "Verity artifact smoke tests" -- forge test -vvv
