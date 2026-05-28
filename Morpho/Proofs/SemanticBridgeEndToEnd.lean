@@ -11,7 +11,7 @@ This module composes all available links of the semantic bridge:
 ```
 Canonical contract semantics            ← Link 1 (SemanticBridgeDischarge)
   ↕
-EDSL (MorphoViewSlice.setOwner)          ← Link 2+3 (Verity compiler, trusted)
+EDSL (Morpho.Contract.Morpho.setOwner)   ← Link 2+3 (Verity compiler, trusted)
   ↕
 EVMYulLean (Yul execution)
 ```
@@ -190,7 +190,7 @@ theorem edsl_setAuthorization_irmMonotone
     (h_enabled : s.isIrmEnabled irm)
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isIrmEnabled irm := by
-  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 theorem edsl_setAuthorization_lltvMonotone
@@ -199,7 +199,7 @@ theorem edsl_setAuthorization_lltvMonotone
     (h_enabled : s.isLltvEnabled lltv)
     (h_ok : edslSetAuthorization s authorized newIsAuthorized = some s') :
     s'.isLltvEnabled lltv := by
-  obtain rfl := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
+  obtain ⟨_, rfl⟩ := (Morpho.setAuthorization_success_iff s s' authorized newIsAuthorized).1 h_ok
   exact h_enabled
 
 /-! ## flashLoan: Link 1 + canonical rejection theorem -/
@@ -235,7 +235,7 @@ Delegated to Verity's compiler framework. See trust assumption above.
 ### Remaining Link 1 gaps
 
 - **12 remaining operations**: Link 1 (Lean model = EDSL) proofs not yet written
-- All 18 operations are macro-migrated in MacroSlice.lean
+- All 18 operations are macro-migrated in Morpho/Contract.lean
 -/
 
 end Morpho.Proofs.SemanticBridgeEndToEnd

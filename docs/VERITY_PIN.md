@@ -20,9 +20,9 @@ Solidity-0.8 checked arithmetic helpers.
 
 ### Local generated-contract boundary
 
-Morpho still routes through repo-local MacroSlice/Generated compiler
-entrypoints instead of importing a direct upstream canonical contract
-definition.
+Morpho now keeps the canonical Verity contract in Morpho/Contract.lean, while
+MacroSlice remains as a compatibility alias and Generated.lean remains the
+repo-local compiler boundary.
 
 Relevant files:
 - `Morpho/Contract.lean`

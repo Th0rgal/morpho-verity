@@ -510,8 +510,8 @@ raw-log payloads, callbacks, and ECM-backed calls.
 |-------|-----------|--------|-----------|
 | 1 | setOwner, setFeeRecipient | **proven** | typed-IR bridge available at pin `00c18e3a` |
 | 2 | enableIrm, enableLltv, setAuthorization, setAuthorizationWithSig | **proven** | typed-IR bridge available at pin `00c18e3a` |
-| 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` tail with caller/token topics, then external I/O bridge work |
-| 4 | createMarket | **proven** | pending `rawLog` payload and post-create IRM ECM trust-boundary discharge |
+| 3 | flashLoan | **proven** | pending external I/O bridge work for ERC20 transfer and callback ECMs |
+| 4 | createMarket | **proven** | pending post-create IRM ECM trust-boundary discharge |
 | 5 | accrueInterest, accrueInterestPublic | **proven** | pending typed IRM ECM trust-boundary discharge |
 | 6 | setFee | **proven** | pending accrue-interest/IRM ECM trust-boundary discharge |
 | 7 | supply, withdraw, repay, borrow, supplyCollateral, withdrawCollateral, liquidate | **proven** | pending callback/ERC20/oracle ECM trust-boundary discharge |

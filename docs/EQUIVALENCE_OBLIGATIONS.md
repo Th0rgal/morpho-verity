@@ -45,10 +45,10 @@ Each hypothesis must be tracked as a proof obligation with owner and status.
 | `OBL-FLASH-LOAN-SEM-EQ` | `flashLoanSemEq` | `flashLoan` | Y | `link1_proven` |
 
 **Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in
-`MacroSlice.lean`, which is the current macro-generated contract surface. 18/18 operations are
+`Contract.lean`, which is the current macro-generated contract surface. 18/18 operations are
 macro-migrated (`accrueInterestPublic` maps to the fully migrated `accrueInterest` function).
 CI enforces macro migration status consistency: `scripts/check_semantic_bridge_obligations.py`
-cross-references `macroMigrated` flags in config against stub detection in `MacroSlice.lean`.
+cross-references `macroMigrated` flags in config against stub detection in `Morpho/Contract.lean`.
 `scripts/check_equivalence_obligations_doc.py` now also fail-closes the top-level Link 1 /
 macro-migration status summary and the markdown issue-cluster table below against the tracked
 obligation inventory, so the repo-facing roadmap in this document cannot silently drift from the
@@ -82,12 +82,12 @@ The discharge requires a two-layer correspondence for each operation:
 
 ```
 Morpho.f args                        -- stable wrapper surface (this repo)
-  = MorphoViewSlice.f.exec state     -- EDSL macro output (verity_contract)
+  = Morpho.Contract.Morpho.f state   -- EDSL macro output (verity_contract)
   = EVMYulLean(compile(spec)).exec   -- verified EVM semantics (Verity compiler, trusted)
 ```
 
-- **Link 1** (stable wrapper API ↔ EDSL): requires that `MorphoViewSlice`
-  functions in `MacroSlice.lean` have full implementations matching
+- **Link 1** (stable wrapper API ↔ EDSL): requires that `Morpho.Contract.Morpho`
+  functions in `Morpho/Contract.lean` have full implementations matching
   `Morpho.*`, which in turn aliases `Morpho.Specs.ContractSemantics` for the
   migrated operations. All 18/18 operations now have full macro implementations;
   the remaining Link 1 gaps are proof-level (semantic-equivalence theorems
@@ -108,7 +108,7 @@ Lean-level obligation registry: `Morpho/Proofs/SemanticBridgeReadiness.lean`
 ## Spec Correspondence
 
 For macro-migrated operations, `scripts/check_spec_correspondence.py` validates structural
-correspondence between the macro-generated CompilationModel (`MacroSlice.lean`) and the
+correspondence between the macro-generated CompilationModel (`Morpho/Contract.lean`) and the
 manual spec (`Spec.lean`):
 
 - **Storage slots**: slot numbers must match between macro `storage` declarations and
@@ -123,12 +123,12 @@ Known expected differences (handled by semantic bridge or dedicated gates):
   `EventsLib.sol` by `scripts/check_morpho_event_surface.py`; raw-log payload
   mechanics remain part of the event/log proof boundary.
 - **Stop**: `Spec.lean` ends functions with `Stmt.stop` (implicit in EDSL do-blocks)
-- **Require expansion**: MacroSlice expands `requireOwner` into explicit `msgSender` + `require`
+- **Require expansion**: the macro frontend expands `requireOwner` into explicit `msgSender` + `require`
 
 ## Macro Migration Blockers
 
 All 18/18 operations are now macro-migrated. `accrueInterestPublic` maps to the
-fully migrated `accrueInterest` function in MacroSlice (body inlined).
+fully migrated `accrueInterest` function in `Morpho/Contract.lean` (body inlined).
 
 **Resolved at the current pin** (`00c18e3a`): `setStructMember`/`structMember`
 statement/expression primitives, `getMappingUint`/`setMappingUint` explicit
@@ -208,11 +208,11 @@ are delegated to Verity's compiler framework.
 first link of the discharge chain: **Pure Lean ↔ EDSL equivalence**.
 
 The discharge has two links per obligation:
-1. **Link 1** (this repo): `Morpho.f ↔ MorphoViewSlice.f` — proven for all 18 tracked operations
+1. **Link 1** (this repo): `Morpho.f ↔ Morpho.Contract.Morpho.f` — proven for all 18 tracked operations
 2. **Links 2+3** (Verity): `EDSL ↔ EVMYulLean(Yul)` — delegated to Verity's compiler framework (trusted)
 
 **Link 1 proof pattern** (for the 18 proven operations):
-1. Define `encodeMorphoState : MorphoState → ContractState` matching MacroSlice storage
+1. Define `encodeMorphoState : MorphoState → ContractState` matching `Morpho/Contract.lean` storage
 2. Run EDSL function on encoded state, decode result to `Option MorphoState`
 3. Unfold EDSL monadic chain (`bind`, `msgSender`, `getStorageAddr`, `require`, etc.)
 4. `split <;> simp_all` closes all cases after `beq_iff_eq`/`bne_iff_ne` normalization

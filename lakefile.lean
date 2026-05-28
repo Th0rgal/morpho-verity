@@ -10,7 +10,7 @@ require verity from git
 @[default_target]
 lean_lib «Morpho» where
   -- Exclude Morpho.Compiler.Spec (legacy hand-written CompilationModel, 1305 lines).
-  -- It is superseded by MacroSlice.lean + Generated.lean; no Lean file imports it.
+  -- It is superseded by Contract.lean + Generated.lean; no Lean file imports it.
   -- Python CI scripts still read it as plain text for structural correspondence
   -- checks, so the file stays in-tree but is no longer compiled by Lake.
   globs := #[
@@ -22,7 +22,6 @@ lean_lib «Morpho» where
     .submodules `Morpho.Specs,
     .submodules `Morpho.Proofs,
     .one `Morpho.Compiler.Generated,
-    .one `Morpho.Compiler.MacroSlice,
     .one `Morpho.Compiler.Main,
     .one `Morpho.Compiler.MainTest
   ]

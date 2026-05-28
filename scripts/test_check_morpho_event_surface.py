@@ -96,7 +96,7 @@ private def morphoEvents : List EventDef := [
 
   def test_current_repo_event_surface_matches(self) -> None:
     solidity = extract_solidity_events((ROOT / "morpho-blue" / "src" / "libraries" / "EventsLib.sol").read_text())
-    generated = extract_generated_events((ROOT / "Morpho" / "Compiler" / "Generated.lean").read_text())
+    generated = extract_generated_events((ROOT / "Morpho" / "Contract.lean").read_text())
     validate_event_surface(solidity, generated)
 
   def test_cli_reports_checker_error_without_traceback(self) -> None:

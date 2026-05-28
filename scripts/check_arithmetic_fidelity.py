@@ -10,7 +10,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOC_PATH = ROOT / "docs" / "ARITHMETIC_FIDELITY.md"
-MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 MATH_PATH = ROOT / "Morpho" / "Libraries" / "MathLib.lean"
 PROOF_PATHS = (
   ROOT / "Morpho" / "Proofs" / "Invariants.lean",
@@ -55,14 +55,14 @@ def validate_uint128_guard_docs(macro_text: str, doc_text: str) -> None:
       + ", ".join(missing)
     )
   if not guarded_names:
-    raise ArithmeticFidelityError("MacroSlice.lean has no documented uint128 overflow guards")
+    raise ArithmeticFidelityError("Contract.lean has no documented uint128 overflow guards")
 
 
 def validate_checked_helper_docs(macro_text: str, doc_text: str) -> None:
   missing_macro = [helper for helper in CHECKED_HELPERS if helper not in macro_text]
   if missing_macro:
     raise ArithmeticFidelityError(
-      "MacroSlice.lean is missing checked arithmetic helper(s): "
+      "Contract.lean is missing checked arithmetic helper(s): "
       + ", ".join(missing_macro)
     )
   missing_doc = [helper for helper in CHECKED_HELPERS if f"`{helper}`" not in doc_text]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail-closed checker for CompilationModel spec correspondence.
 
-Validates that macro-migrated functions in MacroSlice.lean have structural
+Validates that macro-migrated functions in Contract.lean have structural
 correspondence with the manual Spec.lean: matching function names, parameter
 counts, storage slot assignments, and require condition counts.
 
@@ -21,7 +21,7 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC_PATH = ROOT / "Morpho" / "Compiler" / "Spec.lean"
-MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 
 
@@ -177,7 +177,7 @@ def extract_spec_functions(text: str) -> dict[str, dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# MacroSlice.lean extraction
+# Contract.lean extraction
 # ---------------------------------------------------------------------------
 
 # Matches function declarations
@@ -208,7 +208,7 @@ HARDCODED_RETURN_RE = re.compile(r"returnValues\s*\[\s*0(?:\s*,\s*0)*\s*\]")
 
 
 def split_macro_functions(text: str) -> dict[str, str]:
-    """Split MacroSlice.lean into per-function text blocks."""
+    """Split Contract.lean into per-function text blocks."""
     result: dict[str, str] = {}
     matches = list(MACRO_FUNC_RE.finditer(text))
     for i, m in enumerate(matches):
@@ -220,7 +220,7 @@ def split_macro_functions(text: str) -> dict[str, str]:
 
 
 def extract_macro_functions(text: str) -> dict[str, dict[str, Any]]:
-    """Extract function metadata from MacroSlice.lean."""
+    """Extract function metadata from Contract.lean."""
     result: dict[str, dict[str, Any]] = {}
     for fn_name, block in split_macro_functions(text).items():
         m = MACRO_FUNC_RE.search(block)
@@ -242,7 +242,7 @@ def extract_macro_functions(text: str) -> dict[str, dict[str, Any]]:
 
 
 def extract_macro_slots(text: str) -> dict[str, int]:
-    """Extract storage slot assignments from MacroSlice.lean."""
+    """Extract storage slot assignments from Contract.lean."""
     result: dict[str, int] = {}
     for m in MACRO_SLOT_RE.finditer(text):
         field_name = m.group(1).replace("Slot", "")
@@ -322,7 +322,7 @@ def validate_correspondence(
         # Resolve alias: if the operation maps to a different MacroSlice function name
         macro_name = macro_aliases.get(op, op)
         if macro_name not in macro_fns:
-            errors.append(f"migrated op '{op}' not found in MacroSlice.lean")
+            errors.append(f"migrated op '{op}' not found in Contract.lean")
             continue
         spec_name = macro_aliases.get(op, op)
         if spec_name not in spec_fns:
@@ -333,7 +333,7 @@ def validate_correspondence(
         spec = spec_fns[spec_name]
 
         if macro["is_stub"]:
-            errors.append(f"migrated op '{op}' is a stub in MacroSlice.lean")
+            errors.append(f"migrated op '{op}' is a stub in Contract.lean")
 
         if macro["param_count"] != spec["param_count"]:
             errors.append(

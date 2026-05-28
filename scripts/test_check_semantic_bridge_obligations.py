@@ -401,7 +401,7 @@ class IntegrationTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parent.parent
         bridge_path = root / "Morpho" / "Proofs" / "SolidityBridge.lean"
         config_path = root / "config" / "semantic-bridge-obligations.json"
-        macro_path = root / "Morpho" / "Compiler" / "MacroSlice.lean"
+        macro_path = root / "Morpho" / "Contract.lean"
 
         if not bridge_path.exists() or not config_path.exists():
             self.skipTest("repo files not available")

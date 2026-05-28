@@ -30,11 +30,11 @@ To discharge morpho-verity's obligations, we need the chain:
 
 ```
 Morpho.f args                          -- pure Lean model
-  = MorphoViewSlice.f.exec state       -- EDSL macro output (macro-migrated for all tracked ops)
+  = Morpho.Contract.Morpho.f state     -- EDSL macro output (macro-migrated for all tracked ops)
   = EVMYulLean(compile(spec)).exec     -- verified EVM semantics (verity bridge)
 ```
 
-The first link (stable wrapper API ↔ EDSL) requires that `MorphoViewSlice`
+The first link (stable wrapper API ↔ EDSL) requires that `Morpho.Contract.Morpho`
 functions have full (non-stub) implementations matching the spec-facing
 execution API in `Morpho.Specs.ContractSemantics`. The repo now states those
 obligations against the stable `Morpho.*` wrappers, which reduce
@@ -71,7 +71,7 @@ structure SemanticBridgeObligation where
   /-- Current status. -/
   status : ObligationStatus
   /-- Whether the operation has a full (non-stub) `verity_contract` macro
-      implementation in MacroSlice.lean. When true, the macro-generated
+      implementation in Morpho/Contract.lean. When true, the macro-generated
       CompilationModel is ready for end-to-end semantic bridge composition
       once the remaining Morpho-side Link 1 gaps are discharged. When false, macro migration must be completed
       before the obligation can be discharged. -/
@@ -198,7 +198,7 @@ theorem assumed_count :
 
 /-- 18 of 18 operations have full (non-stub) macro implementations.
     All core operations are migrated; `accrueInterestPublic` maps to
-    `accrueInterest` in MacroSlice with a fully inlined body. -/
+    `accrueInterest` in Morpho/Contract.lean with a fully inlined body. -/
 theorem macro_migrated_count :
     (obligations.filter (fun o => o.macroMigrated)).length = 18 := by
   native_decide

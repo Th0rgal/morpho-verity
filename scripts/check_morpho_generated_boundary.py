@@ -16,7 +16,7 @@ ALLOWED_FILES = {
 TARGET_GLOB = ROOT / "Morpho" / "Compiler"
 SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
 GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
-MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 TRUST_DOC_PATH = ROOT / "docs" / "TRUST_BOUNDARIES.md"
 REQUIRED_EXTERNAL_AXIOMS: dict[str, str] = {}
 LOCAL_OBLIGATION_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*assumed\b")

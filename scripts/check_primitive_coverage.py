@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Primitive coverage analysis for semantic bridge discharge readiness.
 
-For each macro-migrated operation in MacroSlice.lean, extracts the set of
+For each macro-migrated operation in Contract.lean, extracts the set of
 EDSL primitives used and maps them to the proven lemmas in verity's
 PrimitiveBridge.lean. Reports which operations are fully covered by
 proven primitives and which have gaps requiring upstream work.
@@ -22,11 +22,11 @@ from typing import Any
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
 
 # ---------------------------------------------------------------------------
-# EDSL primitive detection patterns in MacroSlice.lean function bodies
+# EDSL primitive detection patterns in Contract.lean function bodies
 # ---------------------------------------------------------------------------
 
 # Each entry: (primitive_name, regex_pattern)
@@ -92,7 +92,7 @@ PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     "require_gt": "proven",          # require_matches_iszero_revert (gt)
     "if_then_else": "proven",        # if_else_matches
     "add": "proven",                 # uint256_add_matches_builtin
-    "and": "partial",                # no direct lemma, but bitwise ops follow same pattern
+    "and": "proven",                 # Native: primCall_and_ok / step_and_ok
     "shr": "partial",                # no direct lemma yet
     "return": "partial",             # implicit in monad composition (bind_unfold/pure_unfold)
 
@@ -117,8 +117,8 @@ PRIMITIVE_BRIDGE_STATUS: dict[str, str] = {
     "mstore": "missing",            # memory management
     "rawLog": "missing",            # event emission / log encoding
     "keccak256": "missing",         # hash computation
-    "chainid": "missing",           # environment access
-    "contractAddress": "missing",   # environment access
+    "chainid": "proven",            # Native: primCall_chainid_ok; IRGeneration: evalExpr_chainid
+    "contractAddress": "proven",    # Native: primCall_address_ok; IRGeneration: eval_compileExpr_contractAddress
     "returnStorageWords": "missing",  # batch storage read
 }
 
@@ -229,7 +229,7 @@ HARDCODED_RETURN_RE = re.compile(r"returnValues\s*\[\s*0(?:\s*,\s*0)*\s*\]")
 
 
 def split_macro_functions(text: str) -> dict[str, str]:
-    """Split MacroSlice.lean into per-function text blocks."""
+    """Split Contract.lean into per-function text blocks."""
     result: dict[str, str] = {}
     matches = list(MACRO_FUNC_RE.finditer(text))
     for i, m in enumerate(matches):
@@ -271,7 +271,7 @@ def analyze_coverage(
     for op in sorted(migrated_ops):
         fn_name = aliases.get(op, op)
         if fn_name not in fn_blocks:
-            result[op] = {"error": "not found in MacroSlice.lean"}
+            result[op] = {"error": "not found in Contract.lean"}
             continue
 
         block = fn_blocks[fn_name]

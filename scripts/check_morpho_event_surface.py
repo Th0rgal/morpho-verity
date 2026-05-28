@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Fail-closed check for Morpho generated event metadata.
 
-The canonical generated compiler boundary still carries an explicit event list
-while the macro contract surface is being migrated. Keep that list synchronized
-with Morpho Blue's EventsLib so missing event payloads cannot silently pass.
+The canonical compiler boundary is the macro contract in Morpho/Contract.lean.
+Keep that event_defs surface synchronized with Morpho Blue's EventsLib so
+missing event payloads cannot silently pass.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from dataclasses import dataclass
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 EVENTS_LIB_PATH = ROOT / "morpho-blue" / "src" / "libraries" / "EventsLib.sol"
 GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
+CONTRACT_PATH = ROOT / "Morpho" / "Contract.lean"
 
 SOL_EVENT_RE = re.compile(r"\bevent\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*;", re.DOTALL)
 
@@ -98,6 +99,16 @@ def normalize_lean_type(ty: str) -> str:
     inner = ty[len("tuple ["):-1]
     elems = [normalize_lean_type(part) for part in split_top_level(inner)]
     return "tuple(" + ",".join(elems) + ")"
+  if ty == "MarketParams":
+    return "tuple(address,address,address,address,uint256)"
+  if ty == "Address":
+    return "address"
+  if ty == "Bytes32":
+    return "bytes32"
+  if ty == "Uint256":
+    return "uint256"
+  if ty == "Bool":
+    return "bool"
   return ty.replace(".", "")
 
 
@@ -137,6 +148,9 @@ def find_balanced_slice(text: str, start: int, open_ch: str, close_ch: str) -> t
 
 
 def extract_generated_events(text: str) -> EventSurface:
+  if "event_defs" in text:
+    return extract_contract_event_defs(text)
+
   marker = "private def morphoEvents"
   marker_idx = text.find(marker)
   if marker_idx == -1:
@@ -191,6 +205,42 @@ def extract_generated_events(text: str) -> EventSurface:
   return events
 
 
+def extract_contract_event_defs(text: str) -> EventSurface:
+  marker_idx = text.find("event_defs")
+  if marker_idx == -1:
+    raise MorphoEventSurfaceError("unable to find event_defs")
+
+  events: EventSurface = {}
+  for line in text[marker_idx:].splitlines()[1:]:
+    stripped = line.strip()
+    if not stripped:
+      continue
+    if not stripped.startswith("event "):
+      if events:
+        break
+      continue
+    match = re.match(r"event\s+([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$", stripped)
+    if not match:
+      raise MorphoEventSurfaceError(f"unable to parse contract event declaration: {stripped!r}")
+    name = match.group(1)
+    params: list[EventParam] = []
+    for raw_param in split_top_level(match.group(2)):
+      raw_param = raw_param.strip()
+      indexed = raw_param.startswith("@indexed ")
+      if indexed:
+        raw_param = raw_param[len("@indexed "):].strip()
+      if ":" not in raw_param:
+        raise MorphoEventSurfaceError(f"unable to parse event parameter: {raw_param!r}")
+      param_name, param_ty = [part.strip() for part in raw_param.split(":", 1)]
+      params.append(EventParam(name=param_name, ty=normalize_lean_type(param_ty), indexed=indexed))
+    if name in events:
+      raise MorphoEventSurfaceError(f"duplicate generated event declaration: {name}")
+    events[name] = params
+  if not events:
+    raise MorphoEventSurfaceError("no generated events found")
+  return events
+
+
 def format_param(param: EventParam) -> str:
   indexed = " indexed" if param.indexed else ""
   return f"{param.ty}{indexed} {param.name}"
@@ -233,12 +283,12 @@ def validate_event_surface(solidity: EventSurface, generated: EventSurface) -> N
 def main() -> int:
   parser = argparse.ArgumentParser(description="Validate Morpho generated events against EventsLib.sol")
   parser.add_argument("--events-lib", type=pathlib.Path, default=EVENTS_LIB_PATH)
-  parser.add_argument("--generated", type=pathlib.Path, default=GENERATED_PATH)
+  parser.add_argument("--generated", type=pathlib.Path, default=CONTRACT_PATH)
   args = parser.parse_args()
 
   try:
     solidity = extract_solidity_events(read_text(args.events_lib, context="EventsLib.sol"))
-    generated = extract_generated_events(read_text(args.generated, context="Generated.lean"))
+    generated = extract_generated_events(read_text(args.generated, context=str(args.generated)))
     validate_event_surface(solidity, generated)
   except MorphoEventSurfaceError as exc:
     fail(str(exc))

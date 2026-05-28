@@ -23,7 +23,7 @@ BASE_TEST_HELPER = """    function _deployMorpho(address owner) internal returns
             return IMorpho(address(new Morpho(owner)));
         }
         if (implHash == keccak256(bytes("verity"))) {
-            bytes memory initCode = bytes.concat(vm.getCode("../artifacts/yul/Morpho.bin"), abi.encode(owner));
+            bytes memory initCode = bytes.concat(vm.readFileBinary("../artifacts/yul/Morpho.bin.raw"), abi.encode(owner));
             address deployed;
             assembly {
                 deployed := create(0, add(initCode, 0x20), mload(initCode))
@@ -46,6 +46,10 @@ ONLY_OWNER_ZERO_NEW = "        _deployMorpho(address(0));\n"
 ONLY_OWNER_OWNER_OLD = "        new Morpho(OWNER);\n"
 ONLY_OWNER_OWNER_NEW = "        _deployMorpho(OWNER);\n"
 BASE_TEST_DEPLOY_STILL_HARDCODED = "morpho = IMorpho(address(new Morpho("
+FOUNDRY_PROFILE = """[profile.difftest]
+fs_permissions = [{ access = "read", path = "../artifacts/yul" }]
+evm_version = "shanghai"
+"""
 
 
 def _patch_base_test(text: str) -> tuple[str, bool]:
@@ -77,6 +81,14 @@ def _patch_only_owner_test(text: str) -> tuple[str, bool]:
     return updated, changed
 
 
+def _patch_foundry_toml(text: str) -> tuple[str, bool]:
+    if "[profile.difftest]" in text:
+        return text, False
+
+    suffix = "" if text.endswith("\n") else "\n"
+    return text + suffix + "\n" + FOUNDRY_PROFILE, True
+
+
 def _patch_file(path: pathlib.Path, patcher: Callable[[str], tuple[str, bool]]) -> bool:
     original = path.read_text(encoding="utf-8")
     updated, changed = patcher(original)
@@ -105,6 +117,17 @@ def _only_owner_errors(text: str) -> list[str]:
     return errors
 
 
+def _foundry_toml_errors(text: str) -> list[str]:
+    errors: list[str] = []
+    if "[profile.difftest]" not in text:
+        errors.append("foundry.toml is missing the difftest profile.")
+    if "../artifacts/yul" not in text:
+        errors.append("foundry.toml does not allow parity tests to read ../artifacts/yul.")
+    if 'evm_version = "shanghai"' not in text:
+        errors.append("foundry.toml difftest profile does not enable Shanghai opcodes.")
+    return errors
+
+
 def validate_repo(root: pathlib.Path) -> list[str]:
     errors: list[str] = []
 
@@ -120,6 +143,12 @@ def validate_repo(root: pathlib.Path) -> list[str]:
     else:
         errors.extend(_only_owner_errors(only_owner.read_text(encoding="utf-8")))
 
+    foundry_toml = root / "morpho-blue" / "foundry.toml"
+    if not foundry_toml.is_file():
+        errors.append(f"Missing Foundry config: {foundry_toml.relative_to(root)}")
+    else:
+        errors.extend(_foundry_toml_errors(foundry_toml.read_text(encoding="utf-8")))
+
     return errors
 
 
@@ -133,6 +162,10 @@ def patch_repo(root: pathlib.Path) -> list[str]:
     only_owner = root / "morpho-blue" / "test" / "integration" / "OnlyOwnerIntegrationTest.sol"
     if only_owner.is_file() and _patch_file(only_owner, _patch_only_owner_test):
         changes.append(str(only_owner.relative_to(root)))
+
+    foundry_toml = root / "morpho-blue" / "foundry.toml"
+    if foundry_toml.is_file() and _patch_file(foundry_toml, _patch_foundry_toml):
+        changes.append(str(foundry_toml.relative_to(root)))
 
     return changes
 

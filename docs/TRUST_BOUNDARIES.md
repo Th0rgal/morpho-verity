@@ -11,7 +11,7 @@ claims are made.
 
 `Morpho/Compiler/Generated.lean` currently carries no linked externals. Former
 placeholders for `keccakMarketParams`, `borrowRate`, and `oraclePrice` have been
-replaced in `Morpho/Compiler/MacroSlice.lean` with Verity ECM modules. CI
+replaced in `Morpho/Contract.lean` with Verity ECM modules. CI
 enforces this boundary through `scripts/check_morpho_generated_boundary.py`.
 
 ## Local Obligations

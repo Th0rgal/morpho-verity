@@ -29,7 +29,7 @@ from check_macro_migration_slice import (  # noqa: E402
 class ParseMacroSliceTests(unittest.TestCase):
   def test_extract_macro_signatures(self) -> None:
     text = """
-verity_contract MorphoViewSlice where
+verity_contract Morpho where
   storage
     owner : Address := slot 0
 
@@ -46,7 +46,7 @@ verity_contract MorphoViewSlice where
 
   def test_extract_macro_signatures_unsupported_type_fails(self) -> None:
     text = """
-verity_contract MorphoViewSlice where
+verity_contract Morpho where
   storage
     owner : Address := slot 0
 
@@ -58,7 +58,7 @@ verity_contract MorphoViewSlice where
 
   def test_extract_macro_signatures_tuple_params(self) -> None:
     text = """
-verity_contract MorphoViewSlice where
+verity_contract Morpho where
   storage
     owner : Address := slot 0
 
@@ -72,7 +72,7 @@ verity_contract MorphoViewSlice where
 
   def test_extract_macro_signatures_tuple_uint8_param(self) -> None:
     text = """
-verity_contract MorphoViewSlice where
+verity_contract Morpho where
   storage
     owner : Address := slot 0
 
@@ -264,12 +264,12 @@ class BaselineValidationTests(unittest.TestCase):
       baseline_path = root / "baseline.json"
       repo_report = run_check()
       spec_path.write_text((ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text(encoding="utf-8"), encoding="utf-8")
-      macro_path.write_text((ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text(encoding="utf-8"), encoding="utf-8")
+      macro_path.write_text((ROOT / "Morpho" / "Contract.lean").read_text(encoding="utf-8"), encoding="utf-8")
       baseline_path.write_text(
         json.dumps(
             {
               "macroPath": str(macro_path),
-              "contract": "MorphoViewSlice",
+              "contract": "Morpho",
               "expectedMigrated": repo_report["migratedSignatures"],
               "expectedBlocked": repo_report["blockedSignatures"],
           }
@@ -286,66 +286,41 @@ class BaselineValidationTests(unittest.TestCase):
 
 class RepoCheckTests(unittest.TestCase):
   def test_increment_nonce_event_topic_matches_spec(self) -> None:
-    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
-    spec_text = (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text()
-    spec_match = re.search(
-      r"incrementNonceEventTopic\s*:\s*Nat\s*:=\s*(0x[0-9a-f]+)",
-      spec_text,
-    )
-    self.assertIsNotNone(spec_match)
-    expected_topic = str(int(spec_match.group(1), 16))
+    contract_text = (ROOT / "Morpho" / "Contract.lean").read_text()
     self.assertIn(
-      f"rawLog [{expected_topic},\n      sender, authorizer] 0 32",
-      macro_text,
+      'emit "IncrementNonce" [sender, authorizer, currentNonce]',
+      contract_text,
     )
 
   def test_set_authorization_event_topic_matches_spec(self) -> None:
-    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
-    spec_text = (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text()
-    spec_match = re.search(
-      r"setAuthEventTopic\s*:\s*Nat\s*:=\s*(0x[0-9a-f]+)",
-      spec_text,
-    )
-    self.assertIsNotNone(spec_match)
-    expected_topic = str(int(spec_match.group(1), 16))
+    contract_text = (ROOT / "Morpho" / "Contract.lean").read_text()
     self.assertIn(
-      f"rawLog [{expected_topic},",
-      macro_text,
+      'emit "SetAuthorization" [sender, sender, authorized, newIsAuthorized]',
+      contract_text,
+    )
+    self.assertIn(
+      'emit "SetAuthorization" [sender, authorizer, authorized, newIsAuthorized]',
+      contract_text,
     )
 
   def test_create_market_event_topic_and_payload_are_logged(self) -> None:
-    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
+    contract_text = (ROOT / "Morpho" / "Contract.lean").read_text()
     self.assertIn(
-      "rawLog [77930571974472193577215730001454066985566282397930517691434906231634542363564, id] 0 160",
-      macro_text,
+      'emit "CreateMarket" [id, marketParams]',
+      contract_text,
     )
-    for offset, field in (
-      (0, "addressToWord marketParams_0"),
-      (32, "addressToWord marketParams_1"),
-      (64, "addressToWord marketParams_2"),
-      (96, "addressToWord marketParams_3"),
-      (128, "marketParams_4"),
-    ):
-      self.assertIn(f"mstore {offset} ({field})" if offset < 128 else f"mstore {offset} {field}", macro_text)
 
   def test_flash_loan_event_topic_matches_spec(self) -> None:
-    macro_text = (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text()
-    spec_text = (ROOT / "Morpho" / "Compiler" / "Spec.lean").read_text()
-    spec_match = re.search(
-      r"flashLoanEventTopic\s*:\s*Nat\s*:=\s*(0x[0-9a-f]+)",
-      spec_text,
-    )
-    self.assertIsNotNone(spec_match)
-    expected_topic = str(int(spec_match.group(1), 16))
+    contract_text = (ROOT / "Morpho" / "Contract.lean").read_text()
     self.assertIn(
-      f"rawLog [{expected_topic}, sender, token] 0 32",
-      macro_text,
+      'emit "FlashLoan" [sender, token, assets]',
+      contract_text,
     )
 
   def test_current_repo_slice_matches(self) -> None:
     report = run_check()
     self.assertEqual(report["status"], "ok")
-    self.assertEqual(report["contract"], "MorphoViewSlice")
+    self.assertEqual(report["contract"], "Morpho")
     self.assertTrue((ROOT / report["macroPath"]).exists())
     self.assertGreaterEqual(report["migratedCount"], 1)
 
@@ -546,14 +521,14 @@ verity_contract MorphoViewSlice where
         encoding="utf-8",
       )
       macro_path.write_text(
-        (ROOT / "Morpho" / "Compiler" / "MacroSlice.lean").read_text(encoding="utf-8"),
+        (ROOT / "Morpho" / "Contract.lean").read_text(encoding="utf-8"),
         encoding="utf-8",
       )
       baseline_path.write_text(
         json.dumps(
             {
               "macroPath": str(macro_path),
-              "contract": "MorphoViewSlice",
+              "contract": "Morpho",
               "expectedMigrated": repo_report["migratedSignatures"],
               "expectedBlocked": repo_report["blockedSignatures"],
           }
@@ -609,7 +584,7 @@ def morphoSelectors : List Nat := [
       )
       macro_path.write_text(
         """
-verity_contract MorphoViewSlice where
+verity_contract Morpho where
   function owner () : Address := do
     return 0
 """,
@@ -619,7 +594,7 @@ verity_contract MorphoViewSlice where
         json.dumps(
             {
               "macroPath": str(pathlib.Path("..") / "external" / "MacroSlice.lean"),
-              "contract": "MorphoViewSlice",
+              "contract": "Morpho",
               "expectedMigrated": ["owner()"],
               "expectedBlocked": {},
           }

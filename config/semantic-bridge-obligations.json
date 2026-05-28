@@ -103,7 +103,7 @@
       "status": "in_progress",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "Link 1 proven with proof-facing signature abstraction (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework; ecrecover/rawLog trust boundaries remain tracked separately"
+      "blockedBy": "Link 1 proven with proof-facing signature abstraction (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework; ecrecover trust boundary remains tracked separately"
     },
     {
       "id": "OBL-SET-OWNER-SEM-EQ",
@@ -128,7 +128,7 @@
       "status": "in_progress",
       "macroMigrated": true,
       "macroSurfaceBlockers": [],
-      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework; rawLog payload and post-create IRM ECM boundaries remain tracked separately"
+      "blockedBy": "Link 1 proven (SemanticBridgeDischarge); Links 2+3 delegated to Verity compiler framework; post-create IRM ECM boundary remains tracked separately"
     },
     {
       "id": "OBL-SET-FEE-SEM-EQ",
@@ -159,7 +159,7 @@
     }
   ],
   "issueClusters": [],
-  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in MacroSlice.lean. Links 2+3 (EDSL → IR → Yul compilation correctness) are delegated to Verity's compiler framework — the verity_contract macro generates code exclusively from supported patterns, so SupportedStmtList/SupportedSpec witnesses should be constructive.",
+  "notes": "Fail-closed semantic bridge obligation tracker. Each entry maps a SolidityBridge.lean hypothesis to its upstream verity discharge dependency. macroMigrated=true means the operation has a full (non-stub) implementation in the canonical macro contract, currently Morpho/Contract.lean. Links 2+3 (EDSL → IR → Yul compilation correctness) are delegated to Verity's compiler framework — the verity_contract macro generates code exclusively from supported patterns, so SupportedStmtList/SupportedSpec witnesses should be constructive.",
   "sourcePath": "Morpho/Proofs/SolidityBridge.lean",
   "upstreamIssue": "https://github.com/Th0rgal/verity/issues/1060",
   "upstreamPR": "https://github.com/Th0rgal/verity/pull/1065"

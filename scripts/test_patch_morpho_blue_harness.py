@@ -72,7 +72,7 @@ class PatchMorphoBlueHarnessTests(unittest.TestCase):
             owner_text = only_owner.read_text(encoding="utf-8")
             self.assertIn('vm.envOr("MORPHO_IMPL", string("solidity"))', base_text)
             self.assertIn("morpho = _deployMorpho(OWNER);", base_text)
-            self.assertIn('vm.getCode("../artifacts/yul/Morpho.bin")', base_text)
+            self.assertIn('vm.readFileBinary("../artifacts/yul/Morpho.bin.raw")', base_text)
             self.assertNotIn("new Morpho(address(0));", owner_text)
             self.assertNotIn("new Morpho(OWNER);", owner_text)
             self.assertIn("_deployMorpho(address(0));", owner_text)

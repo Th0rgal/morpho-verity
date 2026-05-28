@@ -19,9 +19,9 @@ from check_macro_migration_surface import (  # reuse canonical spec-signature pa
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 BASELINE_PATH = ROOT / "config" / "macro-migration-slice.json"
-DEFAULT_CONTRACT = "MorphoViewSlice"
+DEFAULT_CONTRACT = "Morpho"
 
 CONTRACT_RE = re.compile(r"^\s*verity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\s*$")
 FUNCTION_RE = re.compile(
@@ -36,6 +36,9 @@ TYPE_MAP = {
   "Bool": "bool",
   "Bytes32": "bytes32",
   "Bytes": "bytes",
+  "MarketParams": "(address,address,address,address,uint256)",
+  "Authorization": "(address,address,bool,uint256,uint256)",
+  "Signature": "(uint8,bytes32,bytes32)",
 }
 
 

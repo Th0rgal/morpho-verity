@@ -1,7 +1,7 @@
 # Solidity Correspondence
 
 This table tracks how the current `Morpho/Contract.lean` generated-spec
-boundary, backed by the `Morpho/Compiler/MacroSlice.lean` `verity_contract`,
+boundary, backed by the canonical `verity_contract Morpho` declaration,
 corresponds to Morpho Blue `src/Morpho.sol`.
 It is intentionally conservative: "translated" means the macro body has a
 recognizable Solidity-facing implementation, not that full Solidity equivalence
@@ -9,7 +9,7 @@ has been proved.
 
 ## Status Legend
 
-- **Translated**: implemented in `MorphoViewSlice` and covered by the macro
+- **Translated**: implemented in `Morpho.Contract.Morpho` and covered by the macro
   migration selector slice.
 - **Link 1 proven**: the stable `Morpho.*` wrapper API is proved equivalent to
   the EDSL execution for this operation in `SemanticBridgeDischarge.lean`.

@@ -11,7 +11,7 @@ panic path automatically, so arithmetic fidelity is tracked explicitly here.
   full-precision `mulDiv512` semantics.
 - Proofs that need Solidity checked-arithmetic reachability carry explicit
   `h_no_overflow`-style hypotheses. Those are not discharged globally today.
-- `Morpho/Compiler/MacroSlice.lean` uses Verity's Solidity-0.8 panic helpers
+- `Morpho/Contract.lean` uses Verity's Solidity-0.8 panic helpers
   (`addPanic`, `subPanic`, and `mulPanic`) for translated checked arithmetic
   sites where the Solidity source would revert on overflow or underflow.
 - The macro slice also adds explicit `uint128 overflow` guards for macro writes

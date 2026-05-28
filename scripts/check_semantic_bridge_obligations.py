@@ -3,7 +3,7 @@
 
 Validates that config/semantic-bridge-obligations.json matches the set of
 *SemEq definitions in Morpho/Proofs/SolidityBridge.lean, cross-checks
-macroMigrated flags against MacroSlice.lean stub detection, and reports
+macroMigrated flags against Contract.lean stub detection, and reports
 assumed-vs-discharged status.
 """
 
@@ -20,7 +20,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BRIDGE_PATH = ROOT / "Morpho" / "Proofs" / "SolidityBridge.lean"
 CONFIG_PATH = ROOT / "config" / "semantic-bridge-obligations.json"
-MACRO_SLICE_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_SLICE_PATH = ROOT / "Morpho" / "Contract.lean"
 
 VALID_STATUSES = {"assumed", "in_progress", "discharged"}
 
@@ -70,7 +70,7 @@ def extract_sem_eq_definitions(bridge_text: str) -> list[str]:
 
 
 def extract_macro_functions(macro_text: str) -> dict[str, bool]:
-    """Extract function names and stub status from MacroSlice.lean.
+    """Extract function names and stub status from Contract.lean.
 
     Returns a dict mapping function name -> True if fully implemented,
     False if it's a stub (contains the noop tautology pattern).
@@ -200,7 +200,7 @@ def validate_config(
             f"hypotheses in config but not in SolidityBridge.lean: {extra}"
         )
 
-    # Cross-reference macroMigrated against MacroSlice.lean
+    # Cross-reference macroMigrated against Contract.lean
     if macro_functions is not None:
         for i, obl in enumerate(obligations):
             op = obl["operation"]
@@ -218,17 +218,17 @@ def validate_config(
                 if claimed:
                     raise ObligationError(
                         f"obligation[{i}] ({op}): macroMigrated=true but "
-                        f"function not found in MacroSlice.lean"
+                        f"function not found in Contract.lean"
                     )
             elif claimed and not actual:
                 raise ObligationError(
                     f"obligation[{i}] ({op}): macroMigrated=true but "
-                    f"function is a stub in MacroSlice.lean"
+                    f"function is a stub in Contract.lean"
                 )
             elif not claimed and actual:
                 raise ObligationError(
                     f"obligation[{i}] ({op}): macroMigrated=false but "
-                    f"function has a full implementation in MacroSlice.lean"
+                    f"function has a full implementation in Contract.lean"
                 )
 
 

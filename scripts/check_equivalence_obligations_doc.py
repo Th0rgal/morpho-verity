@@ -25,7 +25,7 @@ OBLIGATION_TABLE_HEADING = "## Obligation Table"
 DISCHARGE_PATH_HEADING = "## Semantic Bridge Discharge Path"
 MACRO_STATUS_PREFIX = (
   "**Macro migrated** = operation has a full (non-stub) `verity_contract` implementation in\n"
-  "`MacroSlice.lean`, which is the current macro-generated contract surface."
+  "`Contract.lean`, which is the current macro-generated contract surface."
 )
 UPSTREAM_BRIDGE_PREFIX = (
   "- **Links 2+3** (EDSL ↔ EVMYulLean): delegated to Verity's compiler\n"

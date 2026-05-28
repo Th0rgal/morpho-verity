@@ -20,7 +20,7 @@ from check_arithmetic_fidelity import (  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check_arithmetic_fidelity.py"
 DOC_PATH = ROOT / "docs" / "ARITHMETIC_FIDELITY.md"
-MACRO_PATH = ROOT / "Morpho" / "Compiler" / "MacroSlice.lean"
+MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 
 
 class CheckArithmeticFidelityTests(unittest.TestCase):

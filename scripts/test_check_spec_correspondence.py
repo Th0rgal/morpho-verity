@@ -233,7 +233,7 @@ class ValidateCorrespondenceTests(unittest.TestCase):
     def test_missing_op_in_macro_fails(self) -> None:
         spec_fns = {"f": {"param_count": 1, "require_count": 0, "mutation_count": 0}}
         errors = validate_correspondence(spec_fns, {}, {}, {}, {"f"})
-        self.assertTrue(any("not found in MacroSlice" in e for e in errors))
+        self.assertTrue(any("not found in Contract.lean" in e for e in errors))
 
     def test_missing_op_in_spec_fails(self) -> None:
         macro_fns = {"f": {"param_count": 1, "is_stub": False, "require_count": 0, "mutation_count": 0}}
@@ -372,7 +372,7 @@ class IntegrationTests(unittest.TestCase):
         """Validate that actual repo files pass correspondence check."""
         root = pathlib.Path(__file__).resolve().parent.parent
         spec_path = root / "Morpho" / "Compiler" / "Spec.lean"
-        macro_path = root / "Morpho" / "Compiler" / "MacroSlice.lean"
+        macro_path = root / "Morpho" / "Contract.lean"
         config_path = root / "config" / "semantic-bridge-obligations.json"
 
         if not all(p.exists() for p in [spec_path, macro_path, config_path]):

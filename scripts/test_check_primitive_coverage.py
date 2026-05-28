@@ -59,7 +59,7 @@ SAMPLE_STUB_FN = """\
 """
 
 SAMPLE_MACRO = """\
-verity_contract MorphoViewSlice where
+verity_contract Morpho where
   storage
     ownerSlot : Address := slot 0
 
@@ -212,7 +212,8 @@ class PrimitiveBridgeStatusTests(unittest.TestCase):
     def test_core_proven_primitives(self) -> None:
         """Core operations that should have proven status."""
         for prim in ["msgSender", "getStorageAddr", "setStorageAddr",
-                      "require_eq", "require_neq", "if_then_else"]:
+                      "require_eq", "require_neq", "if_then_else",
+                      "and", "chainid", "contractAddress"]:
             self.assertEqual(
                 PRIMITIVE_BRIDGE_STATUS[prim], "proven",
                 f"{prim} should be proven"
@@ -325,7 +326,7 @@ class IntegrationTests(unittest.TestCase):
     def test_real_files(self) -> None:
         """Run against actual repo files."""
         root = pathlib.Path(__file__).resolve().parent.parent
-        macro_path = root / "Morpho" / "Compiler" / "MacroSlice.lean"
+        macro_path = root / "Morpho" / "Contract.lean"
         config_path = root / "config" / "semantic-bridge-obligations.json"
 
         if not macro_path.exists() or not config_path.exists():
@@ -349,29 +350,28 @@ class IntegrationTests(unittest.TestCase):
             self.assertFalse(coverage[op]["fully_covered"])
             self.assertTrue(coverage[op]["edsl_ready"])
 
-        # setAuthorization now uses mstore/rawLog for event emission, so not edsl_ready
+        # setAuthorization uses typed events and only waits on mapping bridge lemmas.
         self.assertFalse(coverage["setAuthorization"]["fully_covered"])
-        self.assertFalse(coverage["setAuthorization"]["edsl_ready"])
-        self.assertIn("mstore", coverage["setAuthorization"]["missing"])
-        self.assertIn("rawLog", coverage["setAuthorization"]["missing"])
+        self.assertTrue(coverage["setAuthorization"]["edsl_ready"])
+        self.assertEqual(coverage["setAuthorization"]["missing"], [])
 
-        # createMarket is now in the migrated set but still misses bridge lemmas
+        # createMarket is EDSL-ready after replacing the raw event log with typed emit.
         self.assertIn("createMarket", coverage)
         self.assertFalse(coverage["createMarket"]["fully_covered"])
-        self.assertFalse(coverage["createMarket"]["edsl_ready"])
+        self.assertTrue(coverage["createMarket"]["edsl_ready"])
         self.assertNotIn("externalCall", coverage["createMarket"]["missing"])
-        self.assertIn("rawLog", coverage["createMarket"]["missing"])
+        self.assertNotIn("rawLog", coverage["createMarket"]["missing"])
         self.assertIn("blockTimestamp", coverage["createMarket"]["primitives"])
 
-        # Newly migrated signature and flash-loan flows should be present in the coverage set
+        # Newly migrated signature and flash-loan flows should be present in the coverage set.
         self.assertIn("setAuthorizationWithSig", coverage)
         self.assertIn("ecrecover", coverage["setAuthorizationWithSig"]["missing"])
         self.assertIn("flashLoan", coverage)
-        self.assertIn("mstore", coverage["flashLoan"]["missing"])
-        self.assertIn("rawLog", coverage["flashLoan"]["missing"])
+        self.assertTrue(coverage["flashLoan"]["fully_covered"])
+        self.assertEqual(coverage["flashLoan"]["missing"], [])
 
-        # At least 2 fully covered
-        self.assertGreaterEqual(report["fully_covered"], 2)
+        # Most migrated operations are now either fully bridged or EDSL-ready.
+        self.assertGreaterEqual(report["fully_covered"], 10)
 
     def test_cli_reports_invalid_utf8_config_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as d:

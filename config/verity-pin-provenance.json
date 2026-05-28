@@ -7,7 +7,7 @@
   "remainingDivergences": [
     {
       "area": "Local generated-contract boundary",
-      "summary": "Morpho still routes through repo-local MacroSlice/Generated compiler entrypoints instead of importing a direct upstream canonical contract definition.",
+      "summary": "Morpho now keeps the canonical Verity contract in Morpho/Contract.lean, while MacroSlice remains as a compatibility alias and Generated.lean remains the repo-local compiler boundary.",
       "files": [
         "Morpho/Contract.lean",
         "Morpho/Compiler/MacroSlice.lean",

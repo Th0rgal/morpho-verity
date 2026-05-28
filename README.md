@@ -340,13 +340,13 @@ forge test -vvv
 
 Current status:
 - `./scripts/run_morpho_blue_parity.sh` passes `MORPHO_IMPL=solidity|verity` into the Morpho Blue suite and now fails closed unless `morpho-blue/test/BaseTest.sol` reads that selector via an explicit Foundry env lookup and no test bypasses it with direct `new Morpho(...)` deployments.
-- The currently checked-in `morpho-blue` submodule is not yet wired that way, so full Solidity-vs-Verity differential execution remains blocked on `#120`.
+- The currently checked-in `morpho-blue` submodule is wired for the selector under the `difftest` Foundry profile, including artifact read permissions and Shanghai opcode support for the generated Verity bytecode.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
 - `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and a rewrite-oriented prioritization view (`functionBlocks.rewriteFamilies`) that groups exactness blockers by rewrite family / mismatch kind, including ambiguous rename-only clusters. The report now compares Solidity IR against the rewritten Verity artifact, persists both `verity/Morpho.raw.yul` and `verity/Morpho.yul`, and records the ordered rewrite pipeline under `rewritePipeline`. It also annotates tracked rewrite families from `config/yul-rewrite-proof-obligations.json`, so each reported family is tied to an intended rewrite pass and semantic-preservation obligation, and it flags untracked families that still need proof-plan coverage. `scripts/check_yul_rewrite_proof_obligations.py` fails closed unless every manifest proof ref is backed by a placeholder declaration in `Morpho/Proofs/YulRewriteProofs.lean`, with matching proof-ref, rewrite-pass, and family metadata.
 
 ## Proof progress
 
-**230 theorems proven, 0 sorry remaining.**
+**Proof inventory is in transition. `lake build` currently succeeds with five `sorry` placeholders in `Morpho/Compiler/AdminAdapters.lean`.**
 
 | Category | Proven | Total | Status |
 |----------|--------|-------|--------|
