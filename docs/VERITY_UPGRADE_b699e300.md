@@ -38,7 +38,7 @@ The immediate source migration is small but semantically useful:
 After the pin migration, the macro slice also picked up several direct
 `Morpho.sol` ordering and guard fixes:
 
-- `setAuthorization` now checks `ALREADY_SET` before writing
+- `setAuthorization` checks `ALREADY_SET` before writing, matching the pinned Morpho Blue source
   `isAuthorized[msg.sender][authorized]`.
 - `setFee` now checks `newFee != market[id].fee` before accruing interest and
   setting the new fee.

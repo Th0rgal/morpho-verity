@@ -42,7 +42,7 @@ has been proved.
 | `setFeeRecipient(address)` | Translated | Link 1 proven | Owner guard and `ALREADY_SET` check modeled. |
 | `enableIrm(address)` | Translated | Link 1 proven | Owner guard, zero-address, and already-enabled checks modeled. |
 | `enableLltv(uint256)` | Translated | Link 1 proven | Owner guard, max-LLTV, and already-enabled checks modeled. |
-| `setAuthorization(address,bool)` | Translated | Link 1 proven | `ALREADY_SET` check modeled; `set_authorization_event` covers raw-log encoding. |
+| `setAuthorization(address,bool)` | Translated | Link 1 proven | Matches the pinned Morpho Blue `ALREADY_SET` guard; `set_authorization_event` covers event encoding. |
 | `setAuthorizationWithSig(Authorization,Signature)` | Translated | Link 1 proven | Nonce ordering and signature-validity abstraction are modeled; EIP-712 hashing uses Verity static ABI/digest ECMs, while ecrecover and raw-log mechanics remain boundaries. |
 | `createMarket(MarketParams)` | Translated | Link 1 proven | Static ABI market-id hashing, enabled checks, and state initialization are modeled; event payload log and typed post-create IRM init ECM remain trust boundaries. |
 | `setFee(MarketParams,uint256)` | Translated | Link 1 proven | Includes market-created, `ALREADY_SET`, max-fee, accrue-interest, and owner checks. |

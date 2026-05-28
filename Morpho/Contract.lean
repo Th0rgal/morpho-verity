@@ -1151,7 +1151,6 @@ verity_contract Morpho where
     return (finalAssets, finalShares)
 
   function allow_post_interaction_writes liquidate (marketParams : MarketParams, borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Tuple [Uint256, Uint256] := do
-    let thisAddress ← contractAddress
     let _ignoredMarketParams := marketParams
     let id ← ecmCall
       (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
@@ -1160,6 +1159,62 @@ verity_contract Morpho where
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((seizedAssets == 0) != (repaidShares == 0)) "inconsistent input"
+    -- inline accrueInterest
+    let currentTimestamp ← blockTimestamp
+    let elapsed ← subPanic currentTimestamp currentLastUpdate
+    if elapsed > 0 then
+      if marketParams.irm != 0 then
+        let totalBorrowAssetsAccrue <- structMember "marketSlot" id "totalBorrowAssets"
+        let totalBorrowSharesAccrue <- structMember "marketSlot" id "totalBorrowShares"
+        let totalBorrowSharesWord := add totalBorrowSharesAccrue ZERO
+        let totalSupplyAssetsAccrue <- structMember "marketSlot" id "totalSupplyAssets"
+        let totalSupplySharesAccrue <- structMember "marketSlot" id "totalSupplyShares"
+        let currentFeeForRate <- structMember "marketSlot" id "fee"
+        let currentFeeForRateWord := add currentFeeForRate ZERO
+        let borrowRateVal ← ecmCall
+          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
+          [addressToWord marketParams.irm,
+            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
+            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
+            totalSupplyAssetsAccrue, totalSupplySharesAccrue, totalBorrowAssetsAccrue, totalBorrowSharesWord,
+            currentLastUpdate, currentFeeForRateWord]
+        let firstTerm ← mulPanic borrowRateVal elapsed
+        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
+        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
+        let secondPlusThird ← addPanic secondTerm thirdTerm
+        let compounded ← addPanic firstTerm secondPlusThird
+        let interest := mulDivDown totalBorrowAssetsAccrue compounded 1000000000000000000
+        let newTotalBorrowAssets ← addPanic totalBorrowAssetsAccrue interest
+        let newTotalSupplyAssets ← addPanic totalSupplyAssetsAccrue interest
+        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
+        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
+        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
+        let mut feeShares := ZERO
+        let currentFee <- structMember "marketSlot" id "fee"
+        if currentFee > 0 then
+          let feeAmount := mulDivDown interest currentFee 1000000000000000000
+          let totalSupplySharesWithVirtual ← addPanic totalSupplySharesAccrue 1000000
+          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
+          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
+          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
+          let feeRecipient_ <- getStorageAddr feeRecipientSlot
+          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
+          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
+          let newTotalSupplyShares ← addPanic totalSupplySharesAccrue feeShares
+          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
+          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
+          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
+        else
+          require (currentFee == 0) "fee zero"
+        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
+      else
+        require (marketParams.irm == 0) "no irm"
+      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
+    else
+      require (elapsed == 0) "no elapsed"
+    -- end inline accrueInterest
     -- Health check: position must be unhealthy
     let collateralPrice ← ecmCall
       (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
@@ -1243,6 +1298,7 @@ verity_contract Morpho where
       [addressToWord marketParams.collateralToken, addressToWord sender, finalSeizedAssets]
     ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0xcf7ea196 1 "data")
       [addressToWord sender, repaidAssets]
+    let thisAddress ← contractAddress
     ecmDo MorphoSafeTransfer.safeTransferFromModule
       [addressToWord marketParams.loanToken, addressToWord sender, addressToWord thisAddress, repaidAssets]
     return (finalSeizedAssets, repaidAssets)
