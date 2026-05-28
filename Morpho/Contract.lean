@@ -503,85 +503,9 @@ verity_contract Morpho where
     -- mocks without invalid-opcode failures.
     require (marketParams.irm == marketParams.irm) "irm initialized"
 
-  function allow_post_interaction_writes setFee (marketParams : MarketParams, newFee : Uint256) : Unit := do
-    let sender <- msgSender
-    let currentOwner <- getStorageAddr ownerSlot
-    require (sender == currentOwner) "not owner"
-    let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+  function allow_post_interaction_writes _accrueInterest (marketParams : MarketParams, id : Bytes32) : Uint256 := do
+    -- Internal helper mirroring Morpho.sol `_accrueInterest`.
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
-    require (currentLastUpdate != ZERO) "market not created"
-    let currentFeeBefore <- structMember "marketSlot" id "fee"
-    require (newFee != currentFeeBefore) "already set"
-    require (newFee <= 250000000000000000) "max fee exceeded"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowShares_ ZERO
-        let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFeeOld <- structMember "marketSlot" id "fee"
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowSharesWord,
-            currentLastUpdate, currentFeeOld]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssets_ compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssets_ interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssets_ interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        if currentFeeOld > 0 then
-          let feeAmount := mulDivDown interest currentFeeOld 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplyShares_ 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplyShares_ feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFeeOld == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "elapsed zero"
-    -- end inline accrueInterest
-    setStructMember "marketSlot" id "fee" newFee
-    emit "SetFee" [id, newFee]
-
-  function allow_post_interaction_writes accrueInterest (marketParams : MarketParams) : Unit := do
-    let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
-    let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
-    require (currentLastUpdate != ZERO) "market not created"
     let currentTimestamp ← blockTimestamp
     let elapsed ← subPanic currentTimestamp currentLastUpdate
     if elapsed > 0 then
@@ -634,6 +558,67 @@ verity_contract Morpho where
       setStructMember "marketSlot" id "lastUpdate" currentTimestamp
     else
       require (elapsed == 0) "no elapsed"
+    return ZERO
+
+  function _isSenderAuthorized (onBehalf : Address) : Bool := do
+    -- Internal helper mirroring Morpho.sol `_isSenderAuthorized`.
+    let sender <- msgSender
+    let isSelf := sender == onBehalf
+    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
+    return (isSelf || authWord != 0)
+
+  function _isHealthyWithPrice (marketParams : MarketParams, id : Bytes32, borrower : Address, collateralPrice : Uint256) : Bool := do
+    -- Internal helper mirroring Morpho.sol `_isHealthy(..., collateralPrice)`.
+    let borrowShares_ <- structMember2 "positionSlot" id borrower "borrowShares"
+    let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
+    let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
+    let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
+    let borrowedAmt := mulDivUp borrowShares_ totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
+    let collateral_ <- structMember2 "positionSlot" id borrower "collateral"
+    let collateralQuoted := mulDivDown collateral_ collateralPrice 1000000000000000000000000000000000000
+    let maxBorrow := mulDivDown collateralQuoted marketParams.lltv 1000000000000000000
+    return (maxBorrow >= borrowedAmt)
+
+  function _isHealthy (marketParams : MarketParams, id : Bytes32, borrower : Address) : Bool := do
+    -- Internal helper mirroring Morpho.sol `_isHealthy(marketParams, id, borrower)`.
+    let borrowShares_ <- structMember2 "positionSlot" id borrower "borrowShares"
+    if borrowShares_ > ZERO then
+      let collateralPrice ← ecmCall
+        (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
+        [addressToWord marketParams.oracle]
+      let healthy ← _isHealthyWithPrice marketParams id borrower collateralPrice
+      return healthy
+    else
+      return true
+
+  function allow_post_interaction_writes setFee (marketParams : MarketParams, newFee : Uint256) : Unit := do
+    let sender <- msgSender
+    let currentOwner <- getStorageAddr ownerSlot
+    require (sender == currentOwner) "not owner"
+    let _ignoredMarketParams := marketParams
+    let id ← ecmCall
+      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
+        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
+    require (currentLastUpdate != ZERO) "market not created"
+    let currentFeeBefore <- structMember "marketSlot" id "fee"
+    require (newFee != currentFeeBefore) "already set"
+    require (newFee <= 250000000000000000) "max fee exceeded"
+    let _accrued ← _accrueInterest marketParams id
+    setStructMember "marketSlot" id "fee" newFee
+    emit "SetFee" [id, newFee]
+
+  function allow_post_interaction_writes accrueInterest (marketParams : MarketParams) : Unit := do
+    let _ignoredMarketParams := marketParams
+    let id ← ecmCall
+      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
+        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
+    require (currentLastUpdate != ZERO) "market not created"
+    let _accrued ← _accrueInterest marketParams id
 
   function allow_post_interaction_writes supplyCollateral (marketParams : MarketParams, assets : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_collateral_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Unit := do
     let thisAddress ← contractAddress
@@ -668,84 +653,14 @@ verity_contract Morpho where
     require (assets > 0) "zero assets"
     require (receiver != 0) "zero address"
     let sender <- msgSender
-    let isSelf := sender == onBehalf
-    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
-    require (isSelf || authWord != 0) "unauthorized"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowShares_ ZERO
-        let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFee <- structMember "marketSlot" id "fee"
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowSharesWord,
-            currentLastUpdate, currentFee]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssets_ compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssets_ interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssets_ interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        if currentFee > 0 then
-          let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplyShares_ 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplyShares_ feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFee == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "no elapsed"
-    -- end inline accrueInterest
+    let isAuthorizedSender ← _isSenderAuthorized onBehalf
+    require isAuthorizedSender "unauthorized"
+    let _accrued ← _accrueInterest marketParams id
     let currentCollateral <- structMember2 "positionSlot" id onBehalf "collateral"
     require (currentCollateral >= assets) "insufficient collateral"
     setStructMember2 "positionSlot" id onBehalf "collateral" (sub currentCollateral assets)
-    -- Health check: _isHealthy(marketParams, id, onBehalf)
-    let borrowShares_ <- structMember2 "positionSlot" id onBehalf "borrowShares"
-    if borrowShares_ > 0 then
-      let collPrice ← ecmCall
-        (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
-        [addressToWord marketParams.oracle]
-      let _borrowed := mulDivUp borrowShares_ 1 1000000
-      let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-      let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-      let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
-      let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
-      let borrowedAmt := mulDivUp borrowShares_ totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
-      let collateral_ <- structMember2 "positionSlot" id onBehalf "collateral"
-      let collateralQuoted := mulDivDown collateral_ collPrice 1000000000000000000000000000000000000
-      let maxBorrow := mulDivDown collateralQuoted marketParams.lltv 1000000000000000000
-      require (maxBorrow >= borrowedAmt) "insufficient collateral"
-    else
-      require (borrowShares_ == 0) "no borrow"
+    let healthy ← _isHealthy marketParams id onBehalf
+    require healthy "insufficient collateral"
     emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
     ecmDo MorphoSafeTransfer.safeTransferModule
       [addressToWord marketParams.collateralToken, addressToWord receiver, assets]
@@ -761,60 +676,7 @@ verity_contract Morpho where
     require (currentLastUpdate != ZERO) "market not created"
     require ((assets == 0) != (shares == 0)) "inconsistent input"
     require (onBehalf != 0) "zero address"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowShares_ ZERO
-        let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFee <- structMember "marketSlot" id "fee"
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowSharesWord,
-            currentLastUpdate, currentFee]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssets_ compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssets_ interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssets_ interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        if currentFee > 0 then
-          let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplyShares_ 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplyShares_ feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFee == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "no elapsed"
-    -- end inline accrueInterest
+    let _accrued ← _accrueInterest marketParams id
     let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
     let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
     let mut finalAssets := assets
@@ -856,63 +718,9 @@ verity_contract Morpho where
     require ((assets == 0) != (shares == 0)) "inconsistent input"
     require (receiver != 0) "zero address"
     let sender <- msgSender
-    let isSelf := sender == onBehalf
-    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
-    require (isSelf || authWord != 0) "unauthorized"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowShares_ ZERO
-        let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFee <- structMember "marketSlot" id "fee"
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowSharesWord,
-            currentLastUpdate, currentFee]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssets_ compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssets_ interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssets_ interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        if currentFee > 0 then
-          let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplyShares_ 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplyShares_ feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFee == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "no elapsed"
-    -- end inline accrueInterest
+    let isAuthorizedSender ← _isSenderAuthorized onBehalf
+    require isAuthorizedSender "unauthorized"
+    let _accrued ← _accrueInterest marketParams id
     let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
     let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
     let mut finalAssets := assets
@@ -951,63 +759,9 @@ verity_contract Morpho where
     require ((assets == 0) != (shares == 0)) "inconsistent input"
     require (receiver != 0) "zero address"
     let sender <- msgSender
-    let isSelf := sender == onBehalf
-    let authWord <- getMapping2 isAuthorizedSlot onBehalf sender
-    require (isSelf || authWord != 0) "unauthorized"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowShares_ ZERO
-        let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFee <- structMember "marketSlot" id "fee"
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowSharesWord,
-            currentLastUpdate, currentFee]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssets_ compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssets_ interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssets_ interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        if currentFee > 0 then
-          let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplyShares_ 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplyShares_ feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFee == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "no elapsed"
-    -- end inline accrueInterest
+    let isAuthorizedSender ← _isSenderAuthorized onBehalf
+    require isAuthorizedSender "unauthorized"
+    let _accrued ← _accrueInterest marketParams id
     let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
     let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
     let mut finalAssets := assets
@@ -1030,23 +784,8 @@ verity_contract Morpho where
     setStructMember2 "positionSlot" id onBehalf "borrowShares" newPosBorrowShares
     setStructMember "marketSlot" id "totalBorrowShares" newTotalBorrowShares
     setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-    -- Health check: _isHealthy(marketParams, id, onBehalf)
-    let borrowShares_ <- structMember2 "positionSlot" id onBehalf "borrowShares"
-    if borrowShares_ > 0 then
-      let collPrice ← ecmCall
-        (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
-        [addressToWord marketParams.oracle]
-      let totalBorrowAssetsNew <- structMember "marketSlot" id "totalBorrowAssets"
-      let totalBorrowSharesNew <- structMember "marketSlot" id "totalBorrowShares"
-      let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssetsNew 1
-      let totalBorrowSharesWithVirtual ← addPanic totalBorrowSharesNew 1000000
-      let borrowedAmt := mulDivUp borrowShares_ totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
-      let collateral_ <- structMember2 "positionSlot" id onBehalf "collateral"
-      let collateralQuoted := mulDivDown collateral_ collPrice 1000000000000000000000000000000000000
-      let maxBorrow := mulDivDown collateralQuoted marketParams.lltv 1000000000000000000
-      require (maxBorrow >= borrowedAmt) "insufficient collateral"
-    else
-      require (borrowShares_ == 0) "no borrow"
+    let healthy ← _isHealthy marketParams id onBehalf
+    require healthy "insufficient collateral"
     let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
     require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
     emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
@@ -1065,60 +804,7 @@ verity_contract Morpho where
     require (currentLastUpdate != ZERO) "market not created"
     require ((assets == 0) != (shares == 0)) "inconsistent input"
     require (onBehalf != 0) "zero address"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowShares_ ZERO
-        let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplyShares_ <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFee <- structMember "marketSlot" id "fee"
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssets_, totalSupplyShares_, totalBorrowAssets_, totalBorrowSharesWord,
-            currentLastUpdate, currentFee]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssets_ compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssets_ interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssets_ interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        if currentFee > 0 then
-          let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplyShares_ 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplyShares_ feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFee == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "no elapsed"
-    -- end inline accrueInterest
+    let _accrued ← _accrueInterest marketParams id
     let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
     let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
     let mut finalAssets := assets
@@ -1159,79 +845,12 @@ verity_contract Morpho where
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((seizedAssets == 0) != (repaidShares == 0)) "inconsistent input"
-    -- inline accrueInterest
-    let currentTimestamp ← blockTimestamp
-    let elapsed ← subPanic currentTimestamp currentLastUpdate
-    if elapsed > 0 then
-      if marketParams.irm != 0 then
-        let totalBorrowAssetsAccrue <- structMember "marketSlot" id "totalBorrowAssets"
-        let totalBorrowSharesAccrue <- structMember "marketSlot" id "totalBorrowShares"
-        let totalBorrowSharesWord := add totalBorrowSharesAccrue ZERO
-        let totalSupplyAssetsAccrue <- structMember "marketSlot" id "totalSupplyAssets"
-        let totalSupplySharesAccrue <- structMember "marketSlot" id "totalSupplyShares"
-        let currentFeeForRate <- structMember "marketSlot" id "fee"
-        let currentFeeForRateWord := add currentFeeForRate ZERO
-        let borrowRateVal ← ecmCall
-          (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar borrowRateSelector 11)
-          [addressToWord marketParams.irm,
-            addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-            addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
-            totalSupplyAssetsAccrue, totalSupplySharesAccrue, totalBorrowAssetsAccrue, totalBorrowSharesWord,
-            currentLastUpdate, currentFeeForRateWord]
-        let firstTerm ← mulPanic borrowRateVal elapsed
-        let secondTerm := mulDivDown firstTerm firstTerm 2000000000000000000
-        let thirdTerm := mulDivDown secondTerm firstTerm 3000000000000000000
-        let secondPlusThird ← addPanic secondTerm thirdTerm
-        let compounded ← addPanic firstTerm secondPlusThird
-        let interest := mulDivDown totalBorrowAssetsAccrue compounded 1000000000000000000
-        let newTotalBorrowAssets ← addPanic totalBorrowAssetsAccrue interest
-        let newTotalSupplyAssets ← addPanic totalSupplyAssetsAccrue interest
-        require (newTotalBorrowAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        require (newTotalSupplyAssets <= 340282366920938463463374607431768211455) "uint128 overflow"
-        setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
-        setStructMember "marketSlot" id "totalSupplyAssets" newTotalSupplyAssets
-        let mut feeShares := ZERO
-        let currentFee <- structMember "marketSlot" id "fee"
-        if currentFee > 0 then
-          let feeAmount := mulDivDown interest currentFee 1000000000000000000
-          let totalSupplySharesWithVirtual ← addPanic totalSupplySharesAccrue 1000000
-          let supplyAssetsAfterFee ← subPanic newTotalSupplyAssets feeAmount
-          let supplyAssetsAfterFeeWithVirtual ← addPanic supplyAssetsAfterFee 1
-          feeShares := mulDivDown feeAmount totalSupplySharesWithVirtual supplyAssetsAfterFeeWithVirtual
-          let feeRecipient_ <- getStorageAddr feeRecipientSlot
-          let currentFeeRecipientShares <- structMember2 "positionSlot" id feeRecipient_ "supplyShares"
-          let newFeeRecipientShares ← addPanic currentFeeRecipientShares feeShares
-          let newTotalSupplyShares ← addPanic totalSupplySharesAccrue feeShares
-          require (newFeeRecipientShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          require (newTotalSupplyShares <= 340282366920938463463374607431768211455) "uint128 overflow"
-          setStructMember2 "positionSlot" id feeRecipient_ "supplyShares" newFeeRecipientShares
-          setStructMember "marketSlot" id "totalSupplyShares" newTotalSupplyShares
-        else
-          require (currentFee == 0) "fee zero"
-        emit "AccrueInterest" [id, borrowRateVal, interest, feeShares]
-      else
-        require (marketParams.irm == 0) "no irm"
-      setStructMember "marketSlot" id "lastUpdate" currentTimestamp
-    else
-      require (elapsed == 0) "no elapsed"
-    -- end inline accrueInterest
-    -- Health check: position must be unhealthy
+    let _accrued ← _accrueInterest marketParams id
     let collateralPrice ← ecmCall
       (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
       [addressToWord marketParams.oracle]
-      let borrowSharesBorrower <- structMember2 "positionSlot" id borrower "borrowShares"
-    if borrowSharesBorrower > 0 then
-      let totalBorrowAssetsH <- structMember "marketSlot" id "totalBorrowAssets"
-      let totalBorrowSharesH <- structMember "marketSlot" id "totalBorrowShares"
-      let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssetsH 1
-      let totalBorrowSharesWithVirtual ← addPanic totalBorrowSharesH 1000000
-      let borrowedAmt := mulDivUp borrowSharesBorrower totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
-      let collateralH <- structMember2 "positionSlot" id borrower "collateral"
-      let collateralQuoted := mulDivDown collateralH collateralPrice 1000000000000000000000000000000000000
-      let maxBorrow := mulDivDown collateralQuoted marketParams.lltv 1000000000000000000
-      require (maxBorrow < borrowedAmt) "position is healthy"
-    else
-      require (borrowSharesBorrower == 0) "no borrow"
+    let healthy ← _isHealthyWithPrice marketParams id borrower collateralPrice
+    require (healthy == false) "position is healthy"
     -- LIF computation
     let lltv := marketParams.lltv
     let wadMinusLltv ← subPanic 1000000000000000000 lltv

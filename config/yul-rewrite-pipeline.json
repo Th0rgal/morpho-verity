@@ -172,6 +172,16 @@
       "implemented": false
     },
     {
+      "rewritePass": "internal_internal_private_accrueinterest-canonicalization",
+      "families": [
+        "internal_internal__accrueInterest"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_accrueinterest.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
       "rewritePass": "internal_internal_borrow-canonicalization",
       "families": [
         "internal_internal_borrow"
@@ -268,6 +278,36 @@
       ],
       "proofRefs": [
         "rewrite.internal_internal_isauthorized.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_ishealthy-canonicalization",
+      "families": [
+        "internal_internal__isHealthy"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthy.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_ishealthywithprice-canonicalization",
+      "families": [
+        "internal_internal__isHealthyWithPrice"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthywithprice.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_issenderauthorized-canonicalization",
+      "families": [
+        "internal_internal__isSenderAuthorized"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
       ],
       "implemented": false
     },

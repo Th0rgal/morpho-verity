@@ -6,6 +6,9 @@ namespace Morpho.Compiler.Generated
 
 open Compiler.CompilationModel
 
+private def internalHelperExternalNames : List String :=
+  ["_accrueInterest", "_isSenderAuthorized", "_isHealthy", "_isHealthyWithPrice"]
+
 /--
 Canonical compiler input boundary for Morpho.
 
@@ -18,6 +21,8 @@ def morphoGeneratedSpec : CompilationModel :=
   -- namespace value `_root_.Morpho.Contract.Morpho.spec`.
   { _root_.Morpho.Contract.Morpho.spec with
       name := "Morpho"
+      functions := _root_.Morpho.Contract.Morpho.spec.functions.filter
+        (fun fn => fn.isInternal || !internalHelperExternalNames.contains fn.name)
       externals := [] }
 
 /--

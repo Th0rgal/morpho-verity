@@ -22,6 +22,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
 BASELINE_PATH = ROOT / "config" / "macro-migration-slice.json"
 DEFAULT_CONTRACT = "Morpho"
+INTERNAL_HELPER_NAMES = {
+  "_accrueInterest",
+  "_isHealthy",
+  "_isHealthyWithPrice",
+  "_isSenderAuthorized",
+}
 
 CONTRACT_RE = re.compile(r"^\s*verity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\s*$")
 FUNCTION_RE = re.compile(
@@ -148,6 +154,11 @@ def extract_macro_signatures(text: str, contract_name: str = DEFAULT_CONTRACT) -
       f"no function signatures found for verity_contract {contract_name} in macro slice source"
     )
   return signatures
+
+
+def is_internal_helper_signature(signature: str) -> bool:
+  name = signature.split("(", 1)[0]
+  return name in INTERNAL_HELPER_NAMES
 
 
 def load_baseline(path: pathlib.Path) -> dict[str, Any]:
@@ -319,7 +330,11 @@ def run_check(
   contract_name: str = DEFAULT_CONTRACT,
 ) -> dict[str, Any]:
   spec_signatures = extract_spec_signatures(read_text(spec_path))
-  migrated_signatures = extract_macro_signatures(read_text(macro_path), contract_name=contract_name)
+  all_macro_signatures = extract_macro_signatures(read_text(macro_path), contract_name=contract_name)
+  internal_helper_signatures = {
+    sig for sig in all_macro_signatures if is_internal_helper_signature(sig)
+  }
+  migrated_signatures = all_macro_signatures - internal_helper_signatures
   unknown_in_spec = sorted(migrated_signatures - spec_signatures)
   if unknown_in_spec:
     raise MigrationSliceError(
@@ -351,6 +366,7 @@ def run_check(
     "specSignatureCount": len(spec_signatures),
     "coveragePct": coverage,
     "migratedSignatures": sorted(migrated_signatures),
+    "internalHelperSignatures": sorted(internal_helper_signatures),
     "blockedCount": len(blocked_signatures),
     "blockedSignatures": blocked_signatures,
   }

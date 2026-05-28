@@ -200,6 +200,15 @@
       ]
     },
     {
+      "family": "internal_internal__accrueInterest",
+      "rewritePass": "internal_internal_private_accrueinterest-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_accrueInterest` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_accrueInterest` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_accrueinterest.semantic_eq"
+      ]
+    },
+    {
       "family": "internal_internal_borrow",
       "rewritePass": "internal_internal_borrow-canonicalization",
       "proofObligation": "Classify and prove the Verity-only `internal_internal_borrow` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
@@ -278,6 +287,33 @@
       "status": "planned",
       "proofRefs": [
         "rewrite.internal_internal_isauthorized.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__isHealthy",
+      "rewritePass": "internal_internal_private_ishealthy-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_isHealthy` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isHealthy` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthy.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__isHealthyWithPrice",
+      "rewritePass": "internal_internal_private_ishealthywithprice-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_isHealthyWithPrice` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isHealthy(..., collateralPrice)` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthywithprice.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__isSenderAuthorized",
+      "rewritePass": "internal_internal_private_issenderauthorized-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_isSenderAuthorized` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isSenderAuthorized` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
       ]
     },
     {

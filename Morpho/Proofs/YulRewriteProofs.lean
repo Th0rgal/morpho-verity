@@ -260,6 +260,16 @@ axiom semantic_eq :
 
 end internal_internal_accrueinterest
 
+namespace internal_internal_private_accrueinterest
+
+axiom semantic_eq :
+  RewriteProofObligation
+    "rewrite.internal_internal_private_accrueinterest.semantic_eq"
+    "internal_internal_private_accrueinterest-canonicalization"
+    "internal_internal__accrueInterest"
+
+end internal_internal_private_accrueinterest
+
 namespace internal_internal_borrow
 
 axiom semantic_eq :
@@ -349,6 +359,36 @@ axiom semantic_eq :
     "internal_internal_isAuthorized"
 
 end internal_internal_isauthorized
+
+namespace internal_internal_private_ishealthy
+
+axiom semantic_eq :
+  RewriteProofObligation
+    "rewrite.internal_internal_private_ishealthy.semantic_eq"
+    "internal_internal_private_ishealthy-canonicalization"
+    "internal_internal__isHealthy"
+
+end internal_internal_private_ishealthy
+
+namespace internal_internal_private_ishealthywithprice
+
+axiom semantic_eq :
+  RewriteProofObligation
+    "rewrite.internal_internal_private_ishealthywithprice.semantic_eq"
+    "internal_internal_private_ishealthywithprice-canonicalization"
+    "internal_internal__isHealthyWithPrice"
+
+end internal_internal_private_ishealthywithprice
+
+namespace internal_internal_private_issenderauthorized
+
+axiom semantic_eq :
+  RewriteProofObligation
+    "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
+    "internal_internal_private_issenderauthorized-canonicalization"
+    "internal_internal__isSenderAuthorized"
+
+end internal_internal_private_issenderauthorized
 
 namespace internal_internal_isirmenabled
 
