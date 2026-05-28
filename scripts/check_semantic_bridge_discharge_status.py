@@ -33,12 +33,10 @@ EXPECTED_DISCHARGE_STATUS = (
   "raw-log payloads, callbacks, and ECM-backed calls."
 )
 EXPECTED_FLASHLOAN_ROW = (
-  "| 3 | flashLoan | **proven** | pending `SupportedStmtList` witness for the `rawLog` "
-  "tail with caller/token topics, then external I/O bridge work |"
+  "| 3 | flashLoan | **proven** | pending external I/O bridge work for ERC20 transfer and callback ECMs |"
 )
 EXPECTED_CREATE_MARKET_ROW = (
-  "| 4 | createMarket | **proven** | pending `rawLog` payload and post-create IRM ECM "
-  "trust-boundary discharge |"
+  "| 4 | createMarket | **proven** | pending post-create IRM ECM trust-boundary discharge |"
 )
 EXPECTED_ACCRUE_INTEREST_ROW = (
   "| 5 | accrueInterest, accrueInterestPublic | **proven** | pending typed IRM ECM trust-boundary discharge |"
