@@ -1,126 +1,49 @@
 # Morpho Verity
 
-Formal verification of [Morpho Blue](https://github.com/morpho-org/morpho-blue) using [Verity](https://github.com/Th0rgal/verity), a Lean 4 framework for verified smart contracts.
+Source-shaped Morpho Blue implementation in [Verity](https://github.com/Th0rgal/verity), a Lean 4 framework for smart-contract compilation.
 
 ## Goal
 
-Audit Morpho Blue by building an equivalent implementation in Lean 4 and proving it correct.
+Maintain a source-shaped Verity implementation of Morpho Blue and continuously
+check it against the pinned Solidity baseline.
 
-The approach: translate Morpho's Solidity logic line-by-line into Verity's contract DSL, state the key safety properties as formal specs, then prove them mechanically. A successful proof gives stronger guarantees than traditional auditing — if the translation is faithful, bugs in the spec are bugs in the original.
+The legacy repo-local proof inventory has been removed. It was written for
+older Verity APIs and should be redesigned cleanly against the current
+`verity_contract` compiler surface rather than carried forward as stale proof
+scaffolding.
 
-### What this proves
-
-- **Solvency**: total borrows never exceed total supply, preserved by all 17 state-mutating operations (supply, withdraw, borrow, repay, liquidate, accrueInterest, accrueInterestPublic, supplyCollateral, withdrawCollateral, createMarket, setFee, and all admin functions)
-- **Rounding safety**: all share/asset conversions round against the user; round-trip supply-withdraw never returns more than deposited
-- **Authorization**: only authorized addresses can withdraw, borrow, or remove collateral; liquidation requires an unhealthy position; signature-based delegation requires valid nonce and unexpired deadline
-- **Fee bounds**: market fees stay within the 25% cap
-- **Collateralization**: positions with debt always have collateral, preserved by all 17 operations including borrow and withdrawCollateral (guarded by health checks; bad debt is socialized by liquidation)
-- **Monotonicity**: enabled IRMs/LLTVs cannot be disabled across all operations; market timestamps only increase through accrueInterest, setFee, and accrueInterestPublic
-- **Exchange rate safety**: supply share exchange rate never decreases after interest accrual (accrueInterest and accrueInterestPublic); existing shareholders' per-share value is protected
-- **Market isolation**: operations on one market never affect any other market's state, same-market user positions, or any position in other markets
-- **Share accounting**: totalSupplyShares = sum of individual supplyShares and totalBorrowShares = sum of individual borrowShares, preserved by all 17 operations (supply, withdraw, borrow, repay, liquidate, accrueInterest, supplyCollateral, withdrawCollateral, createMarket, setFee, enableIrm, enableLltv, setOwner, setFeeRecipient, setAuthorization, setAuthorizationWithSig, accrueInterestPublic)
-
-### What this does not prove
-
-The Lean implementation targets logical equivalence with Morpho's Solidity, not bytecode equivalence. The compiled Yul output will differ. External call behavior (oracle prices, IRM rates, ERC20 transfers, EIP-712 signature verification) is modeled as parameters, not verified end-to-end.
-
-### Proof Boundaries (Proved vs Assumed)
+### Current Guarantees
 
 | Area | Current status | Gate/condition |
 |------|----------------|----------------|
-| Lean invariants/specs | Proved in this repo | `lake build` succeeds |
-| Solidity equivalence transfer | Conditional | Per-operation semantic equivalence obligations must be discharged ([tracked](config/semantic-bridge-obligations.json)) |
-| Compilation correctness (EDSL → IR → Yul) | **Trusted** | Delegated to Verity compiler framework; `SupportedStmtList` witnesses assumed constructive |
-| Verity artifact parity | Empirical/differential today | Pinned parity target + Yul identity gate in CI |
-| External dependencies (oracle/token/signature env) | Assumed model inputs | Explicit trust assumptions and scenario matrix |
+| Verity contract build | Checked | `lake build` succeeds |
+| Verity artifact generation | Checked | `scripts/prepare_verity_morpho_artifact.sh` |
+| Morpho Blue parity | Empirical/differential | `scripts/run_morpho_blue_parity.sh` |
+| Yul identity | Manifest-gated | `scripts/report_yul_identity_gap.py --enforce-configured-gate` |
+| External dependencies | Assumed | Oracle, IRM, ERC-20, callback, Keccak/ecrecover behavior remain environment/trust boundaries |
 
-Groundwork docs for closing these gaps:
+This repository currently makes an implementation/parity claim, not a formal
+invariant-proof claim. New proofs should be added back as a fresh layer over the
+canonical `verity_contract Morpho` source.
+
+Groundwork docs:
 - [`docs/PARITY_TARGET.md`](docs/PARITY_TARGET.md)
-- [`docs/VERITY_PIN.md`](docs/VERITY_PIN.md)
-- [`docs/VERITY_UPGRADE_b699e300.md`](docs/VERITY_UPGRADE_b699e300.md)
-- [`docs/POST_VERITY_1939_MORPHO_ACTIONS.md`](docs/POST_VERITY_1939_MORPHO_ACTIONS.md)
-- [`docs/SOLIDITY_CORRESPONDENCE.md`](docs/SOLIDITY_CORRESPONDENCE.md)
 - [`docs/TRUST_BOUNDARIES.md`](docs/TRUST_BOUNDARIES.md)
-- [`docs/ARITHMETIC_FIDELITY.md`](docs/ARITHMETIC_FIDELITY.md)
-- [`docs/EQUIVALENCE_OBLIGATIONS.md`](docs/EQUIVALENCE_OBLIGATIONS.md)
-- [`docs/RELEASE_CRITERIA.md`](docs/RELEASE_CRITERIA.md)
-
-### Upstream: Verity hybrid canonical-semantics migration (verity#1060 / #1065)
-
-The Verity framework now has the upstream typed-IR / canonical-semantics bridge
-for supported `verity_contract` functions:
-`EDSL execution ≡ EVMYulLean(compile(CompilationModel))`.
-This removes the hand-rolled `interpretSpec` interpreter from the target trust
-story and enables auto-generated semantic preservation proofs in the
-`verity_contract` macro where the frontend can lower the contract successfully.
-At the current morpho-verity pin, the remaining blockers are repo-local Link 1
-gaps plus Verity proof-interpreter coverage for complex Morpho operations.
-Once those repo-local gaps are discharged, morpho-verity's Solidity equivalence
-obligations can be discharged against EVMYulLean's formally verified EVM
-semantics rather than a trusted reimplementation. Track upstream history in
-[verity#1060](https://github.com/Th0rgal/verity/issues/1060) and
-[verity#1065](https://github.com/Th0rgal/verity/pull/1065).
-
-**Link 1 proofs (stable `Morpho.*` wrapper API ↔ EDSL) are now proven for 18/18 operations:**
-`setOwner`, `setFeeRecipient`, `enableIrm`, `enableLltv`, `setAuthorization`,
-`setAuthorizationWithSig`, `createMarket`, `accrueInterest`, `accrueInterestPublic`,
-`setFee`, `supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`,
-`withdrawCollateral`, `liquidate`, `flashLoan`.
-The remaining 0/18 operations still have assumed Link 1 status in
-`config/semantic-bridge-obligations.json`.
-See `Morpho/Proofs/SemanticBridgeDischarge.lean`.
-
-**Links 2+3 (EDSL → IR → Yul) trust assumption:** Compilation correctness
-is delegated to Verity's compiler framework. The `verity_contract` macro
-generates code exclusively from supported patterns, so
-`SupportedStmtList`/`SupportedSpec` witnesses should be constructive —
-produced by the macro, not proven manually per-contract. We assume Verity
-will widen the supported fragment and automate these witnesses. Manual
-`SupportedStmtList` proofs have been removed from this repository.
-
-**Post-Verity #1939 Morpho work:** Verity merge commit
-`00c18e3a694201cc0dfd8d8f52abaa0bf308887c` added the primitives needed to move
-several former framework gaps into Morpho-local translation work. After this
-repo advances its Verity pin, Morpho can directly replace placeholder market-id
-hashing with static ABI Keccak helpers, express EIP-712 digest construction with
-Verity hashing modules, use Solmate-compatible ERC-20 ECMs, use bubbling
-callback and low-level-call helpers, and model Solidity 0.8 arithmetic with
-checked/panic helpers. The remaining assumptions should then be narrowed to
-external environment behavior plus EVM primitive/precompile semantics. See
-[`docs/POST_VERITY_1939_MORPHO_ACTIONS.md`](docs/POST_VERITY_1939_MORPHO_ACTIONS.md)
-for the concrete Morpho-side action list.
 
 Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
 - [`config/yul-rewrite-pipeline.json`](config/yul-rewrite-pipeline.json)
-- [`config/yul-rewrite-proof-obligations.json`](config/yul-rewrite-proof-obligations.json)
-- [`config/semantic-bridge-obligations.json`](config/semantic-bridge-obligations.json)
-- [`Morpho/Proofs/YulRewriteProofs.lean`](Morpho/Proofs/YulRewriteProofs.lean)
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
 - [`scripts/apply_yul_rewrite_pipeline.py`](scripts/apply_yul_rewrite_pipeline.py)
-- [`scripts/check_yul_rewrite_proof_obligations.py`](scripts/check_yul_rewrite_proof_obligations.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
-- [`scripts/check_semantic_bridge_obligations.py`](scripts/check_semantic_bridge_obligations.py)
-- [`scripts/check_spec_correspondence.py`](scripts/check_spec_correspondence.py)
-- [`scripts/check_primitive_coverage.py`](scripts/check_primitive_coverage.py)
-
-Some theorems are conditional on arithmetic side conditions (`h_no_overflow`) that model Solidity checked arithmetic.
-These are explicit theorem hypotheses today, not globally discharged reachability facts.
-
-### Solidity Equivalence Bridge
-
-`Morpho/Proofs/SolidityBridge.lean` adds 67 proof-transfer theorems for core invariants.
-This file is a conditional transfer layer: it assumes operation-by-operation semantic equivalence hypotheses and then transports proved invariants.
-If a Solidity/Yul semantics model is shown equivalent to each corresponding Verity operation
-(`supply`, `withdraw`, `borrow`, `repay`, `supplyCollateral`, `withdrawCollateral`, `liquidate`, `accrueInterest`, `enableIrm`, `enableLltv`, `setAuthorization`, `setAuthorizationWithSig`),
-the existing Verity proofs for `borrowLeSupply`, `alwaysCollateralized`, `irmMonotone`, and `lltvMonotone` transfer directly to Solidity.
 
 ## Key Modeling Notes
 
 - `createMarket` now derives `id = marketId(params)` inside the transition (matching Solidity), so callers cannot provide arbitrary ids.
 - `marketId` is no longer a constant placeholder; it is a deterministic function of `MarketParams`.
-- Interest accrual remains a compositional model (`accrueInterest` can be called explicitly by clients/proofs), while Solidity calls it internally in several entrypoints.
+- Public market operations call `_accrueInterest` in the contract body in the
+  same order as the Solidity source.
 
 ## Structure
 
@@ -128,25 +51,14 @@ the existing Verity proofs for `borrowLeSupply`, `alwaysCollateralized`, `irmMon
 morpho-blue/              # Morpho Blue Solidity (git submodule)
 Morpho/
   Types.lean              # MarketParams, Position, Market, MorphoState, Authorization
-  Morpho.lean             # Core logic: supply, withdraw, borrow, repay, liquidate, setAuthorizationWithSig
+  Contract.lean           # Canonical verity_contract Morpho source
   Libraries/
     MathLib.lean          # WAD arithmetic (mulDivDown/Up, wMulDown, wTaylorCompounded)
     SharesMathLib.lean    # Share/asset conversion with virtual offset
     UtilsLib.lean         # exactlyOneZero, min, zeroFloorSub
     ConstantsLib.lean     # MAX_FEE, ORACLE_PRICE_SCALE, LIQUIDATION_CURSOR
-  Specs/
-    Invariants.lean       # Formal property definitions
-    Rounding.lean         # Rounding direction specs
-    Authorization.lean    # Access control specs
-  Proofs/
-    Invariants.lean       # Invariant proofs (105 proven, 98 public + 7 helper lemmas)
-    Rounding.lean         # Rounding proofs (4/4 proven)
-    Authorization.lean    # Authorization proofs (13 proven, 11 public + 2 helper lemmas)
-    SolidityBridge.lean   # Solidity equivalence bridge proofs (67/67 proven)
-    ShareConsistency.lean # Share accounting proofs (36 proven, 34 public + 2 helper lemmas)
-    NatListSum.lean       # List sum lemmas for share accounting (5/5 proven)
   Compiler/
-    Spec.lean             # Morpho Blue contract specification (CompilationModel DSL)
+    Spec.lean             # Legacy hand-written CompilationModel, excluded from Lake
     Generated.lean        # Canonical compiler boundary: generated spec + generated selectors
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
 artifacts/
@@ -284,7 +196,10 @@ Validate a prepared artifact bundle before reusing it:
 python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 ```
 
-Prepared rewrite bundles are validated fail-closed against both manifest paths and manifest content digests. If `config/yul-rewrite-pipeline.json` or `config/yul-rewrite-proof-obligations.json` changes in place, an older `Morpho.rewrite-report.json` will no longer be accepted for reuse.
+Prepared rewrite bundles are validated fail-closed against manifest paths and
+manifest content digests. If `config/yul-rewrite-pipeline.json` changes in
+place, an older `Morpho.rewrite-report.json` will no longer be accepted for
+reuse.
 
 Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`):
 
@@ -299,7 +214,7 @@ uses that verified bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
 still fails closed if any file is missing or empty.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
-- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `2400`)
+- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `2400`, legacy name for the Lean build lane)
 - `MORPHO_VERITY_MAINTEST_TIMEOUT_SEC` (default `300`)
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
@@ -342,71 +257,16 @@ Current status:
 - `./scripts/run_morpho_blue_parity.sh` passes `MORPHO_IMPL=solidity|verity` into the Morpho Blue suite and now fails closed unless `morpho-blue/test/BaseTest.sol` reads that selector via an explicit Foundry env lookup and no test bypasses it with direct `new Morpho(...)` deployments.
 - The currently checked-in `morpho-blue` submodule is wired for the selector under the `difftest` Foundry profile, including artifact read permissions and Shanghai opcode support for the generated Verity bytecode.
 - Differential pass/fail depends on the currently checked-out `morpho-blue` submodule revision; use the logs under `out/parity/` as the source of truth for a given run.
-- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization (top-level + function-level, with token line/column coordinates), name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), and a rewrite-oriented prioritization view (`functionBlocks.rewriteFamilies`) that groups exactness blockers by rewrite family / mismatch kind, including ambiguous rename-only clusters. The report now compares Solidity IR against the rewritten Verity artifact, persists both `verity/Morpho.raw.yul` and `verity/Morpho.yul`, and records the ordered rewrite pipeline under `rewritePipeline`. It also annotates tracked rewrite families from `config/yul-rewrite-proof-obligations.json`, so each reported family is tied to an intended rewrite pass and semantic-preservation obligation, and it flags untracked families that still need proof-plan coverage. `scripts/check_yul_rewrite_proof_obligations.py` fails closed unless every manifest proof ref is backed by a placeholder declaration in `Morpho/Proofs/YulRewriteProofs.lean`, with matching proof-ref, rewrite-pass, and family metadata.
-
-## Proof progress
-
-**Proof inventory is in transition. `lake build` currently succeeds with five `sorry` placeholders in `Morpho/Compiler/AdminAdapters.lean`.**
-
-| Category | Proven | Total | Status |
-|----------|--------|-------|--------|
-| Invariants | 105 | 105 | Done |
-| Solidity equivalence bridge | 67 | 67 | Done |
-| Share consistency | 36 | 36 | Done |
-| Authorization | 13 | 13 | Done |
-| List sum lemmas | 5 | 5 | Done |
-| Rounding | 4 | 4 | Done |
-
-Also proven in supporting libraries:
-- `mulDivDown_le_mulDivUp` — floor division ≤ ceiling division (MathLib)
-- `zeroFloorSub_le` — saturating subtraction never exceeds original (UtilsLib)
-- `u256_val` — simp lemma for Uint256 wrapping arithmetic
-
-Invariant theorems (105) include:
-- Solvency (borrowLeSupply) preserved by all 17 operations (17 public + 3 helper lemmas)
-- Collateralization preserved by all 17 operations (17 public + 3 helper lemmas)
-- IRM monotonicity preserved by 14 operations including accrueInterestPublic (14)
-- LLTV monotonicity preserved by 14 operations including accrueInterestPublic (14)
-- Market isolation for 8 operations: accrueInterest/supply/withdraw/borrow/repay/liquidate/supplyCollateral/withdrawCollateral (8)
-- Same-market position isolation for 8 operations (8)
-- Cross-market position isolation for 8 operations (8)
-- Timestamp monotonicity for accrueInterest/setFee/accrueInterestPublic (3)
-- Exchange rate monotonicity for accrueInterest/accrueInterestPublic (2 public + 1 helper lemma)
-- LLTV < WAD (1), market creation validity (1), fee bounds (1)
-- Flash loan rejects zero assets (1), accrueInterestPublic rejects uninitialized markets (1)
-- accrueInterestPublic preserves solvency and collateralization (2)
-
-Solidity equivalence bridge theorems (67) include:
-- borrowLeSupply preservation for all 17 state-mutating operations (17)
-- alwaysCollateralized preservation for the same 17 operations (17)
-- irmMonotone preservation for 16 operations (16)
-- lltvMonotone preservation for 16 operations (16)
-- flashLoan rejects zero assets (1)
-
-Authorization theorems (13) include:
-- Precondition style: unauthorized sender → withdraw/borrow/withdrawCollateral return none (3)
-- Postcondition style: successful withdraw/borrow/withdrawCollateral → sender was authorized (3)
-- Supply requires no authorization (1)
-- Liquidation requires unhealthy position (1)
-- Signature-based: expired deadline rejected, wrong nonce rejected, nonce incremented (3)
-- Helper lemmas: isSenderAuthorized characterization (2)
-
-Share consistency theorems (36) include:
-- supplySharesConsistent preserved by all 17 operations (17)
-- borrowSharesConsistent preserved by all 17 operations (17)
-- Helper lemmas: supply/borrow consistency propagation (2)
+- `scripts/report_yul_identity_gap.py` emits machine-readable identity artifacts under `out/parity-target/` (`report.json` + `normalized.diff`) including structural-AST mismatch localization, name-insensitive function-body pairing diagnostics, deterministic mismatch family grouping, and a rewrite-oriented prioritization view. The report compares Solidity IR against the rewritten Verity artifact, persists both `verity/Morpho.raw.yul` and `verity/Morpho.yul`, and records the ordered rewrite pipeline under `rewritePipeline`.
 
 ## Status
 
 - [x] Morpho types and state model
 - [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, setAuthorization, setAuthorizationWithSig, owner functions, interest accrual, flash loans)
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
-- [x] Formal specs with human-readable documentation (invariants, rounding, authorization)
-- [x] Authorization proofs (13: withdraw/borrow/withdrawCollateral require auth, supply doesn't, postcondition specs, liquidation requires unhealthy, signature validation, helper lemmas)
-- [x] Invariant proofs (105: solvency × 17, collateralization × 17, IRM/LLTV monotonicity × 14 each, market/position isolation × 24, timestamp × 3, exchange rate × 2, standalone checks, helper lemmas)
-- [x] Rounding proofs (4/4: toSharesDown ≤ toSharesUp, toAssetsDown ≤ toAssetsUp, supply round-trip protocol-safe, withdraw round-trip protocol-safe)
-- [x] Share consistency proofs (36: supplySharesConsistent and borrowSharesConsistent preserved by all 17 operations including liquidate bad-debt socialization, helper lemmas)
-- [x] Solidity equivalence bridge proofs (67: borrowLeSupply/alwaysCollateralized preserved across 17 operations, irmMonotone/lltvMonotone across 16, flashLoan zero-asset rejection)
+- [x] Verity artifact generation
+- [x] Morpho Blue differential test harness
+- [ ] Rewrite formal proofs cleanly against the current Verity contract/compiler surface
 
 ## License
 

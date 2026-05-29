@@ -85,13 +85,14 @@ For Morpho, “faithful” should mean: the main Verity contract reads like `Mor
 
 ## Target Architecture
 
-Use three layers:
+Use two layers now, with proofs added back later only after they are redesigned:
 
 1. `Morpho/Contract.lean`: canonical `verity_contract Morpho`, line-by-line with `src/Morpho.sol`.
-2. `Morpho/Specs/*.lean`: pure protocol properties and abstractions, but phrased against generated entrypoint/state projections where possible.
-3. `Morpho/Proofs/*.lean`: invariant proofs plus bridge lemmas from generated contract execution to the pure spec surface.
+2. `Morpho/Compiler/*.lean`: generated compiler boundary and artifact production.
 
-The current `Morpho/Morpho.lean` can remain temporarily as a proof model, but it should be demoted to `Morpho/Model/Pure.lean` or similar. The delivery milestone should be that every proved invariant clearly says whether it is proved over:
+The old pure model/spec/proof layer has been removed. The next proof milestone
+should introduce fresh modules that clearly state whether each invariant is
+proved over:
 
 - generated macro contract execution,
 - the pure model only,
@@ -268,7 +269,7 @@ Exit criteria:
   - proved directly over generated contract execution,
   - proved over the pure model and transferred by a discharged bridge lemma,
   - or conditional on a named semantic bridge assumption.
-- Update `semantic-bridge-obligations.json` to use generated entrypoints as the source of truth.
+- If a new bridge tracker is added, make generated entrypoints the source of truth.
 - Remove outdated references to manual `CompilationModel` specs and stale Link 1 assumptions once bridge lemmas target the macro contract.
 
 Exit criteria:
@@ -306,9 +307,7 @@ These are likely upstream Verity needs for a fully faithful Morpho port:
 - `Morpho/Libraries/*.lean`: line-by-line library translations with proof lemmas.
 - `Morpho/External/*.lean`: Morpho-specific ECMs for IRM, oracle, callbacks, and any SafeTransferLib gaps.
 - `Morpho/Generated/*.lean`: artifact wrappers generated from `Morpho.spec`.
-- `docs/SOLIDITY_CORRESPONDENCE.md`: statement-by-statement mapping from `Morpho.sol`.
 - `docs/TRUST_BOUNDARIES.md`: exact assumed/proved/unchecked surfaces from trust reports.
-- Updated `config/semantic-bridge-obligations.json`: generated-entrypoint bridge status.
 - Foundry parity gate equivalent to Unlink’s `test:duality`.
 
 ## Suggested Priority Order
@@ -320,4 +319,3 @@ These are likely upstream Verity needs for a fully faithful Morpho port:
 5. Add generated artifact and differential test gates.
 6. Reconnect invariant proofs to generated execution.
 7. Only then retire the old pure-model equivalence claims.
-

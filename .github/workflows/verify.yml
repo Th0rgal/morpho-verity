@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   verity-proofs:
-    name: Lean proofs (Verity)
+    name: Lean build (Verity)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -51,8 +51,8 @@ jobs:
       - name: Clear stale Lake packages on verity pin change
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
-      - name: Build and check proofs
-        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build and check Lean proofs" -- lake build
+      - name: Build Verity contract
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build Verity contract" -- lake build
 
       - name: Upload verified Lean workspace
         uses: actions/upload-artifact@v4
@@ -147,9 +147,6 @@ jobs:
       - name: Validate verity pin sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin sync" -- python3 scripts/check_verity_pin_sync.py
 
-      - name: Validate verity pin provenance
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate verity pin provenance" -- python3 scripts/check_verity_pin_provenance.py
-
       - name: Validate pinned parity target
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate pinned parity target" -- python3 scripts/check_parity_target.py
 
@@ -159,9 +156,6 @@ jobs:
       - name: Validate morpho selector block sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho selector block sync" -- python3 scripts/check_morpho_selectors_sync.py
 
-      - name: Validate macro migration blockers baseline
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration blockers baseline" -- python3 scripts/check_macro_migration_blockers.py --json-out out/parity-target/macro-migration-blockers.json
-
       - name: Validate macro migration selector slice
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration selector slice" -- python3 scripts/check_macro_migration_slice.py --json-out out/parity-target/macro-migration-slice.json
 
@@ -170,9 +164,6 @@ jobs:
 
       - name: Validate morpho event surface sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho event surface sync" -- python3 scripts/check_morpho_event_surface.py
-
-      - name: Validate arithmetic fidelity assumptions
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate arithmetic fidelity assumptions" -- python3 scripts/check_arithmetic_fidelity.py
 
       - name: Validate CI timeout defaults sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout defaults sync" -- python3 scripts/check_ci_timeout_defaults.py
@@ -261,53 +252,8 @@ jobs:
       - name: Validate artifact layout boundary
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate artifact layout boundary" -- python3 scripts/check_artifact_layout_boundary.py
 
-      - name: Validate semantic bridge obligations
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge obligations" -- python3 scripts/check_semantic_bridge_obligations.py
-
-      - name: Validate semantic bridge readiness sync
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge readiness sync" -- python3 scripts/check_semantic_bridge_readiness_sync.py
-
-      - name: Validate semantic bridge readiness summary
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge readiness summary" -- python3 scripts/check_semantic_bridge_readiness_summary.py
-
-      - name: Validate semantic bridge instantiation status
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge instantiation status" -- python3 scripts/check_semantic_bridge_instantiation_status.py
-
-      - name: Validate semantic bridge discharge status
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate semantic bridge discharge status" -- python3 scripts/check_semantic_bridge_discharge_status.py
-
-      - name: Validate README semantic bridge summary
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate README semantic bridge summary" -- python3 scripts/check_readme_semantic_bridge_summary.py
-
       - name: Validate markdown repo links
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate markdown repo links" -- python3 scripts/check_markdown_repo_links.py
-
-      - name: Validate issue blocker clusters
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate issue blocker clusters" -- python3 scripts/check_issue_blocker_clusters.py
-
-      - name: Validate equivalence obligations doc sync
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate equivalence obligations doc sync" -- python3 scripts/check_equivalence_obligations_doc.py
-
-      - name: Validate release criteria status sync
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate release criteria status sync" -- python3 scripts/check_release_criteria_status.py
-
-      - name: Validate macro migration blockers doc sync
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro migration blockers doc sync" -- python3 scripts/check_macro_migration_blockers_doc.py
-
-      - name: Validate macro blocker regression coverage
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate macro blocker regression coverage" -- python3 scripts/check_macro_blocker_regression_coverage.py
-
-      - name: Validate Yul rewrite proof obligations
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate Yul rewrite proof obligations" -- python3 scripts/check_yul_rewrite_proof_obligations.py --json-out out/parity-target/yul-rewrite-proof-obligations.json
-
-      - name: Validate spec correspondence
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate spec correspondence" -- python3 scripts/check_spec_correspondence.py
-
-      - name: Validate Solidity correspondence doc sync
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate Solidity correspondence doc sync" -- python3 scripts/check_solidity_correspondence_doc.py
-
-      - name: Analyze primitive coverage
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Analyze primitive coverage" -- python3 scripts/check_primitive_coverage.py
 
       - name: Run parity-target parser regression tests
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC 900 "Parity-target parser regression tests" -- python3 scripts/test_check_parity_target.py

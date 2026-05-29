@@ -89,10 +89,8 @@ compute_input_digest() {
     "${ROOT_DIR}/MorphoCompiler.lean" \
     "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh" \
     "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" \
-    "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" \
     "${ROOT_DIR}/config/parity-target.json" \
     "${ROOT_DIR}/config/yul-rewrite-pipeline.json" \
-    "${ROOT_DIR}/config/yul-rewrite-proof-obligations.json" \
     "${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul" \
     "${ROOT_DIR}/artifacts/inputs/BorrowRate.yul" \
     "${ROOT_DIR}/artifacts/inputs/OraclePrice.yul" \

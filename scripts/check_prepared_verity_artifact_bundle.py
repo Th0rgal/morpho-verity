@@ -23,10 +23,8 @@ INPUT_DIGEST_PATHS = (
   pathlib.Path("MorphoCompiler.lean"),
   pathlib.Path("scripts/prepare_verity_morpho_artifact.sh"),
   pathlib.Path("scripts/apply_yul_rewrite_pipeline.py"),
-  pathlib.Path("scripts/check_yul_rewrite_proof_obligations.py"),
   pathlib.Path("config/parity-target.json"),
   pathlib.Path("config/yul-rewrite-pipeline.json"),
-  pathlib.Path("config/yul-rewrite-proof-obligations.json"),
   pathlib.Path("artifacts/inputs/MarketParamsHash.yul"),
   pathlib.Path("artifacts/inputs/BorrowRate.yul"),
   pathlib.Path("artifacts/inputs/OraclePrice.yul"),
@@ -168,12 +166,6 @@ def _required_parity_pack(path: pathlib.Path) -> str:
   return parity_pack
 
 
-def _expected_proof_manifest(proof_manifest_path: pathlib.Path) -> str | None:
-  if not proof_manifest_path.exists():
-    return None
-  return _display_path(proof_manifest_path)
-
-
 def _expected_manifest_sha256(path: pathlib.Path) -> str | None:
   if not path.exists():
     return None
@@ -217,12 +209,11 @@ def validate_prepared_verity_artifact_bundle(
     require_rewrite: bool,
     parity_target_path: pathlib.Path = DEFAULT_PARITY_TARGET,
     pipeline_manifest_path: pathlib.Path = DEFAULT_PIPELINE_MANIFEST,
-    proof_manifest_path: pathlib.Path = DEFAULT_PROOF_MANIFEST,
+    proof_manifest_path: pathlib.Path | None = None,
 ) -> pathlib.Path:
   artifact_dir = artifact_dir.resolve()
   parity_target_path = parity_target_path.resolve()
   pipeline_manifest_path = pipeline_manifest_path.resolve()
-  proof_manifest_path = proof_manifest_path.resolve()
   resolved_dir = resolve_artifact_dir(artifact_dir)
   if not resolved_dir.is_dir():
     raise PreparedArtifactBundleError(
@@ -315,22 +306,6 @@ def validate_prepared_verity_artifact_bundle(
         "Prepared rewrite report pipeline manifest digest mismatch: expected "
         f"{expected_pipeline_sha256!r}, got {pipeline_manifest_sha256!r}"
       )
-    expected_proof_manifest = _expected_proof_manifest(proof_manifest_path)
-    proof_manifest = _require_optional_string_field(report, rewrite_report_path, "proofManifestPath")
-    if proof_manifest != expected_proof_manifest:
-      raise PreparedArtifactBundleError(
-        "Prepared rewrite report proof manifest mismatch: expected "
-        f"{expected_proof_manifest!r}, got {proof_manifest!r}"
-      )
-    expected_proof_sha256 = _expected_manifest_sha256(proof_manifest_path)
-    proof_manifest_sha256 = _require_optional_string_field(
-      report, rewrite_report_path, "proofManifestSha256"
-    )
-    if proof_manifest_sha256 != expected_proof_sha256:
-      raise PreparedArtifactBundleError(
-        "Prepared rewrite report proof manifest digest mismatch: expected "
-        f"{expected_proof_sha256!r}, got {proof_manifest_sha256!r}"
-      )
     if not rewritten_path.exists():
       raise PreparedArtifactBundleError(
         "Prepared rewrite report is present without matching Morpho.rewritten.yul: "
@@ -383,7 +358,7 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--rewrite-proof-manifest",
     default=str(DEFAULT_PROOF_MANIFEST),
-    help="Rewrite proof manifest expected by the prepared rewrite report.",
+    help="Legacy no-op option retained for compatibility with older callers.",
   )
   parser.add_argument(
     "--allow-missing-bin",

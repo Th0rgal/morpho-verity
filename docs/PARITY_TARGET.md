@@ -13,7 +13,6 @@ Partially implemented:
 4. Yul identity gap report script + CI artifacts: `scripts/report_yul_identity_gap.py` and `yul-identity-report` job.
 5. Structural Yul AST comparator (deterministic tokenizer + delimiter-validated parser) with function-level mismatch localization.
 6. Enforced unsupported-manifest drift gate (`config/yul-identity-unsupported.json`).
-7. Enforced macro-migration blocker drift gate (`scripts/check_macro_migration_blockers.py` + `config/macro-migration-blockers.json`).
 
 Not implemented yet:
 1. Full semantic AST path localization (current comparator is structural token AST).
@@ -41,7 +40,6 @@ This file is the single source of truth for that context.
 4. `out/parity-target/`: generated Yul fixtures and identity reports (implemented, non-blocking).
 5. `config/yul-identity-unsupported.json`: machine-tracked known unsupported function-level deltas.
 6. `config/yul-rewrite-pipeline.json`: ordered rewrite-stage definition from raw Verity Yul to rewritten comparison input.
-7. `docs/RELEASE_CRITERIA.md`: gate definitions tied to this tuple.
 
 ## CI Expectations
 
@@ -51,9 +49,6 @@ This file is the single source of truth for that context.
 4. CI publishes `out/parity-target/` identity artifacts (`report.json`, `normalized.diff`) for each run.
 5. `report.json` includes structural AST equality status, top-level token mismatch location (token index + line/column), function-level mismatch keys, name-insensitive function-body pairing diagnostics (`functionBlocks.nameInsensitivePairs`), deterministic mismatch family grouping (`functionBlocks.familySummary`), unsupported-manifest drift diagnostics, and rewrite-pipeline metadata.
 6. The rewrite pipeline runs before identity comparison, persists both raw and rewritten Verity Yul artifacts, and is defined by `config/yul-rewrite-pipeline.json`.
-7. `report.json` annotates rewrite-family entries with tracked rewrite/proof plans from `config/yul-rewrite-proof-obligations.json` and lists any untracked families.
-8. CI validates that every `proofRefs` entry in `config/yul-rewrite-proof-obligations.json` is backed by a placeholder declaration in `Morpho/Proofs/YulRewriteProofs.lean`, with matching proof-ref, rewrite-pass, and family metadata.
-9. Downloaded/reused prepared EDSL artifact bundles are validated against `Morpho.artifact-manifest.env`, `config/parity-target.json`, and rewrite-report metadata before downstream jobs trust them, including the current SHA-256 digest of the rewrite pipeline and proof manifests.
-10. Unsupported manifest checks also validate `parityTarget` equality with the active tuple.
-11. Macro migration blocker check fails on unreviewed constructor-surface drift between `Morpho/Compiler/Spec.lean` and current Verity macro support.
-12. Future strict identity checks must reference this tuple explicitly.
+7. Downloaded/reused prepared EDSL artifact bundles are validated against `Morpho.artifact-manifest.env`, `config/parity-target.json`, and rewrite-report metadata before downstream jobs trust them, including the current SHA-256 digest of the rewrite pipeline.
+8. Unsupported manifest checks also validate `parityTarget` equality with the active tuple.
+9. Future strict identity checks must reference this tuple explicitly.

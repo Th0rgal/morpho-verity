@@ -15,7 +15,6 @@ TARGETS = [
   ROOT / "scripts" / "run_morpho_blue_parity.sh",
   ROOT / "README.md",
   ROOT / "docs" / "PARITY_TARGET.md",
-  ROOT / "docs" / "RELEASE_CRITERIA.md",
   ROOT / ".github" / "workflows" / "verify.yml",
 ]
 FORBIDDEN = [
