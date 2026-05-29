@@ -8,12 +8,19 @@ The current repository claim is implementation fidelity plus empirical parity
 against the pinned Morpho Blue target. It is not a complete formal
 invariant-proof claim for Morpho.
 
-## Generated Externals
+## Compiler Input Adapter
 
-`Morpho/Compiler/Generated.lean` currently carries no linked externals. Former
+`Morpho/Compiler/Generated.lean` is not a second contract definition. The
+single Morpho source of truth is `Morpho/Contract.lean`, where
+`verity_contract Morpho` produces `Morpho.Contract.Morpho.spec`.
+
+`Generated.lean` adapts that macro-produced spec for the standalone compiler
+CLI by setting the emitted artifact name, filtering internal helper functions
+out of the external selector/ABI surface, and making the current linked
+external dependency set explicit. That dependency set is empty. Former
 placeholders for `keccakMarketParams`, `borrowRate`, and `oraclePrice` have been
-replaced in `Morpho/Contract.lean` with Verity ECM modules. CI
-enforces this boundary through `scripts/check_morpho_generated_boundary.py`.
+replaced in `Morpho/Contract.lean` with Verity ECM modules. CI enforces this
+boundary through `scripts/check_morpho_generated_boundary.py`.
 
 ## Local Obligations
 

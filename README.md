@@ -64,7 +64,7 @@ Morpho/
     ConstantsLib.lean     # MAX_FEE, ORACLE_PRICE_SCALE, LIQUIDATION_CURSOR
   Compiler/
     Spec.lean             # Legacy hand-written CompilationModel, excluded from Lake
-    Generated.lean        # Canonical compiler boundary: generated spec + generated selectors
+    Generated.lean        # Compiler-input adapter over Morpho.Contract.Morpho.spec
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
 artifacts/
   inputs/                 # Tracked external Yul libraries (MarketParamsHash, etc.)

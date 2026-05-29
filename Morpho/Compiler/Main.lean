@@ -203,7 +203,7 @@ def main (args : List String) : IO Unit := do
       for packId in _root_.Compiler.supportedParityPackIds do
         IO.println packId
     else if cfg.verbose then
-      IO.println s!"Compiling Morpho generated spec to {cfg.outDir}"
+      IO.println s!"Compiling Morpho contract spec to {cfg.outDir}"
       match cfg.abiOutDir with
       | some dir => IO.println s!"ABI output directory: {dir}"
       | none => pure ()
