@@ -358,7 +358,10 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--rewrite-proof-manifest",
     default=str(DEFAULT_PROOF_MANIFEST),
-    help="Legacy no-op option retained for compatibility with older callers.",
+    help=(
+      "Legacy no-op option retained for compatibility with older callers; "
+      "the file is rewrite-obligation metadata, not a Morpho proof inventory."
+    ),
   )
   parser.add_argument(
     "--allow-missing-bin",

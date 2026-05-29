@@ -1167,7 +1167,8 @@ def parse_args() -> argparse.Namespace:
     "--rewrite-proof-manifest",
     default=str(DEFAULT_REWRITE_PROOF_MANIFEST),
     help=(
-      "JSON manifest mapping rewrite families to intended rewrite passes and proof obligations "
+      "Legacy-named JSON manifest mapping rewrite families to intended rewrite passes and "
+      "planned rewrite obligations; this is not a Morpho invariant proof inventory "
       "(default: config/yul-rewrite-proof-obligations.json)."
     ),
   )
@@ -1298,6 +1299,7 @@ def main() -> int:
     print(f"unsupportedManifest: missing ({display_path(unsupported_manifest_path)})")
   if report["rewriteProofManifest"]["found"]:
     rewrite_manifest_meta = report["functionBlocks"]["rewriteFamilies"]["proofManifest"]
+    print("rewriteProofManifestKind: legacy rewrite-obligation metadata")
     print(f"rewriteProofManifest: {display_path(rewrite_proof_manifest_path)}")
     print(f"rewritePlanTrackedEntries: {rewrite_manifest_meta['trackedEntryCount']}")
     print(f"rewritePlanUntrackedEntries: {rewrite_manifest_meta['untrackedEntryCount']}")

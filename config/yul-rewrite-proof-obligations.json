@@ -1,5 +1,6 @@
 {
   "version": "rewrite-proof-v1",
+  "description": "Legacy-named rewrite-obligation metadata for Yul identity gap classification. These entries are planned justifications for rewrite families; they are not checked Lean proofs of Morpho invariants.",
   "defaults": {
     "renameOnly": {
       "rewritePass": "rename-normalization",

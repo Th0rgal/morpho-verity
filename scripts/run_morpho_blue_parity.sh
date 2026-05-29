@@ -102,7 +102,7 @@ else
       "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
 fi
 
-# Reuse the verified EDSL artifact already produced by parity checking.
+# Reuse the validated EDSL artifact already produced by the artifact/parity gate.
 require_nonempty_artifact "${artifact_source_dir}/Morpho.yul"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.bin"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.abi.json"

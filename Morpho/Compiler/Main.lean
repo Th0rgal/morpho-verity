@@ -224,7 +224,7 @@ def main (args : List String) : IO Unit := do
       if patchEnabled then
         IO.println s!"Patch pass: enabled (max iterations = {cfg.patchMaxIterations})"
         IO.println s!"Rewrite bundle: {cfg.rewriteBundleId}"
-        IO.println s!"Registered proof refs: {cfg.requiredProofRefs.length}"
+        IO.println s!"Registered rewrite obligation refs: {cfg.requiredProofRefs.length}"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       if !cfg.libs.isEmpty then
         IO.println s!"Linking {cfg.libs.length} external libraries"

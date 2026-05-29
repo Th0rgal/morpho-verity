@@ -2,7 +2,10 @@
 
 Issue: [#25](https://github.com/Th0rgal/morpho-verity/issues/25)
 
-This document defines the planned canonical target tuple used for artifact identity checks between Verity-generated Yul and Solidity-generated Yul.
+This document defines the planned canonical target tuple used for artifact
+identity checks between Verity-generated Yul and Solidity-generated Yul. It is
+part of the implementation/parity architecture; it is not a formal Morpho
+invariant-proof document.
 
 ## Status
 
@@ -40,6 +43,7 @@ This file is the single source of truth for that context.
 4. `out/parity-target/`: generated Yul fixtures and identity reports (implemented, non-blocking).
 5. `config/yul-identity-unsupported.json`: machine-tracked known unsupported function-level deltas.
 6. `config/yul-rewrite-pipeline.json`: ordered rewrite-stage definition from raw Verity Yul to rewritten comparison input.
+7. `config/yul-rewrite-proof-obligations.json`: legacy-named rewrite-obligation metadata for planned Yul rewrite-family justification. The file name and JSON keys are kept for compatibility, but these entries are not checked Lean proofs of Morpho invariants.
 
 ## CI Expectations
 

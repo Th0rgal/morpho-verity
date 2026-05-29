@@ -54,7 +54,7 @@ jobs:
       - name: Build Verity contract
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_PROOFS_TIMEOUT_SEC 2400 "Build Verity contract" -- lake build
 
-      - name: Upload verified Lean workspace
+      - name: Upload built Lean workspace
         uses: actions/upload-artifact@v4
         with:
           name: lean-workspace
@@ -90,7 +90,7 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Download verified Lean workspace
+      - name: Download built Lean workspace
         uses: actions/download-artifact@v4
         with:
           name: lean-workspace
@@ -335,7 +335,7 @@ jobs:
       - name: Check full toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check full toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Download verified EDSL artifact bundle
+      - name: Download validated EDSL artifact bundle
         uses: actions/download-artifact@v4
         with:
           name: verity-edsl-artifacts
@@ -418,7 +418,7 @@ jobs:
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
 
-      - name: Download verified Lean workspace
+      - name: Download built Lean workspace
         uses: actions/download-artifact@v4
         with:
           name: lean-workspace
@@ -481,7 +481,7 @@ jobs:
       - name: Validate prepared EDSL artifact bundle
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 
-      - name: Upload verified EDSL artifact bundle
+      - name: Upload validated EDSL artifact bundle
         uses: actions/upload-artifact@v4
         with:
           name: verity-edsl-artifacts
@@ -555,7 +555,7 @@ jobs:
       - name: Check full toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check full toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Download verified EDSL artifact bundle
+      - name: Download validated EDSL artifact bundle
         uses: actions/download-artifact@v4
         with:
           name: verity-edsl-artifacts
@@ -647,7 +647,7 @@ jobs:
       - name: Check full toolchain readiness
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Check full toolchain readiness" -- ./scripts/check_toolchain_readiness.sh --require lean --require foundry --require solc
 
-      - name: Download verified EDSL artifact bundle
+      - name: Download validated EDSL artifact bundle
         uses: actions/download-artifact@v4
         with:
           name: verity-edsl-artifacts

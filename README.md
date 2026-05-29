@@ -2,6 +2,10 @@
 
 Source-shaped Morpho Blue implementation in [Verity](https://github.com/Th0rgal/verity), a Lean 4 framework for smart-contract compilation.
 
+This repository is currently an implementation and empirical parity project. It
+does not claim a complete Morpho-specific invariant proof over the compiled
+artifact.
+
 ## Goal
 
 Maintain a source-shaped Verity implementation of Morpho Blue and continuously
@@ -16,8 +20,8 @@ scaffolding.
 
 | Area | Current status | Gate/condition |
 |------|----------------|----------------|
-| Verity contract build | Checked | `lake build` succeeds |
-| Verity artifact generation | Checked | `scripts/prepare_verity_morpho_artifact.sh` |
+| Verity contract build | Lean elaboration/build | `lake build` succeeds |
+| Verity artifact generation | Reproducible artifact preparation | `scripts/prepare_verity_morpho_artifact.sh` |
 | Morpho Blue parity | Empirical/differential | `scripts/run_morpho_blue_parity.sh` |
 | Yul identity | Manifest-gated | `scripts/report_yul_identity_gap.py --enforce-configured-gate` |
 | External dependencies | Assumed | Oracle, IRM, ERC-20, callback, Keccak/ecrecover behavior remain environment/trust boundaries |
@@ -34,6 +38,7 @@ Machine-readable parity target artifacts:
 - [`config/parity-target.json`](config/parity-target.json)
 - [`config/yul-identity-unsupported.json`](config/yul-identity-unsupported.json)
 - [`config/yul-rewrite-pipeline.json`](config/yul-rewrite-pipeline.json)
+- [`config/yul-rewrite-proof-obligations.json`](config/yul-rewrite-proof-obligations.json) is legacy-named rewrite-obligation metadata. It tracks planned obligations for Yul rewrite families; it is not a Morpho invariant proof inventory.
 - [`scripts/check_parity_target.py`](scripts/check_parity_target.py)
 - [`scripts/apply_yul_rewrite_pipeline.py`](scripts/apply_yul_rewrite_pipeline.py)
 - [`scripts/report_yul_identity_gap.py`](scripts/report_yul_identity_gap.py)
@@ -103,7 +108,7 @@ CI can skip the internal artifact preflight in this script by setting
 `MORPHO_VERITY_SKIP_PARITY_PREFLIGHT=1` because parity is already enforced in
 dedicated lanes. Outside CI, this skip is fail-closed unless explicitly
 overridden with `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP=1`.
-CI can also bypass both preflight and prep by reusing a previously verified
+CI can also bypass both preflight and prep by reusing a previously validated
 artifact bundle via `MORPHO_VERITY_PREPARED_ARTIFACT_DIR`.
 `MORPHO_VERITY_SKIP_PARITY_PREFLIGHT`,
 `MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP`, and
@@ -210,11 +215,11 @@ Enforce artifact readiness for generated Morpho artifacts (`Morpho.yul`, `Morpho
 The artifact gate is fail-closed: all three artifacts must exist and be non-empty.
 Artifact preparation is also fail-closed with a timeout guard (`MORPHO_VERITY_PREP_TIMEOUT_SEC`, default `8400`; set `0` to disable). When this guard is enabled, `setsid` must be available in `PATH`.
 When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is set, the differential runner
-uses that verified bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
+uses that validated bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
 still fails closed if any file is missing or empty.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
-- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `2400`, legacy name for the Lean build lane)
+- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `2400`, legacy env var name for the Lean build lane)
 - `MORPHO_VERITY_MAINTEST_TIMEOUT_SEC` (default `300`)
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
@@ -222,7 +227,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `MORPHO_PARITY_TARGET_TEST_TIMEOUT_SEC` (default `900`)
 - `MORPHO_TIMEOUT_WRAPPER_TEST_TIMEOUT_SEC` (default `180`)
 - `MORPHO_VERITY_PREP_TIMEOUT_SEC` (default `8400`)
-- `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` (optional path; reuse verified EDSL artifacts)
+- `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` (optional path; reuse validated EDSL artifacts)
 - `MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC` (default `900`)
 - `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC` (default `9000`)
 - `MORPHO_BLUE_PARITY_SCRIPT_TIMEOUT_SEC` (default `6900`)
@@ -234,7 +239,7 @@ Workflow long-lane commands also use fail-closed timeout guards via a shared tim
 - `0` disables timeout for each respective command
 The shared timeout wrapper enforces hard fail-closed termination by running the command in its own session via `setsid --wait` and escalating from `TERM` to `KILL` after `${MORPHO_TIMEOUT_KILL_AFTER_SEC:-30}s`, so TERM-ignoring subprocesses cannot hang CI indefinitely.
 `MORPHO_TIMEOUT_KILL_AFTER_SEC` must stay strictly greater than `0` to preserve hard-kill fail-closed behavior.
-The Yul identity report script wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics. When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is provided, the report reuses that verified bundle and still fails closed if `Morpho.yul` is missing.
+The Yul identity report script wraps both internal Solidity IR build and Verity artifact-prep sub-steps with this same timeout wrapper (`MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC`, `MORPHO_VERITY_PREP_TIMEOUT_SEC`) so long sub-step stalls fail closed with stage-specific diagnostics. When `MORPHO_VERITY_PREPARED_ARTIFACT_DIR` is provided, the report reuses that validated bundle and still fails closed if `Morpho.yul` is missing.
 CI sets stricter non-conflicting outer budgets for nested timeout-wrapped stages:
 - `MORPHO_VERITY_PARITY_CHECK_TIMEOUT_SEC=9000` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=8400`
 - `MORPHO_YUL_IDENTITY_TIMEOUT_SEC=9000` with `MORPHO_VERITY_PREP_TIMEOUT_SEC=8400`
@@ -267,6 +272,10 @@ Current status:
 - [x] Verity artifact generation
 - [x] Morpho Blue differential test harness
 - [ ] Rewrite formal proofs cleanly against the current Verity contract/compiler surface
+
+The last item is intentionally unchecked. The current checked-in proof-like Lean
+content is limited to small library facts needed by the implementation; the old
+Morpho invariant-proof layer has been removed.
 
 ## License
 

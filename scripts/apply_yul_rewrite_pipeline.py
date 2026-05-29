@@ -343,7 +343,10 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--proof-manifest",
     default=str(DEFAULT_PROOF_MANIFEST),
-    help="Legacy rewrite metadata manifest. This no longer corresponds to Lean proof files.",
+    help=(
+      "Legacy-named rewrite obligation metadata manifest. This no longer "
+      "corresponds to Lean proof files or Morpho invariant proofs."
+    ),
   )
   parser.add_argument(
     "--json-out",
@@ -373,6 +376,7 @@ def main() -> int:
     return 1
 
   print(f"rewritePipeline: {report['pipelineManifestPath']}")
+  print("rewriteProofManifestKind: legacy rewrite-obligation metadata")
   print(f"rewriteProofManifest: {report['proofManifestPath']}")
   print(f"rewritePipelineStages: {report['stageCount']}")
   print(f"rewritePipelineImplementedStages: {report['implementedStageCount']}")
