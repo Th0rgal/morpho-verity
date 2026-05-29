@@ -55,7 +55,6 @@ Machine-readable parity target artifacts:
 ```
 morpho-blue/              # Morpho Blue Solidity (git submodule)
 Morpho/
-  Types.lean              # MarketParams, Position, Market, MorphoState, Authorization
   Contract.lean           # Canonical verity_contract Morpho source
   Libraries/
     MathLib.lean          # WAD arithmetic (mulDivDown/Up, wMulDown, wTaylorCompounded)
@@ -63,8 +62,7 @@ Morpho/
     UtilsLib.lean         # exactlyOneZero, min, zeroFloorSub
     ConstantsLib.lean     # MAX_FEE, ORACLE_PRICE_SCALE, LIQUIDATION_CURSOR
   Compiler/
-    Spec.lean             # Legacy hand-written CompilationModel, excluded from Lake
-    Generated.lean        # Compiler-input adapter over Morpho.Contract.Morpho.spec
+    ArtifactConfig.lean   # Artifact name, ABI boundary, and compiler packaging
     Main.lean             # Yul codegen patches for Solidity storage/event compatibility
 artifacts/
   inputs/                 # Tracked external Yul libraries (MarketParamsHash, etc.)
@@ -76,6 +74,15 @@ scripts/
 ```
 
 ## Build
+
+The repository intentionally has no checked-in hand-written
+`Morpho.Compiler.Spec`, `Morpho.Types`, or sidecar protocol-state model. The
+compiler-facing contract is the macro-produced `Morpho.Contract.Morpho.spec`
+from `Morpho/Contract.lean`; `Morpho/Compiler/ArtifactConfig.lean` only applies
+artifact packaging such as the emitted name and ABI boundary. The
+`scripts/check_morpho_artifact_boundary.py` gate fails closed if migration-era
+compiler models, direct selector/spec surfaces, or second protocol models are
+reintroduced.
 
 Requires [Lean 4](https://leanprover.github.io/lean4/doc/setup.html) (v4.22.0).
 
@@ -219,7 +226,7 @@ uses that validated bundle (`Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`) and
 still fails closed if any file is missing or empty.
 Workflow long-lane commands also use fail-closed timeout guards via a shared timeout wrapper:
 - `MORPHO_LEAN_INSTALL_TIMEOUT_SEC` (default `600`)
-- `MORPHO_VERITY_PROOFS_TIMEOUT_SEC` (default `2400`, legacy env var name for the Lean build lane)
+- `MORPHO_VERITY_BUILD_TIMEOUT_SEC` (default `2400`)
 - `MORPHO_VERITY_MAINTEST_TIMEOUT_SEC` (default `300`)
 - `MORPHO_FOUNDRY_INSTALL_TIMEOUT_SEC` (default `600`)
 - `MORPHO_SOLC_INSTALL_TIMEOUT_SEC` (default `600`)
@@ -266,16 +273,18 @@ Current status:
 
 ## Status
 
-- [x] Morpho types and state model
+- [x] Canonical macro-native `verity_contract Morpho` source
 - [x] Core contract logic (supply, withdraw, borrow, repay, liquidate, supplyCollateral, withdrawCollateral, createMarket, setAuthorization, setAuthorizationWithSig, owner functions, interest accrual, flash loans)
 - [x] Math libraries (MathLib, SharesMathLib, UtilsLib, ConstantsLib)
 - [x] Verity artifact generation
 - [x] Morpho Blue differential test harness
-- [ ] Rewrite formal proofs cleanly against the current Verity contract/compiler surface
+- [ ] Rebuild formal proofs from semantics extracted from the canonical `verity_contract Morpho`
 
 The last item is intentionally unchecked. The current checked-in proof-like Lean
 content is limited to small library facts needed by the implementation; the old
-Morpho invariant-proof layer has been removed.
+Morpho invariant-proof layer has been removed. Future protocol reasoning should
+derive from the executable contract source rather than from a parallel
+hand-written Morpho state model.
 
 ## License
 

@@ -5,7 +5,7 @@ import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ParityPacks
 import Compiler.ABI
-import Morpho.Compiler.Generated
+import Morpho.Compiler.ArtifactConfig
 
 namespace Morpho.Compiler.Main
 
@@ -164,11 +164,11 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
     }
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
-private def lowerMorphoGeneratedSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
-  pure Morpho.Compiler.Generated.morphoGeneratedSpec
+private def lowerMorphoArtifactSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
+  pure Morpho.Compiler.ArtifactConfig.artifactSpec
 
-private def resolveMorphoGeneratedSelectors : IO (List Nat) := do
-  Morpho.Compiler.Generated.morphoGeneratedSelectors
+private def resolveMorphoArtifactSelectors : IO (List Nat) := do
+  Morpho.Compiler.ArtifactConfig.artifactSelectors
 
 private def writeContract
     (outDir : String)
@@ -232,8 +232,8 @@ def main (args : List String) : IO Unit := do
           IO.println s!"  - {lib}"
 
     if !cfg.listParityPacks then
-      let loweredSpec ← lowerMorphoGeneratedSpec
-      let selectors ← resolveMorphoGeneratedSelectors
+      let loweredSpec ← lowerMorphoArtifactSpec
+      let selectors ← resolveMorphoArtifactSelectors
       let ir ← orThrow (compile loweredSpec selectors)
       writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
       match cfg.abiOutDir with

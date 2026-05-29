@@ -2,7 +2,7 @@ import Compiler.CompilationModel
 import Compiler.Selector
 import Morpho.Contract
 
-namespace Morpho.Compiler.Generated
+namespace Morpho.Compiler.ArtifactConfig
 
 open Compiler.CompilationModel
 
@@ -10,7 +10,7 @@ private def internalHelperExternalNames : List String :=
   ["_accrueInterest", "_isSenderAuthorized", "_isHealthy", "_isHealthyWithPrice"]
 
 /--
-Compiler-input adapter for the canonical Morpho contract.
+Artifact packaging for the canonical Morpho contract.
 
 `verity_contract Morpho` already produces the real contract spec at
 `Morpho.Contract.Morpho.spec`.  This file does not define a second contract; it
@@ -23,8 +23,7 @@ only applies the small amount of packaging the standalone compiler CLI needs:
 The production compile path therefore still has a single source of truth:
 `Morpho/Contract.lean`.
 -/
-
-def morphoGeneratedSpec : CompilationModel :=
+def artifactSpec : CompilationModel :=
   -- Canonical boundary: Morpho.Contract.spec is represented by the generated
   -- namespace value `_root_.Morpho.Contract.Morpho.spec`.
   { _root_.Morpho.Contract.Morpho.spec with
@@ -39,7 +38,7 @@ Selector list for the compiler CLI, computed from the adapted macro spec.
 Selectors are not hand-maintained; they are derived from the same
 `Morpho.Contract.Morpho.spec` source used for code generation.
 -/
-def morphoGeneratedSelectors : IO (List Nat) :=
-  _root_.Compiler.Selector.computeSelectors morphoGeneratedSpec
+def artifactSelectors : IO (List Nat) :=
+  _root_.Compiler.Selector.computeSelectors artifactSpec
 
-end Morpho.Compiler.Generated
+end Morpho.Compiler.ArtifactConfig

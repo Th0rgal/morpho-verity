@@ -9,14 +9,13 @@ require verity from git
 
 @[default_target]
 lean_lib «Morpho» where
-  -- Exclude Morpho.Compiler.Spec (legacy hand-written CompilationModel, 1305 lines).
-  -- It is superseded by Contract.lean + Generated.lean; no Lean file imports it.
+  -- Keep the Morpho library explicit so no hand-written compiler model can
+  -- become a second source of truth by glob expansion.
   globs := #[
     .one `Morpho,
-    .one `Morpho.Types,
     .one `Morpho.Contract,
     .submodules `Morpho.Libraries,
-    .one `Morpho.Compiler.Generated,
+    .one `Morpho.Compiler.ArtifactConfig,
     .one `Morpho.Compiler.Main,
     .one `Morpho.Compiler.MainTest
   ]

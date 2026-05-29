@@ -742,7 +742,7 @@ test_rebuilds_when_top_level_lean_entrypoint_changes() {
     "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
 
   : > "${lake_log}"
-  printf '%s\n' 'import Morpho.Compiler.Generated' > "${fake_root}/MorphoCompiler.lean"
+  printf '%s\n' 'import Morpho.Compiler.ArtifactConfig' > "${fake_root}/MorphoCompiler.lean"
 
   PATH="${fake_bin}:/usr/bin:/bin" \
   FAKE_LAKE_LOG="${lake_log}" \

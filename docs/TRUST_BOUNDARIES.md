@@ -8,19 +8,19 @@ The current repository claim is implementation fidelity plus empirical parity
 against the pinned Morpho Blue target. It is not a complete formal
 invariant-proof claim for Morpho.
 
-## Compiler Input Adapter
+## Artifact Packaging
 
-`Morpho/Compiler/Generated.lean` is not a second contract definition. The
+`Morpho/Compiler/ArtifactConfig.lean` is not a second contract definition. The
 single Morpho source of truth is `Morpho/Contract.lean`, where
 `verity_contract Morpho` produces `Morpho.Contract.Morpho.spec`.
 
-`Generated.lean` adapts that macro-produced spec for the standalone compiler
+`ArtifactConfig.lean` adapts that macro-produced spec for the standalone compiler
 CLI by setting the emitted artifact name, filtering internal helper functions
 out of the external selector/ABI surface, and making the current linked
 external dependency set explicit. That dependency set is empty. Former
 placeholders for `keccakMarketParams`, `borrowRate`, and `oraclePrice` have been
 replaced in `Morpho/Contract.lean` with Verity ECM modules. CI enforces this
-boundary through `scripts/check_morpho_generated_boundary.py`.
+boundary through `scripts/check_morpho_artifact_boundary.py`.
 
 ## Local Obligations
 
@@ -76,9 +76,9 @@ remaining report entries are narrow and auditable.
 
 - `lake build` validates Lean elaboration and internal consistency for the
   currently imported implementation files.
-- `scripts/check_morpho_event_surface.py` checks generated event metadata
+- `scripts/check_morpho_event_surface.py` checks contract event metadata
   against Morpho Blue `EventsLib.sol`.
-- `scripts/check_morpho_generated_boundary.py` checks that generated externals
-  keep stable axiom names.
+- `scripts/check_morpho_artifact_boundary.py` checks that artifact packaging
+  stays thin and any linked externals keep stable axiom names.
 - `scripts/run_morpho_blue_parity.sh` runs the empirical Solidity-vs-Verity
   differential suite for the pinned Morpho Blue checkout.

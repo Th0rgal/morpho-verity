@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed check for Morpho generated event metadata.
+"""Fail-closed check for Morpho contract event metadata.
 
 The canonical compiler boundary is the macro contract in Morpho/Contract.lean.
 Keep that event_defs surface synchronized with Morpho Blue's EventsLib so
@@ -17,7 +17,6 @@ from dataclasses import dataclass
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 EVENTS_LIB_PATH = ROOT / "morpho-blue" / "src" / "libraries" / "EventsLib.sol"
-GENERATED_PATH = ROOT / "Morpho" / "Compiler" / "Generated.lean"
 CONTRACT_PATH = ROOT / "Morpho" / "Contract.lean"
 
 SOL_EVENT_RE = re.compile(r"\bevent\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*;", re.DOTALL)
@@ -147,7 +146,7 @@ def find_balanced_slice(text: str, start: int, open_ch: str, close_ch: str) -> t
   raise MorphoEventSurfaceError(f"unclosed {open_ch}{close_ch} block")
 
 
-def extract_generated_events(text: str) -> EventSurface:
+def extract_contract_events(text: str) -> EventSurface:
   if "event_defs" in text:
     return extract_contract_event_defs(text)
 
@@ -183,25 +182,25 @@ def extract_generated_events(text: str) -> EventSurface:
         break
       record_end = params_body.find("⟩", record_start)
       if record_end == -1:
-        raise MorphoEventSurfaceError("unterminated generated event parameter record")
+        raise MorphoEventSurfaceError("unterminated contract event parameter record")
       fields = split_top_level(params_body[record_start + 1:record_end])
       if len(fields) != 3:
-        raise MorphoEventSurfaceError(f"generated event parameter must have 3 fields: {fields!r}")
+        raise MorphoEventSurfaceError(f"contract event parameter must have 3 fields: {fields!r}")
       param_name = fields[0].strip().strip('"')
       param_ty = normalize_lean_type(fields[1])
       kind = fields[2].strip()
       if kind not in {".indexed", ".unindexed"}:
-        raise MorphoEventSurfaceError(f"unsupported generated event parameter kind: {kind!r}")
+        raise MorphoEventSurfaceError(f"unsupported contract event parameter kind: {kind!r}")
       params.append(EventParam(name=param_name, ty=param_ty, indexed=kind == ".indexed"))
       record_offset = record_end + 1
 
     event_name = name_match.group(1)
     if event_name in events:
-      raise MorphoEventSurfaceError(f"duplicate generated event declaration: {event_name}")
+      raise MorphoEventSurfaceError(f"duplicate contract event declaration: {event_name}")
     events[event_name] = params
 
   if not events:
-    raise MorphoEventSurfaceError("no generated events found")
+    raise MorphoEventSurfaceError("no contract events found")
   return events
 
 
@@ -234,10 +233,10 @@ def extract_contract_event_defs(text: str) -> EventSurface:
       param_name, param_ty = [part.strip() for part in raw_param.split(":", 1)]
       params.append(EventParam(name=param_name, ty=normalize_lean_type(param_ty), indexed=indexed))
     if name in events:
-      raise MorphoEventSurfaceError(f"duplicate generated event declaration: {name}")
+      raise MorphoEventSurfaceError(f"duplicate contract event declaration: {name}")
     events[name] = params
   if not events:
-    raise MorphoEventSurfaceError("no generated events found")
+    raise MorphoEventSurfaceError("no contract events found")
   return events
 
 
@@ -264,12 +263,12 @@ def validate_event_surface(solidity: EventSurface, generated: EventSurface) -> N
       )
   problems: list[str] = []
   if missing:
-    problems.append("missing generated events: " + ", ".join(missing))
+    problems.append("missing contract events: " + ", ".join(missing))
   if extra:
-    problems.append("extra generated events: " + ", ".join(extra))
+    problems.append("extra contract events: " + ", ".join(extra))
   if not missing and not extra and generated_order != solidity_order:
     problems.append(
-      "generated event order drift: expected "
+      "contract event order drift: expected "
       + ", ".join(solidity_order)
       + "; got "
       + ", ".join(generated_order)
@@ -281,14 +280,14 @@ def validate_event_surface(solidity: EventSurface, generated: EventSurface) -> N
 
 
 def main() -> int:
-  parser = argparse.ArgumentParser(description="Validate Morpho generated events against EventsLib.sol")
+  parser = argparse.ArgumentParser(description="Validate Morpho contract events against EventsLib.sol")
   parser.add_argument("--events-lib", type=pathlib.Path, default=EVENTS_LIB_PATH)
-  parser.add_argument("--generated", type=pathlib.Path, default=CONTRACT_PATH)
+  parser.add_argument("--contract", type=pathlib.Path, default=CONTRACT_PATH)
   args = parser.parse_args()
 
   try:
     solidity = extract_solidity_events(read_text(args.events_lib, context="EventsLib.sol"))
-    generated = extract_generated_events(read_text(args.generated, context=str(args.generated)))
+    generated = extract_contract_events(read_text(args.contract, context=str(args.contract)))
     validate_event_surface(solidity, generated)
   except MorphoEventSurfaceError as exc:
     fail(str(exc))
