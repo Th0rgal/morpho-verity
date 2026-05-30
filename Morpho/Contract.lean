@@ -658,7 +658,8 @@ verity_contract Morpho where
     let _accrued ← _accrueInterest marketParams id
     let currentCollateral <- structMember2 "positionSlot" id onBehalf "collateral"
     require (currentCollateral >= assets) "insufficient collateral"
-    setStructMember2 "positionSlot" id onBehalf "collateral" (sub currentCollateral assets)
+    let newCollateral ← subPanic currentCollateral assets
+    setStructMember2 "positionSlot" id onBehalf "collateral" newCollateral
     let healthy ← _isHealthy marketParams id onBehalf
     require healthy "insufficient collateral"
     emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
