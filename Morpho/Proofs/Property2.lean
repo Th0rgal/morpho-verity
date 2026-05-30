@@ -124,11 +124,14 @@ theorem healthy_of_no_debt {s : HealthState} (h : s.borrowShares = 0) : healthy 
 /-- The model's `liquidate` does not grow the borrow index. This connects the
     generic `borrowIndexNoGrow_of_repay` to the concrete `liquidate` field writes:
     a liquidation (by the borrower or any third party) lowers `totBorrowShares` by
-    `repaidShares` and `totBorrowAssets` by the rounded-up `repaidAssets`, so for a
-    *watched* account in the same market the index condition of `MonotoneFor` holds
-    by the rounding direction, with no appeal to `NoAccrual`. The hypotheses are the
-    well-formedness facts the contract maintains: you cannot repay more shares than
-    the market holds, nor more assets than it owes. -/
+    `repaidShares` and `totBorrowAssets` by the rounded-up `repaidAssets`, so it
+    supplies the `borrowIndexNoGrow` field that `MonotoneFor` requires for a watched
+    account in the same market, by the rounding direction alone rather than from
+    `NoAccrual`. Like `borrowIndexNoGrow_of_repay`, this is not yet consumed by the
+    headline `no_operation_breaks_health`; it is the witness the extraction layer
+    will plug into the other-account case. The hypotheses are the well-formedness
+    facts the contract maintains: you cannot repay more shares than the market
+    holds, nor more assets than it owes. -/
 theorem liquidate_borrowIndexNoGrow (s : HealthState) (repaidShares seized : Nat)
     (hsh : repaidShares ≤ s.totBorrowShares)
     (hass : mulDivUp repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
