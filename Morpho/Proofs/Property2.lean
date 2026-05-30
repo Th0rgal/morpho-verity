@@ -9,7 +9,9 @@
   Layout:
     * `LIF` and `ltvBelowInvLif` — transcribed from `liquidate`
       (Morpho/Contract.lean:856-860) and stated division-free. `WAD_le_LIF` /
-      `LIF_le_MAX` prove the factor always lies in `[1, 1.15]`.
+      `LIF_le_MAX` prove the factor always lies in `[1, 1.15]`; `lltv_lt_invLif`
+      proves `lltv < 1/LIF`, so the liquidatable-yet-restorable band is non-empty
+      (`SharpProperty2` is not vacuously satisfiable).
     * `liquidate` — the borrower-side state change (debt and collateral both
       reduced), mirroring the field writes in the contract.
     * `liquidation_can_restore_health` — full repayment drives `borrowShares` to 0,
@@ -61,6 +63,36 @@ theorem WAD_le_LIF (lltv : Nat) : WAD ≤ LIF lltv := by
     have : CURSOR < WAD := by decide
     omega
   exact le_min (by decide) (key _ hden_pos (Nat.sub_le _ _))
+
+/-- **Window non-emptiness.** For any valid market (`lltv < WAD`) the maximal
+    healthy-LTV threshold sits strictly below `1/LIF`: `lltv ⋅ LIF < WAD ⋅ WAD`,
+    i.e. `lltv/WAD < WAD/LIF`. So the band `(lltv, 1/LIF)` of positions that are
+    liquidatable yet restorable is non-empty — `SharpProperty2`'s hypothesis is not
+    vacuous. The proof needs no case split on the `min`: writing `denom` for the LIF
+    denominator, `lltv < denom` (the cursor term is `< WAD − lltv`) and
+    `LIF ⋅ denom ≤ WAD ⋅ WAD` (floor of `WAD⋅WAD/denom`) combine directly. -/
+theorem lltv_lt_invLif {lltv : Nat} (h : lltv < WAD) :
+    lltv * LIF lltv < WAD * WAD := by
+  set denom := WAD - mulDivDown CURSOR (WAD - lltv) WAD with hdenom
+  have hWAD : 0 < WAD := by unfold WAD; omega
+  have hCW : CURSOR < WAD := by unfold CURSOR WAD; omega
+  have hcursor_lt : mulDivDown CURSOR (WAD - lltv) WAD < WAD - lltv := by
+    unfold mulDivDown
+    have hpos : 0 < WAD - lltv := by omega
+    have hmul : CURSOR * (WAD - lltv) < (WAD - lltv) * WAD := by
+      rw [Nat.mul_comm (WAD - lltv) WAD]
+      exact mul_lt_mul_of_pos_right hCW hpos
+    exact (Nat.div_lt_iff_lt_mul hWAD).mpr hmul
+  have hlt_denom : lltv < denom := by omega
+  have hLIF_denom : LIF lltv * denom ≤ WAD * WAD := by
+    calc LIF lltv * denom
+        ≤ mulDivDown WAD WAD denom * denom := mul_le_mul_right' (Nat.min_le_right _ _) denom
+      _ ≤ WAD * WAD := Nat.div_mul_le_self _ _
+  have hLIFpos : 0 < LIF lltv := lt_of_lt_of_le hWAD (WAD_le_LIF lltv)
+  calc lltv * LIF lltv
+      < denom * LIF lltv := mul_lt_mul_of_pos_right hlt_denom hLIFpos
+    _ = LIF lltv * denom := Nat.mul_comm _ _
+    _ ≤ WAD * WAD := hLIF_denom
 
 /-- "LTV below `1/LIF`", division-free: `borrowed ⋅ LIF < collateralValue ⋅ WAD`,
     where `collateralValue = mulDivDown collateral price 1e36` is the quoted
