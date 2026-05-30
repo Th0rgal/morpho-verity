@@ -38,6 +38,29 @@ def MAX_LIF : Nat := 1150000000000000000
 def LIF (lltv : Nat) : Nat :=
   min MAX_LIF (mulDivDown WAD WAD (WAD - mulDivDown CURSOR (WAD - lltv) WAD))
 
+/-- The incentive factor never exceeds `MAX_LIF = 1.15e18` (it is a `min`). -/
+theorem LIF_le_MAX (lltv : Nat) : LIF lltv ≤ MAX_LIF := Nat.min_le_left _ _
+
+/-- The incentive factor is always at least `WAD` (i.e. `LIF ≥ 1`): the denominator
+    `WAD − cursorTerm` is at most `WAD` (since `cursorTerm ≥ 0`), so dividing `WAD·WAD`
+    by it yields at least `WAD`; and `WAD ≤ MAX_LIF`. Holds unconditionally — the
+    `Nat` subtraction `WAD − lltv` is automatically capped at `WAD`. -/
+theorem WAD_le_LIF (lltv : Nat) : WAD ≤ LIF lltv := by
+  have key : ∀ d, 0 < d → d ≤ WAD → WAD ≤ mulDivDown WAD WAD d := by
+    intro d hd hdle
+    unfold mulDivDown
+    rw [Nat.le_div_iff_mul_le hd]
+    exact Nat.mul_le_mul (le_refl WAD) hdle
+  have hcursor : mulDivDown CURSOR (WAD - lltv) WAD ≤ CURSOR := by
+    unfold mulDivDown
+    calc CURSOR * (WAD - lltv) / WAD
+        ≤ CURSOR * WAD / WAD := Nat.div_le_div_right (Nat.mul_le_mul (le_refl CURSOR) (Nat.sub_le _ _))
+      _ = CURSOR := by rw [Nat.mul_div_cancel _ (by decide : 0 < WAD)]
+  have hden_pos : 0 < WAD - mulDivDown CURSOR (WAD - lltv) WAD := by
+    have : CURSOR < WAD := by decide
+    omega
+  exact le_min (by decide) (key _ hden_pos (Nat.sub_le _ _))
+
 /-- "LTV below `1/LIF`", division-free: `borrowed ⋅ LIF < collateralValue ⋅ WAD`,
     where `collateralValue = mulDivDown collateral price 1e36` is the quoted
     collateral. Equivalent to `borrowed / collateralValue < 1 / LIF`. -/
