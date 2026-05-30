@@ -13,10 +13,11 @@
       reduced), mirroring the field writes in the contract.
     * `liquidation_can_restore_health` — full repayment drives `borrowShares` to 0,
       hence healthy. A complete, axiom-free proof that *a* liquidation suffices.
-    * `partial_liquidation_restores_health` — the sharp form, reduced to exhibiting
-      one health-restoring *partial* witness under the contract's seize/repay
-      rounding (`Contract.lean:868-881`). That witness is the single remaining
-      obligation morpho-blue flagged as hard.
+    * `SharpProperty2` — the sharp form as a single named obligation: under
+      `LTV < 1/LIF` a health-restoring *partial* liquidation exists. Discharging it
+      is the seize/repay rounding argument (`Contract.lean:868-881`) — the one piece
+      morpho-blue flagged as hard, stated explicitly rather than hidden behind a
+      `sorry`.
 -/
 
 import Morpho.Proofs.Property1
@@ -73,23 +74,17 @@ theorem liquidation_can_restore_health (s : HealthState) (seized : Nat) :
     healthy (liquidate s s.borrowShares seized) :=
   healthy_of_no_debt (by simp [liquidate])
 
-/--
-  The sharp statement reduces to this: under `LTV < 1/LIF` there is a *partial*
-  repayment (`repaidShares < borrowShares`) whose contract-consistent seizure
-  leaves the position healthy. Proving such a witness exists is the rounding
-  argument over `Contract.lean:868-881` — the one piece left open.
--/
+/-- A *partial* repayment (`repaidShares < borrowShares`) whose
+    contract-consistent seizure leaves the position healthy. -/
 def PartialWitness (s : HealthState) : Prop :=
   ∃ repaidShares seized,
     repaidShares < s.borrowShares ∧ healthy (liquidate s repaidShares seized)
 
-/-- **Property 2 (sharp), conditional.** Under `LTV < 1/LIF`, a partial witness
-    yields a partial liquidation that restores health. `hwit` is the sole
-    remaining obligation. -/
-theorem partial_liquidation_restores_health
-    (s : HealthState) (_hltv : ltvBelowInvLif s) (hwit : PartialWitness s) :
-    ∃ repaidShares seized,
-      repaidShares < s.borrowShares ∧ healthy (liquidate s repaidShares seized) :=
-  hwit
+/-- **Property 2 (sharp).** The one obligation left open: under `LTV < 1/LIF`
+    a health-restoring *partial* liquidation exists. Proving this is the rounding
+    argument over the seize/repay computation at `Contract.lean:868-881` — stated
+    here as an explicit obligation rather than hidden behind a `sorry`. -/
+def SharpProperty2 : Prop :=
+  ∀ s : HealthState, ltvBelowInvLif s → PartialWitness s
 
 end Morpho.Proofs.Property2
