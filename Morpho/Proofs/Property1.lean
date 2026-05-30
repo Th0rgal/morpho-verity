@@ -44,8 +44,11 @@ theorem le_mul_mulDivUp (a b d : Nat) (hd : 0 < d) : a * b ≤ d * mulDivUp a b 
     the share-to-asset conversion *rounded up* (the `mulDivUp` at the `borrowed`
     formula, Morpho/Contract.lean:881). Because that conversion rounds up, the
     borrow index `(totBorrowAssets+1)/(totBorrowShares+VIRTUAL)` cannot grow. This
-    discharges `borrowIndexNoGrow` for a third party's repay/liquidate *without*
-    appealing to no-accrual: only `_accrueInterest` can actually grow the index. -/
+    *provides* a `borrowIndexNoGrow` witness for a third party's repay/liquidate
+    from the rounding direction alone, with no appeal to no-accrual. It is
+    standalone infrastructure: `no_operation_breaks_health` still takes the index
+    condition as a `MonotoneFor` field, so consuming this witness in the headline
+    proof awaits the Refinement extraction layer (see `Refinement.lean`). -/
 theorem borrowIndexNoGrow_of_repay {s s' : HealthState} (repaidShares : Nat)
     (hsh : s'.totBorrowShares + repaidShares = s.totBorrowShares)
     (hass : s'.totBorrowAssets
