@@ -201,10 +201,13 @@ theorem sharp_property2 (s : HealthState) (hltv : ltvBelowInvLif s) :
 
 /-- A concrete witness that the *partial* phrasing fails: an unhealthy position with
     `borrowShares = 1` satisfying `LTV < 1/LIF`. `borrowed = 100`, `maxBorrow = 96`
-    (so unhealthy), and `borrowed ⋅ LIF ≈ 106.4e18 < 120e18` (so `ltvBelowInvLif`). -/
+    (so unhealthy), and `borrowed ⋅ LIF ≈ 106.4e18 < 120e18` (so `ltvBelowInvLif`).
+    The market totals are well-formed (`borrowShares ≤ totBorrowShares`, so the
+    position does not hold more shares than the whole market exists with), to show
+    the failure is not an artifact of an unreachable state. -/
 def partialCounterexample : HealthState :=
   { borrowShares := 1, collateral := 120, totBorrowAssets := 99999999,
-    totBorrowShares := 0, lltv := 800000000000000000, price := ORACLE_PRICE_SCALE }
+    totBorrowShares := 1, lltv := 800000000000000000, price := ORACLE_PRICE_SCALE }
 
 /-- **Counterexample to the partial phrasing.** `partialCounterexample` satisfies
     the `1/LIF` hypothesis and is unhealthy, yet no *strict-partial* liquidation
