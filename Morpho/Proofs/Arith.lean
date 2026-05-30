@@ -37,6 +37,11 @@ theorem mulDivDown_mono_left {a₁ a₂ b d : Nat} (h : a₁ ≤ a₂) :
   unfold mulDivDown
   exact Nat.div_le_div_right (Nat.mul_le_mul h (le_refl b))
 
+/-- Floor never exceeds ceil: `mulDivDown a b d ≤ mulDivUp a b d`. -/
+theorem mulDivDown_le_mulDivUp (a b d : Nat) :
+    mulDivDown a b d ≤ mulDivUp a b d :=
+  Nat.div_le_div_right (Nat.le_add_right _ _)
+
 /-- `mulDivUp` is monotone in its first argument. -/
 theorem mulDivUp_mono_left {a₁ a₂ b d : Nat} (h : a₁ ≤ a₂) :
     mulDivUp a₁ b d ≤ mulDivUp a₂ b d := by
