@@ -47,7 +47,7 @@ if [[ "${missing_artifact}" != "yul" ]]; then
   printf '%s\n' "fake-yul-${MORPHO_VERITY_ARTIFACT_MODE:-unknown}" > "${out}/Morpho.yul"
 fi
 if [[ "${missing_artifact}" != "bin" ]]; then
-  printf '%s\n' "fake-bin-${MORPHO_VERITY_ARTIFACT_MODE:-unknown}" > "${out}/Morpho.bin"
+  printf '%s\n' "00" > "${out}/Morpho.bin"
 fi
 if [[ "${missing_artifact}" != "abi" ]]; then
   printf '%s\n' "[]" > "${out}/Morpho.abi.json"
@@ -70,7 +70,7 @@ if [[ "${missing_artifact}" != "yul" ]]; then
   printf '%s\n' "fake-yul-edsl" > "${out}/edsl/Morpho.yul"
 fi
 if [[ "${missing_artifact}" != "bin" ]]; then
-  printf '%s\n' "fake-bin-edsl" > "${out}/edsl/Morpho.bin"
+  printf '%s\n' "00" > "${out}/edsl/Morpho.bin"
 fi
 if [[ "${missing_artifact}" != "abi" ]]; then
   printf '%s\n' "[]" > "${out}/edsl/Morpho.abi.json"
@@ -163,7 +163,7 @@ PY
   )"
   mkdir -p "${prepared_root}/edsl"
   printf '%s\n' "from-prepared-yul" > "${prepared_root}/edsl/Morpho.yul"
-  printf '%s\n' "from-prepared-bin" > "${prepared_root}/edsl/Morpho.bin"
+  printf '%s\n' "00" > "${prepared_root}/edsl/Morpho.bin"
   printf '%s\n' "[]" > "${prepared_root}/edsl/Morpho.abi.json"
   printf '%s\n' "stage=reuse-artifact status=ok elapsed_sec=0" > "${prepared_root}/edsl/Morpho.stage-times.log"
   cat > "${prepared_root}/edsl/Morpho.artifact-manifest.env" <<'EOF'

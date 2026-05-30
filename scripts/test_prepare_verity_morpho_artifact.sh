@@ -26,11 +26,10 @@ setup_fake_repo() {
   local fake_root="$1"
   local target_json_content="${2:-{\"verity\":{\"parityPackId\":\"test-pack\"}}}"
   mkdir -p "${fake_root}/scripts" "${fake_root}/config" "${fake_root}/artifacts/inputs"
-  printf '%s\n' 'import Morpho.Morpho' > "${fake_root}/Morpho.lean"
+  printf '%s\n' 'import Morpho.Contract' > "${fake_root}/Morpho.lean"
   printf '%s\n' 'import Morpho.Compiler.Main' > "${fake_root}/MorphoCompiler.lean"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   cp "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
-  cp "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" "${fake_root}/scripts/check_yul_rewrite_proof_obligations.py"
   cp "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" "${fake_root}/scripts/uniquify_yul_shadows.py"
   cp "${ROOT_DIR}/scripts/fix_market_params_hash.py" "${fake_root}/scripts/fix_market_params_hash.py"
   chmod +x "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
@@ -58,11 +57,6 @@ EOF_LIB
   function collateralPrice(oracle) -> price { price := 0 }
 }
 EOF_LIB
-  cat > "${fake_root}/artifacts/inputs/FlashLoanCallback.yul" <<'EOF_LIB'
-{
-  function flashLoanCallback(borrower, assets) -> ret { ret := 0 }
-}
-EOF_LIB
 }
 
 install_fake_lake() {
@@ -83,6 +77,11 @@ if [[ "${1:-}" != "morpho-verity-compiler" ]]; then
   exit 96
 fi
 shift
+
+if [[ "${1:-}" == "--list-parity-packs" ]]; then
+  printf "%s\n" "${FAKE_SUPPORTED_PARITY_PACKS-test-pack}"
+  exit 0
+fi
 
 out_dir=""
 abi_out_dir=""
@@ -122,6 +121,11 @@ if [[ "${1:-}" != "morpho-verity-compiler" ]]; then
   exit 96
 fi
 shift
+
+if [[ "${1:-}" == "--list-parity-packs" ]]; then
+  printf "%s\n" "${FAKE_SUPPORTED_PARITY_PACKS-test-pack}"
+  exit 0
+fi
 
 out_dir=""
 abi_out_dir=""
@@ -516,6 +520,70 @@ test_success_when_solc_is_skipped() {
   assert_contains "stage=lake-exe status=ok" "${out_dir}/Morpho.stage-times.log"
 }
 
+test_skips_configured_parity_pack_when_compiler_exposes_no_packs() {
+  local fake_root fake_bin output_file out_dir lake_log
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  out_dir="${fake_root}/out"
+  lake_log="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}" "${lake_log}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  FAKE_LAKE_LOG="${lake_log}" \
+  FAKE_SUPPORTED_PARITY_PACKS="" \
+  MORPHO_VERITY_SKIP_BUILD=1 \
+  MORPHO_VERITY_SKIP_SOLC=1 \
+  MORPHO_VERITY_OUT_DIR="${out_dir}" \
+    "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
+
+  assert_contains "Skipping Verity parity pack test-pack: current Verity pin exposes no supported parity packs." "${output_file}"
+  if grep -Fq -- "--parity-pack" "${lake_log}"; then
+    echo "ASSERTION FAILED: expected lake exe invocation to omit --parity-pack when no packs are supported"
+    exit 1
+  fi
+  assert_contains "parity_pack=" "${out_dir}/Morpho.artifact-manifest.env"
+}
+
+test_explicit_unsupported_parity_pack_fails_closed() {
+  local fake_root fake_bin output_file rc
+  fake_root="$(mktemp -d)"
+  fake_bin="${fake_root}/bin"
+  output_file="$(mktemp)"
+  trap 'rm -rf "${fake_root}" "${output_file}"' RETURN
+
+  mkdir -p "${fake_bin}"
+  ln -s /bin/bash "${fake_bin}/bash"
+  setup_fake_repo "${fake_root}"
+  install_fake_python3 "${fake_bin}"
+  install_fake_lake "${fake_bin}"
+
+  rc=0
+  if PATH="${fake_bin}:/usr/bin:/bin" \
+    FAKE_SUPPORTED_PARITY_PACKS="" \
+    MORPHO_VERITY_PARITY_PACK="explicit-pack" \
+    MORPHO_VERITY_SKIP_BUILD=1 \
+    MORPHO_VERITY_SKIP_SOLC=1 \
+      "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1; then
+    echo "ASSERTION FAILED: expected explicit unsupported parity pack to fail"
+    exit 1
+  else
+    rc=$?
+  fi
+
+  if [[ "${rc}" -ne 2 ]]; then
+    echo "ASSERTION FAILED: expected exit code 2, got ${rc}"
+    exit 1
+  fi
+  assert_contains "ERROR: configured Verity parity pack explicit-pack is not supported by this compiler" "${output_file}"
+}
+
 test_legacy_input_mode_alias_remains_compatible() {
   local fake_root fake_bin output_file out_dir
   fake_root="$(mktemp -d)"
@@ -598,8 +666,8 @@ test_reuses_existing_artifact_when_manifest_matches() {
   MORPHO_VERITY_OUT_DIR="${out_dir}" \
     "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
 
-  if [[ -s "${lake_log}" ]]; then
-    echo "ASSERTION FAILED: expected manifest reuse to skip lake invocations"
+  if grep -Fq -- "--output" "${lake_log}"; then
+    echo "ASSERTION FAILED: expected manifest reuse to skip artifact compilation"
     exit 1
   fi
   assert_contains "Reusing existing Verity artifact from ${out_dir} (manifest matched)." "${output_file}"
@@ -674,7 +742,7 @@ test_rebuilds_when_top_level_lean_entrypoint_changes() {
     "${fake_root}/scripts/prepare_verity_morpho_artifact.sh" >"${output_file}" 2>&1
 
   : > "${lake_log}"
-  printf '%s\n' 'import Morpho.Compiler.Generated' > "${fake_root}/MorphoCompiler.lean"
+  printf '%s\n' 'import Morpho.Compiler.ArtifactConfig' > "${fake_root}/MorphoCompiler.lean"
 
   PATH="${fake_bin}:/usr/bin:/bin" \
   FAKE_LAKE_LOG="${lake_log}" \
@@ -700,6 +768,8 @@ test_fail_closed_when_lake_missing
 test_fail_closed_when_solc_missing_and_not_skipped
 test_fail_closed_when_awk_missing_and_not_skipped
 test_success_when_solc_is_skipped
+test_skips_configured_parity_pack_when_compiler_exposes_no_packs
+test_explicit_unsupported_parity_pack_fails_closed
 test_legacy_input_mode_alias_remains_compatible
 test_fail_closed_on_non_edsl_artifact_mode
 test_reuses_existing_artifact_when_manifest_matches

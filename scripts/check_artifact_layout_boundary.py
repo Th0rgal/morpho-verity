@@ -21,7 +21,6 @@ TARGETS = [
   ROOT / "verity-foundry" / "test" / "VerityMorphoSmoke.t.sol",
   ROOT / "README.md",
   ROOT / "docs" / "PARITY_TARGET.md",
-  ROOT / "docs" / "RELEASE_CRITERIA.md",
   ROOT / ".github" / "workflows" / "verify.yml",
 ]
 FORBIDDEN = [

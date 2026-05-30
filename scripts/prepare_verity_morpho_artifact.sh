@@ -14,7 +14,6 @@ HASH_LIB="${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul"
 BORROW_RATE_LIB="${ROOT_DIR}/artifacts/inputs/BorrowRate.yul"
 ORACLE_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/OraclePrice.yul"
 COLLATERAL_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul"
-FLASH_LOAN_CALLBACK_LIB="${ROOT_DIR}/artifacts/inputs/FlashLoanCallback.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
 
 require_command() {
@@ -90,10 +89,8 @@ compute_input_digest() {
     "${ROOT_DIR}/MorphoCompiler.lean" \
     "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh" \
     "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" \
-    "${ROOT_DIR}/scripts/check_yul_rewrite_proof_obligations.py" \
     "${ROOT_DIR}/config/parity-target.json" \
     "${ROOT_DIR}/config/yul-rewrite-pipeline.json" \
-    "${ROOT_DIR}/config/yul-rewrite-proof-obligations.json" \
     "${ROOT_DIR}/artifacts/inputs/MarketParamsHash.yul" \
     "${ROOT_DIR}/artifacts/inputs/BorrowRate.yul" \
     "${ROOT_DIR}/artifacts/inputs/OraclePrice.yul" \
@@ -120,7 +117,7 @@ compute_input_digest() {
     done
     printf 'artifact_mode=%s\n' "${ARTIFACT_MODE}"
     printf 'skip_solc=%s\n' "${SKIP_SOLC}"
-    printf 'parity_pack=%s\n' "${PARITY_PACK}"
+    printf 'parity_pack=%s\n' "${REQUESTED_PARITY_PACK}"
   } | sha256sum)"
   printf '%s\n' "${digest_line%% *}"
 }
@@ -144,7 +141,7 @@ manifest_matches() {
   [[ "${recorded_digest}" == "${digest}" ]] \
     && [[ "${recorded_mode}" == "${ARTIFACT_MODE}" ]] \
     && [[ "${recorded_skip_solc}" == "${SKIP_SOLC}" ]] \
-    && [[ "${recorded_pack}" == "${PARITY_PACK}" ]]
+    && [[ "${recorded_pack}" == "${REQUESTED_PARITY_PACK}" ]]
 }
 
 write_manifest() {
@@ -153,7 +150,7 @@ write_manifest() {
 input_digest=${digest}
 artifact_mode=${ARTIFACT_MODE}
 skip_solc=${SKIP_SOLC}
-parity_pack=${PARITY_PACK}
+parity_pack=${REQUESTED_PARITY_PACK}
 EOF
 }
 
@@ -169,6 +166,55 @@ run_lake_exe() {
     cd "${ROOT_DIR}"
     lake exe morpho-verity-compiler "${compiler_args[@]}"
   )
+}
+
+run_list_parity_packs() {
+  (
+    cd "${ROOT_DIR}"
+    lake exe morpho-verity-compiler --list-parity-packs
+  )
+}
+
+resolve_parity_pack_support() {
+  if [[ -z "${PARITY_PACK}" ]]; then
+    return 0
+  fi
+
+  local supported_packs
+  if ! supported_packs="$(run_list_parity_packs)"; then
+    echo "ERROR: failed to query supported Verity parity packs"
+    exit 2
+  fi
+
+  local found_pack="0"
+  local supported_display=""
+  local supported_pack
+  while IFS= read -r supported_pack; do
+    if [[ -z "${supported_pack}" ]]; then
+      continue
+    fi
+    if [[ -n "${supported_display}" ]]; then
+      supported_display="${supported_display}, ${supported_pack}"
+    else
+      supported_display="${supported_pack}"
+    fi
+    if [[ "${supported_pack}" == "${PARITY_PACK}" ]]; then
+      found_pack="1"
+    fi
+  done <<< "${supported_packs}"
+
+  if [[ "${found_pack}" == "1" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${supported_packs//[[:space:]]/}" && -z "${MORPHO_VERITY_PARITY_PACK:-}" ]]; then
+    echo "Skipping Verity parity pack ${PARITY_PACK}: current Verity pin exposes no supported parity packs."
+    PARITY_PACK=""
+    return 0
+  fi
+
+  echo "ERROR: configured Verity parity pack ${PARITY_PACK} is not supported by this compiler (supported: ${supported_display})"
+  exit 2
 }
 
 run_uniquify_yul_shadows() {
@@ -235,11 +281,12 @@ PY
   fi
 fi
 PARITY_PACK="${MORPHO_VERITY_PARITY_PACK:-${default_pack}}"
+REQUESTED_PARITY_PACK="${PARITY_PACK}"
 
 mkdir -p "${OUT_DIR}"
 : > "${TIMINGS_LOG}"
 
-for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLLATERAL_PRICE_LIB}" "${FLASH_LOAN_CALLBACK_LIB}"; do
+for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLLATERAL_PRICE_LIB}"; do
   if [[ ! -f "${lib_file}" ]]; then
     echo "ERROR: missing linked library: ${lib_file}"
     exit 2
@@ -247,6 +294,7 @@ for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLL
 done
 
 require_command "lake" "lake is required to build and compile Morpho artifacts"
+resolve_parity_pack_support
 
 input_digest="$(compute_input_digest)"
 if manifest_matches "${input_digest}" && artifacts_ready; then
@@ -259,7 +307,7 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
   run_stage "lake-build" run_lake_build
 fi
 
-compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --link "${HASH_LIB}" --link "${BORROW_RATE_LIB}" --link "${ORACLE_PRICE_LIB}" --link "${COLLATERAL_PRICE_LIB}" --link "${FLASH_LOAN_CALLBACK_LIB}" --verbose)
+compiler_args=(--output "${OUT_DIR}" --abi-output "${OUT_DIR}" --link "${HASH_LIB}" --link "${BORROW_RATE_LIB}" --link "${ORACLE_PRICE_LIB}" --link "${COLLATERAL_PRICE_LIB}" --verbose)
 if [[ -n "${PARITY_PACK}" ]]; then
   compiler_args+=(--parity-pack "${PARITY_PACK}")
   echo "Using Verity parity pack: ${PARITY_PACK}"

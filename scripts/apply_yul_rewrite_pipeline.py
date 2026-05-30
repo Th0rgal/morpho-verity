@@ -10,12 +10,6 @@ import pathlib
 import sys
 from typing import Any
 
-from check_yul_rewrite_proof_obligations import (
-  RewriteProofError,
-  extract_manifest_proof_plans,
-)
-
-
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_PIPELINE_MANIFEST = ROOT / "config" / "yul-rewrite-pipeline.json"
 DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
@@ -162,6 +156,51 @@ def load_rewrite_pipeline_manifest(path: pathlib.Path) -> dict[str, Any]:
   return {"version": version, "stages": normalized_stages}
 
 
+def _extract_manifest_proof_plans(manifest: dict[str, Any]) -> dict[str, dict[str, str]]:
+  defaults = manifest.get("defaults", {})
+  if defaults is not None and not isinstance(defaults, dict):
+    raise RewritePipelineError("rewrite proof manifest key `defaults` must be an object")
+  families = manifest.get("families", [])
+  if not isinstance(families, list):
+    raise RewritePipelineError("rewrite proof manifest key `families` must be a list")
+
+  plans: dict[str, dict[str, str]] = {}
+
+  def add_plan(family: str, entry: dict[str, Any], where: str) -> None:
+    rewrite_pass = entry.get("rewritePass")
+    proof_refs = entry.get("proofRefs", [])
+    if not isinstance(rewrite_pass, str) or not rewrite_pass.strip():
+      raise RewritePipelineError(f"rewrite proof manifest entry `{where}` must include non-empty `rewritePass`")
+    if not isinstance(proof_refs, list) or not all(isinstance(ref, str) and ref.strip() for ref in proof_refs):
+      raise RewritePipelineError(f"rewrite proof manifest entry `{where}` must include string `proofRefs`")
+    for proof_ref in proof_refs:
+      if proof_ref in plans:
+        raise RewritePipelineError(f"rewrite proof manifest proof ref `{proof_ref}` is declared more than once")
+      plans[proof_ref] = {"family": family, "rewritePass": rewrite_pass}
+
+  for family, entry in defaults.items():
+    if not isinstance(family, str) or not family.strip():
+      raise RewritePipelineError("rewrite proof manifest default family names must be non-empty strings")
+    if not isinstance(entry, dict):
+      raise RewritePipelineError(f"rewrite proof manifest default `{family}` must be an object")
+    add_plan(family, entry, f"defaults.{family}")
+
+  seen_families: set[str] = set()
+  for index, entry in enumerate(families):
+    where = f"families[{index}]"
+    if not isinstance(entry, dict):
+      raise RewritePipelineError(f"rewrite proof manifest entry `{where}` must be an object")
+    family = entry.get("family")
+    if not isinstance(family, str) or not family.strip():
+      raise RewritePipelineError(f"rewrite proof manifest entry `{where}` must include non-empty `family`")
+    if family in seen_families:
+      raise RewritePipelineError(f"rewrite proof manifest defines duplicate family `{family}`")
+    seen_families.add(family)
+    add_plan(family, entry, where)
+
+  return plans
+
+
 def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
   data = read_json(path)
   if not isinstance(data, dict):
@@ -169,8 +208,8 @@ def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
       f"rewrite proof manifest must be a JSON object: {display_path(path)}"
     )
   try:
-    extract_manifest_proof_plans(data)
-  except RewriteProofError as exc:
+    _extract_manifest_proof_plans(data)
+  except RewritePipelineError as exc:
     raise RewritePipelineError(f"invalid rewrite proof manifest {display_path(path)}: {exc}") from exc
   return data
 
@@ -178,7 +217,7 @@ def load_rewrite_proof_manifest(path: pathlib.Path) -> dict[str, Any]:
 def validate_pipeline_against_proof_manifest(
     pipeline_manifest: dict[str, Any], proof_manifest: dict[str, Any]
 ) -> dict[str, dict[str, str]]:
-  manifest_plans = extract_manifest_proof_plans(proof_manifest)
+  manifest_plans = _extract_manifest_proof_plans(proof_manifest)
   proof_passes = {plan["rewritePass"] for plan in manifest_plans.values()}
   pipeline_passes = {stage["rewritePass"] for stage in pipeline_manifest["stages"]}
 
@@ -214,22 +253,6 @@ def validate_pipeline_against_proof_manifest(
           f"rewrite pipeline stage `{stage_pass}` omits family `{plan['family']}` "
           f"required by proof ref `{proof_ref}`"
         )
-
-    unmatched_families = [
-      family
-      for family in stage["families"]
-      if not any(
-        proof_ref in manifest_plans
-        and manifest_plans[proof_ref]["family"] == family
-        and manifest_plans[proof_ref]["rewritePass"] == stage_pass
-        for proof_ref in stage["proofRefs"]
-      )
-    ]
-    if unmatched_families:
-      raise RewritePipelineError(
-        f"rewrite pipeline stage `{stage_pass}` lists families without matching proof refs: "
-        + ", ".join(sorted(unmatched_families))
-      )
 
   return manifest_plans
 
@@ -288,7 +311,6 @@ def apply_rewrite_pipeline_to_file(
   if proof_manifest_path is not None:
     proof_manifest = load_rewrite_proof_manifest(proof_manifest_path)
     validate_pipeline_against_proof_manifest(pipeline_manifest, proof_manifest)
-
   input_text = read_text(input_path)
   rewritten_text, report = apply_rewrite_pipeline_text(input_text, pipeline_manifest)
   write_text(output_path, rewritten_text)
@@ -321,7 +343,10 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--proof-manifest",
     default=str(DEFAULT_PROOF_MANIFEST),
-    help="JSON manifest defining rewrite-proof obligations.",
+    help=(
+      "Legacy-named rewrite obligation metadata manifest. This no longer "
+      "corresponds to Lean proof files or Morpho invariant proofs."
+    ),
   )
   parser.add_argument(
     "--json-out",
@@ -351,6 +376,7 @@ def main() -> int:
     return 1
 
   print(f"rewritePipeline: {report['pipelineManifestPath']}")
+  print("rewriteProofManifestKind: legacy rewrite-obligation metadata")
   print(f"rewriteProofManifest: {report['proofManifestPath']}")
   print(f"rewritePipelineStages: {report['stageCount']}")
   print(f"rewritePipelineImplementedStages: {report['implementedStageCount']}")

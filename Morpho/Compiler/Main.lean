@@ -5,7 +5,7 @@ import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ParityPacks
 import Compiler.ABI
-import Morpho.Compiler.Generated
+import Morpho.Compiler.ArtifactConfig
 
 namespace Morpho.Compiler.Main
 
@@ -27,6 +27,7 @@ private structure CLIArgs where
   backendProfile : _root_.Compiler.BackendProfile := .semantic
   backendProfileExplicit : Bool := false
   parityPackId : Option String := none
+  listParityPacks : Bool := false
   patchEnabled : Bool := false
   patchMaxIterations : Nat := 2
   patchMaxIterationsExplicit : Bool := false
@@ -112,6 +113,8 @@ private def parseArgs (args : List String) : IO CLIArgs :=
                 s!"Invalid value for --parity-pack: {raw} (supported: {String.intercalate ", " _root_.Compiler.supportedParityPackIds})")
     | ["--parity-pack"], _ =>
         throw (IO.userError "Missing value for --parity-pack")
+    | "--list-parity-packs" :: rest, cfg =>
+        go rest { cfg with listParityPacks := true }
     | "--enable-patches" :: rest, cfg =>
         go rest { cfg with patchEnabled := true }
     | "--patch-max-iterations" :: raw :: rest, cfg =>
@@ -139,6 +142,7 @@ private def parseArgs (args : List String) : IO CLIArgs :=
       IO.println "  --link <path>               Link external Yul library (repeatable)"
       IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
       IO.println "  --parity-pack <id>          Versioned parity pack from verity"
+      IO.println "  --list-parity-packs         Print supported parity pack ids and exit"
       IO.println "  --enable-patches            Enable deterministic Yul patch pass"
       IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
       IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 512)"
@@ -160,11 +164,11 @@ private def morphoEmitOptions (cfg : CLIArgs) : _root_.Compiler.YulEmitOptions :
     }
     mappingSlotScratchBase := cfg.mappingSlotScratchBase }
 
-private def lowerMorphoGeneratedSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
-  pure Morpho.Compiler.Generated.morphoGeneratedSpec
+private def lowerMorphoArtifactSpec : IO _root_.Compiler.CompilationModel.CompilationModel := do
+  pure Morpho.Compiler.ArtifactConfig.artifactSpec
 
-private def resolveMorphoGeneratedSelectors : IO (List Nat) := do
-  Morpho.Compiler.Generated.morphoGeneratedSelectors
+private def resolveMorphoArtifactSelectors : IO (List Nat) := do
+  Morpho.Compiler.ArtifactConfig.artifactSelectors
 
 private def writeContract
     (outDir : String)
@@ -195,8 +199,11 @@ private def writeContract
 def main (args : List String) : IO Unit := do
   try
     let cfg ← parseArgs args
-    if cfg.verbose then
-      IO.println s!"Compiling Morpho generated spec to {cfg.outDir}"
+    if cfg.listParityPacks then
+      for packId in _root_.Compiler.supportedParityPackIds do
+        IO.println packId
+    else if cfg.verbose then
+      IO.println s!"Compiling Morpho contract spec to {cfg.outDir}"
       match cfg.abiOutDir with
       | some dir => IO.println s!"ABI output directory: {dir}"
       | none => pure ()
@@ -217,27 +224,28 @@ def main (args : List String) : IO Unit := do
       if patchEnabled then
         IO.println s!"Patch pass: enabled (max iterations = {cfg.patchMaxIterations})"
         IO.println s!"Rewrite bundle: {cfg.rewriteBundleId}"
-        IO.println s!"Registered proof refs: {cfg.requiredProofRefs.length}"
+        IO.println s!"Registered rewrite obligation refs: {cfg.requiredProofRefs.length}"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       if !cfg.libs.isEmpty then
         IO.println s!"Linking {cfg.libs.length} external libraries"
         for lib in cfg.libs do
           IO.println s!"  - {lib}"
 
-    let loweredSpec ← lowerMorphoGeneratedSpec
-    let selectors ← resolveMorphoGeneratedSelectors
-    let ir ← orThrow (compile loweredSpec selectors)
-    writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
-    match cfg.abiOutDir with
-    | some dir =>
-        IO.FS.createDirAll dir
-        Compiler.ABI.writeContractABIFile dir loweredSpec
-        if cfg.verbose then
-          IO.println s!"✓ Wrote {dir}/{ir.name}.abi.json"
-    | none => pure ()
+    if !cfg.listParityPacks then
+      let loweredSpec ← lowerMorphoArtifactSpec
+      let selectors ← resolveMorphoArtifactSelectors
+      let ir ← orThrow (compile loweredSpec selectors)
+      writeContract cfg.outDir ir cfg.libs (morphoEmitOptions cfg)
+      match cfg.abiOutDir with
+      | some dir =>
+          IO.FS.createDirAll dir
+          Compiler.ABI.writeContractABIFile dir loweredSpec
+          if cfg.verbose then
+            IO.println s!"✓ Wrote {dir}/{ir.name}.abi.json"
+      | none => pure ()
 
-    if cfg.verbose then
-      IO.println s!"✓ Wrote {cfg.outDir}/{ir.name}.yul"
+      if cfg.verbose then
+        IO.println s!"✓ Wrote {cfg.outDir}/{ir.name}.yul"
   catch e =>
     if e.toString == "help" then
       pure ()

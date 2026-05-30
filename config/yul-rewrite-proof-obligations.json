@@ -1,5 +1,6 @@
 {
   "version": "rewrite-proof-v1",
+  "description": "Legacy-named rewrite-obligation metadata for Yul identity gap classification. These entries are planned justifications for rewrite families; they are not checked Lean proofs of Morpho invariants.",
   "defaults": {
     "renameOnly": {
       "rewritePass": "rename-normalization",
@@ -20,30 +21,48 @@
   },
   "families": [
     {
-      "family": "checked_add",
-      "rewritePass": "checked-arith-width-alignment",
-      "proofObligation": "Prove width-specialized checked_add helpers preserve success/revert behavior and resulting values across uint-width normalization.",
-      "status": "planned",
-      "proofRefs": [
-        "rewrite.checked_add.width_alignment"
-      ]
-    },
-    {
-      "family": "copy_literal_to_memory",
-      "rewritePass": "literal-memory-canonicalization",
-      "proofObligation": "Prove literal copy helper rewrites preserve byte-for-byte memory contents and allocation boundaries.",
-      "status": "planned",
-      "proofRefs": [
-        "rewrite.copy_literal_to_memory.semantic_eq"
-      ]
-    },
-    {
       "family": "abi_decode_address",
       "rewritePass": "abi-decode-helper-canonicalization",
       "proofObligation": "Prove address decoder helper rewrites preserve decoded values, revert conditions, and memory cursor movement.",
       "status": "planned",
       "proofRefs": [
         "rewrite.abi_decode_address.semantic_eq"
+      ]
+    },
+    {
+      "family": "abi_decode_bool",
+      "rewritePass": "abi_decode_bool-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `abi_decode_bool` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.abi_decode_bool.semantic_eq"
+      ]
+    },
+    {
+      "family": "abi_decode_bytes",
+      "rewritePass": "abi_decode_bytes-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `abi_decode_bytes` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.abi_decode_bytes.semantic_eq"
+      ]
+    },
+    {
+      "family": "abi_decode_struct",
+      "rewritePass": "abi_decode_struct-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `abi_decode_struct` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.abi_decode_struct.semantic_eq"
+      ]
+    },
+    {
+      "family": "abi_encode_address",
+      "rewritePass": "abi_encode_address-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `abi_encode_address` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.abi_encode_address.semantic_eq"
       ]
     },
     {
@@ -56,12 +75,444 @@
       ]
     },
     {
-      "family": "mappingSlot",
-      "rewritePass": "mapping-slot-helper-canonicalization",
-      "proofObligation": "Prove mappingSlot helper rewrites preserve computed storage keys and scratch-memory usage.",
+      "family": "abi_encode_uint256",
+      "rewritePass": "abi_encode_uint256-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `abi_encode_uint256` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
       "status": "planned",
       "proofRefs": [
-        "rewrite.mapping_slot.semantic_eq"
+        "rewrite.abi_encode_uint256.semantic_eq"
+      ]
+    },
+    {
+      "family": "array_allocation_size",
+      "rewritePass": "array_allocation_size-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `array_allocation_size` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.array_allocation_size.semantic_eq"
+      ]
+    },
+    {
+      "family": "checked_add",
+      "rewritePass": "checked-arith-width-alignment",
+      "proofObligation": "Prove width-specialized checked_add helpers preserve success/revert behavior and resulting values across uint-width normalization.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.checked_add.width_alignment"
+      ]
+    },
+    {
+      "family": "checked_div",
+      "rewritePass": "checked_div-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `checked_div` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.checked_div.semantic_eq"
+      ]
+    },
+    {
+      "family": "checked_mul",
+      "rewritePass": "checked_mul-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `checked_mul` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.checked_mul.semantic_eq"
+      ]
+    },
+    {
+      "family": "checked_sub",
+      "rewritePass": "checked_sub-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `checked_sub` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.checked_sub.semantic_eq"
+      ]
+    },
+    {
+      "family": "copy_literal_to_memory",
+      "rewritePass": "literal-memory-canonicalization",
+      "proofObligation": "Prove literal copy helper rewrites preserve byte-for-byte memory contents and allocation boundaries.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.copy_literal_to_memory.semantic_eq"
+      ]
+    },
+    {
+      "family": "extract_returndata",
+      "rewritePass": "extract_returndata-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `extract_returndata` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.extract_returndata.semantic_eq"
+      ]
+    },
+    {
+      "family": "finalize_allocation",
+      "rewritePass": "finalize_allocation-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `finalize_allocation` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.finalize_allocation.semantic_eq"
+      ]
+    },
+    {
+      "family": "fun",
+      "rewritePass": "fun-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `fun` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.fun_helpers.semantic_eq"
+      ]
+    },
+    {
+      "family": "increment_uint256",
+      "rewritePass": "increment_uint256-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `increment_uint256` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.increment_uint256.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal___modifier_onlyOwner",
+      "rewritePass": "internal_modifier_onlyowner-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal___modifier_onlyOwner` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_modifier_onlyowner.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_DOMAIN_SEPARATOR",
+      "rewritePass": "internal_internal_domain_separator-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_DOMAIN_SEPARATOR` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_domain_separator.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_accrueInterest",
+      "rewritePass": "internal_internal_accrueinterest-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_accrueInterest` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_accrueinterest.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__accrueInterest",
+      "rewritePass": "internal_internal_private_accrueinterest-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_accrueInterest` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_accrueInterest` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_accrueinterest.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_borrow",
+      "rewritePass": "internal_internal_borrow-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_borrow` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_borrow.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_createMarket",
+      "rewritePass": "internal_internal_createmarket-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_createMarket` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_createmarket.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_enableIrm",
+      "rewritePass": "internal_internal_enableirm-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_enableIrm` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_enableirm.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_enableLltv",
+      "rewritePass": "internal_internal_enablelltv-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_enableLltv` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_enablelltv.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_fee",
+      "rewritePass": "internal_internal_fee-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_fee` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_fee.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_feeRecipient",
+      "rewritePass": "internal_internal_feerecipient-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_feeRecipient` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_feerecipient.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_flashLoan",
+      "rewritePass": "internal_internal_flashloan-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_flashLoan` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_flashloan.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_idToMarketParams",
+      "rewritePass": "internal_internal_idtomarketparams-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_idToMarketParams` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_idtomarketparams.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_isAuthorized",
+      "rewritePass": "internal_internal_isauthorized-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_isAuthorized` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_isauthorized.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__isHealthy",
+      "rewritePass": "internal_internal_private_ishealthy-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_isHealthy` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isHealthy` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthy.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__isHealthyWithPrice",
+      "rewritePass": "internal_internal_private_ishealthywithprice-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_isHealthyWithPrice` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isHealthy(..., collateralPrice)` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthywithprice.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__isSenderAuthorized",
+      "rewritePass": "internal_internal_private_issenderauthorized-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_isSenderAuthorized` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isSenderAuthorized` helper.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_isIrmEnabled",
+      "rewritePass": "internal_internal_isirmenabled-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_isIrmEnabled` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_isirmenabled.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_isLltvEnabled",
+      "rewritePass": "internal_internal_islltvenabled-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_isLltvEnabled` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_islltvenabled.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_lastUpdate",
+      "rewritePass": "internal_internal_lastupdate-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_lastUpdate` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_lastupdate.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_liquidate",
+      "rewritePass": "internal_internal_liquidate-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_liquidate` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_liquidate.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_market",
+      "rewritePass": "internal_internal_market-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_market` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_market.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_nonce",
+      "rewritePass": "internal_internal_nonce-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_nonce` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_nonce.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_owner",
+      "rewritePass": "internal_internal_owner-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_owner` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_owner.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_position",
+      "rewritePass": "internal_internal_position-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_position` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_position.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_repay",
+      "rewritePass": "internal_internal_repay-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_repay` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_repay.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_setAuthorization",
+      "rewritePass": "internal_internal_setauthorization-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_setAuthorization` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_setauthorization.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_setAuthorizationWithSig",
+      "rewritePass": "internal_internal_setauthorizationwithsig-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_setAuthorizationWithSig` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_setauthorizationwithsig.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_setFee",
+      "rewritePass": "internal_internal_setfee-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_setFee` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_setfee.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_setFeeRecipient",
+      "rewritePass": "internal_internal_setfeerecipient-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_setFeeRecipient` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_setfeerecipient.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_setOwner",
+      "rewritePass": "internal_internal_setowner-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_setOwner` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_setowner.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_supply",
+      "rewritePass": "internal_internal_supply-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_supply` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_supply.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_supplyCollateral",
+      "rewritePass": "internal_internal_supplycollateral-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_supplyCollateral` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_supplycollateral.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_totalBorrowAssets",
+      "rewritePass": "internal_internal_totalborrowassets-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_totalBorrowAssets` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_totalborrowassets.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_totalBorrowShares",
+      "rewritePass": "internal_internal_totalborrowshares-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_totalBorrowShares` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_totalborrowshares.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_totalSupplyAssets",
+      "rewritePass": "internal_internal_totalsupplyassets-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_totalSupplyAssets` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_totalsupplyassets.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_totalSupplyShares",
+      "rewritePass": "internal_internal_totalsupplyshares-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_totalSupplyShares` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_totalsupplyshares.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_withdraw",
+      "rewritePass": "internal_internal_withdraw-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_withdraw` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_withdraw.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal_withdrawCollateral",
+      "rewritePass": "internal_internal_withdrawcollateral-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `internal_internal_withdrawCollateral` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_withdrawcollateral.semantic_eq"
       ]
     },
     {
@@ -71,6 +522,33 @@
       "status": "planned",
       "proofRefs": [
         "rewrite.market_params_hash.semantic_eq"
+      ]
+    },
+    {
+      "family": "mappingSlot",
+      "rewritePass": "mapping-slot-helper-canonicalization",
+      "proofObligation": "Prove mappingSlot helper rewrites preserve computed storage keys and scratch-memory usage.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.mapping_slot.semantic_eq"
+      ]
+    },
+    {
+      "family": "require_helper_string",
+      "rewritePass": "require_helper_string-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `require_helper_string` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.require_helper_string.semantic_eq"
+      ]
+    },
+    {
+      "family": "update_storage_value",
+      "rewritePass": "update_storage_value-canonicalization",
+      "proofObligation": "Classify and prove the Solidity-only `update_storage_value` Yul helper-family delta is semantics-preserving or an intentional compiler-boundary difference for Morpho.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.update_storage_value.semantic_eq"
       ]
     }
   ]

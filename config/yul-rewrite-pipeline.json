@@ -2,53 +2,613 @@
   "version": "rewrite-pipeline-v1",
   "stages": [
     {
-      "rewritePass": "rename-normalization",
-      "families": ["renameOnly"],
-      "proofRefs": ["rewrite.rename_only.alpha_equiv"],
-      "implemented": false,
-      "notes": "Reserve the alpha-renaming stage even before a concrete rewrite is implemented."
-    },
-    {
-      "rewritePass": "rename-family-disambiguation",
-      "families": ["renameAmbiguous"],
-      "proofRefs": ["rewrite.rename_ambiguous.disambiguate"],
-      "implemented": false,
-      "notes": "Keep ambiguous rename-only clusters as a dedicated stage in the planned rewrite order."
-    },
-    {
-      "rewritePass": "checked-arith-width-alignment",
-      "families": ["checked_add"],
-      "proofRefs": ["rewrite.checked_add.width_alignment"],
-      "implemented": false
-    },
-    {
-      "rewritePass": "literal-memory-canonicalization",
-      "families": ["copy_literal_to_memory"],
-      "proofRefs": ["rewrite.copy_literal_to_memory.semantic_eq"],
-      "implemented": false
-    },
-    {
       "rewritePass": "abi-decode-helper-canonicalization",
-      "families": ["abi_decode_address"],
-      "proofRefs": ["rewrite.abi_decode_address.semantic_eq"],
+      "families": [
+        "abi_decode_address"
+      ],
+      "proofRefs": [
+        "rewrite.abi_decode_address.semantic_eq"
+      ],
       "implemented": false
     },
     {
       "rewritePass": "abi-encode-struct-canonicalization",
-      "families": ["abi_encode_struct"],
-      "proofRefs": ["rewrite.abi_encode_struct.semantic_eq"],
+      "families": [
+        "abi_encode_struct"
+      ],
+      "proofRefs": [
+        "rewrite.abi_encode_struct.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi_decode_bool-canonicalization",
+      "families": [
+        "abi_decode_bool"
+      ],
+      "proofRefs": [
+        "rewrite.abi_decode_bool.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi_decode_bytes-canonicalization",
+      "families": [
+        "abi_decode_bytes"
+      ],
+      "proofRefs": [
+        "rewrite.abi_decode_bytes.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi_decode_struct-canonicalization",
+      "families": [
+        "abi_decode_struct"
+      ],
+      "proofRefs": [
+        "rewrite.abi_decode_struct.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi_encode_address-canonicalization",
+      "families": [
+        "abi_encode_address"
+      ],
+      "proofRefs": [
+        "rewrite.abi_encode_address.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "abi_encode_uint256-canonicalization",
+      "families": [
+        "abi_encode_uint256"
+      ],
+      "proofRefs": [
+        "rewrite.abi_encode_uint256.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "array_allocation_size-canonicalization",
+      "families": [
+        "array_allocation_size"
+      ],
+      "proofRefs": [
+        "rewrite.array_allocation_size.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "checked-arith-width-alignment",
+      "families": [
+        "checked_add"
+      ],
+      "proofRefs": [
+        "rewrite.checked_add.width_alignment"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "checked_div-canonicalization",
+      "families": [
+        "checked_div"
+      ],
+      "proofRefs": [
+        "rewrite.checked_div.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "checked_mul-canonicalization",
+      "families": [
+        "checked_mul"
+      ],
+      "proofRefs": [
+        "rewrite.checked_mul.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "checked_sub-canonicalization",
+      "families": [
+        "checked_sub"
+      ],
+      "proofRefs": [
+        "rewrite.checked_sub.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "extract_returndata-canonicalization",
+      "families": [
+        "extract_returndata"
+      ],
+      "proofRefs": [
+        "rewrite.extract_returndata.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "finalize_allocation-canonicalization",
+      "families": [
+        "finalize_allocation"
+      ],
+      "proofRefs": [
+        "rewrite.finalize_allocation.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "fun-canonicalization",
+      "families": [
+        "fun"
+      ],
+      "proofRefs": [
+        "rewrite.fun_helpers.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "increment_uint256-canonicalization",
+      "families": [
+        "increment_uint256"
+      ],
+      "proofRefs": [
+        "rewrite.increment_uint256.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_accrueinterest-canonicalization",
+      "families": [
+        "internal_internal_accrueInterest"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_accrueinterest.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_accrueinterest-canonicalization",
+      "families": [
+        "internal_internal__accrueInterest"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_accrueinterest.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_borrow-canonicalization",
+      "families": [
+        "internal_internal_borrow"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_borrow.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_createmarket-canonicalization",
+      "families": [
+        "internal_internal_createMarket"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_createmarket.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_domain_separator-canonicalization",
+      "families": [
+        "internal_internal_DOMAIN_SEPARATOR"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_domain_separator.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_enableirm-canonicalization",
+      "families": [
+        "internal_internal_enableIrm"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_enableirm.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_enablelltv-canonicalization",
+      "families": [
+        "internal_internal_enableLltv"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_enablelltv.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_fee-canonicalization",
+      "families": [
+        "internal_internal_fee"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_fee.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_feerecipient-canonicalization",
+      "families": [
+        "internal_internal_feeRecipient"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_feerecipient.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_flashloan-canonicalization",
+      "families": [
+        "internal_internal_flashLoan"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_flashloan.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_idtomarketparams-canonicalization",
+      "families": [
+        "internal_internal_idToMarketParams"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_idtomarketparams.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_isauthorized-canonicalization",
+      "families": [
+        "internal_internal_isAuthorized"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_isauthorized.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_ishealthy-canonicalization",
+      "families": [
+        "internal_internal__isHealthy"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthy.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_ishealthywithprice-canonicalization",
+      "families": [
+        "internal_internal__isHealthyWithPrice"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_ishealthywithprice.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_issenderauthorized-canonicalization",
+      "families": [
+        "internal_internal__isSenderAuthorized"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_isirmenabled-canonicalization",
+      "families": [
+        "internal_internal_isIrmEnabled"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_isirmenabled.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_islltvenabled-canonicalization",
+      "families": [
+        "internal_internal_isLltvEnabled"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_islltvenabled.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_lastupdate-canonicalization",
+      "families": [
+        "internal_internal_lastUpdate"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_lastupdate.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_liquidate-canonicalization",
+      "families": [
+        "internal_internal_liquidate"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_liquidate.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_market-canonicalization",
+      "families": [
+        "internal_internal_market"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_market.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_nonce-canonicalization",
+      "families": [
+        "internal_internal_nonce"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_nonce.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_owner-canonicalization",
+      "families": [
+        "internal_internal_owner"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_owner.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_position-canonicalization",
+      "families": [
+        "internal_internal_position"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_position.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_repay-canonicalization",
+      "families": [
+        "internal_internal_repay"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_repay.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_setauthorization-canonicalization",
+      "families": [
+        "internal_internal_setAuthorization"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_setauthorization.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_setauthorizationwithsig-canonicalization",
+      "families": [
+        "internal_internal_setAuthorizationWithSig"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_setauthorizationwithsig.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_setfee-canonicalization",
+      "families": [
+        "internal_internal_setFee"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_setfee.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_setfeerecipient-canonicalization",
+      "families": [
+        "internal_internal_setFeeRecipient"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_setfeerecipient.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_setowner-canonicalization",
+      "families": [
+        "internal_internal_setOwner"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_setowner.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_supply-canonicalization",
+      "families": [
+        "internal_internal_supply"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_supply.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_supplycollateral-canonicalization",
+      "families": [
+        "internal_internal_supplyCollateral"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_supplycollateral.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_totalborrowassets-canonicalization",
+      "families": [
+        "internal_internal_totalBorrowAssets"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_totalborrowassets.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_totalborrowshares-canonicalization",
+      "families": [
+        "internal_internal_totalBorrowShares"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_totalborrowshares.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_totalsupplyassets-canonicalization",
+      "families": [
+        "internal_internal_totalSupplyAssets"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_totalsupplyassets.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_totalsupplyshares-canonicalization",
+      "families": [
+        "internal_internal_totalSupplyShares"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_totalsupplyshares.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_withdraw-canonicalization",
+      "families": [
+        "internal_internal_withdraw"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_withdraw.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_withdrawcollateral-canonicalization",
+      "families": [
+        "internal_internal_withdrawCollateral"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_withdrawcollateral.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_modifier_onlyowner-canonicalization",
+      "families": [
+        "internal___modifier_onlyOwner"
+      ],
+      "proofRefs": [
+        "rewrite.internal_modifier_onlyowner.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "literal-memory-canonicalization",
+      "families": [
+        "copy_literal_to_memory"
+      ],
+      "proofRefs": [
+        "rewrite.copy_literal_to_memory.semantic_eq"
+      ],
       "implemented": false
     },
     {
       "rewritePass": "mapping-slot-helper-canonicalization",
-      "families": ["mappingSlot"],
-      "proofRefs": ["rewrite.mapping_slot.semantic_eq"],
+      "families": [
+        "mappingSlot"
+      ],
+      "proofRefs": [
+        "rewrite.mapping_slot.semantic_eq"
+      ],
       "implemented": false
     },
     {
       "rewritePass": "market-params-hash-canonicalization",
-      "families": ["keccakMarketParams"],
-      "proofRefs": ["rewrite.market_params_hash.semantic_eq"],
+      "families": [
+        "keccakMarketParams"
+      ],
+      "proofRefs": [
+        "rewrite.market_params_hash.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "rename-family-disambiguation",
+      "families": [
+        "renameAmbiguous"
+      ],
+      "proofRefs": [
+        "rewrite.rename_ambiguous.disambiguate"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "rename-normalization",
+      "families": [
+        "renameOnly"
+      ],
+      "proofRefs": [
+        "rewrite.rename_only.alpha_equiv"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "require_helper_string-canonicalization",
+      "families": [
+        "require_helper_string"
+      ],
+      "proofRefs": [
+        "rewrite.require_helper_string.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "update_storage_value-canonicalization",
+      "families": [
+        "update_storage_value"
+      ],
+      "proofRefs": [
+        "rewrite.update_storage_value.semantic_eq"
+      ],
       "implemented": false
     }
   ]

@@ -1,8 +1,0 @@
-{
-  "expectedUnsupported": {
-    "expr": [],
-    "stmt": []
-  },
-  "notes": "Fail-closed migration tracker for macro-native cutover. As verity macro support grows and morphoSpec shrinks, these sets should only move via explicit reviewed updates.",
-  "sourcePath": "Morpho/Compiler/Spec.lean"
-}

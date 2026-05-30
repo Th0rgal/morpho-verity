@@ -27,6 +27,11 @@ validate_toggle "MORPHO_VERITY_SKIP_PARITY_PREFLIGHT" "${SKIP_PARITY_PREFLIGHT}"
 validate_toggle "MORPHO_VERITY_ALLOW_LOCAL_PARITY_PREFLIGHT_SKIP" "${ALLOW_LOCAL_SKIP}"
 validate_toggle "MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP" "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}"
 
+if ! [[ "${SUITE_TIMEOUT_SEC}" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: MORPHO_BLUE_SUITE_TIMEOUT_SEC must be a non-negative integer (got: ${SUITE_TIMEOUT_SEC})"
+  exit 2
+fi
+
 require_nonempty_artifact() {
   local artifact_path="$1"
   if [[ ! -s "${artifact_path}" ]]; then
@@ -97,7 +102,7 @@ else
       "${ROOT_DIR}/scripts/check_input_mode_parity.sh"
 fi
 
-# Reuse the verified EDSL artifact already produced by parity checking.
+# Reuse the validated EDSL artifact already produced by the artifact/parity gate.
 require_nonempty_artifact "${artifact_source_dir}/Morpho.yul"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.bin"
 require_nonempty_artifact "${artifact_source_dir}/Morpho.abi.json"
@@ -109,6 +114,17 @@ else
   rm -f "${ROOT_DIR}/artifacts/yul/Morpho.rewritten.yul"
 fi
 cp "${artifact_source_dir}/Morpho.bin" "${ROOT_DIR}/artifacts/yul/Morpho.bin"
+python3 - "${ROOT_DIR}/artifacts/yul/Morpho.bin" "${ROOT_DIR}/artifacts/yul/Morpho.bin.raw" <<'PY'
+import pathlib
+import sys
+
+source = pathlib.Path(sys.argv[1])
+target = pathlib.Path(sys.argv[2])
+hex_text = source.read_text(encoding="utf-8").strip()
+if hex_text.startswith("0x"):
+    hex_text = hex_text[2:]
+target.write_bytes(bytes.fromhex(hex_text))
+PY
 cp "${artifact_source_dir}/Morpho.abi.json" "${ROOT_DIR}/artifacts/yul/Morpho.abi.json"
 
 if [[ "${MORPHO_VERITY_EXIT_AFTER_ARTIFACT_PREP:-0}" == "1" ]]; then
