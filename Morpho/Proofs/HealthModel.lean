@@ -73,6 +73,22 @@ def maxBorrow (s : HealthState) : Nat :=
 def healthy (s : HealthState) : Prop :=
   s.borrowShares = 0 ∨ s.maxBorrow ≥ s.borrowed
 
+/--
+  The market borrow index `(totBorrowAssets+1)/(totBorrowShares+VIRTUAL)` does not
+  grow from `s` to `s'`. Stated cross-multiplied (`a'/b' ≤ a/b ⇔ a'·b ≤ a·b'`) to
+  stay in `Nat`. In Morpho the index rises *only* via `_accrueInterest`, so under
+  the no-accrual assumption this holds for every operation. -/
+def borrowIndexNoGrow (s s' : HealthState) : Prop :=
+  (s'.totBorrowAssets + VIRTUAL_ASSETS) * (s.totBorrowShares + VIRTUAL_SHARES)
+    ≤ (s.totBorrowAssets + VIRTUAL_ASSETS) * (s'.totBorrowShares + VIRTUAL_SHARES)
+
+/-- An operation that leaves the market totals untouched cannot grow the index.
+    This discharges the index condition for every collateral/supply-side op. -/
+theorem borrowIndexNoGrow_of_totals_eq {s s' : HealthState}
+    (ha : s'.totBorrowAssets = s.totBorrowAssets)
+    (hs : s'.totBorrowShares = s.totBorrowShares) : borrowIndexNoGrow s s' := by
+  simp [borrowIndexNoGrow, ha, hs]
+
 instance (s : HealthState) : Decidable (healthy s) := by
   unfold healthy; infer_instance
 

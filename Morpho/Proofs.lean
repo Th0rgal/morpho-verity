@@ -10,6 +10,8 @@
     * Env          — constant-price / no-accrual environment assumptions.
     * Arith        — generic floor/ceil division monotonicity lemmas.
     * Property1    — "no operation makes a healthy account unhealthy" (proved).
+    * Operations   — concrete Solidity-mirroring transitions; collateral/supply
+                     ops shown to preserve health with no assumptions.
     * Property2    — "a liquidation can restore a sub-1/LIF borrower" (existence
                      proved; sharp partial-liquidation statement reduced to one
                      named rounding obligation).
@@ -20,5 +22,6 @@ import Morpho.Proofs.HealthModel
 import Morpho.Proofs.Env
 import Morpho.Proofs.Arith
 import Morpho.Proofs.Property1
+import Morpho.Proofs.Operations
 import Morpho.Proofs.Property2
 import Morpho.Proofs.Refinement

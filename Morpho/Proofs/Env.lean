@@ -18,6 +18,7 @@ import Morpho.Proofs.HealthModel
 namespace Morpho.Proofs.Env
 
 open Morpho.Proofs.HealthModel
+open Morpho.Proofs.HealthModel.HealthState
 
 /-- A step relates a pre-state to a post-state of the health projection. -/
 abbrev Step := HealthState → HealthState → Prop
@@ -26,17 +27,11 @@ abbrev Step := HealthState → HealthState → Prop
 def ConstPrice (step : Step) : Prop :=
   ∀ s s', step s s' → s'.price = s.price
 
-/--
-  No accrual: the step does not increase the market borrow index.
-
-  We encode "the index does not grow" as a cross-multiplied inequality to avoid
-  rational division, mirroring how the contract keeps the index in two `uint128`
-  fields. `a/b` non-increasing to `a'/b'` ⇔ `a' * b ≤ a * b'`.
--/
+/-- No accrual: the step does not increase the market borrow index
+    (`HealthState.borrowIndexNoGrow`). In Morpho the index rises only through
+    `_accrueInterest`; excluding accrual is exactly this condition. -/
 def NoAccrual (step : Step) : Prop :=
-  ∀ s s', step s s' →
-    (s'.totBorrowAssets + VIRTUAL_ASSETS) * (s.totBorrowShares + VIRTUAL_SHARES)
-      ≤ (s.totBorrowAssets + VIRTUAL_ASSETS) * (s'.totBorrowShares + VIRTUAL_SHARES)
+  ∀ s s', step s s' → borrowIndexNoGrow s s'
 
 /-- The environment under which property 1 is proved. -/
 structure Assumptions (step : Step) : Prop where

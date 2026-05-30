@@ -39,9 +39,7 @@ structure MonotoneFor (s s' : HealthState) : Prop where
   lltv_eq       : s'.lltv = s.lltv
   collateral_ge : s.collateral ≤ s'.collateral
   shares_le     : s'.borrowShares ≤ s.borrowShares
-  index_nogrow  :
-    (s'.totBorrowAssets + VIRTUAL_ASSETS) * (s.totBorrowShares + VIRTUAL_SHARES)
-      ≤ (s.totBorrowAssets + VIRTUAL_ASSETS) * (s'.totBorrowShares + VIRTUAL_SHARES)
+  index_nogrow  : borrowIndexNoGrow s s'
 
 /-- `maxBorrow` cannot decrease when collateral does not decrease and price/LLTV
     are unchanged. -/
