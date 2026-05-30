@@ -17,7 +17,9 @@ lean_lib «Morpho» where
     .submodules `Morpho.Libraries,
     .one `Morpho.Compiler.ArtifactConfig,
     .one `Morpho.Compiler.Main,
-    .one `Morpho.Compiler.MainTest
+    .one `Morpho.Compiler.MainTest,
+    .one `Morpho.Proofs,
+    .submodules `Morpho.Proofs
   ]
 
 lean_exe «morpho-verity-compiler» where
