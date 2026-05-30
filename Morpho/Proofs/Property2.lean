@@ -121,6 +121,26 @@ def liquidate (s : HealthState) (repaidShares seized : Nat) : HealthState :=
 theorem healthy_of_no_debt {s : HealthState} (h : s.borrowShares = 0) : healthy s :=
   Or.inl h
 
+/-- The model's `liquidate` does not grow the borrow index. This connects the
+    generic `borrowIndexNoGrow_of_repay` to the concrete `liquidate` field writes:
+    a liquidation (by the borrower or any third party) lowers `totBorrowShares` by
+    `repaidShares` and `totBorrowAssets` by the rounded-up `repaidAssets`, so it
+    supplies the `borrowIndexNoGrow` field that `MonotoneFor` requires for a watched
+    account in the same market, by the rounding direction alone rather than from
+    `NoAccrual`. Like `borrowIndexNoGrow_of_repay`, this is not yet consumed by the
+    headline `no_operation_breaks_health`; it is the witness the extraction layer
+    will plug into the other-account case. The hypotheses are the well-formedness
+    facts the contract maintains: you cannot repay more shares than the market
+    holds, nor more assets than it owes. -/
+theorem liquidate_borrowIndexNoGrow (s : HealthState) (repaidShares seized : Nat)
+    (hsh : repaidShares ≤ s.totBorrowShares)
+    (hass : mulDivUp repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
+              (s.totBorrowShares + VIRTUAL_SHARES) ≤ s.totBorrowAssets) :
+    borrowIndexNoGrow s (liquidate s repaidShares seized) := by
+  apply Morpho.Proofs.Property1.borrowIndexNoGrow_of_repay repaidShares
+  · simp only [liquidate]; omega
+  · simp only [liquidate]; omega
+
 /--
   **Property 2 (existence).** Repaying the borrower's entire share balance drives
   `borrowShares` to 0, which is healthy by the zero-debt branch — so a liquidation
@@ -201,10 +221,13 @@ theorem sharp_property2 (s : HealthState) (hltv : ltvBelowInvLif s) :
 
 /-- A concrete witness that the *partial* phrasing fails: an unhealthy position with
     `borrowShares = 1` satisfying `LTV < 1/LIF`. `borrowed = 100`, `maxBorrow = 96`
-    (so unhealthy), and `borrowed ⋅ LIF ≈ 106.4e18 < 120e18` (so `ltvBelowInvLif`). -/
+    (so unhealthy), and `borrowed ⋅ LIF ≈ 106.4e18 < 120e18` (so `ltvBelowInvLif`).
+    The market totals are well-formed (`borrowShares ≤ totBorrowShares`, so the
+    position does not hold more shares than the whole market exists with), to show
+    the failure is not an artifact of an unreachable state. -/
 def partialCounterexample : HealthState :=
   { borrowShares := 1, collateral := 120, totBorrowAssets := 99999999,
-    totBorrowShares := 0, lltv := 800000000000000000, price := ORACLE_PRICE_SCALE }
+    totBorrowShares := 1, lltv := 800000000000000000, price := ORACLE_PRICE_SCALE }
 
 /-- **Counterexample to the partial phrasing.** `partialCounterexample` satisfies
     the `1/LIF` hypothesis and is unhealthy, yet no *strict-partial* liquidation

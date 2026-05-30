@@ -32,6 +32,44 @@ open Morpho.Proofs.HealthModel.HealthState
 open Morpho.Proofs.Arith
 open Morpho.Proofs.Env
 
+/-- `a * b ≤ d * ⌈a·b/d⌉` for `d > 0`: ceiling division never undershoots. -/
+theorem le_mul_mulDivUp (a b d : Nat) (hd : 0 < d) : a * b ≤ d * mulDivUp a b d := by
+  unfold mulDivUp
+  have h := Nat.div_add_mod (a * b + (d - 1)) d
+  have hmod : (a * b + (d - 1)) % d < d := Nat.mod_lt _ hd
+  omega
+
+/-- A repayment or liquidation by *any* account lowers the market totals by
+    `repaidShares` shares and the matching `repaidAssets`, where the asset side is
+    the share-to-asset conversion *rounded up* (the `mulDivUp` at the `borrowed`
+    formula, Morpho/Contract.lean:881). Because that conversion rounds up, the
+    borrow index `(totBorrowAssets+1)/(totBorrowShares+VIRTUAL)` cannot grow. This
+    *provides* a `borrowIndexNoGrow` witness for a third party's repay/liquidate
+    from the rounding direction alone, with no appeal to no-accrual. It is
+    standalone infrastructure: `no_operation_breaks_health` still takes the index
+    condition as a `MonotoneFor` field, so consuming this witness in the headline
+    proof awaits the Refinement extraction layer (see `Refinement.lean`). -/
+theorem borrowIndexNoGrow_of_repay {s s' : HealthState} (repaidShares : Nat)
+    (hsh : s'.totBorrowShares + repaidShares = s.totBorrowShares)
+    (hass : s'.totBorrowAssets
+              + mulDivUp repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
+                  (s.totBorrowShares + VIRTUAL_SHARES)
+            = s.totBorrowAssets) :
+    borrowIndexNoGrow s s' := by
+  unfold borrowIndexNoGrow
+  have hb_pos : 0 < s.totBorrowShares + VIRTUAL_SHARES := by
+    have : 0 < VIRTUAL_SHARES := by decide
+    omega
+  set rA := mulDivUp repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
+              (s.totBorrowShares + VIRTUAL_SHARES) with hrA
+  have hkey : repaidShares * (s.totBorrowAssets + VIRTUAL_ASSETS)
+                ≤ (s.totBorrowShares + VIRTUAL_SHARES) * rA := by
+    rw [hrA]; exact le_mul_mulDivUp _ _ _ hb_pos
+  have e1 : s.totBorrowAssets = s'.totBorrowAssets + rA := by omega
+  have e2 : s.totBorrowShares = s'.totBorrowShares + repaidShares := by omega
+  rw [e1, e2] at hkey ⊢
+  nlinarith [hkey]
+
 /-- The watched account's storage changed monotonically in the health-favourable
     direction, at constant price/LLTV, with a non-growing borrow index. -/
 structure MonotoneFor (s s' : HealthState) : Prop where
