@@ -121,6 +121,23 @@ def liquidate (s : HealthState) (repaidShares seized : Nat) : HealthState :=
 theorem healthy_of_no_debt {s : HealthState} (h : s.borrowShares = 0) : healthy s :=
   Or.inl h
 
+/-- The model's `liquidate` does not grow the borrow index. This connects the
+    generic `borrowIndexNoGrow_of_repay` to the concrete `liquidate` field writes:
+    a liquidation (by the borrower or any third party) lowers `totBorrowShares` by
+    `repaidShares` and `totBorrowAssets` by the rounded-up `repaidAssets`, so for a
+    *watched* account in the same market the index condition of `MonotoneFor` holds
+    by the rounding direction, with no appeal to `NoAccrual`. The hypotheses are the
+    well-formedness facts the contract maintains: you cannot repay more shares than
+    the market holds, nor more assets than it owes. -/
+theorem liquidate_borrowIndexNoGrow (s : HealthState) (repaidShares seized : Nat)
+    (hsh : repaidShares ≤ s.totBorrowShares)
+    (hass : mulDivUp repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
+              (s.totBorrowShares + VIRTUAL_SHARES) ≤ s.totBorrowAssets) :
+    borrowIndexNoGrow s (liquidate s repaidShares seized) := by
+  apply Morpho.Proofs.Property1.borrowIndexNoGrow_of_repay repaidShares
+  · simp only [liquidate]; omega
+  · simp only [liquidate]; omega
+
 /--
   **Property 2 (existence).** Repaying the borrower's entire share balance drives
   `borrowShares` to 0, which is healthy by the zero-debt branch — so a liquidation
