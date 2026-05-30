@@ -68,11 +68,7 @@ theorem property1_for_entrypoint
   cases e with
   | borrow             => exact hshape
   | withdrawCollateral => exact hshape
-  | supply             => exact no_operation_breaks_health (.monotone hshape) hs
-  | withdraw           => exact no_operation_breaks_health (.monotone hshape) hs
-  | supplyCollateral   => exact no_operation_breaks_health (.monotone hshape) hs
-  | repay              => exact no_operation_breaks_health (.monotone hshape) hs
   | liquidate          => exact absurd hs hshape
-  | otherAccount       => exact no_operation_breaks_health (.monotone hshape) hs
+  | _                  => exact no_operation_breaks_health (.monotone hshape) hs
 
 end Morpho.Proofs.Refinement
