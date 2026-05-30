@@ -8,7 +8,8 @@
 
   Layout:
     * `LIF` and `ltvBelowInvLif` — transcribed from `liquidate`
-      (Morpho/Contract.lean:856-860) and stated division-free.
+      (Morpho/Contract.lean:856-860) and stated division-free. `WAD_le_LIF` /
+      `LIF_le_MAX` prove the factor always lies in `[1, 1.15]`.
     * `liquidate` — the borrower-side state change (debt and collateral both
       reduced), mirroring the field writes in the contract.
     * `liquidation_can_restore_health` — full repayment drives `borrowShares` to 0,
