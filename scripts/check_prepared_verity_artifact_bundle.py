@@ -181,7 +181,17 @@ def _iter_input_digest_files(root: pathlib.Path) -> list[pathlib.Path]:
       continue
     if not path.is_dir():
       continue
-    files.extend(sorted(candidate for candidate in path.rglob("*") if candidate.is_file()))
+    # Byte-wise sort on the path string to match the producer
+    # (prepare_verity_morpho_artifact.sh uses `find -print0 | sort -z`). A
+    # component-wise sort (the default for pathlib) diverges whenever a file and
+    # a directory share a prefix (e.g. Morpho/Proofs.lean vs Morpho/Proofs/),
+    # which would yield a digest the producer never computes.
+    files.extend(
+      sorted(
+        (candidate for candidate in path.rglob("*") if candidate.is_file()),
+        key=lambda candidate: str(candidate).encode("utf-8"),
+      )
+    )
   return files
 
 
