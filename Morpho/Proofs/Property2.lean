@@ -44,8 +44,11 @@ def ltvBelowInvLif (s : HealthState) : Prop :=
   s.borrowed * LIF s.lltv < mulDivDown s.collateral s.price ORACLE_PRICE_SCALE * WAD
 
 /-- The borrower-side effect of `liquidate` (Contract.lean): repay `repaidShares`
-    of debt and seize `seized` collateral. Debt assets fall by the shares' value at
-    the current index. -/
+    of debt and seize `seized` collateral. The market debt falls by `repaidAssets`,
+    the shares' value at the current index *rounded up* — transcribed from the
+    `repaidAssets` write at Contract.lean:881 (`mulDivUp`) and the `totalBorrowAssets
+    -= repaidAssets` update at 893. Truncated `Nat` subtraction reproduces the
+    contract's floor-at-zero on that field (Contract.lean:892-896). -/
 def liquidate (s : HealthState) (repaidShares seized : Nat) : HealthState :=
   { s with
       borrowShares    := s.borrowShares - repaidShares,
@@ -53,7 +56,7 @@ def liquidate (s : HealthState) (repaidShares seized : Nat) : HealthState :=
       totBorrowShares := s.totBorrowShares - repaidShares,
       totBorrowAssets :=
         s.totBorrowAssets
-          - mulDivDown repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
+          - mulDivUp repaidShares (s.totBorrowAssets + VIRTUAL_ASSETS)
               (s.totBorrowShares + VIRTUAL_SHARES) }
 
 /-- A position with no remaining debt is healthy (zero-debt branch of `_isHealthy`). -/
