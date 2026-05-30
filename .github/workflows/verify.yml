@@ -51,6 +51,9 @@ jobs:
       - name: Clear stale Lake packages on verity pin change
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
+      - name: Fetch prebuilt Mathlib cache
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Fetch prebuilt Mathlib cache" -- lake exe cache get
+
       - name: Build Verity contract
         run: ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build Verity contract" -- lake build
 
