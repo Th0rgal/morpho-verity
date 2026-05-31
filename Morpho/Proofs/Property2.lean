@@ -219,6 +219,36 @@ theorem sharp_property2 (s : HealthState) (hltv : ltvBelowInvLif s) :
       healthy (liquidate s s.borrowShares (seizedAssets s s.borrowShares)) :=
   ⟨full_liquidation_affordable s hltv, healthy_of_no_debt (by simp [liquidate])⟩
 
+/-- The borrower-side effect of `liquidate` in the **bad-debt** branch
+    (Contract.lean:900-911): when the seizure empties the position's collateral
+    (`newCollateral == 0`), the contract zeroes the position's remaining borrow
+    shares (`setStructMember2 ... "borrowShares" ZERO`, Contract.lean:905) and
+    socializes the loss to the market totals. The position's own debt is wiped:
+    `borrowShares := 0`, `collateral := 0`. -/
+def liquidateBadDebt (s : HealthState) (seized : Nat) : HealthState :=
+  { s with borrowShares := 0, collateral := s.collateral - seized }
+
+/-- **Bad-debt branch ends healthy.** When collateral is fully seized and debt
+    remains, the contract sets the position's `borrowShares` to `0`
+    (Contract.lean:905), so the liquidated position is healthy by the zero-debt
+    short-circuit — regardless of how much debt is socialized to the market. -/
+theorem liquidateBadDebt_healthy (s : HealthState) (seized : Nat) :
+    healthy (liquidateBadDebt s seized) :=
+  healthy_of_no_debt (by simp [liquidateBadDebt])
+
+/--
+  **#4 — both liquidation branches restore the liquidated position's health.**
+  Whether the liquidation leaves no bad debt (full repay drives shares to `0`,
+  `liquidation_can_restore_health`) or socializes bad debt (collateral emptied,
+  shares zeroed at Contract.lean:905, `liquidateBadDebt_healthy`), the liquidated
+  position ends healthy. The market-level bad-debt accounting (the loss moved off
+  `totalSupplyAssets`, Contract.lean:908-911) is a separate market invariant, not a
+  position-health claim, so it is out of scope for Property 2.
+-/
+theorem liquidation_restores_health_both_branches (s : HealthState) (seized : Nat) :
+    healthy (liquidate s s.borrowShares seized) ∧ healthy (liquidateBadDebt s seized) :=
+  ⟨liquidation_can_restore_health s seized, liquidateBadDebt_healthy s seized⟩
+
 /-- A concrete witness that the *partial* phrasing fails: an unhealthy position with
     `borrowShares = 1` satisfying `LTV < 1/LIF`. `borrowed = 100`, `maxBorrow = 96`
     (so unhealthy), and `borrowed ⋅ LIF ≈ 106.4e18 < 120e18` (so `ltvBelowInvLif`).
