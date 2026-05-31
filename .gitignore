@@ -5,3 +5,4 @@ artifacts/yul/
 verity-foundry/cache/
 verity-foundry/out/
 __pycache__/
+.pytest_cache/
