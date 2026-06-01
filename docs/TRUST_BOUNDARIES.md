@@ -63,6 +63,27 @@ obligations with narrow Verity modules, preserve Solidity source ordering around
 callbacks and signature recovery, and keep arithmetic translated through checked
 operations or explicit guards.
 
+## Refinement Proof Status
+
+The refinement layer now assembles generated-body steps from
+`Morpho/Proofs/Disciplines.lean` instead of keeping all entrypoint obligations as
+opaque assumptions:
+
+- `supply`, `withdraw`, `supplyCollateral`, and `repay` discharge their monotone
+  field discipline in Lean through storage-framing and packed-field lemmas.
+- `withdrawCollateral` and `borrow` discharge their generated `_isHealthy` guards
+  in Lean, assuming explicit market-id alignment, oracle-price alignment, and the
+  no-overflow domain required by `healthFaithful_of_noOverflow`. The `borrow`
+  proof factors the post-accrual commit-and-health-check block and both amount
+  modes as `guardedDiscipline_borrowCommitAndCheck`,
+  `guardedDiscipline_borrowAssetsMode`, and
+  `guardedDiscipline_borrowSharesMode`, then connects the public entrypoint
+  through `guardedDiscipline_borrow`.
+- `liquidate` no longer assumes opaque arithmetic faithfulness: it uses
+  `healthFaithful_of_noOverflow`. The easy arithmetic bridge is therefore
+  explicit, while the harder generated `require(!_isHealthy)` extraction remains
+  the named `GuardUnhealthy` boundary.
+
 ## Current Gates
 
 - `lake build` validates Lean elaboration and internal consistency for the

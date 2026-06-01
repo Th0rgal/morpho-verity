@@ -19,6 +19,10 @@
     * Projection   — reads a `HealthState` out of the real contract state through
                      the generated accessors; names the arithmetic-faithfulness
                      boundary (`HealthFaithful`).
+    * HealthFaithful — proves that boundary on an explicit no-overflow domain.
+    * StorageFrame / FramePreserve / Disciplines
+                   — storage-slot framing used to discharge structural
+                     entrypoint disciplines against generated bodies.
     * Refinement   — per-entrypoint obligations bridging model and contract; for
                      `liquidate` the step is the real generated body (see
                      `Refinement.Contract`).
@@ -31,4 +35,8 @@ import Morpho.Proofs.Property1
 import Morpho.Proofs.Operations
 import Morpho.Proofs.Property2
 import Morpho.Proofs.Projection
+import Morpho.Proofs.HealthFaithful
+import Morpho.Proofs.StorageFrame
+import Morpho.Proofs.FramePreserve
+import Morpho.Proofs.Disciplines
 import Morpho.Proofs.Refinement

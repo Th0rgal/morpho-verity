@@ -40,14 +40,20 @@ layer.
   entrypoint's `Step` from the *real* generated contract body, run to success and
   projected through [`Projection.lean`](Morpho/Proofs/Projection.lean), which reads
   the watched position through the same generated accessors the contract uses.
-  Every entrypoint is discharged from one or two explicitly named boundaries: the
-  collateral/supply-side calls from a field-locality obligation
-  (`MonotoneDiscipline`), the self-guarded `borrow`/`withdrawCollateral` from their
-  `require(_isHealthy)` (`GuardedDiscipline`), and `liquidate` from its
-  `require(!_isHealthy)` guard plus arithmetic faithfulness (`GuardUnhealthy`,
-  `HealthFaithful`). Those boundaries are exactly what the differential suite
-  covers; the remaining step-to-EVM-bytecode link is empirical, not yet a Lean
-  extraction layer.
+  The monotone collateral/supply-side calls are now discharged in Lean from
+  generated-body storage-framing lemmas (`Disciplines.lean`), and
+  `withdrawCollateral` and `borrow` are connected to their generated
+  `require(_isHealthy)` guards under explicit market-id, oracle-price, and
+  no-overflow side conditions. The `borrow` proof factors the post-accrual
+  commit-and-health-check block plus both amount modes
+  (`guardedDiscipline_borrowCommitAndCheck`,
+  `guardedDiscipline_borrowAssetsMode`, and
+  `guardedDiscipline_borrowSharesMode`). `liquidate` is connected to model
+  unhealthiness through
+  `healthFaithful_of_noOverflow`, but the generated `require(!_isHealthy)`
+  extraction (`GuardUnhealthy`) remains a named boundary.
+  The remaining step-to-EVM-bytecode link is empirical, not yet a Lean extraction
+  layer.
 - **Arithmetic.** Health arithmetic is modeled over `Nat`. It agrees with the
   contract's fixed-width word arithmetic on the no-overflow domain each entrypoint
   enforces, and the contract reverts outside it (see the note in

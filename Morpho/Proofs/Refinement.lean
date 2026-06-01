@@ -24,6 +24,8 @@
 
 import Morpho.Proofs.Property1
 import Morpho.Proofs.Projection
+import Morpho.Proofs.HealthFaithful
+import Morpho.Proofs.Disciplines
 
 namespace Morpho.Proofs.Refinement
 
@@ -216,16 +218,11 @@ theorem property1_holds (e : Entrypoint) (hasm : Assumptions (modelStep e))
 -/
 namespace Contract
 
+open Contracts
 open Morpho.Contract.Morpho (MarketParams liquidate _isHealthyWithPrice
   supply withdraw supplyCollateral withdrawCollateral repay borrow)
-
-/-- The watched position over a step: market params, market id, account, and the
-    ECM oracle price the contract reads for that market. -/
-structure Position where
-  mp      : MarketParams
-  id      : Bytes32
-  account : Address
-  price   : Uint256
+open Morpho.Proofs.Disciplines
+open Morpho.Proofs.FramePreserve
 
 /-
   The non-liquidate entrypoints. Each `Step` below is the real generated body of
@@ -237,18 +234,6 @@ structure Position where
   shares, and so on); it is what the differential parity suite checks, named here
   rather than re-derived by symbolic execution of the full body.
 -/
-
-/-- The projected field discipline a successful step guarantees for the watched
-    position: `lltv` fixed, collateral does not fall, borrow shares do not rise.
-    Holds for every collateral/supply-side entrypoint. Parity-covered. -/
-def MonotoneDiscipline (st : Step) : Prop :=
-  ∀ s s', st s s' →
-    s'.lltv = s.lltv ∧ s.collateral ≤ s'.collateral ∧ s'.borrowShares ≤ s.borrowShares
-
-/-- The guard discipline a successful step guarantees: the post-state is healthy,
-    from the entrypoint's final `require(_isHealthy)`. Parity-covered. -/
-def GuardedDiscipline (st : Step) : Prop :=
-  ∀ s s', st s s' → healthy s'
 
 /-- A monotone entrypoint refines `MonotoneFor` from its field discipline: the
     `lltv`/collateral/shares facts come from the discipline, `price` and the
@@ -266,73 +251,28 @@ theorem refines_of_guarded {e : Entrypoint} {st : Step}
     (hdisc : GuardedDiscipline st) : Refines e st := by
   intro _ s s' h; rw [he]; exact hdisc s s' h
 
-/-- `supply`: lender-side, the watched borrow position is untouched. -/
-def supplyStep (P : Position) : Step :=
-  fun s s' => ∃ assets shares data out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (supply P.mp assets shares P.account data).run cs
-      = Verity.ContractResult.success out cs'
+theorem refines_supply (P : Position) :
+    Refines .supply (supplyStep P) := refines_of_monotone rfl (monotoneDiscipline_supply P)
 
-/-- `withdraw`: lender-side, the watched borrow position is untouched. -/
-def withdrawStep (P : Position) : Step :=
-  fun s s' => ∃ assets shares receiver out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (withdraw P.mp assets shares P.account receiver).run cs
-      = Verity.ContractResult.success out cs'
+theorem refines_withdraw (P : Position) :
+    Refines .withdraw (withdrawStep P) := refines_of_monotone rfl (monotoneDiscipline_withdraw P)
 
-/-- `supplyCollateral`: the watched account's collateral does not fall. -/
-def supplyCollateralStep (P : Position) : Step :=
-  fun s s' => ∃ assets data out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (supplyCollateral P.mp assets P.account data).run cs
-      = Verity.ContractResult.success out cs'
+theorem refines_supplyCollateral (P : Position) :
+    Refines .supplyCollateral (supplyCollateralStep P) :=
+  refines_of_monotone rfl (monotoneDiscipline_supplyCollateral P)
 
-/-- `repay`: the watched account's borrow shares do not rise. -/
-def repayStep (P : Position) : Step :=
-  fun s s' => ∃ assets shares data out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (repay P.mp assets shares P.account data).run cs
-      = Verity.ContractResult.success out cs'
+theorem refines_repay (P : Position) :
+    Refines .repay (repayStep P) := refines_of_monotone rfl (monotoneDiscipline_repay P)
 
-/-- `borrow`: ends in `require(_isHealthy)`, so the post-state is healthy. -/
-def borrowStep (P : Position) : Step :=
-  fun s s' => ∃ assets shares receiver out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (borrow P.mp assets shares P.account receiver).run cs
-      = Verity.ContractResult.success out cs'
-
-/-- `withdrawCollateral`: ends in `require(_isHealthy)`, so the post-state is healthy. -/
-def withdrawCollateralStep (P : Position) : Step :=
-  fun s s' => ∃ assets receiver out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (withdrawCollateral P.mp assets P.account receiver).run cs
-      = Verity.ContractResult.success out cs'
-
-theorem refines_supply (P : Position) (hdisc : MonotoneDiscipline (supplyStep P)) :
-    Refines .supply (supplyStep P) := refines_of_monotone rfl hdisc
-
-theorem refines_withdraw (P : Position) (hdisc : MonotoneDiscipline (withdrawStep P)) :
-    Refines .withdraw (withdrawStep P) := refines_of_monotone rfl hdisc
-
-theorem refines_supplyCollateral (P : Position)
-    (hdisc : MonotoneDiscipline (supplyCollateralStep P)) :
-    Refines .supplyCollateral (supplyCollateralStep P) := refines_of_monotone rfl hdisc
-
-theorem refines_repay (P : Position) (hdisc : MonotoneDiscipline (repayStep P)) :
-    Refines .repay (repayStep P) := refines_of_monotone rfl hdisc
-
-theorem refines_borrow (P : Position) (hdisc : GuardedDiscipline (borrowStep P)) :
-    Refines .borrow (borrowStep P) := refines_of_guarded rfl hdisc
+theorem refines_borrow (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : NoOverflowFor P) :
+    Refines .borrow (borrowStep P) :=
+  refines_of_guarded rfl (guardedDiscipline_borrow P hid hprice hno)
 
 theorem refines_withdrawCollateral (P : Position)
-    (hdisc : GuardedDiscipline (withdrawCollateralStep P)) :
-    Refines .withdrawCollateral (withdrawCollateralStep P) := refines_of_guarded rfl hdisc
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : NoOverflowFor P) :
+    Refines .withdrawCollateral (withdrawCollateralStep P) :=
+  refines_of_guarded rfl (guardedDiscipline_withdrawCollateral P hid hprice hno)
 
 /-
   `liquidate`. The step is the real generated body run to success and projected
@@ -355,24 +295,20 @@ def GuardUnhealthy (P : Position) : Prop :=
       (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
         = Verity.ContractResult.success false cs
 
-/-- `liquidate`: the real generated body, run to success and projected. -/
-def liquidateStep (P : Position) : Step :=
-  fun s s' => ∃ seized repaid data out cs cs',
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (liquidate P.mp P.account seized repaid data).run cs
-      = Verity.ContractResult.success out cs'
-
-/-- `liquidate` refines `¬ healthy s` from its guard plus arithmetic faithfulness:
-    the guard makes the contract health test `false` on the pre-state, and
-    `HealthFaithful` carries that to the model's `healthy` on the projection. -/
+/-- `liquidate` refines `¬ healthy s` from its guard plus the checked
+    no-overflow health-arithmetic bridge: the guard makes the contract health test
+    `false` on the pre-state, and `healthFaithful_of_noOverflow` carries that to
+    the model's `healthy` predicate on the projection. -/
 theorem refines_liquidate (P : Position) (hguard : GuardUnhealthy P)
-    (hfaith : ∀ cs, HealthFaithful P.mp P.id P.account P.price cs) :
+    (hno : ∀ cs, Morpho.Proofs.HealthFaithful.NoOverflow P.mp P.id P.account P.price cs) :
     Refines .liquidate (liquidateStep P) := by
   intro _ s s' h
   obtain ⟨seized, repaid, data, out, cs, cs', hs, _, hrun⟩ := h
   have hbool := hguard seized repaid data out cs cs' hrun
-  have hiff := hfaith cs false cs hbool
+  have hfaith :=
+    Morpho.Proofs.HealthFaithful.healthFaithful_of_noOverflow
+      P.mp P.id P.account P.price cs (hno cs)
+  have hiff := hfaith false cs hbool
   simp only [classify, hs]
   exact fun hh => Bool.false_ne_true (hiff.mpr hh)
 

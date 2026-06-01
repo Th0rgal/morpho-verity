@@ -749,32 +749,7 @@ verity_contract Morpho where
       [addressToWord marketParams.loanToken, addressToWord receiver, finalAssets]
     return (finalAssets, finalShares)
 
-  function allow_post_interaction_writes borrow (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Tuple [Uint256, Uint256] := do
-    let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
-    let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
-    require (currentLastUpdate != ZERO) "market not created"
-    require ((assets == 0) != (shares == 0)) "inconsistent input"
-    require (receiver != 0) "zero address"
-    let sender <- msgSender
-    let isAuthorizedSender ← _isSenderAuthorized onBehalf
-    require isAuthorizedSender "unauthorized"
-    let _accrued ← _accrueInterest marketParams id
-    let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
-    let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
-    let mut finalAssets := assets
-    let mut finalShares := shares
-    if assets > 0 then
-      let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
-      let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
-      finalShares := mulDivUp assets totalBorrowSharesWithVirtual totalBorrowAssetsWithVirtual
-    else
-      let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
-      let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
-      finalAssets := mulDivDown shares totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
+  function allow_post_interaction_writes _borrowCommitAndCheck (marketParams : MarketParams, id : Bytes32, finalAssets : Uint256, finalShares : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Unit := do
     let currentBorrowShares <- structMember2 "positionSlot" id onBehalf "borrowShares"
     let newPosBorrowShares ← addPanic currentBorrowShares finalShares
     let newTotalBorrowShares ← addPanic totalBorrowShares_ finalShares
@@ -792,7 +767,57 @@ verity_contract Morpho where
     emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
     ecmDo MorphoSafeTransfer.safeTransferModule
       [addressToWord marketParams.loanToken, addressToWord receiver, finalAssets]
-    return (finalAssets, finalShares)
+
+  function allow_post_interaction_writes _borrowAssetsMode (marketParams : MarketParams, id : Bytes32, assets : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
+    let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
+    let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
+    let finalShares := mulDivUp assets totalBorrowSharesWithVirtual totalBorrowAssetsWithVirtual
+    _borrowCommitAndCheck marketParams id assets finalShares onBehalf receiver sender totalBorrowAssets_ totalBorrowShares_
+    return (assets, finalShares)
+
+  function allow_post_interaction_writes _borrowSharesMode (marketParams : MarketParams, id : Bytes32, shares : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
+    let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
+    let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
+    let finalAssets := mulDivDown shares totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
+    _borrowCommitAndCheck marketParams id finalAssets shares onBehalf receiver sender totalBorrowAssets_ totalBorrowShares_
+    return (finalAssets, shares)
+
+  function allow_post_interaction_writes _borrowAfterAccrue (marketParams : MarketParams, id : Bytes32, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address, sender : Address) : Tuple [Uint256, Uint256] := do
+    let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
+    if assets > 0 then
+      let (borrowedAssets, borrowedShares) ← _borrowAssetsMode marketParams id assets onBehalf receiver sender totalBorrowAssets_ totalBorrowShares_
+      return (borrowedAssets, borrowedShares)
+    else
+      let (borrowedAssets, borrowedShares) ← _borrowSharesMode marketParams id shares onBehalf receiver sender totalBorrowAssets_ totalBorrowShares_
+      return (borrowedAssets, borrowedShares)
+
+  function allow_post_interaction_writes borrow (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Tuple [Uint256, Uint256] := do
+    let _ignoredMarketParams := marketParams
+    let id ← ecmCall
+      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
+        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
+    require (currentLastUpdate != ZERO) "market not created"
+    require ((assets == 0) != (shares == 0)) "inconsistent input"
+    require (receiver != 0) "zero address"
+    let sender <- msgSender
+    let isAuthorizedSender ← _isSenderAuthorized onBehalf
+    require isAuthorizedSender "unauthorized"
+    let _accrued ← _accrueInterest marketParams id
+    let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
+    let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
+    if assets > 0 then
+      let (finalAssets, finalShares) ←
+        _borrowAssetsMode marketParams id assets onBehalf receiver sender
+          totalBorrowAssets_ totalBorrowShares_
+      return (finalAssets, finalShares)
+    else
+      let (finalAssets, finalShares) ←
+        _borrowSharesMode marketParams id shares onBehalf receiver sender
+          totalBorrowAssets_ totalBorrowShares_
+      return (finalAssets, finalShares)
 
   function allow_post_interaction_writes repay (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Tuple [Uint256, Uint256] := do
     let thisAddress ← contractAddress
