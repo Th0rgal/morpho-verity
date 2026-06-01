@@ -1224,9 +1224,6 @@ def OraclePriceAligned (P : Position) : Prop :=
     cs.ecmResults (Compiler.Modules.Oracle.oracleReadUint256Module "_ecm" selector 0).name
       [addressToWord P.mp.oracle] 0 = P.price
 
-def NoOverflowFor (P : Position) : Prop :=
-  ∀ cs, NoOverflow P.mp P.id P.account P.price cs
-
 /-- The remaining local health-arithmetic bound: quoting the watched account's
     collateral at the oracle price, then applying LLTV, fits in one `uint256`
     word. Borrow-side add and share-conversion bounds are reconstructed from
@@ -1277,11 +1274,6 @@ theorem noOverflow_of_localNoOverflow (P : Position) (cs : ContractState)
       native_decide
     omega
   exact ⟨h_addA, h_addS, hlocal.1, hlocal.2⟩
-
-theorem noOverflowFor_of_localNoOverflowFor (P : Position)
-    (h : LocalNoOverflowFor P) : NoOverflowFor P := by
-  intro cs
-  exact noOverflow_of_localNoOverflow P cs (h cs)
 
 /-- The projected field discipline a successful step guarantees for the watched
     position: `lltv` fixed, collateral does not fall, borrow shares do not rise. -/

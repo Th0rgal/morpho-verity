@@ -231,7 +231,8 @@ Lean:
 - No new `axiom` or `constant` is introduced except the explicitly named slot/keccak injectivity boundary if it is truly required.
 - `Refinement.lean` no longer assumes `MonotoneDiscipline` or
   `GuardedDiscipline` for the target entrypoints; `liquidate` no longer carries
-  the deferred `GuardUnhealthy` extraction boundary.
+  the generated unhealthy-guard extraction boundary or the post-accrual/pre-state
+  bridge as an external assumption.
 - `HealthFaithful` is not used as an opaque assumption where `healthFaithful_of_noOverflow` can be used instead.
 
 Scripts:

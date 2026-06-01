@@ -7,16 +7,15 @@
   `OpShape` cases of `Property1` after projection. We state those obligations here
   as explicit `Prop`s.
 
-  These are deliberately *specifications*, not `sorry`-backed theorems. The
-  abstract `modelStep` section below discharges them at the hand-transcribed model
-  level. The `Contract` namespace at the end of this file then closes the gap to
-  the generated code: there each entrypoint's `Step` is the *real* executable
+  These propositions are specifications with proof terms below. The abstract
+  `modelStep` section discharges them at the hand-transcribed model level. The
+  `Contract` namespace at the end of this file then closes the gap to the
+  generated code: there each entrypoint's `Step` is the *real* executable
   `verity_contract Morpho` body, run to success and projected through
   `Projection.lean`, and the classified shape is discharged from named boundary
   obligations (field locality, the `require(_isHealthy)` guards, arithmetic
-  faithfulness) rather than from a parallel model. This is not a second source of
-  truth: the body is the contract's own. The residual step-to-EVM-bytecode link
-  stays empirical, guarded by the differential tests.
+  faithfulness). The residual step-to-EVM-bytecode link stays empirical, guarded
+  by the differential tests.
 
   Stating the obligations this way keeps the boundary honest: the model cannot
   silently diverge from the contract, because the gap is named and enumerated.
@@ -214,8 +213,8 @@ theorem property1_holds (e : Entrypoint) (hasm : Assumptions (modelStep e))
     — a successful run lands in a healthy post-state, from the final
     `require(_isHealthy)`;
   - `liquidate`: `GuardUnhealthy` proves its generated
-    `require(!_isHealthy)` guard fired after `_accrueInterest`; the remaining
-    pre-state refinement bridge is named separately from that structural fact.
+    `require(!_isHealthy)` guard fired after `_accrueInterest`, and the
+    no-accrual bridge replays that guard on the original projected pre-state.
 -/
 namespace Contract
 

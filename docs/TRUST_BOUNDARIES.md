@@ -90,8 +90,8 @@ opaque assumptions:
   multiplication bounds explicit: the watched collateral times oracle price, and
   that quoted collateral times LLTV, must fit in `uint256`. The borrow-side
   share/asset conversion uses the full-precision `mulDiv512Up` helper, and its
-  quotient-fit proof is derived from the packed `uint128` storage reads before reconstructing the
-  `NoOverflowFor` predicate at the `healthFaithful_of_noOverflow` call site.
+  quotient-fit proof is derived from the packed `uint128` storage reads at the
+  `healthFaithful_of_noOverflow` call site.
 
 ## Current Gates
 
