@@ -15,11 +15,10 @@
   Two gaps remain, and are named here rather than hidden:
 
   - `HealthFaithful` (Uint256 ↔ Nat arithmetic). The contract evaluates the
-    health test with `MathLib.mulDivUp` / `mulDivDown` over `Uint256` (mod 2^256);
-    the model evaluates it over `Nat`. On the no-overflow domain the two agree
-    (see the header of `HealthModel.lean`); off it the contract reverts. This
-    equivalence is the documented no-overflow trust boundary, checked by the
-    differential suite, not re-proved here.
+    health test with `mulDiv512Up` for the borrow conversion and `mulDivDown` for
+    collateral quoting; the model evaluates the same rounded formulas over `Nat`.
+    Share/asset quotient fit is derived from packed `uint128` fields, while
+    collateral-price multiplication remains an explicit oracle-price domain.
 
   - The price word. `_isHealthyWithPrice` takes the oracle price as an argument;
     the contract obtains it through an `ecmCall` reading the ECM environment
@@ -66,7 +65,7 @@ def project (mp : MarketParams) (id : Bytes32) (account : Address)
     price           := price.val }
 
 /--
-  **Named obligation: arithmetic/layout faithfulness of the health test.**
+  **Named theorem surface: arithmetic/layout faithfulness of the health test.**
 
   The contract's `_isHealthyWithPrice` returns a `Bool`; the model's `healthy`
   returns a `Prop`. This says they agree on every state where the contract test
@@ -75,9 +74,8 @@ def project (mp : MarketParams) (id : Bytes32) (account : Address)
 
   This is the one place the `Nat` model meets the `Uint256` contract arithmetic.
   It holds on the no-overflow domain documented in `HealthModel.lean` and is
-  guarded empirically by the differential tests. We state it as a hypothesis so
-  every theorem that uses it names the dependency, rather than absorbing it
-  silently. -/
+  proved by `HealthFaithful.healthFaithful_of_noOverflow`; this projection module
+  only names the contract/model agreement surface. -/
 def HealthFaithful (mp : MarketParams) (id : Bytes32) (account : Address)
     (price : Uint256) (cs : ContractState) : Prop :=
   ∀ v cs', (_isHealthyWithPrice mp id account price).run cs

@@ -359,6 +359,15 @@ theorem runWord_structMember2At_packed_lt {κ₁ κ₂ : Type}
   dsimp only
   exact decodePackedWord_lt_width _ _ _
 
+theorem runWord_structMemberAt_packed_lt {κ : Type}
+    [StorageKey κ] (base wo offset width : Nat)
+    (k : κ) (cs : ContractState) :
+    (runWord (structMemberAt base wo ((some (offset, width)) : Option (Nat × Nat))
+      k : Contract Uint256) cs).val < 2 ^ width := by
+  unfold runWord Contracts.structMemberAt
+  dsimp only
+  exact decodePackedWord_lt_width _ _ _
+
 theorem runWord_borrowShares_lt_128 (id : Bytes32) (account : Address)
     (cs : ContractState) :
     (runWord (structMember2At 2 1 ((some (0, 128)) : Option (Nat × Nat))
@@ -370,6 +379,16 @@ theorem runWord_collateral_lt_128 (id : Bytes32) (account : Address)
     (runWord (structMember2At 2 1 ((some (128, 128)) : Option (Nat × Nat))
       id account : Contract Uint256) cs).val < 2 ^ 128 :=
   runWord_structMember2At_packed_lt 2 1 128 128 id account cs
+
+theorem runWord_totalBorrowAssets_lt_128 (id : Bytes32) (cs : ContractState) :
+    (runWord (structMemberAt 3 1 ((some (0, 128)) : Option (Nat × Nat))
+      id : Contract Uint256) cs).val < 2 ^ 128 :=
+  runWord_structMemberAt_packed_lt 3 1 0 128 id cs
+
+theorem runWord_totalBorrowShares_lt_128 (id : Bytes32) (cs : ContractState) :
+    (runWord (structMemberAt 3 1 ((some (128, 128)) : Option (Nat × Nat))
+      id : Contract Uint256) cs).val < 2 ^ 128 :=
+  runWord_structMemberAt_packed_lt 3 1 128 128 id cs
 
 theorem runWord_setCollateral_same {κ₁ κ₂ : Type} [StorageKey κ₁] [StorageKey κ₂]
     (base : Nat) (id : κ₁) (account : κ₂) (value : Uint256) {cs cs' : ContractState}
@@ -1208,6 +1227,44 @@ def OraclePriceAligned (P : Position) : Prop :=
 def NoOverflowFor (P : Position) : Prop :=
   ∀ cs, NoOverflow P.mp P.id P.account P.price cs
 
+def OraclePriceNoOverflow (P : Position) (cs : ContractState) : Prop :=
+  let s := project P.mp P.id P.account P.price cs
+  s.collateral * s.price < Verity.Core.Uint256.modulus ∧
+  Morpho.Proofs.HealthModel.mulDivDown s.collateral s.price ORACLE_PRICE_SCALE * s.lltv
+    < Verity.Core.Uint256.modulus
+
+def LocalNoOverflow (P : Position) (cs : ContractState) : Prop :=
+  OraclePriceNoOverflow P cs
+
+def LocalNoOverflowFor (P : Position) : Prop :=
+  ∀ cs, LocalNoOverflow P cs
+
+theorem noOverflow_of_localNoOverflow (P : Position) (cs : ContractState)
+    (hlocal : LocalNoOverflow P cs) :
+    NoOverflow P.mp P.id P.account P.price cs := by
+  dsimp only [NoOverflow, LocalNoOverflow, OraclePriceNoOverflow] at hlocal ⊢
+  set s : HealthState := project P.mp P.id P.account P.price cs with hs
+  have htba : s.totBorrowAssets < 2 ^ 128 := by
+    subst s
+    exact runWord_totalBorrowAssets_lt_128 P.id cs
+  have htbs : s.totBorrowShares < 2 ^ 128 := by
+    subst s
+    exact runWord_totalBorrowShares_lt_128 P.id cs
+  have h_addA : s.totBorrowAssets + 1 < Verity.Core.Uint256.modulus := by
+    have hbound : (2 ^ 128 : Nat) + 1 < Verity.Core.Uint256.modulus := by
+      native_decide
+    omega
+  have h_addS : s.totBorrowShares + 1000000 < Verity.Core.Uint256.modulus := by
+    have hbound : (2 ^ 128 : Nat) + 1000000 < Verity.Core.Uint256.modulus := by
+      native_decide
+    omega
+  exact ⟨h_addA, h_addS, hlocal.1, hlocal.2⟩
+
+theorem noOverflowFor_of_localNoOverflowFor (P : Position)
+    (h : LocalNoOverflowFor P) : NoOverflowFor P := by
+  intro cs
+  exact noOverflow_of_localNoOverflow P cs (h cs)
+
 /-- The projected field discipline a successful step guarantees for the watched
     position: `lltv` fixed, collateral does not fall, borrow shares do not rise. -/
 def MonotoneDiscipline (st : Step) : Prop :=
@@ -1275,9 +1332,77 @@ def liquidateStep (P : Position) : Step :=
     (liquidate P.mp P.account seized repaid data).run cs
       = Verity.ContractResult.success out cs'
 
+set_option maxHeartbeats 4000000 in
+set_option maxRecDepth 100000 in
+theorem liquidate_guardUnhealthy_afterAccrue (P : Position)
+    (hid : MarketIdAligned P) :
+    ∀ seized repaid data out cs cs',
+      (liquidate P.mp P.account seized repaid data).run cs =
+          ContractResult.success out cs' →
+        ∃ stPostAccrue stHealth,
+          _isHealthyWithPrice P.mp P.id P.account (oraclePriceRead P.mp stPostAccrue)
+              stPostAccrue =
+            ContractResult.success false stHealth := by
+  intro seized repaid data out cs cs' hrun
+  have hbody := run_eq_of_success hrun
+  simp only [liquidate, Bind.bind, Pure.pure,
+      Morpho.Contract.Morpho.structMember,
+      Morpho.Contract.Morpho.structMember2,
+      Morpho.Contract.Morpho.setStructMember,
+      Morpho.Contract.Morpho.setStructMember2,
+      Contracts.emit, Contracts.EventArg.toWord, List.mapM_cons, List.mapM_nil,
+      Verity.Contract.bind_pure_left,
+      Bool.and_eq_true, beq_iff_eq, String.reduceEq,
+      and_true, and_false, if_true, if_false] at hbody
+  simp only [Verity.bind, Contracts.ecmEnvRead, Contracts.structMemberAt,
+    Verity.require] at hbody
+  have hidEq := hid cs
+  simp only [marketIdRead] at hidEq
+  rw [hidEq] at hbody
+  split at hbody
+  · next currentLastUpdate stLast hlast =>
+    split at hbody
+    · next _ stCreated hcreated =>
+      split at hbody
+      · next _ stPostAccrue hinput =>
+        split at hbody
+        · next healthBool stHealth hhealth =>
+          split at hbody
+          · next _ stReqHealthy hreqHealthy =>
+            cases healthBool
+            · refine ⟨stPostAccrue, stHealth, ?_⟩
+              unfold oraclePriceRead
+              simpa using hhealth
+            · exact False.elim (by cases hreqHealthy)
+          · exact False.elim (by cases hbody)
+        · exact False.elim (by cases hbody)
+      · exact False.elim (by cases hbody)
+    · exact False.elim (by cases hbody)
+  · exact False.elim (by cases hbody)
+
+set_option maxHeartbeats 4000000 in
+set_option maxRecDepth 100000 in
+theorem liquidate_guardUnhealthy_afterAccrue_price (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) :
+    ∀ seized repaid data out cs cs',
+      (liquidate P.mp P.account seized repaid data).run cs =
+          ContractResult.success out cs' →
+        ∃ stPostAccrue stHealth,
+          (_isHealthyWithPrice P.mp P.id P.account P.price).run stPostAccrue =
+            ContractResult.success false stHealth := by
+  intro seized repaid data out cs cs' hrun
+  obtain ⟨stPostAccrue, stHealth, hraw⟩ :=
+    liquidate_guardUnhealthy_afterAccrue P hid seized repaid data out cs cs' hrun
+  refine ⟨stPostAccrue, stHealth, ?_⟩
+  have hp : oraclePriceRead P.mp stPostAccrue = P.price := by
+    have h := hprice stPostAccrue 0xa035b1fe
+    simpa [oraclePriceRead] using h
+  rw [← hp]
+  rw [Contract.run, hraw]
+
 set_option maxRecDepth 100000 in
 theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned P)
-    (hno : NoOverflowFor P) :
+    (hno : LocalNoOverflowFor P) :
     ∀ cs cs',
       (_isHealthy P.mp P.id P.account).run cs = ContractResult.success true cs' →
       healthy (project P.mp P.id P.account P.price cs) := by
@@ -1302,7 +1427,7 @@ theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned
       subst st
       split at hbody'
       · next hgt =>
-        have hfaith := healthFaithful_of_noOverflow P.mp P.id P.account P.price cs (hno cs)
+        have hfaith := healthFaithful_of_noOverflow P.mp P.id P.account P.price cs (noOverflow_of_localNoOverflow P cs (hno cs))
         have hwith :
             (_isHealthyWithPrice P.mp P.id P.account P.price).run cs =
               ContractResult.success true x := by
@@ -1555,7 +1680,7 @@ private theorem storagePreserving_borrowTail (id : Bytes32) (newTotalBorrowAsset
   exact StoragePreserving.pure _
 
 private theorem healthy_of_borrow_tail (P : Position)
-    (hprice : OraclePriceAligned P) (hno : NoOverflowFor P)
+    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
     (newTotalBorrowAssets : Uint256) (eventArgs : List Uint256)
     {α : Type} (ret out : α) (stSetAssets stHealth cs' : ContractState)
     (hhealth :
@@ -1588,7 +1713,7 @@ private theorem healthy_of_borrow_tail (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrowCommitAndCheck (P : Position)
-    (hprice : OraclePriceAligned P) (hno : NoOverflowFor P)
+    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
     (finalAssets finalShares : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) :
     ∀ out cs cs',
@@ -1682,7 +1807,7 @@ private theorem healthy_of_bind_suffix {α β : Type} (c : Contract α)
       cases h'
 
 private theorem healthy_of_commit_then_pure (P : Position)
-    (hprice : OraclePriceAligned P) (hno : NoOverflowFor P)
+    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
     (finalAssets finalShares : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) {β : Type} (ret : β) :
     ∀ out cs cs',
@@ -1742,7 +1867,7 @@ private theorem healthy_of_bind_pure_suffix {α : Type} (c : Contract α)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrowAssetsMode (P : Position)
-    (hprice : OraclePriceAligned P) (hno : NoOverflowFor P)
+    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
     (assets : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) :
     ∀ out cs cs',
@@ -1801,7 +1926,7 @@ theorem guardedDiscipline_borrowAssetsMode (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrowSharesMode (P : Position)
-    (hprice : OraclePriceAligned P) (hno : NoOverflowFor P)
+    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
     (shares : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) :
     ∀ out cs cs',
@@ -1860,7 +1985,7 @@ theorem guardedDiscipline_borrowSharesMode (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrow (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : NoOverflowFor P) :
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P) :
     GuardedDiscipline (borrowStep P) := by
   intro s s' h
   obtain ⟨assets, shares, receiver, out, cs, cs', hs, hs', hrun⟩ := h
@@ -1937,7 +2062,7 @@ theorem guardedDiscipline_borrow (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_withdrawCollateral (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : NoOverflowFor P) :
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P) :
     GuardedDiscipline (withdrawCollateralStep P) := by
   intro s s' h
   obtain ⟨assets, receiver, out, cs, cs', hs, hs', hrun⟩ := h

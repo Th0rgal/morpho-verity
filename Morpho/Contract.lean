@@ -574,7 +574,7 @@ verity_contract Morpho where
     let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
     let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
     let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
-    let borrowedAmt := mulDivUp borrowShares_ totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
+    let borrowedAmt := mulDiv512Up borrowShares_ totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
     let collateral_ <- structMember2 "positionSlot" id borrower "collateral"
     let collateralQuoted := mulDivDown collateral_ collateralPrice 1000000000000000000000000000000000000
     let maxBorrow := mulDivDown collateralQuoted marketParams.lltv 1000000000000000000

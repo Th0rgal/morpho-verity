@@ -4,6 +4,9 @@
 -/
 
 import Morpho.Proofs.Projection
+import Verity.Proofs.Stdlib.Math
+import Contracts.PackedWordLemmas
+import Mathlib.Data.Nat.Bitwise
 
 namespace Morpho.Proofs.HealthFaithful
 
@@ -13,6 +16,81 @@ open Morpho.Proofs.HealthModel
 open Morpho.Proofs.HealthModel.HealthState
 open Morpho.Proofs.Projection
 open Morpho.Contract.Morpho (MarketParams structMember structMember2 _isHealthyWithPrice)
+
+private lemma uint256_ofNat_testBit (x i : Nat) :
+    Nat.testBit (_root_.Verity.Core.Uint256.ofNat x).val i
+      = (decide (i < 256) && Nat.testBit x i) := by
+  show Nat.testBit (x % 2 ^ 256) i = _
+  exact Nat.testBit_mod_two_pow x 256 i
+
+private lemma uint256_and_testBit (a b : Uint256) (i : Nat) :
+    Nat.testBit (_root_.Verity.Core.Uint256.and a b).val i
+      = (decide (i < 256) && (Nat.testBit a.val i && Nat.testBit b.val i)) := by
+  show Nat.testBit (_root_.Verity.Core.Uint256.ofNat (a.val &&& b.val)).val i = _
+  rw [uint256_ofNat_testBit, Nat.testBit_and]
+
+private lemma uint256_shr_testBit (s v : Uint256) (i : Nat) :
+    Nat.testBit (_root_.Verity.Core.Uint256.shr s v).val i
+      = (decide (i < 256) && Nat.testBit v.val (s.val + i)) := by
+  show Nat.testBit (_root_.Verity.Core.Uint256.ofNat (v.val >>> s.val)).val i = _
+  rw [uint256_ofNat_testBit, Nat.testBit_shiftRight]
+
+private lemma packedMask_testBit (w i : Nat) :
+    Nat.testBit (Contracts.packedMask w) i = decide (i < w) := by
+  unfold Contracts.packedMask
+  exact Nat.testBit_two_pow_sub_one w i
+
+private lemma uint256_packedMask_testBit (w i : Nat) :
+    Nat.testBit (_root_.Verity.Core.Uint256.ofNat (Contracts.packedMask w)).val i
+      = (decide (i < 256) && decide (i < w)) := by
+  rw [uint256_ofNat_testBit, packedMask_testBit]
+
+private theorem decodePackedWord_lt_width (word : Uint256) (offset width : Nat) :
+    (Contracts.decodePackedWord word offset width).val < 2 ^ width := by
+  unfold Contracts.decodePackedWord
+  apply Nat.lt_of_testBit width
+  · simp only [uint256_and_testBit, uint256_shr_testBit, uint256_packedMask_testBit]
+    simp
+  · simp
+  · intro j hj
+    simp only [uint256_and_testBit, uint256_shr_testBit, uint256_packedMask_testBit]
+    have hjw : ¬ j < width := by omega
+    have hne : width ≠ j := by omega
+    simp [hjw, Nat.testBit_two_pow_of_ne hne]
+
+private theorem runWord_structMember2At_packed_lt {κ₁ κ₂ : Type}
+    [Contracts.StorageKey κ₁] [Contracts.StorageKey κ₂] (base wo offset width : Nat)
+    (k1 : κ₁) (k2 : κ₂) (cs : ContractState) :
+    (runWord (Contracts.structMember2At base wo ((some (offset, width)) : Option (Nat × Nat))
+      k1 k2 : Contract Uint256) cs).val < 2 ^ width := by
+  unfold runWord Contracts.structMember2At
+  dsimp only
+  exact decodePackedWord_lt_width _ _ _
+
+private theorem runWord_structMemberAt_packed_lt {κ : Type}
+    [Contracts.StorageKey κ] (base wo offset width : Nat)
+    (k : κ) (cs : ContractState) :
+    (runWord (Contracts.structMemberAt base wo ((some (offset, width)) : Option (Nat × Nat))
+      k : Contract Uint256) cs).val < 2 ^ width := by
+  unfold runWord Contracts.structMemberAt
+  dsimp only
+  exact decodePackedWord_lt_width _ _ _
+
+private theorem runWord_borrowShares_lt_128 (id : Bytes32) (account : Address)
+    (cs : ContractState) :
+    (runWord (Contracts.structMember2At 2 1 ((some (0, 128)) : Option (Nat × Nat))
+      id account : Contract Uint256) cs).val < 2 ^ 128 :=
+  runWord_structMember2At_packed_lt 2 1 0 128 id account cs
+
+private theorem runWord_totalBorrowAssets_lt_128 (id : Bytes32) (cs : ContractState) :
+    (runWord (Contracts.structMemberAt 3 1 ((some (0, 128)) : Option (Nat × Nat))
+      id : Contract Uint256) cs).val < 2 ^ 128 :=
+  runWord_structMemberAt_packed_lt 3 1 0 128 id cs
+
+private theorem runWord_totalBorrowShares_lt_128 (id : Bytes32) (cs : ContractState) :
+    (runWord (Contracts.structMemberAt 3 1 ((some (128, 128)) : Option (Nat × Nat))
+      id : Contract Uint256) cs).val < 2 ^ 128 :=
+  runWord_structMemberAt_packed_lt 3 1 128 128 id cs
 
 /-! ## Concrete reductions of the four storage reads done by `_isHealthyWithPrice`. -/
 
@@ -156,6 +234,21 @@ private lemma mulDivUp_val
               d hd (by rw [hadd]; exact hdivq)
     rw [this, hadd]
 
+private lemma mulDiv512Up_val
+    (x y d : Uint256)
+    (hd : d.val ≠ 0)
+    (h_q : (x.val * y.val + (d.val - 1)) / d.val < Verity.Core.Uint256.modulus) :
+    (Verity.Stdlib.Math.mulDiv512Up x y d).val =
+      Morpho.Proofs.HealthModel.mulDivUp x.val y.val d.val := by
+  unfold Verity.Stdlib.Math.mulDiv512Up Morpho.Proofs.HealthModel.mulDivUp
+  have hfit :
+      (x.val * y.val + (d.val - 1)) / d.val ≤ Verity.Stdlib.Math.MAX_UINT256 := by
+    have hmax := Verity.Core.Uint256.max_uint256_succ_eq_modulus
+    show (x.val * y.val + (d.val - 1)) / d.val ≤ Verity.Core.MAX_UINT256
+    omega
+  rw [Verity.Proofs.Stdlib.Math.mulDiv512Up?_some x y d hd hfit]
+  rw [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_q]
+
 /-! ## No-overflow predicate -/
 
 /--
@@ -166,28 +259,24 @@ private lemma mulDivUp_val
   Stated in terms of the projected fields (`borrowShares`, …), which equal the
   `.val` of the contract-side `Uint256` words by definition of `project`.
 
-  The seven conjuncts cover, in order:
+  The four conjuncts cover, in order:
   1. `addPanic totalBorrowAssets 1` does not revert.
   2. `addPanic totalBorrowShares 1000000` does not revert.
-  3. The numerator product in `mulDivUp borrowShares (totBA+1) (totBS+1e6)`.
-  4. The numerator-plus-(d-1) sum in the same `mulDivUp`.
-  5. The `mulDivUp` quotient itself fits.
-  6. The product `collateral * price` for `mulDivDown … 1e36`.
-  7. The product `collateralQuoted * lltv` for `mulDivDown … 1e18`.
+  3. The product `collateral * price` for `mulDivDown … 1e36`.
+  4. The product `collateralQuoted * lltv` for `mulDivDown … 1e18`.
 
-  The two final `mulDivDown` quotients are implied by their numerator bounds
-  (quotient ≤ numerator when divisor ≥ 1), so they are not stated separately.
+  The borrow-side share/asset conversion uses the full-precision `mulDiv512Up`
+  helper. Its quotient fit is derived from the packed `uint128` storage guards
+  in `Disciplines.lean`, so no explicit borrow-side no-overflow assumption is
+  needed here. The two final `mulDivDown` quotients are implied by their numerator
+  bounds (quotient ≤ numerator when divisor ≥ 1), so they are not stated
+  separately.
 -/
 def NoOverflow (mp : MarketParams) (id : Bytes32) (account : Address)
     (price : Uint256) (cs : ContractState) : Prop :=
   let s := project mp id account price cs
   s.totBorrowAssets + 1 < Verity.Core.Uint256.modulus ∧
   s.totBorrowShares + 1000000 < Verity.Core.Uint256.modulus ∧
-  s.borrowShares * (s.totBorrowAssets + 1) < Verity.Core.Uint256.modulus ∧
-  s.borrowShares * (s.totBorrowAssets + 1) + ((s.totBorrowShares + 1000000) - 1)
-    < Verity.Core.Uint256.modulus ∧
-  (s.borrowShares * (s.totBorrowAssets + 1) + ((s.totBorrowShares + 1000000) - 1))
-    / (s.totBorrowShares + 1000000) < Verity.Core.Uint256.modulus ∧
   s.collateral * s.price < Verity.Core.Uint256.modulus ∧
   Morpho.Proofs.HealthModel.mulDivDown s.collateral s.price ORACLE_PRICE_SCALE * s.lltv
     < Verity.Core.Uint256.modulus
@@ -220,7 +309,7 @@ private lemma isHealthyWithPrice_eval
               (s.totBorrowShares + 1000000)))
           cs := by
   -- Unpack `NoOverflow`.
-  obtain ⟨h_addA, h_addS, h_xyB, h_addB, h_qB, h_xyC, h_xyM⟩ := h
+  obtain ⟨h_addA, h_addS, h_xyC, h_xyM⟩ := h
   -- Equate the four storage reads with `(project …).*` via `runWord`.
   have hs_bs : (runWord (Morpho.Contract.Morpho.structMember2
                   "positionSlot" id account "borrowShares") cs).val
@@ -273,7 +362,7 @@ private lemma isHealthyWithPrice_eval
   set cq : Uint256 := Morpho.Contract.mulDivDown col price
                         1000000000000000000000000000000000000 with hcq_def
   set cmax : Uint256 := Morpho.Contract.mulDivDown cq mp.lltv 1000000000000000000 with hcmax_def
-  set cbrw : Uint256 := Morpho.Contract.mulDivUp bs totBAplus1 totBSplus1e6 with hcbrw_def
+  set cbrw : Uint256 := Verity.Stdlib.Math.mulDiv512Up bs totBAplus1 totBSplus1e6 with hcbrw_def
   -- `.val`-level equalities for each intermediate.
   have hTBA1_val : totBAplus1.val = s.totBorrowAssets + 1 := by
     show (Verity.Core.Uint256.ofNat (tba.val + 1)).val = _
@@ -281,19 +370,48 @@ private lemma isHealthyWithPrice_eval
   have hTBS1e6_val : totBSplus1e6.val = s.totBorrowShares + 1000000 := by
     show (Verity.Core.Uint256.ofNat (tbs.val + 1000000)).val = _
     rw [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hAdd_tbs, hs_tbs]
-  -- mulDivUp bounds.
-  have h_xyB' : bs.val * totBAplus1.val < Verity.Core.Uint256.modulus := by
-    rw [hs_bs, hTBA1_val]; exact h_xyB
-  have h_addB' : bs.val * totBAplus1.val + (totBSplus1e6.val - 1)
-                < Verity.Core.Uint256.modulus := by
-    rw [hs_bs, hTBA1_val, hTBS1e6_val]; exact h_addB
+  -- mulDiv512Up borrow conversion: the quotient fits from packed uint128 fields.
   have h_qB' : (bs.val * totBAplus1.val + (totBSplus1e6.val - 1)) / totBSplus1e6.val
               < Verity.Core.Uint256.modulus := by
-    rw [hs_bs, hTBA1_val, hTBS1e6_val]; exact h_qB
+    rw [hs_bs, hTBA1_val, hTBS1e6_val]
+    have hbs : s.borrowShares < 2 ^ 128 := by
+      subst s
+      exact runWord_borrowShares_lt_128 id account cs
+    have htba : s.totBorrowAssets < 2 ^ 128 := by
+      subst s
+      exact runWord_totalBorrowAssets_lt_128 id cs
+    have htbs : s.totBorrowShares < 2 ^ 128 := by
+      subst s
+      exact runWord_totalBorrowShares_lt_128 id cs
+    have hbs_le : s.borrowShares ≤ 2 ^ 128 - 1 := by omega
+    have htba_le : s.totBorrowAssets + 1 ≤ 2 ^ 128 := by omega
+    have htbs_le : s.totBorrowShares + 1000000 - 1 ≤ (2 ^ 128 - 1) + 1000000 - 1 := by
+      omega
+    have hnum :
+        s.borrowShares * (s.totBorrowAssets + 1) +
+            (s.totBorrowShares + 1000000 - 1)
+          ≤ (2 ^ 128 - 1) * 2 ^ 128 + ((2 ^ 128 - 1) + 1000000 - 1) := by
+      exact Nat.add_le_add (Nat.mul_le_mul hbs_le htba_le) htbs_le
+    have hden : 1000000 ≤ s.totBorrowShares + 1000000 := by omega
+    have hdiv :
+        (s.borrowShares * (s.totBorrowAssets + 1) +
+            (s.totBorrowShares + 1000000 - 1)) /
+            (s.totBorrowShares + 1000000)
+          ≤ ((2 ^ 128 - 1) * 2 ^ 128 + ((2 ^ 128 - 1) + 1000000 - 1)) /
+            1000000 :=
+      Nat.div_le_div hnum hden (by decide)
+    have hbound :
+        ((2 ^ 128 - 1 : Nat) * 2 ^ 128 + ((2 ^ 128 - 1) + 1000000 - 1)) /
+            1000000 < Verity.Core.Uint256.modulus := by
+      native_decide
+    exact lt_of_le_of_lt hdiv hbound
+  have h_dB_ne : totBSplus1e6.val ≠ 0 := by
+    rw [hTBS1e6_val]
+    omega
   have hcbrw_val : cbrw.val = Morpho.Proofs.HealthModel.mulDivUp s.borrowShares
                     (s.totBorrowAssets + 1) (s.totBorrowShares + 1000000) := by
-    show (Morpho.Contract.mulDivUp bs totBAplus1 totBSplus1e6).val = _
-    rw [mulDivUp_val bs totBAplus1 totBSplus1e6 h_xyB' h_addB' h_qB',
+    show (Verity.Stdlib.Math.mulDiv512Up bs totBAplus1 totBSplus1e6).val = _
+    rw [mulDiv512Up_val bs totBAplus1 totBSplus1e6 h_dB_ne h_qB',
         hs_bs, hTBA1_val, hTBS1e6_val]
   -- mulDivDown collateral price 1e36.
   have hVal_1e36 :

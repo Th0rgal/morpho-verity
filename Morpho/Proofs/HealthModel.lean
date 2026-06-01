@@ -9,16 +9,13 @@
   in `Morpho/Proofs/Refinement.lean`. Nothing here may be treated as authoritative
   Morpho semantics on its own.
 
-  We model the health arithmetic over `Nat`. The contract computes the same values
-  via `mulDivDown`/`mulDivUp` (Morpho/Libraries/MathLib.lean), which reduce through
-  `Uint256.ofNat` (mod 2^256). On the no-overflow domain — where each intermediate
-  product stays below 2^256 — that reduction is the identity and the `Nat` model
-  agrees with the contract; outside it the contract reverts rather than returning a
-  wrapped value. The uint128 `require`s on shares/assets/collateral keep the
-  share/asset products in that domain; the `collateral * price` term additionally
-  relies on the oracle price being bounded, which is a trust boundary, not a uint128
-  invariant. This agreement justifies modeling over `Nat`; it is argued here, not
-  discharged as a separate lemma.
+  We model the health arithmetic over `Nat`. The contract health check computes
+  the borrow conversion with the full-precision `mulDiv512Up` helper and the
+  collateral side with `mulDivDown`. The share/asset quotient fit follows from the
+  packed `uint128` storage fields; the collateral-price products additionally
+  rely on the oracle price being bounded, which is a trust boundary, not a
+  uint128 invariant. This agreement justifies modeling over `Nat`; it is
+  discharged in `HealthFaithful.lean` for the explicit oracle-price domain.
 -/
 
 namespace Morpho.Proofs.HealthModel
