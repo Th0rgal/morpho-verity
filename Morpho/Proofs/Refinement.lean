@@ -7,16 +7,15 @@
   `OpShape` cases of `Property1` after projection. We state those obligations here
   as explicit `Prop`s.
 
-  These are deliberately *specifications*, not `sorry`-backed theorems. The
-  abstract `modelStep` section below discharges them at the hand-transcribed model
-  level. The `Contract` namespace at the end of this file then closes the gap to
-  the generated code: there each entrypoint's `Step` is the *real* executable
+  These propositions are specifications with proof terms below. The abstract
+  `modelStep` section discharges them at the hand-transcribed model level. The
+  `Contract` namespace at the end of this file then closes the gap to the
+  generated code: there each entrypoint's `Step` is the *real* executable
   `verity_contract Morpho` body, run to success and projected through
   `Projection.lean`, and the classified shape is discharged from named boundary
   obligations (field locality, the `require(_isHealthy)` guards, arithmetic
-  faithfulness) rather than from a parallel model. This is not a second source of
-  truth: the body is the contract's own. The residual step-to-EVM-bytecode link
-  stays empirical, guarded by the differential tests.
+  faithfulness). The residual step-to-EVM-bytecode link stays empirical, guarded
+  by the differential tests.
 
   Stating the obligations this way keeps the boundary honest: the model cannot
   silently diverge from the contract, because the gap is named and enumerated.
@@ -214,8 +213,8 @@ theorem property1_holds (e : Entrypoint) (hasm : Assumptions (modelStep e))
     — a successful run lands in a healthy post-state, from the final
     `require(_isHealthy)`;
   - `liquidate`: `GuardUnhealthy` proves its generated
-    `require(!_isHealthy)` guard fired after `_accrueInterest`; the remaining
-    pre-state refinement bridge is named separately from that structural fact.
+    `require(!_isHealthy)` guard fired after `_accrueInterest`, and the
+    no-accrual bridge replays that guard on the original projected pre-state.
 -/
 namespace Contract
 
@@ -281,12 +280,12 @@ theorem refines_withdrawCollateral (P : Position)
   `liquidate`. The step is the real generated body run to success and projected
   at the watched position. Its classified shape is `¬ healthy s`: a liquidation
   is only the right operation on an already-unhealthy position. This is
-  discharged from a proved structural guard extraction plus an explicit pre-state
-  health bridge. `GuardUnhealthy` is the contract's own
+  discharged from a proved structural guard extraction plus the no-accrual
+  contract-side discipline. `GuardUnhealthy` is the contract's own
   `require(!_isHealthy)`: a successful run forces the post-accrual health test to
-  have returned `false`. To classify the projected step as `¬ healthy s`, the
-  remaining bridge must relate that generated post-accrual guard back to the
-  original projected pre-state on the local oracle-price/collateral-fit domain.
+  have returned `false`. `liquidate_preStateUnhealthy_of_accrueInterest_identity`
+  relates that generated post-accrual guard back to the original projected
+  pre-state under the no-accrual assumption.
 -/
 
 /-- `liquidate`: the generated `require(!_isHealthy)` guard, read off a
@@ -307,31 +306,45 @@ theorem guardUnhealthy_liquidate (P : Position)
   liquidate_guardUnhealthy_afterAccrue_price P hid hprice
 
 /-- Post-accrual/pre-state bridge from a successful `liquidate` run back to the
-    original projected pre-state. This is intentionally no longer called
-    `GuardUnhealthy`: the generated guard itself fires after `_accrueInterest`,
-    and that structural fact is proved by `guardUnhealthy_liquidate`. -/
+    original projected pre-state. The generated guard itself fires after
+    `_accrueInterest`, while this proposition records the no-accrual consequence
+    needed by the model-level classifier. -/
 def LiquidatePreStateUnhealthy (P : Position) : Prop :=
   ∀ seized repaid data out cs cs',
     (liquidate P.mp P.account seized repaid data).run cs
         = Verity.ContractResult.success out cs' →
+      ∃ csHealth,
       (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
-        = Verity.ContractResult.success false cs
+        = Verity.ContractResult.success false csHealth
 
-/-- `liquidate` refines `¬ healthy s` from its guard plus the checked local
-    oracle-price/collateral-fit bridge: the guard makes the contract health test
-    `false` on the pre-state, and `healthFaithful_of_noOverflow` carries that to
-    the model's `healthy` predicate on the projection. -/
-theorem refines_liquidate (P : Position) (hpre : LiquidatePreStateUnhealthy P)
+/-- The post-accrual/pre-state bridge follows from the generated body and
+    no-accrual: `_accrueInterest` leaves the local state unchanged, so the
+    generated unhealthy guard can be replayed on the original pre-state. -/
+theorem liquidatePreStateUnhealthy_of_accrueInterestIdentity (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hnoAccrual : AccrueInterestIdentityFor P) :
+    LiquidatePreStateUnhealthy P :=
+  liquidate_preStateUnhealthy_of_accrueInterest_identity P hid hprice hnoAccrual
+
+/-- `liquidate` refines `¬ healthy s` from its generated guard plus no-accrual:
+    the guard makes the contract health test `false` on the pre-state, and
+    `healthFaithful_of_noOverflow` carries that to the model's `healthy`
+    predicate on the projection. -/
+theorem refines_liquidate (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hnoAccrual : AccrueInterestIdentityFor P)
     (horacleFits : LocalNoOverflowFor P) :
     Refines .liquidate (liquidateStep P) := by
   intro _ s s' h
   obtain ⟨seized, repaid, data, out, cs, cs', hs, _, hrun⟩ := h
-  have hbool := hpre seized repaid data out cs cs' hrun
+  obtain ⟨csHealth, hbool⟩ :=
+    liquidatePreStateUnhealthy_of_accrueInterestIdentity P hid hprice hnoAccrual
+      seized repaid data out cs cs' hrun
   have hfaith :=
     Morpho.Proofs.HealthFaithful.healthFaithful_of_noOverflow
       P.mp P.id P.account P.price cs
         (noOverflow_of_localNoOverflow P cs (horacleFits cs))
-  have hiff := hfaith false cs hbool
+  have hiff := hfaith false csHealth hbool
   simp only [classify, hs]
   exact fun hh => Bool.false_ne_true (hiff.mpr hh)
 

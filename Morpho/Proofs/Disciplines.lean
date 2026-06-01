@@ -2,8 +2,8 @@ import Morpho.Proofs.FramePreserve
 import Morpho.Proofs.Env
 import Morpho.Proofs.Projection
 import Morpho.Proofs.HealthFaithful
+import Morpho.Proofs.PackedWordLemmas
 import Morpho.Contract
-import Contracts.PackedWordLemmas
 import Mathlib.Data.Nat.Bitwise
 
 namespace Morpho.Proofs.Disciplines
@@ -1224,9 +1224,6 @@ def OraclePriceAligned (P : Position) : Prop :=
     cs.ecmResults (Compiler.Modules.Oracle.oracleReadUint256Module "_ecm" selector 0).name
       [addressToWord P.mp.oracle] 0 = P.price
 
-def NoOverflowFor (P : Position) : Prop :=
-  ∀ cs, NoOverflow P.mp P.id P.account P.price cs
-
 /-- The remaining local health-arithmetic bound: quoting the watched account's
     collateral at the oracle price, then applying LLTV, fits in one `uint256`
     word. Borrow-side add and share-conversion bounds are reconstructed from
@@ -1248,6 +1245,15 @@ def LocalNoOverflow (P : Position) (cs : ContractState) : Prop :=
 def LocalNoOverflowFor (P : Position) : Prop :=
   ∀ cs, LocalNoOverflow P cs
 
+/-- No-accrual contract-side discipline for the watched market: the embedded
+    `_accrueInterest` helper leaves the call state unchanged. This is the
+    generated-body counterpart of the proof model's "without considering debt
+    accrual" assumption. -/
+def AccrueInterestIdentityFor (P : Position) : Prop :=
+  ∀ cs accrued cs',
+    (_accrueInterest P.mp P.id).run cs = ContractResult.success accrued cs' →
+      cs' = cs
+
 theorem noOverflow_of_localNoOverflow (P : Position) (cs : ContractState)
     (hlocal : LocalNoOverflow P cs) :
     NoOverflow P.mp P.id P.account P.price cs := by
@@ -1268,11 +1274,6 @@ theorem noOverflow_of_localNoOverflow (P : Position) (cs : ContractState)
       native_decide
     omega
   exact ⟨h_addA, h_addS, hlocal.1, hlocal.2⟩
-
-theorem noOverflowFor_of_localNoOverflowFor (P : Position)
-    (h : LocalNoOverflowFor P) : NoOverflowFor P := by
-  intro cs
-  exact noOverflow_of_localNoOverflow P cs (h cs)
 
 /-- The projected field discipline a successful step guarantees for the watched
     position: `lltv` fixed, collateral does not fall, borrow shares do not rise. -/
@@ -1408,6 +1409,81 @@ theorem liquidate_guardUnhealthy_afterAccrue_price (P : Position)
     simpa [oraclePriceRead] using h
   rw [← hp]
   rw [Contract.run, hraw]
+
+set_option maxHeartbeats 4000000 in
+set_option maxRecDepth 100000 in
+theorem liquidate_preStateUnhealthy_of_accrueInterest_identity (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hnoAccrual : AccrueInterestIdentityFor P) :
+    ∀ seized repaid data out cs cs',
+      (liquidate P.mp P.account seized repaid data).run cs =
+          ContractResult.success out cs' →
+        ∃ csHealth,
+          (_isHealthyWithPrice P.mp P.id P.account P.price).run cs =
+            ContractResult.success false csHealth := by
+  intro seized repaid data out cs cs' hrun
+  have hbody := run_eq_of_success hrun
+  simp only [liquidate, Bind.bind, Pure.pure,
+      Morpho.Contract.Morpho.structMember,
+      Morpho.Contract.Morpho.structMember2,
+      Morpho.Contract.Morpho.setStructMember,
+      Morpho.Contract.Morpho.setStructMember2,
+      Contracts.emit, Contracts.EventArg.toWord, List.mapM_cons, List.mapM_nil,
+      Verity.Contract.bind_pure_left,
+      Bool.and_eq_true, beq_iff_eq, String.reduceEq,
+      and_true, and_false, if_true, if_false] at hbody
+  simp only [Verity.bind, Contracts.ecmEnvRead, Contracts.structMemberAt,
+    Verity.require] at hbody
+  have hidEq := hid cs
+  simp only [marketIdRead] at hidEq
+  rw [hidEq] at hbody
+  split at hbody
+  · next currentLastUpdate stLast hlast =>
+    have hstLast : stLast = cs := by
+      split at hlast
+      · cases hlast
+        rfl
+      · cases hlast
+    split at hbody
+    · next _ stCreated hcreated =>
+      have hstCreated : stCreated = stLast := by
+        split at hcreated
+        · cases hcreated
+          rfl
+        · cases hcreated
+      split at hbody
+      · next accrued stPostAccrue hacc =>
+        have haccRun :
+            (_accrueInterest P.mp P.id).run stCreated =
+              ContractResult.success accrued stPostAccrue := by
+          unfold Contract.run
+          simp [hacc]
+        have hsameAccrue : stPostAccrue = stCreated :=
+          hnoAccrual stCreated accrued stPostAccrue haccRun
+        have hpre : stPostAccrue = cs := by
+          rw [hsameAccrue, hstCreated, hstLast]
+        split at hbody
+        · next healthBool stHealth hhealth =>
+          split at hbody
+          · next _ stReqHealthy hreqHealthy =>
+            cases healthBool
+            · have hpriceEq : oraclePriceRead P.mp stPostAccrue = P.price := by
+                have h := hprice stPostAccrue 0xa035b1fe
+                simpa [oraclePriceRead] using h
+              have hhealthPrice :
+                  _isHealthyWithPrice P.mp P.id P.account P.price stPostAccrue =
+                    ContractResult.success false stHealth := by
+                rw [← hpriceEq]
+                simpa [oraclePriceRead] using hhealth
+              refine ⟨stHealth, ?_⟩
+              rw [← hpre]
+              simp [Contract.run, hhealthPrice]
+            · exact False.elim (by cases hreqHealthy)
+          · exact False.elim (by cases hbody)
+        · exact False.elim (by cases hbody)
+      · exact False.elim (by cases hbody)
+    · exact False.elim (by cases hbody)
+  · exact False.elim (by cases hbody)
 
 set_option maxRecDepth 100000 in
 theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned P)

@@ -20,11 +20,12 @@ Current state to re-check before editing:
   `guardedDiscipline_borrowAssetsMode`, and
   `guardedDiscipline_borrowSharesMode`; `Morpho/Proofs/Refinement.lean` now uses
   `guardedDiscipline_borrow` instead of a `GuardedDiscipline` assumption.
-- `liquidate` has the easy arithmetic-faithfulness side integrated through
-  `healthFaithful_of_noOverflow`, but still carries the harder generated
-  `GuardUnhealthy` extraction boundary.
-- Remaining hard areas are liquidation guard alignment, no-accrual alignment for
-  liquidation, and any further no-overflow propagation.
+- `liquidate` now proves the generated unhealthy guard extraction and the
+  post-accrual/pre-state bridge under the explicit contract-side no-accrual
+  discipline `AccrueInterestIdentityFor`.
+- Remaining hard areas are further no-overflow propagation and any future
+  replacement of the empirical step-to-EVM-bytecode link with a Lean extraction
+  layer.
 
 Always start with:
 
@@ -229,8 +230,9 @@ Lean:
 - `lake build` passes.
 - No new `axiom` or `constant` is introduced except the explicitly named slot/keccak injectivity boundary if it is truly required.
 - `Refinement.lean` no longer assumes `MonotoneDiscipline` or
-  `GuardedDiscipline` for the target entrypoints; `liquidate` may still carry
-  the explicitly deferred `GuardUnhealthy` extraction boundary.
+  `GuardedDiscipline` for the target entrypoints; `liquidate` no longer carries
+  the generated unhealthy-guard extraction boundary or the post-accrual/pre-state
+  bridge as an external assumption.
 - `HealthFaithful` is not used as an opaque assumption where `healthFaithful_of_noOverflow` can be used instead.
 
 Scripts:

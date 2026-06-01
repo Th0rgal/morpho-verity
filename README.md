@@ -49,9 +49,9 @@ layer.
   (`guardedDiscipline_borrowCommitAndCheck`,
   `guardedDiscipline_borrowAssetsMode`, and
   `guardedDiscipline_borrowSharesMode`). `liquidate` now proves the generated
-  post-accrual `require(!_isHealthy)` extraction as `guardUnhealthy_liquidate`;
-  the remaining post-accrual/pre-state bridge is the explicitly named condition
-  `LiquidatePreStateUnhealthy`.
+  post-accrual `require(!_isHealthy)` extraction as `guardUnhealthy_liquidate`
+  and proves the post-accrual/pre-state bridge from the contract-side
+  no-accrual discipline (`AccrueInterestIdentityFor`).
   The remaining step-to-EVM-bytecode link is empirical, not yet a Lean extraction
   layer.
 - **Arithmetic.** Health arithmetic is modeled over `Nat`. It agrees with the
