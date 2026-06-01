@@ -197,12 +197,22 @@ theorem property1_holds (e : Entrypoint) (hasm : Assumptions (modelStep e))
 /-
   Refinement v2 — `Step`s built from the real generated contract bodies.
 
-  The `modelStep` relations above are hand-transcribed. This section closes the
-  remaining distance for `liquidate`: its `Step` is now the *actual* generated
-  `Morpho.Contract.Morpho.liquidate` body, run to success and projected through
-  `Projection.project`. The classified shape (`¬ healthy s`) is then discharged
-  from the entrypoint's own `require(!_isHealthy)` guard, modulo two named
-  boundary obligations — the same boundaries the parity suite already covers.
+  The `modelStep` relations above are hand-transcribed. This section removes that
+  middle layer: every entrypoint's `Step` is now a *successful run of the actual
+  generated body*, projected through `Projection.project`. Nothing hand-written
+  stands between the `Step` and the contract. Each classified shape is discharged
+  from one or two explicitly named boundaries, which is exactly what the
+  differential suite covers:
+
+  - monotone entrypoints (`supply`, `withdraw`, `supplyCollateral`, `repay`,
+    `otherAccount`): `MonotoneDiscipline` — a successful run keeps the watched
+    position inside the monotone envelope (collateral does not fall, borrow shares
+    do not rise, `lltv` fixed);
+  - self-guarded entrypoints (`borrow`, `withdrawCollateral`): `GuardedDiscipline`
+    — a successful run lands in a healthy post-state, from the final
+    `require(_isHealthy)`;
+  - `liquidate`: `GuardUnhealthy` (its `require(!_isHealthy)` guard fired) together
+    with `HealthFaithful` (the contract bool matches the model predicate).
 -/
 namespace Contract
 
@@ -216,67 +226,6 @@ structure Position where
   id      : Bytes32
   account : Address
   price   : Uint256
-
-/--
-  `liquidate`'s step relation, taken from the generated body itself: a successful
-  run of `liquidate` carries the pre-state `cs` to `cs'`, and both are projected
-  at the watched position. No hand-written model stands between this `Step` and
-  the contract.
--/
-def liquidateStep (P : Position) : Step :=
-  fun s s' => ∃ cs cs' seized repaid data out,
-    s  = project P.mp P.id P.account P.price cs ∧
-    s' = project P.mp P.id P.account P.price cs' ∧
-    (liquidate P.mp P.account seized repaid data).run cs
-      = Verity.ContractResult.success out cs'
-
-/--
-  **Named obligation (parity + `NoAccrual`).** A successful `liquidate` run means
-  the contract saw the borrower as unhealthy. `liquidate` runs
-  `require(_isHealthyWithPrice == false)` (Contract.lean:854) before any state
-  write that matters here; the only preceding state change is `_accrueInterest`,
-  which under `NoAccrual` is the identity on the health projection, so the test
-  value at `cs` is the value the guard enforced. The model↔bytecode execution gap
-  is exactly what the differential suite checks; we name it rather than re-derive
-  it by symbolic execution of the full body. -/
-def GuardUnhealthy (P : Position) : Prop :=
-  ∀ cs cs' seized repaid data out,
-    (liquidate P.mp P.account seized repaid data).run cs
-        = Verity.ContractResult.success out cs' →
-      (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
-        = Verity.ContractResult.success false cs
-
-/--
-  **`liquidate` refines its classified shape against the real generated body.**
-
-  Given the two named boundaries — `GuardUnhealthy` (the guard fired) and
-  `HealthFaithful` (the contract bool matches the model predicate) — every
-  successful `liquidate` step lands in `classify .liquidate`, i.e. the borrower
-  was unhealthy. This is the honest replacement for the hand-written
-  `ModelStep.liquidate`: the `Step` is the contract, and the only inputs are the
-  parity-covered boundaries. -/
-theorem refines_liquidate (P : Position)
-    (hguard : GuardUnhealthy P)
-    (hfaith : ∀ cs, HealthFaithful P.mp P.id P.account P.price cs) :
-    Refines .liquidate (liquidateStep P) := by
-  intro _ s s' h
-  obtain ⟨cs, cs', seized, repaid, data, out, hs, _, hrun⟩ := h
-  have hbool := hguard cs cs' seized repaid data out hrun
-  have hiff := hfaith cs false cs hbool
-  simp only [classify, hs]
-  exact fun hh => Bool.false_ne_true (hiff.mpr hh)
-
-/--
-  Property 1 for `liquidate` against the real body: a healthy borrower is never
-  the target of a successful `liquidate`, so the post-state is vacuously healthy.
-  Composes `refines_liquidate` with `property1_for_entrypoint`. -/
-theorem property1_liquidate (P : Position)
-    (hguard : GuardUnhealthy P)
-    (hfaith : ∀ cs, HealthFaithful P.mp P.id P.account P.price cs)
-    (hasm : Assumptions (liquidateStep P))
-    {s s' : HealthState} (hstep : liquidateStep P s s') (hs : healthy s) :
-    healthy s' :=
-  property1_for_entrypoint (refines_liquidate P hguard hfaith) hasm hstep hs
 
 /-
   The non-liquidate entrypoints. Each `Step` below is the real generated body of
@@ -384,6 +333,48 @@ theorem refines_borrow (P : Position) (hdisc : GuardedDiscipline (borrowStep P))
 theorem refines_withdrawCollateral (P : Position)
     (hdisc : GuardedDiscipline (withdrawCollateralStep P)) :
     Refines .withdrawCollateral (withdrawCollateralStep P) := refines_of_guarded rfl hdisc
+
+/-
+  `liquidate`. The step is the real generated body run to success and projected
+  at the watched position. Its classified shape is `¬ healthy s`: a liquidation
+  is only the right operation on an already-unhealthy position. This is
+  discharged from two named boundaries. `GuardUnhealthy` is the contract's own
+  `require(!_isHealthy)`: a successful run forces the health test to have
+  returned `false` on the pre-state. `HealthFaithful` (from `Projection.lean`)
+  ties that `false` to the model's `healthy` predicate on the no-overflow domain.
+  Both are parity-covered.
+-/
+
+/-- `liquidate`: the contract's pre-call `require(!_isHealthy)` guard, read off a
+    successful run. A success means the health test returned `false` on the
+    pre-state. Parity-covered. -/
+def GuardUnhealthy (P : Position) : Prop :=
+  ∀ seized repaid data out cs cs',
+    (liquidate P.mp P.account seized repaid data).run cs
+        = Verity.ContractResult.success out cs' →
+      (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
+        = Verity.ContractResult.success false cs
+
+/-- `liquidate`: the real generated body, run to success and projected. -/
+def liquidateStep (P : Position) : Step :=
+  fun s s' => ∃ seized repaid data out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (liquidate P.mp P.account seized repaid data).run cs
+      = Verity.ContractResult.success out cs'
+
+/-- `liquidate` refines `¬ healthy s` from its guard plus arithmetic faithfulness:
+    the guard makes the contract health test `false` on the pre-state, and
+    `HealthFaithful` carries that to the model's `healthy` on the projection. -/
+theorem refines_liquidate (P : Position) (hguard : GuardUnhealthy P)
+    (hfaith : ∀ cs, HealthFaithful P.mp P.id P.account P.price cs) :
+    Refines .liquidate (liquidateStep P) := by
+  intro _ s s' h
+  obtain ⟨seized, repaid, data, out, cs, cs', hs, _, hrun⟩ := h
+  have hbool := hguard seized repaid data out cs cs' hrun
+  have hiff := hfaith cs false cs hbool
+  simp only [classify, hs]
+  exact fun hh => Bool.false_ne_true (hiff.mpr hh)
 
 end Contract
 
