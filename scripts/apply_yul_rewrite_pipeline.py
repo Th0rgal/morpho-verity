@@ -12,7 +12,7 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_PIPELINE_MANIFEST = ROOT / "config" / "yul-rewrite-pipeline.json"
-DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-obligations.json"
 
 
 class RewritePipelineError(RuntimeError):

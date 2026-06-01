@@ -2,14 +2,13 @@
 
 Issue: [#25](https://github.com/Th0rgal/morpho-verity/issues/25)
 
-This document defines the planned canonical target tuple used for artifact
-identity checks between Verity-generated Yul and Solidity-generated Yul. It is
-part of the implementation/parity architecture; it is not a formal Morpho
-invariant-proof document.
+This document defines the canonical target tuple used for artifact identity
+checks between Verity-generated Yul and Solidity-generated Yul. It pins the
+Solidity compilation context so parity and identity claims are well defined.
 
 ## Status
 
-Partially implemented:
+In place:
 1. Canonical tuple file: `config/parity-target.json`.
 2. Validation script: `scripts/check_parity_target.py`.
 3. CI gate: `parity-target` job in `.github/workflows/verify.yml`.
@@ -17,8 +16,8 @@ Partially implemented:
 5. Structural Yul AST comparator (deterministic tokenizer + delimiter-validated parser) with function-level mismatch localization.
 6. Enforced unsupported-manifest drift gate (`config/yul-identity-unsupported.json`).
 
-Not implemented yet:
-1. Full semantic AST path localization (current comparator is structural token AST).
+Open items:
+1. Full semantic AST path localization (the current comparator is a structural token AST).
 2. Blocking CI gate that fails on mismatch for the supported fragment.
 
 ## Purpose
@@ -43,7 +42,7 @@ This file is the single source of truth for that context.
 4. `out/parity-target/`: generated Yul fixtures and identity reports (implemented, non-blocking).
 5. `config/yul-identity-unsupported.json`: machine-tracked known unsupported function-level deltas.
 6. `config/yul-rewrite-pipeline.json`: ordered rewrite-stage definition from raw Verity Yul to rewritten comparison input.
-7. `config/yul-rewrite-proof-obligations.json`: legacy-named rewrite-obligation metadata for planned Yul rewrite-family justification. The file name and JSON keys are kept for compatibility, but these entries are not checked Lean proofs of Morpho invariants.
+7. `config/yul-rewrite-obligations.json`: per-stage justification metadata for the Yul rewrite families, consumed by the identity-gap report and the bundle validator.
 
 ## CI Expectations
 

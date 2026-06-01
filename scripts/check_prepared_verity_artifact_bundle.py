@@ -14,7 +14,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_PARITY_TARGET = ROOT / "config" / "parity-target.json"
 DEFAULT_PIPELINE_MANIFEST = ROOT / "config" / "yul-rewrite-pipeline.json"
-DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+DEFAULT_PROOF_MANIFEST = ROOT / "config" / "yul-rewrite-obligations.json"
 INPUT_DIGEST_PATHS = (
   pathlib.Path("lean-toolchain"),
   pathlib.Path("lake-manifest.json"),

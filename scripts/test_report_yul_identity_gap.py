@@ -106,9 +106,9 @@ class ReportYulIdentityGapTests(unittest.TestCase):
             "pipelineManifestSha256": hashlib.sha256(
               (ROOT / "config" / "yul-rewrite-pipeline.json").read_text(encoding="utf-8").encode("utf-8")
             ).hexdigest(),
-            "proofManifestPath": "config/yul-rewrite-proof-obligations.json",
+            "proofManifestPath": "config/yul-rewrite-obligations.json",
             "proofManifestSha256": hashlib.sha256(
-              (ROOT / "config" / "yul-rewrite-proof-obligations.json").read_text(encoding="utf-8").encode("utf-8")
+              (ROOT / "config" / "yul-rewrite-obligations.json").read_text(encoding="utf-8").encode("utf-8")
             ).hexdigest(),
             "inputSha256": "0" * 64,
             "outputSha256": hashlib.sha256(rewritten_yul.encode("utf-8")).hexdigest(),
@@ -167,7 +167,7 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       raw_yul = "raw-yul\n"
       rewritten_yul = "prepared rewrite\n"
       pipeline_manifest_path = ROOT / "config" / "yul-rewrite-pipeline.json"
-      proof_manifest_path = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+      proof_manifest_path = ROOT / "config" / "yul-rewrite-obligations.json"
       input_digest = prepared_bundle_module.compute_expected_input_digest(
         artifact_mode="edsl",
         skip_solc="1",
@@ -220,7 +220,7 @@ class ReportYulIdentityGapTests(unittest.TestCase):
 
   def test_prepared_rewrite_pipeline_report_matches_request(self) -> None:
     pipeline_manifest_path = ROOT / "config" / "yul-rewrite-pipeline.json"
-    proof_manifest_path = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+    proof_manifest_path = ROOT / "config" / "yul-rewrite-obligations.json"
     report = {
       "pipelineManifestPath": display_path(pipeline_manifest_path),
       "proofManifestPath": display_path(proof_manifest_path),
@@ -292,7 +292,7 @@ class ReportYulIdentityGapTests(unittest.TestCase):
       prepared_dir = tmp / "prepared"
       output_path = tmp / "out" / "Morpho.rewritten.yul"
       pipeline_manifest_path = ROOT / "config" / "yul-rewrite-pipeline.json"
-      proof_manifest_path = ROOT / "config" / "yul-rewrite-proof-obligations.json"
+      proof_manifest_path = ROOT / "config" / "yul-rewrite-obligations.json"
       prepared_dir.mkdir(parents=True, exist_ok=True)
       (prepared_dir / "Morpho.rewritten.yul").write_text("stale prepared rewrite", encoding="utf-8")
       (prepared_dir / "Morpho.rewrite-report.json").write_text(

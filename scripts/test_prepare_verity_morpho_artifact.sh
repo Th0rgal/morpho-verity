@@ -36,7 +36,7 @@ setup_fake_repo() {
   chmod +x "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   printf '%s\n' "${target_json_content}" > "${fake_root}/config/parity-target.json"
   cp "${ROOT_DIR}/config/yul-rewrite-pipeline.json" "${fake_root}/config/yul-rewrite-pipeline.json"
-  cp "${ROOT_DIR}/config/yul-rewrite-proof-obligations.json" "${fake_root}/config/yul-rewrite-proof-obligations.json"
+  cp "${ROOT_DIR}/config/yul-rewrite-obligations.json" "${fake_root}/config/yul-rewrite-obligations.json"
   cat > "${fake_root}/artifacts/inputs/MarketParamsHash.yul" <<'EOF_LIB'
 {
   function hashMarketParams() -> result { result := 0 }

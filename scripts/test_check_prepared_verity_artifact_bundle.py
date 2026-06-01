@@ -30,7 +30,7 @@ def write_bundle(
     include_bin: bool = True,
     include_rewrite: bool = True,
     pipeline_manifest: str = "config/yul-rewrite-pipeline.json",
-    proof_manifest: str | None = "config/yul-rewrite-proof-obligations.json",
+    proof_manifest: str | None = "config/yul-rewrite-obligations.json",
 ) -> pathlib.Path:
   bundle = root / "edsl"
   bundle.mkdir(parents=True, exist_ok=True)

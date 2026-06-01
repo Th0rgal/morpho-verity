@@ -1169,7 +1169,7 @@ def parse_args() -> argparse.Namespace:
     help=(
       "Legacy-named JSON manifest mapping rewrite families to intended rewrite passes and "
       "planned rewrite obligations; this is not a Morpho invariant proof inventory "
-      "(default: config/yul-rewrite-proof-obligations.json)."
+      "(default: config/yul-rewrite-obligations.json)."
     ),
   )
   parser.add_argument(

@@ -1,12 +1,9 @@
 # Trust Boundaries
 
-This document records the current Morpho-specific assumptions that remain after
-the `00c18e3a` Verity upgrade, which includes upstream Verity PR
-`lfglabs-dev/verity#1939`. It is an inventory, not a proof claim.
-
-The current repository claim is implementation fidelity plus empirical parity
-against the pinned Morpho Blue target. It is not a complete formal
-invariant-proof claim for Morpho.
+This document inventories the Morpho-specific assumptions the proofs and parity
+gates rely on. The repository's claim is implementation fidelity plus empirical
+parity against the pinned Morpho Blue target, on top of the two machine-checked
+health properties. Everything below is what those claims rest on.
 
 ## Artifact Packaging
 
@@ -16,11 +13,11 @@ single Morpho source of truth is `Morpho/Contract.lean`, where
 
 `ArtifactConfig.lean` adapts that macro-produced spec for the standalone compiler
 CLI by setting the emitted artifact name, filtering internal helper functions
-out of the external selector/ABI surface, and making the current linked
-external dependency set explicit. That dependency set is empty. Former
-placeholders for `keccakMarketParams`, `borrowRate`, and `oraclePrice` have been
-replaced in `Morpho/Contract.lean` with Verity ECM modules. CI enforces this
-boundary through `scripts/check_morpho_artifact_boundary.py`.
+out of the external selector/ABI surface, and making the linked external
+dependency set explicit. That dependency set is empty: `keccakMarketParams`,
+`borrowRate`, and `oraclePrice` are implemented in `Morpho/Contract.lean`
+through Verity ECM modules. CI enforces this boundary through
+`scripts/check_morpho_artifact_boundary.py`.
 
 ## Local Obligations
 
@@ -50,27 +47,21 @@ crosses a low-level or external boundary:
 - Compilation correctness is delegated to Verity's compiler framework and the
   pinned artifact/parity gates in this repository.
 
-## Verity Coverage Audit
+## Verity Coverage
 
-At the current Morpho pin (`00c18e3a`), several EVM-shaped features that were
-previously represented through local obligations or linked externals are now
-directly actionable: the framework exposes
-static ABI Keccak helpers, EIP-712 digest helpers, Solmate-compatible ERC-20
-optional-return ECMs, bubbling call/callback modules, raw-log validation tests,
-and Solidity-0.8 checked-arithmetic helpers.
-
-That means the next fidelity work is mostly in Morpho: keep replacing broad
-local obligations with narrow Verity modules, preserve Solidity source ordering
-around callbacks and signature recovery, and keep arithmetic translated through
-checked operations or explicit guards. Any new Morpho-specific invariant proofs
-should be rebuilt as a separate layer over `verity_contract Morpho`; the current
-documents and CI should not be read as claiming that layer exists.
+Verity supplies the EVM-shaped primitives the contract builds on: static ABI
+Keccak helpers, EIP-712 digest helpers, Solmate-compatible ERC-20
+optional-return ECMs, bubbling call/callback modules, raw-log validation, and
+Solidity-0.8 checked-arithmetic helpers. The Morpho source uses these directly
+rather than ad hoc stand-ins, so the remaining trust-report entries stay narrow
+and auditable.
 
 Keccak memory-slice correctness, raw `rawLog` mechanics, low-level call
-execution, and precompile correctness can still appear in Verity trust reports,
-but Morpho no longer needs to invent ad hoc stand-ins for these Solidity
-constructs. The Morpho source should use the upstream primitives so the
-remaining report entries are narrow and auditable.
+execution, and precompile correctness are delegated to Verity and can appear in
+its trust reports. The fidelity discipline is to keep replacing broad local
+obligations with narrow Verity modules, preserve Solidity source ordering around
+callbacks and signature recovery, and keep arithmetic translated through checked
+operations or explicit guards.
 
 ## Current Gates
 
