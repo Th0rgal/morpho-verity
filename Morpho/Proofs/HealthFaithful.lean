@@ -4,8 +4,8 @@
 -/
 
 import Morpho.Proofs.Projection
+import Morpho.Proofs.PackedWordLemmas
 import Verity.Proofs.Stdlib.Math
-import Contracts.PackedWordLemmas
 import Mathlib.Data.Nat.Bitwise
 
 namespace Morpho.Proofs.HealthFaithful

@@ -82,9 +82,10 @@ opaque assumptions:
 - `liquidate` no longer carries the structural generated-guard boundary:
   `guardUnhealthy_liquidate` proves that a successful generated body reached
   `require(!_isHealthy)` after `_accrueInterest` and that the health check
-  returned `false`. The remaining refinement bridge is the post-accrual/pre-state
-  `LiquidatePreStateUnhealthy`, which relates that post-accrual guard fact back
-  to the original projected pre-state.
+  returned `false`. The post-accrual/pre-state bridge is also proved in Lean:
+  `liquidate_preStateUnhealthy_of_accrueInterest_identity` uses the explicit
+  contract-side no-accrual discipline `AccrueInterestIdentityFor` to replay the
+  generated guard on the original projected pre-state.
 - Health arithmetic now exposes `LocalNoOverflowFor` with only the oracle-price
   multiplication bounds explicit: the watched collateral times oracle price, and
   that quoted collateral times LLTV, must fit in `uint256`. The borrow-side
