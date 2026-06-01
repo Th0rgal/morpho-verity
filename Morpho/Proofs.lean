@@ -16,7 +16,12 @@
                      full-liquidation guarantee proved outright, for both input
                      modes (repaid-shares and seized-assets), with the partial
                      phrasing refuted by counterexample.
-    * Refinement   — per-entrypoint obligations bridging model and contract.
+    * Projection   — reads a `HealthState` out of the real contract state through
+                     the generated accessors; names the arithmetic-faithfulness
+                     boundary (`HealthFaithful`).
+    * Refinement   — per-entrypoint obligations bridging model and contract; for
+                     `liquidate` the step is the real generated body (see
+                     `Refinement.Contract`).
 -/
 
 import Morpho.Proofs.HealthModel
@@ -25,4 +30,5 @@ import Morpho.Proofs.Arith
 import Morpho.Proofs.Property1
 import Morpho.Proofs.Operations
 import Morpho.Proofs.Property2
+import Morpho.Proofs.Projection
 import Morpho.Proofs.Refinement

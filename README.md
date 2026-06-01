@@ -37,8 +37,14 @@ layer.
 - **Per-entrypoint correspondence.** Each Morpho entrypoint must match one of the
   two proof shapes once projected onto a watched account. Those obligations are
   stated explicitly in [`Refinement.lean`](Morpho/Proofs/Refinement.lean) and
-  discharged at the model-step level. The step-to-EVM-bytecode link is covered
-  empirically by the differential suite, not yet by a Lean extraction layer.
+  discharged at the model-step level. For `liquidate` the step is built from the
+  *real* generated contract body: [`Projection.lean`](Morpho/Proofs/Projection.lean)
+  reads the watched position through the same generated accessors the contract
+  uses, and `refines_liquidate` discharges the classified shape from the
+  entrypoint's own `require(!_isHealthy)` guard, modulo two named boundaries
+  (`GuardUnhealthy`, `HealthFaithful`) that the differential suite covers. The
+  remaining step-to-EVM-bytecode link is covered empirically by that suite, not
+  yet by a Lean extraction layer.
 - **Arithmetic.** Health arithmetic is modeled over `Nat`. It agrees with the
   contract's fixed-width word arithmetic on the no-overflow domain each entrypoint
   enforces, and the contract reverts outside it (see the note in
