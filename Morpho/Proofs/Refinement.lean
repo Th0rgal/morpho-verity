@@ -266,14 +266,16 @@ theorem refines_repay (P : Position) :
     Refines .repay (repayStep P) := refines_of_monotone rfl (monotoneDiscipline_repay P)
 
 theorem refines_borrow (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P) :
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (horacleFits : LocalNoOverflowFor P) :
     Refines .borrow (borrowStep P) :=
-  refines_of_guarded rfl (guardedDiscipline_borrow P hid hprice hno)
+  refines_of_guarded rfl (guardedDiscipline_borrow P hid hprice horacleFits)
 
 theorem refines_withdrawCollateral (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P) :
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (horacleFits : LocalNoOverflowFor P) :
     Refines .withdrawCollateral (withdrawCollateralStep P) :=
-  refines_of_guarded rfl (guardedDiscipline_withdrawCollateral P hid hprice hno)
+  refines_of_guarded rfl (guardedDiscipline_withdrawCollateral P hid hprice horacleFits)
 
 /-
   `liquidate`. The step is the real generated body run to success and projected
@@ -284,7 +286,7 @@ theorem refines_withdrawCollateral (P : Position)
   `require(!_isHealthy)`: a successful run forces the post-accrual health test to
   have returned `false`. To classify the projected step as `¬ healthy s`, the
   remaining bridge must relate that generated post-accrual guard back to the
-  original projected pre-state on the no-overflow domain.
+  original projected pre-state on the local oracle-price/collateral-fit domain.
 -/
 
 /-- `liquidate`: the generated `require(!_isHealthy)` guard, read off a
@@ -304,10 +306,10 @@ theorem guardUnhealthy_liquidate (P : Position)
     GuardUnhealthy P :=
   liquidate_guardUnhealthy_afterAccrue_price P hid hprice
 
-/-- Bridge from a successful `liquidate` run back to the original projected
-    pre-state. This is intentionally no longer called `GuardUnhealthy`: the
-    generated guard itself fires after `_accrueInterest`, and that structural
-    fact is proved by `guardUnhealthy_liquidate`. -/
+/-- Post-accrual/pre-state bridge from a successful `liquidate` run back to the
+    original projected pre-state. This is intentionally no longer called
+    `GuardUnhealthy`: the generated guard itself fires after `_accrueInterest`,
+    and that structural fact is proved by `guardUnhealthy_liquidate`. -/
 def LiquidatePreStateUnhealthy (P : Position) : Prop :=
   ∀ seized repaid data out cs cs',
     (liquidate P.mp P.account seized repaid data).run cs
@@ -315,19 +317,20 @@ def LiquidatePreStateUnhealthy (P : Position) : Prop :=
       (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
         = Verity.ContractResult.success false cs
 
-/-- `liquidate` refines `¬ healthy s` from its guard plus the checked
-    no-overflow health-arithmetic bridge: the guard makes the contract health test
+/-- `liquidate` refines `¬ healthy s` from its guard plus the checked local
+    oracle-price/collateral-fit bridge: the guard makes the contract health test
     `false` on the pre-state, and `healthFaithful_of_noOverflow` carries that to
     the model's `healthy` predicate on the projection. -/
 theorem refines_liquidate (P : Position) (hpre : LiquidatePreStateUnhealthy P)
-    (hno : LocalNoOverflowFor P) :
+    (horacleFits : LocalNoOverflowFor P) :
     Refines .liquidate (liquidateStep P) := by
   intro _ s s' h
   obtain ⟨seized, repaid, data, out, cs, cs', hs, _, hrun⟩ := h
   have hbool := hpre seized repaid data out cs cs' hrun
   have hfaith :=
     Morpho.Proofs.HealthFaithful.healthFaithful_of_noOverflow
-      P.mp P.id P.account P.price cs (noOverflow_of_localNoOverflow P cs (hno cs))
+      P.mp P.id P.account P.price cs
+        (noOverflow_of_localNoOverflow P cs (horacleFits cs))
   have hiff := hfaith false cs hbool
   simp only [classify, hs]
   exact fun hh => Bool.false_ne_true (hiff.mpr hh)

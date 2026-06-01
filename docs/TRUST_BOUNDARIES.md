@@ -73,7 +73,7 @@ opaque assumptions:
   field discipline in Lean through storage-framing and packed-field lemmas.
 - `withdrawCollateral` and `borrow` discharge their generated `_isHealthy` guards
   in Lean, assuming explicit market-id alignment, oracle-price alignment, and the
-  localized no-overflow domain required by `healthFaithful_of_noOverflow`. The `borrow`
+  local oracle-price/collateral-fit domain required by `healthFaithful_of_noOverflow`. The `borrow`
   proof factors the post-accrual commit-and-health-check block and both amount
   modes as `guardedDiscipline_borrowCommitAndCheck`,
   `guardedDiscipline_borrowAssetsMode`, and
@@ -82,13 +82,14 @@ opaque assumptions:
 - `liquidate` no longer carries the structural generated-guard boundary:
   `guardUnhealthy_liquidate` proves that a successful generated body reached
   `require(!_isHealthy)` after `_accrueInterest` and that the health check
-  returned `false`. The remaining refinement bridge is the separately named
+  returned `false`. The remaining refinement bridge is the post-accrual/pre-state
   `LiquidatePreStateUnhealthy`, which relates that post-accrual guard fact back
   to the original projected pre-state.
 - Health arithmetic now exposes `LocalNoOverflowFor` with only the oracle-price
-  multiplication bounds explicit. The borrow-side share/asset conversion uses
-  the full-precision `mulDiv512Up` helper, and its quotient-fit proof is derived
-  from the packed `uint128` storage reads before reconstructing the
+  multiplication bounds explicit: the watched collateral times oracle price, and
+  that quoted collateral times LLTV, must fit in `uint256`. The borrow-side
+  share/asset conversion uses the full-precision `mulDiv512Up` helper, and its
+  quotient-fit proof is derived from the packed `uint128` storage reads before reconstructing the
   `NoOverflowFor` predicate at the `healthFaithful_of_noOverflow` call site.
 
 ## Current Gates

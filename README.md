@@ -44,21 +44,22 @@ layer.
   generated-body storage-framing lemmas (`Disciplines.lean`), and
   `withdrawCollateral` and `borrow` are connected to their generated
   `require(_isHealthy)` guards under explicit market-id, oracle-price, and
-  localized no-overflow side conditions. The `borrow` proof factors the post-accrual
+  local oracle-price/collateral-fit side conditions. The `borrow` proof factors the post-accrual
   commit-and-health-check block plus both amount modes
   (`guardedDiscipline_borrowCommitAndCheck`,
   `guardedDiscipline_borrowAssetsMode`, and
   `guardedDiscipline_borrowSharesMode`). `liquidate` now proves the generated
   post-accrual `require(!_isHealthy)` extraction as `guardUnhealthy_liquidate`;
-  the remaining bridge is the explicitly named pre-state condition
+  the remaining post-accrual/pre-state bridge is the explicitly named condition
   `LiquidatePreStateUnhealthy`.
   The remaining step-to-EVM-bytecode link is empirical, not yet a Lean extraction
   layer.
 - **Arithmetic.** Health arithmetic is modeled over `Nat`. It agrees with the
-  contract's fixed-width word arithmetic on the localized no-overflow domain used
-  by `LocalNoOverflowFor`: borrow-side share/asset bounds are derived from the
-  packed `uint128` storage reads and the full-precision `mulDiv512Up` health
-  conversion, leaving the oracle-price multiplication bounds explicit (see
+  contract's fixed-width word arithmetic on the local oracle-price/collateral-fit
+  domain used by `LocalNoOverflowFor`: borrow-side share/asset bounds are derived
+  from the packed `uint128` storage reads and the full-precision `mulDiv512Up`
+  health conversion, leaving only the local oracle-price/collateral
+  multiplication bounds explicit (see
   [`Disciplines.lean`](Morpho/Proofs/Disciplines.lean) and
   [`HealthModel.lean`](Morpho/Proofs/HealthModel.lean)).
 - **External components.** Oracle, IRM, ERC-20, callbacks, and keccak/ecrecover

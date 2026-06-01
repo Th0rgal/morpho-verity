@@ -1227,15 +1227,24 @@ def OraclePriceAligned (P : Position) : Prop :=
 def NoOverflowFor (P : Position) : Prop :=
   ∀ cs, NoOverflow P.mp P.id P.account P.price cs
 
+/-- The remaining local health-arithmetic bound: quoting the watched account's
+    collateral at the oracle price, then applying LLTV, fits in one `uint256`
+    word. Borrow-side add and share-conversion bounds are reconstructed from
+    packed `uint128` storage reads by `noOverflow_of_localNoOverflow`. -/
 def OraclePriceNoOverflow (P : Position) (cs : ContractState) : Prop :=
   let s := project P.mp P.id P.account P.price cs
   s.collateral * s.price < Verity.Core.Uint256.modulus ∧
   Morpho.Proofs.HealthModel.mulDivDown s.collateral s.price ORACLE_PRICE_SCALE * s.lltv
     < Verity.Core.Uint256.modulus
 
+/-- Compatibility alias used by refinement theorem signatures: the explicit
+    no-overflow obligation left is the local oracle-price/collateral bound in
+    `OraclePriceNoOverflow`. -/
 def LocalNoOverflow (P : Position) (cs : ContractState) : Prop :=
   OraclePriceNoOverflow P cs
 
+/-- The local oracle-price/collateral fit must hold for each contract state at
+    the watched position used by the generated-body step. -/
 def LocalNoOverflowFor (P : Position) : Prop :=
   ∀ cs, LocalNoOverflow P cs
 
@@ -1402,7 +1411,7 @@ theorem liquidate_guardUnhealthy_afterAccrue_price (P : Position)
 
 set_option maxRecDepth 100000 in
 theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned P)
-    (hno : LocalNoOverflowFor P) :
+    (horacleFits : LocalNoOverflowFor P) :
     ∀ cs cs',
       (_isHealthy P.mp P.id P.account).run cs = ContractResult.success true cs' →
       healthy (project P.mp P.id P.account P.price cs) := by
@@ -1417,7 +1426,7 @@ theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned
     unfold _isHealthy at hbody'
     simp only [Morpho.Contract.Morpho.structMember2, Bool.and_eq_true, beq_iff_eq,
       String.reduceEq, and_true, and_false, if_true, if_false, Bind.bind, Pure.pure,
-      Verity.bind, Contracts.ecmEnvRead, Verity.pure] at hbody'
+      Verity.bind] at hbody'
     split at hbody'
     · next bs st hread =>
       have hst : st = cs := by
@@ -1427,7 +1436,8 @@ theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned
       subst st
       split at hbody'
       · next hgt =>
-        have hfaith := healthFaithful_of_noOverflow P.mp P.id P.account P.price cs (noOverflow_of_localNoOverflow P cs (hno cs))
+        have hfaith := healthFaithful_of_noOverflow P.mp P.id P.account P.price cs
+          (noOverflow_of_localNoOverflow P cs (horacleFits cs))
         have hwith :
             (_isHealthyWithPrice P.mp P.id P.account P.price).run cs =
               ContractResult.success true x := by
@@ -1444,8 +1454,6 @@ theorem healthy_of_isHealthy_success (P : Position) (hprice : OraclePriceAligned
             (project P.mp P.id P.account P.price cs).borrowShares = 0 := by
           simp only [project, Morpho.Contract.Morpho.structMember2, Bool.and_eq_true,
             beq_iff_eq, String.reduceEq, and_true, and_false, if_true, if_false]
-          change (runWord (structMember2At 2 1 ((some (0, 128)) : Option (Nat × Nat))
-            P.id P.account : Contract Uint256) cs).val = 0
           have hreadWord :
               runWord (structMember2At 2 1 ((some (0, 128)) : Option (Nat × Nat))
                 P.id P.account : Contract Uint256) cs = bs := by
@@ -1680,7 +1688,7 @@ private theorem storagePreserving_borrowTail (id : Bytes32) (newTotalBorrowAsset
   exact StoragePreserving.pure _
 
 private theorem healthy_of_borrow_tail (P : Position)
-    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
+    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
     (newTotalBorrowAssets : Uint256) (eventArgs : List Uint256)
     {α : Type} (ret out : α) (stSetAssets stHealth cs' : ContractState)
     (hhealth :
@@ -1698,7 +1706,7 @@ private theorem healthy_of_borrow_tail (P : Position)
         ContractResult.success out cs') :
     healthy (project P.mp P.id P.account P.price cs') := by
   have hmodel :=
-    healthy_of_isHealthy_success P hprice hno stSetAssets stHealth hhealth
+    healthy_of_isHealthy_success P hprice horacleFits stSetAssets stHealth hhealth
   have hhealth_storage : stHealth.storage = stSetAssets.storage :=
     storagePreserving_isHealthy P.mp P.id P.account stSetAssets true stHealth
       (run_eq_of_success hhealth)
@@ -1713,7 +1721,7 @@ private theorem healthy_of_borrow_tail (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrowCommitAndCheck (P : Position)
-    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
+    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
     (finalAssets finalShares : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) :
     ∀ out cs cs',
@@ -1763,7 +1771,7 @@ theorem guardedDiscipline_borrowCommitAndCheck (P : Position)
                                 (_isHealthy P.mp P.id P.account).run stSetAssets =
                                   ContractResult.success true stHealth := by
                               rw [Contract.run, hhealth]
-                            exact healthy_of_borrow_tail P hprice hno newTotalBorrowAssets
+                            exact healthy_of_borrow_tail P hprice horacleFits newTotalBorrowAssets
                               [P.id,
                                 (Core.Int256.ofUint256
                                   (Core.Uint256.ofNat sender.val)).toUint256,
@@ -1802,12 +1810,10 @@ private theorem healthy_of_bind_suffix {α β : Type} (c : Contract α)
         rw [Contract.run, h']
       exact hk a out st cs' hrun
   | _ msg st =>
-      have h' : ContractResult.revert msg st = ContractResult.success out cs' := by
-        simpa [Verity.bind, hc] using h
-      cases h'
+      simp [Verity.bind, hc] at h
 
 private theorem healthy_of_commit_then_pure (P : Position)
-    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
+    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
     (finalAssets finalShares : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) {β : Type} (ret : β) :
     ∀ out cs cs',
@@ -1829,16 +1835,14 @@ private theorem healthy_of_commit_then_pure (P : Position)
           ContractResult.success u st := by
         rw [Contract.run, hc]
       have hhealthy :=
-        guardedDiscipline_borrowCommitAndCheck P hprice hno finalAssets finalShares
+        guardedDiscipline_borrowCommitAndCheck P hprice horacleFits finalAssets finalShares
           receiver sender totalBorrowAssets_ totalBorrowShares_ u cs st hrun
       unfold Verity.pure at h'
       injection h' with _ hcs
       subst cs'
       exact hhealthy
   | _ msg st =>
-      have h' : ContractResult.revert msg st = ContractResult.success out cs' := by
-        simpa [Verity.bind, hc] using h
-      cases h'
+      simp [Verity.bind, hc] at h
 
 private theorem healthy_of_bind_pure_suffix {α : Type} (c : Contract α)
     (Q : ContractState → Prop)
@@ -1860,14 +1864,12 @@ private theorem healthy_of_bind_pure_suffix {α : Type} (c : Contract α)
       subst cs'
       exact hq
   | _ msg st =>
-      have h' : ContractResult.revert msg st = ContractResult.success out cs' := by
-        simpa [Verity.bind, hc] using h
-      cases h'
+      simp [Verity.bind, hc] at h
 
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrowAssetsMode (P : Position)
-    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
+    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
     (assets : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) :
     ∀ out cs cs',
@@ -1878,7 +1880,7 @@ theorem guardedDiscipline_borrowAssetsMode (P : Position)
   intro out cs cs' hrun
   have hbody := run_eq_of_success hrun
   unfold _borrowAssetsMode at hbody
-  simp only [Bind.bind, Pure.pure, Verity.Contract.bind_pure_left] at hbody
+  simp only [Bind.bind, Pure.pure] at hbody
   exact healthy_of_bind_suffix
     (Verity.Stdlib.Math.addPanic totalBorrowShares_ 1000000)
     (fun totalBorrowSharesWithVirtual =>
@@ -1913,7 +1915,7 @@ theorem guardedDiscipline_borrowAssetsMode (P : Position)
         (by
           intro totalBorrowAssetsWithVirtual out cs cs' h
           have hraw := run_eq_of_success h
-          exact healthy_of_commit_then_pure P hprice hno assets
+          exact healthy_of_commit_then_pure P hprice horacleFits assets
             (Contract.mulDivUp assets totalBorrowSharesWithVirtual totalBorrowAssetsWithVirtual)
             receiver sender totalBorrowAssets_ totalBorrowShares_
             (assets,
@@ -1926,7 +1928,7 @@ theorem guardedDiscipline_borrowAssetsMode (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrowSharesMode (P : Position)
-    (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P)
+    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
     (shares : Uint256) (receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256) :
     ∀ out cs cs',
@@ -1937,7 +1939,7 @@ theorem guardedDiscipline_borrowSharesMode (P : Position)
   intro out cs cs' hrun
   have hbody := run_eq_of_success hrun
   unfold _borrowSharesMode at hbody
-  simp only [Bind.bind, Pure.pure, Verity.Contract.bind_pure_left] at hbody
+  simp only [Bind.bind, Pure.pure] at hbody
   exact healthy_of_bind_suffix
     (Verity.Stdlib.Math.addPanic totalBorrowAssets_ 1)
     (fun totalBorrowAssetsWithVirtual =>
@@ -1972,7 +1974,7 @@ theorem guardedDiscipline_borrowSharesMode (P : Position)
         (by
           intro totalBorrowSharesWithVirtual out cs cs' h
           have hraw := run_eq_of_success h
-          exact healthy_of_commit_then_pure P hprice hno
+          exact healthy_of_commit_then_pure P hprice horacleFits
             (Contract.mulDivDown shares totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual)
             shares receiver sender totalBorrowAssets_ totalBorrowShares_
             (Contract.mulDivDown shares totalBorrowAssetsWithVirtual
@@ -1985,7 +1987,8 @@ theorem guardedDiscipline_borrowSharesMode (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_borrow (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P) :
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (horacleFits : LocalNoOverflowFor P) :
     GuardedDiscipline (borrowStep P) := by
   intro s s' h
   obtain ⟨assets, shares, receiver, out, cs, cs', hs, hs', hrun⟩ := h
@@ -1994,8 +1997,6 @@ theorem guardedDiscipline_borrow (P : Position)
   have hbody := run_eq_of_success hrun
   simp only [borrow, Bind.bind, Pure.pure,
       Morpho.Contract.Morpho.structMember,
-      Contracts.emit, Contracts.EventArg.toWord, List.mapM_cons, List.mapM_nil,
-      Verity.Contract.bind_pure_left,
       Bool.and_eq_true, beq_iff_eq, String.reduceEq,
       and_true, and_false, if_true, if_false] at hbody
   simp only [Verity.bind, Contracts.ecmEnvRead, Contracts.structMemberAt,
@@ -2026,7 +2027,7 @@ theorem guardedDiscipline_borrow (P : Position)
                       (decodePackedWord
                         (stReqAuth.storage (structSlot 3 (StorageKey.toWord P.id) 1)) 128 128)))
                   (fun cs' => healthy (project P.mp P.id P.account P.price cs'))
-                  (guardedDiscipline_borrowAssetsMode P hprice hno assets receiver st2.sender
+                  (guardedDiscipline_borrowAssetsMode P hprice horacleFits assets receiver st2.sender
                     (StorageWord.fromWord
                       (decodePackedWord
                         (stReqAuth.storage (structSlot 3 (StorageKey.toWord P.id) 1)) 0 128))
@@ -2044,7 +2045,7 @@ theorem guardedDiscipline_borrow (P : Position)
                       (decodePackedWord
                         (stReqAuth.storage (structSlot 3 (StorageKey.toWord P.id) 1)) 128 128)))
                   (fun cs' => healthy (project P.mp P.id P.account P.price cs'))
-                  (guardedDiscipline_borrowSharesMode P hprice hno shares receiver st2.sender
+                  (guardedDiscipline_borrowSharesMode P hprice horacleFits shares receiver st2.sender
                     (StorageWord.fromWord
                       (decodePackedWord
                         (stReqAuth.storage (structSlot 3 (StorageKey.toWord P.id) 1)) 0 128))
@@ -2062,7 +2063,8 @@ theorem guardedDiscipline_borrow (P : Position)
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 100000 in
 theorem guardedDiscipline_withdrawCollateral (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) (hno : LocalNoOverflowFor P) :
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (horacleFits : LocalNoOverflowFor P) :
     GuardedDiscipline (withdrawCollateralStep P) := by
   intro s s' h
   obtain ⟨assets, receiver, out, cs, cs', hs, hs', hrun⟩ := h
@@ -2114,7 +2116,7 @@ theorem guardedDiscipline_withdrawCollateral (P : Position)
                                   ContractResult.success true stSet := by
                               rw [Contract.run, hset]
                             have hmodel :=
-                              healthy_of_isHealthy_success P hprice hno stSub stSet hhealthyTrue
+                              healthy_of_isHealthy_success P hprice horacleFits stSub stSet hhealthyTrue
                             have hhealth_storage : stSet.storage = stSub.storage :=
                               storagePreserving_isHealthy P.mp P.id P.account stSub true stSet hset
                             have hemit_storage : cs'.storage = stSet.storage := by
