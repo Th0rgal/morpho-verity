@@ -21,6 +21,11 @@
       sharp `1/LIF` guarantee morpho-blue flagged as hard, proved in full. The
       `sharp_property2` docstring records why the *partial* phrasing is the wrong
       invariant (share indivisibility gives a counterexample at `borrowShares = 1`).
+    * `liquidateSeize` / `liquidateSeize_restores_health` — the other input mode,
+      where the liquidator names `seizedAssets` and the contract derives the
+      repaid shares (Contract.lean:868-873). It reuses the same `liquidate` field
+      writes and also restores health on full clearance, so both input modes are
+      covered, not just repaid-shares.
 -/
 
 import Morpho.Proofs.Property1
@@ -248,6 +253,57 @@ theorem liquidateBadDebt_healthy (s : HealthState) (seized : Nat) :
 theorem liquidation_restores_health_both_branches (s : HealthState) (seized : Nat) :
     healthy (liquidate s s.borrowShares seized) ∧ healthy (liquidateBadDebt s seized) :=
   ⟨liquidation_can_restore_health s seized, liquidateBadDebt_healthy s seized⟩
+
+/-- The liquidator-named collateral seizure, quoted back to loan assets and then
+    to debt shares, transcribed from the `seizedAssets > 0` input mode of
+    `liquidate` (Contract.lean:868-873). Every step rounds *up* (`mulDivUp`),
+    matching the contract:
+      `seizedQuoted = ⌈seizedAssets ⋅ price / 1e36⌉`        (869)
+      `repaidAssets = ⌈seizedQuoted ⋅ 1e18 / LIF⌉`          (870)
+      `repaidShares = ⌈repaidAssets ⋅ (S+VS) / (A+VA)⌉`     (873)
+    with `A = totBorrowAssets`, `S = totBorrowShares`. -/
+def repaidSharesFromSeized (s : HealthState) (seizedAssets : Nat) : Nat :=
+  mulDivUp
+    (mulDivUp (mulDivUp seizedAssets s.price ORACLE_PRICE_SCALE) WAD (LIF s.lltv))
+    (s.totBorrowShares + VIRTUAL_SHARES) (s.totBorrowAssets + VIRTUAL_ASSETS)
+
+/-- The borrower-side effect of `liquidate` in the **seized-assets** input mode
+    (`seizedAssets > 0`, Contract.lean:868-873). The liquidator names the
+    collateral to seize; the contract derives the repaid shares through
+    `repaidSharesFromSeized` and then performs the *same* field writes as the
+    repaid-shares mode (Contract.lean:887-895), so the state transition reuses
+    `liquidate`. The two input modes differ only in which quantity is supplied
+    and which is derived; the post-state writes are identical, which is why a
+    single `liquidate` transition captures both. -/
+def liquidateSeize (s : HealthState) (seizedAssets : Nat) : HealthState :=
+  liquidate s (repaidSharesFromSeized s seizedAssets) seizedAssets
+
+/-- **Seized-assets mode restores health on full clearance.** When the named
+    seizure clears the borrower's debt (the derived `repaidShares` equals the
+    position's `borrowShares`, the maximum the `require` at Contract.lean:884
+    permits), `borrowShares` is driven to `0`, so the position is healthy by the
+    zero-debt branch. Affordability is not a separate theorem in this mode: the
+    liquidator supplies `seizedAssets` directly, so the only feasibility check is
+    the `require(collateral ≥ seizedAssets)` at Contract.lean:886. -/
+theorem liquidateSeize_restores_health (s : HealthState) (seizedAssets : Nat)
+    (hfull : repaidSharesFromSeized s seizedAssets = s.borrowShares) :
+    healthy (liquidateSeize s seizedAssets) :=
+  healthy_of_no_debt (by simp [liquidateSeize, liquidate, hfull])
+
+/-- **Both input modes restore the liquidated position's health.** Repaid-shares
+    mode (`liquidation_can_restore_health`) and seized-assets mode
+    (`liquidateSeize_restores_health`) both drive `borrowShares` to `0` on full
+    clearance; the bad-debt branch (`liquidateBadDebt_healthy`) zeroes shares
+    regardless of input mode. So whichever way the liquidator parametrizes the
+    call, a full liquidation leaves the position healthy. -/
+theorem liquidation_restores_health_both_modes (s : HealthState) (seizedAssets : Nat)
+    (hfull : repaidSharesFromSeized s seizedAssets = s.borrowShares) :
+    healthy (liquidate s s.borrowShares seizedAssets)
+      ∧ healthy (liquidateSeize s seizedAssets)
+      ∧ healthy (liquidateBadDebt s seizedAssets) :=
+  ⟨liquidation_can_restore_health s seizedAssets,
+    liquidateSeize_restores_health s seizedAssets hfull,
+    liquidateBadDebt_healthy s seizedAssets⟩
 
 /-- A concrete witness that the *partial* phrasing fails: an unhealthy position with
     `borrowShares = 1` satisfying `LTV < 1/LIF`. `borrowed = 100`, `maxBorrow = 96`

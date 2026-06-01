@@ -12,9 +12,10 @@
     * Property1    — "no operation makes a healthy account unhealthy" (proved).
     * Operations   — concrete Solidity-mirroring transitions; collateral/supply
                      ops shown to preserve health with no assumptions.
-    * Property2    — "a liquidation can restore a sub-1/LIF borrower" (existence
-                     proved; sharp partial-liquidation statement reduced to one
-                     named rounding obligation).
+    * Property2    — "a liquidation restores a sub-1/LIF borrower": the sharp
+                     full-liquidation guarantee proved outright, for both input
+                     modes (repaid-shares and seized-assets), with the partial
+                     phrasing refuted by counterexample.
     * Refinement   — per-entrypoint obligations bridging model and contract.
 -/
 
