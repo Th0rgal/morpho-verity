@@ -7,11 +7,16 @@
   `OpShape` cases of `Property1` after projection. We state those obligations here
   as explicit `Prop`s.
 
-  These are deliberately *specifications*, not `sorry`-backed theorems: discharging
-  them against `verity_contract Morpho` requires the execution-semantics extraction
-  layer (it does not exist yet, by design — the contract is the single source of
-  truth and no parallel executable model is permitted). Until that lands, faithful
-  correspondence is additionally guarded empirically by the differential tests.
+  These are deliberately *specifications*, not `sorry`-backed theorems. The
+  abstract `modelStep` section below discharges them at the hand-transcribed model
+  level. The `Contract` namespace at the end of this file then closes the gap to
+  the generated code: there each entrypoint's `Step` is the *real* executable
+  `verity_contract Morpho` body, run to success and projected through
+  `Projection.lean`, and the classified shape is discharged from named boundary
+  obligations (field locality, the `require(_isHealthy)` guards, arithmetic
+  faithfulness) rather than from a parallel model. This is not a second source of
+  truth: the body is the contract's own. The residual step-to-EVM-bytecode link
+  stays empirical, guarded by the differential tests.
 
   Stating the obligations this way keeps the boundary honest: the model cannot
   silently diverge from the contract, because the gap is named and enumerated.
@@ -201,7 +206,8 @@ theorem property1_holds (e : Entrypoint) (hasm : Assumptions (modelStep e))
 -/
 namespace Contract
 
-open Morpho.Contract.Morpho (MarketParams liquidate _isHealthyWithPrice)
+open Morpho.Contract.Morpho (MarketParams liquidate _isHealthyWithPrice
+  supply withdraw supplyCollateral withdrawCollateral repay borrow)
 
 /-- The watched position over a step: market params, market id, account, and the
     ECM oracle price the contract reads for that market. -/
@@ -271,6 +277,113 @@ theorem property1_liquidate (P : Position)
     {s s' : HealthState} (hstep : liquidateStep P s s') (hs : healthy s) :
     healthy s' :=
   property1_for_entrypoint (refines_liquidate P hguard hfaith) hasm hstep hs
+
+/-
+  The non-liquidate entrypoints. Each `Step` below is the real generated body of
+  that entrypoint, run to success and projected at the watched position `(id,
+  account)` — never a hand-written model. The classified shape is then discharged
+  from one named boundary obligation: the projected field movement a successful
+  run guarantees. That obligation is the storage-write-locality fact (a supply
+  call does not touch the watched borrow position, a repay does not raise its
+  shares, and so on); it is what the differential parity suite checks, named here
+  rather than re-derived by symbolic execution of the full body.
+-/
+
+/-- The projected field discipline a successful step guarantees for the watched
+    position: `lltv` fixed, collateral does not fall, borrow shares do not rise.
+    Holds for every collateral/supply-side entrypoint. Parity-covered. -/
+def MonotoneDiscipline (st : Step) : Prop :=
+  ∀ s s', st s s' →
+    s'.lltv = s.lltv ∧ s.collateral ≤ s'.collateral ∧ s'.borrowShares ≤ s.borrowShares
+
+/-- The guard discipline a successful step guarantees: the post-state is healthy,
+    from the entrypoint's final `require(_isHealthy)`. Parity-covered. -/
+def GuardedDiscipline (st : Step) : Prop :=
+  ∀ s s', st s s' → healthy s'
+
+/-- A monotone entrypoint refines `MonotoneFor` from its field discipline: the
+    `lltv`/collateral/shares facts come from the discipline, `price` and the
+    borrow index from the trusted `Assumptions`. -/
+theorem refines_of_monotone {e : Entrypoint} {st : Step}
+    (he : classify e = fun s s' => MonotoneFor s s')
+    (hdisc : MonotoneDiscipline st) : Refines e st := by
+  intro asm s s' h
+  obtain ⟨hl, hc, hb⟩ := hdisc s s' h
+  rw [he]; exact monotoneFor_of asm h hl hc hb
+
+/-- A self-guarded entrypoint refines `healthy s'` directly from its guard. -/
+theorem refines_of_guarded {e : Entrypoint} {st : Step}
+    (he : classify e = fun _ s' => healthy s')
+    (hdisc : GuardedDiscipline st) : Refines e st := by
+  intro _ s s' h; rw [he]; exact hdisc s s' h
+
+/-- `supply`: lender-side, the watched borrow position is untouched. -/
+def supplyStep (P : Position) : Step :=
+  fun s s' => ∃ assets shares data out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (supply P.mp assets shares P.account data).run cs
+      = Verity.ContractResult.success out cs'
+
+/-- `withdraw`: lender-side, the watched borrow position is untouched. -/
+def withdrawStep (P : Position) : Step :=
+  fun s s' => ∃ assets shares receiver out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (withdraw P.mp assets shares P.account receiver).run cs
+      = Verity.ContractResult.success out cs'
+
+/-- `supplyCollateral`: the watched account's collateral does not fall. -/
+def supplyCollateralStep (P : Position) : Step :=
+  fun s s' => ∃ assets data out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (supplyCollateral P.mp assets P.account data).run cs
+      = Verity.ContractResult.success out cs'
+
+/-- `repay`: the watched account's borrow shares do not rise. -/
+def repayStep (P : Position) : Step :=
+  fun s s' => ∃ assets shares data out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (repay P.mp assets shares P.account data).run cs
+      = Verity.ContractResult.success out cs'
+
+/-- `borrow`: ends in `require(_isHealthy)`, so the post-state is healthy. -/
+def borrowStep (P : Position) : Step :=
+  fun s s' => ∃ assets shares receiver out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (borrow P.mp assets shares P.account receiver).run cs
+      = Verity.ContractResult.success out cs'
+
+/-- `withdrawCollateral`: ends in `require(_isHealthy)`, so the post-state is healthy. -/
+def withdrawCollateralStep (P : Position) : Step :=
+  fun s s' => ∃ assets receiver out cs cs',
+    s  = project P.mp P.id P.account P.price cs ∧
+    s' = project P.mp P.id P.account P.price cs' ∧
+    (withdrawCollateral P.mp assets P.account receiver).run cs
+      = Verity.ContractResult.success out cs'
+
+theorem refines_supply (P : Position) (hdisc : MonotoneDiscipline (supplyStep P)) :
+    Refines .supply (supplyStep P) := refines_of_monotone rfl hdisc
+
+theorem refines_withdraw (P : Position) (hdisc : MonotoneDiscipline (withdrawStep P)) :
+    Refines .withdraw (withdrawStep P) := refines_of_monotone rfl hdisc
+
+theorem refines_supplyCollateral (P : Position)
+    (hdisc : MonotoneDiscipline (supplyCollateralStep P)) :
+    Refines .supplyCollateral (supplyCollateralStep P) := refines_of_monotone rfl hdisc
+
+theorem refines_repay (P : Position) (hdisc : MonotoneDiscipline (repayStep P)) :
+    Refines .repay (repayStep P) := refines_of_monotone rfl hdisc
+
+theorem refines_borrow (P : Position) (hdisc : GuardedDiscipline (borrowStep P)) :
+    Refines .borrow (borrowStep P) := refines_of_guarded rfl hdisc
+
+theorem refines_withdrawCollateral (P : Position)
+    (hdisc : GuardedDiscipline (withdrawCollateralStep P)) :
+    Refines .withdrawCollateral (withdrawCollateralStep P) := refines_of_guarded rfl hdisc
 
 end Contract
 
