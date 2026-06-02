@@ -107,10 +107,15 @@ def bitmapScheduleFrom (active : Nat → Bool) : Nat → List Nat
 def bitmapSchedule (bitmap : Nat) : List Nat :=
   bitmapScheduleFrom (fun index => bitmap.testBit index) MAX_COLLATERALS
 
-/-- Solidity's `uint128(bitmap & ~(1 << clearedIndex))` mask, represented over
-    `Nat` under the precondition `clearedIndex < 128`. -/
+/-- Solidity's `uint128(bitmap & ~(1 << clearedIndex))` mask on the modeled
+    128-bit collateral bitmap. Out-of-domain indices leave the bitmap unchanged;
+    all loop theorems prove `clearedIndex < 128` before using the clearing
+    behavior. -/
 def clearBitmapBit (bitmap clearedIndex : Nat) : Nat :=
-  bitmap &&& (UINT128_BOUND - (2 ^ clearedIndex + 1))
+  if clearedIndex < MAX_COLLATERALS then
+    bitmap &&& (UINT128_BOUND - (2 ^ clearedIndex + 1))
+  else
+    bitmap
 
 def clearBitmapBits : Nat → List Nat → Nat
   | bitmap, [] => bitmap
@@ -273,7 +278,9 @@ theorem clearBitmapBit_testBit_below
       clearActiveBit (fun index => bitmap.testBit index) clearedIndex index := by
   have hpow : 2 ^ clearedIndex < 2 ^ MAX_COLLATERALS :=
     Nat.pow_lt_pow_right (by decide : 1 < 2) hcleared
-  rw [clearBitmapBit, Nat.testBit_and]
+  rw [clearBitmapBit]
+  simp only [hcleared, ↓reduceIte]
+  rw [Nat.testBit_and]
   unfold UINT128_BOUND
   rw [Nat.testBit_two_pow_sub_succ hpow]
   by_cases hsame : index = clearedIndex
