@@ -1383,12 +1383,12 @@ theorem repaidMaxStep_maxDebtEqCollateralLoop
 
 /-- Refinement payoff for RCF: once generated-body extraction supplies
     `RepaidMaxStep`, the projected post-state is healthy within the proved
-    two-unit rounding slack. -/
-theorem repaidMaxStep_restoresWithinTwo
+    one-unit rounding slack. -/
+theorem repaidMaxStep_restoresWithinOne
     (p : RCFParams) (s : HealthState) (step : RepaidMaxStep p s) :
-    healthyWithin 2 (projectedPostState p s step) := by
+    healthyWithin 1 (projectedPostState p s step) := by
   unfold projectedPostState
-  exact rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
+  exact rcf_maxRepaid_restores_unhealthy_with_one_slack_of_collateral_seizure
     p s step.collateral step.price step.unhealthy step.lltvValid step.coeffValid
     (maxDebtDecreaseFromSeizure_le_loop step.collateral
       (seizedAssetsFromRepayValue (mulDivDown (maxRepaid p s) p.lif WAD) step.price)
@@ -1399,66 +1399,66 @@ theorem repaidMaxStep_restoresWithinTwo
       (repaidMaxStep_maxDebtEqCollateralLoop p s step))
     (repaidMaxStep_seizedWithinCollateral p s step)
 
-theorem repaidMaxTraceStep_restoresWithinTwo
+theorem repaidMaxTraceStep_restoresWithinOne
     (p : RCFParams) (s : HealthState) (trace : RepaidMaxTraceStep p s) :
-    healthyWithin 2
+    healthyWithin 1
       (projectedPostState p s (trace.toRepaidMaxStep p s)) :=
-  repaidMaxStep_restoresWithinTwo p s (trace.toRepaidMaxStep p s)
+  repaidMaxStep_restoresWithinOne p s (trace.toRepaidMaxStep p s)
 
-theorem repaidMaxLoopStep_restoresWithinTwo
+theorem repaidMaxLoopStep_restoresWithinOne
     (p : RCFParams) (s : HealthState) (loopStep : RepaidMaxLoopStep p s) :
-    healthyWithin 2
+    healthyWithin 1
       (projectedPostState p s
         ((loopStep.toRepaidMaxTraceStep p s).toRepaidMaxStep p s)) :=
-  repaidMaxTraceStep_restoresWithinTwo p s
+  repaidMaxTraceStep_restoresWithinOne p s
     (loopStep.toRepaidMaxTraceStep p s)
 
-theorem repaidMaxAfterBadDebtLoopStep_restoresWithinTwo
+theorem repaidMaxAfterBadDebtLoopStep_restoresWithinOne
     (p : RCFParams) (s : HealthState)
     (loopStep : RepaidMaxAfterBadDebtLoopStep p s) :
-    healthyWithin 2
+    healthyWithin 1
       (projectedPostState p s
         ((loopStep.toRepaidMaxTraceStep p s).toRepaidMaxStep p s)) :=
-  repaidMaxTraceStep_restoresWithinTwo p s
+  repaidMaxTraceStep_restoresWithinOne p s
     (loopStep.toRepaidMaxTraceStep p s)
 
-theorem repaidMaxLocalStep_restoresWithinTwo
+theorem repaidMaxLocalStep_restoresWithinOne
     (p : RCFParams) (s : HealthState) (branch : RepaidMaxLocalStep p s) :
-    healthyWithin 2
+    healthyWithin 1
       (projectedPostState p s
         (((branch.loopStep.toRepaidMaxTraceStep p s).toRepaidMaxStep p s))) :=
-  repaidMaxLoopStep_restoresWithinTwo p s branch.loopStep
+  repaidMaxLoopStep_restoresWithinOne p s branch.loopStep
 
-theorem repaidMaxAfterBadDebtLocalStep_restoresWithinTwo
+theorem repaidMaxAfterBadDebtLocalStep_restoresWithinOne
     (p : RCFParams) (s : HealthState)
     (branch : RepaidMaxAfterBadDebtLocalStep p s) :
-    healthyWithin 2
+    healthyWithin 1
       (projectedPostState p s
         (((branch.loopStep.toRepaidMaxTraceStep p s).toRepaidMaxStep p s))) :=
-  repaidMaxAfterBadDebtLoopStep_restoresWithinTwo p s branch.loopStep
+  repaidMaxAfterBadDebtLoopStep_restoresWithinOne p s branch.loopStep
 
-theorem repaidMaxLocalStep_restoresLocalPostWithinTwo
+theorem repaidMaxLocalStep_restoresLocalPostWithinOne
     (p : RCFParams) (s : HealthState) (branch : RepaidMaxLocalStep p s) :
-    healthyWithin 2 (projectedLocalPostState p s branch) := by
+    healthyWithin 1 (projectedLocalPostState p s branch) := by
   unfold projectedLocalPostState
   rw [branch.seizedAssetsEq]
   rw [repaidMaxLocalStep_repaidUnitsEqFormula p s branch]
-  change healthyWithin 2
+  change healthyWithin 1
     (projectedPostState p s
       (((branch.loopStep.toRepaidMaxTraceStep p s).toRepaidMaxStep p s)))
-  exact repaidMaxLocalStep_restoresWithinTwo p s branch
+  exact repaidMaxLocalStep_restoresWithinOne p s branch
 
-theorem repaidMaxAfterBadDebtLocalStep_restoresLocalPostWithinTwo
+theorem repaidMaxAfterBadDebtLocalStep_restoresLocalPostWithinOne
     (p : RCFParams) (s : HealthState)
     (branch : RepaidMaxAfterBadDebtLocalStep p s) :
-    healthyWithin 2 (projectedAfterBadDebtLocalPostState p s branch) := by
+    healthyWithin 1 (projectedAfterBadDebtLocalPostState p s branch) := by
   unfold projectedAfterBadDebtLocalPostState
   rw [branch.seizedAssetsEq]
   rw [repaidMaxAfterBadDebtLocalStep_repaidUnitsEqFormula p s branch]
-  change healthyWithin 2
+  change healthyWithin 1
     (projectedPostState p s
       (((branch.loopStep.toRepaidMaxTraceStep p s).toRepaidMaxStep p s)))
-  exact repaidMaxAfterBadDebtLocalStep_restoresWithinTwo p s branch
+  exact repaidMaxAfterBadDebtLocalStep_restoresWithinOne p s branch
 
 theorem repaidMaxLocalStep_postDebtEqProjected
     (p : RCFParams) (s : HealthState) (branch : RepaidMaxLocalStep p s) :
@@ -2854,12 +2854,12 @@ theorem normalModeAfterBadDebtStep_finalDebtsCovered
     (Accounting.badDebtLocalStep_debtsCoveredAfterBadDebt lenders
       step.badDebtBranch)
 
-theorem normalModeAfterBadDebtStep_restoresLocalPostWithinTwo
+theorem normalModeAfterBadDebtStep_restoresLocalPostWithinOne
     (p : RCFParams) (s : HealthState) (lenders : List Lender)
     (step : NormalModeAfterBadDebtStep p s lenders) :
-    healthyWithin 2
+    healthyWithin 1
       (RCF.projectedAfterBadDebtLocalPostState p s step.rcfBranch) :=
-  RCF.repaidMaxAfterBadDebtLocalStep_restoresLocalPostWithinTwo p s
+  RCF.repaidMaxAfterBadDebtLocalStep_restoresLocalPostWithinOne p s
     step.rcfBranch
 
 theorem normalModeAfterBadDebtStep_coversCredits

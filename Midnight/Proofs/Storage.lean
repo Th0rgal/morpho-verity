@@ -257,14 +257,14 @@ theorem postPosition_debtEqProjected
   exact (Liquidate.normalModeAfterBadDebtStep_projectedDebtEqFinalDebt
     p s lenders step).symm
 
-theorem postPosition_healthyWithinTwo
+theorem postPosition_healthyWithinOne
     {p : RCFParams} {s : HealthState} {lenders : List Lender}
     (step : Liquidate.NormalModeAfterBadDebtStep p s lenders) :
-    healthyWithin 2
+    healthyWithin 1
       { debt := (postPosition step).debt,
         maxDebt := (Refinement.RCF.projectedAfterBadDebtLocalPostState
           p s step.rcfBranch).maxDebt } := by
-  have h := Liquidate.normalModeAfterBadDebtStep_restoresLocalPostWithinTwo
+  have h := Liquidate.normalModeAfterBadDebtStep_restoresLocalPostWithinOne
     p s lenders step
   unfold healthyWithin at *
   rw [postPosition_debtEqProjected step]
@@ -1205,19 +1205,19 @@ theorem normalModeLiquidateProjection_callbackAccepted_of_success
       proj.loanToken proj.self proj.callbackReturnValue)
     hsuccess
 
-theorem normalModeLiquidateProjection_storageHealthyWithinTwo
+theorem normalModeLiquidateProjection_storageHealthyWithinOne
     {p : RCFParams} {s : HealthState} {lenders : List Lender}
     (proj : NormalModeLiquidateProjection p s lenders) :
-    healthyWithin 2
+    healthyWithin 1
       { debt := proj.entry.storageFrame.afterPosition.debt,
         maxDebt := (Refinement.RCF.projectedAfterBadDebtLocalPostState
           p s proj.entry.call.step.rcfBranch).maxDebt } := by
   rw [proj.entry.storageFrameEq]
-  change healthyWithin 2
+  change healthyWithin 1
     { debt := (postPosition proj.entry.call.step).debt,
       maxDebt := (Refinement.RCF.projectedAfterBadDebtLocalPostState
         p s proj.entry.call.step.rcfBranch).maxDebt }
-  exact postPosition_healthyWithinTwo proj.entry.call.step
+  exact postPosition_healthyWithinOne proj.entry.call.step
 
 theorem normalModeLiquidateProjection_inputAtMostOneNonZero
     {p : RCFParams} {s : HealthState} {lenders : List Lender}

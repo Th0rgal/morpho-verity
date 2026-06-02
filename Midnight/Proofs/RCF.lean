@@ -412,7 +412,7 @@ theorem collateralMaxDebt_decrease_le_from_quoted_seized
     (hquote : mulDivUp seized price ORACLE_PRICE_SCALE ≤ seizedQuote) :
     collateralMaxDebt collateral price lltv -
         collateralMaxDebt (collateral - seized) price lltv ≤
-      mulDivUp seizedQuote lltv WAD + 1 := by
+      mulDivUp seizedQuote lltv WAD := by
   set qBefore := collateralQuote collateral price
   set qAfter := collateralQuote (collateral - seized) price
   have hqAfterBefore : qAfter ≤ qBefore := by
@@ -434,7 +434,6 @@ theorem collateralMaxDebt_decrease_le_from_quoted_seized
           rfl
     _ ≤ mulDivUp (qBefore - qAfter) lltv WAD := hdecr
     _ ≤ mulDivUp seizedQuote lltv WAD := hceilMono
-    _ ≤ mulDivUp seizedQuote lltv WAD + 1 := Nat.le_add_right _ _
 
 /--
   Collapse the nested repay-side floors into the single RCF coefficient, with one
@@ -731,11 +730,10 @@ theorem rcf_maxRepaid_restores_unhealthy_with_one_slack_of_nested_decrease
     `repaidValue = repaidUnits.mulDivDown(lif, WAD)`
     `seizedAssets = repaidValue.mulDivDown(ORACLE_PRICE_SCALE, price)`
 
-  The theorem proves rounded recovery with `+2` slack: one unit from quoting the
-  seized collateral back into max-debt contribution, and one unit from collapsing
-  the repay-side nested floors into the RCF coefficient.
+  The theorem proves rounded recovery with `+1` slack from collapsing the
+  repay-side nested floors into the RCF coefficient.
 -/
-theorem rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
+theorem rcf_maxRepaid_restores_unhealthy_with_one_slack_of_collateral_seizure
     (p : RCFParams) (s : HealthState) (collateral price : Nat)
     (hunhealthy : s.debt > s.maxDebt)
     (hlltv : p.lltv < WAD)
@@ -747,7 +745,7 @@ theorem rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
     (hseized :
       seizedAssetsFromRepayValue (mulDivDown (maxRepaid p s) p.lif WAD) price ≤
         collateral) :
-    healthyWithin 2
+    healthyWithin 1
       (liquidateWithDecrease s (maxRepaid p s)
         (maxDebtDecreaseFromSeizure collateral
           (seizedAssetsFromRepayValue (mulDivDown (maxRepaid p s) p.lif WAD) price)
@@ -758,7 +756,7 @@ theorem rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
   have hquote : mulDivUp seized price ORACLE_PRICE_SCALE ≤ repayValue := by
     simpa [seized, repayValue] using seizedAssetsFromRepayValue_quoted_le repayValue price
   have hcollateral :
-      maxDebtDecrease ≤ mulDivUp repayValue p.lltv WAD + 1 := by
+      maxDebtDecrease ≤ mulDivUp repayValue p.lltv WAD := by
     simpa [maxDebtDecrease, maxDebtDecreaseFromSeizure, seized, repayValue] using
       collateralMaxDebt_decrease_le_from_quoted_seized collateral seized price p.lltv
         repayValue (by simpa [seized, repayValue] using hseized) hquote
@@ -769,17 +767,17 @@ theorem rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
       nestedRepayCoeff_le_coeff_plus_one (maxRepaid p s) p.lif p.lltv
   have hdecreaseCoeff :
       maxDebtDecrease ≤
-        mulDivDown (maxRepaid p s) (debtDecreaseCoeff p) scale + 2 := by
+        mulDivDown (maxRepaid p s) (debtDecreaseCoeff p) scale + 1 := by
     omega
   simpa [maxDebtDecrease, seized, repayValue] using
-    rcf_maxRepaid_restores_unhealthy_with_slack p s maxDebtDecrease 2
+    rcf_maxRepaid_restores_unhealthy_with_slack p s maxDebtDecrease 1
       hunhealthy hlltv hcoeff
       (by simpa [maxDebtDecrease, seized, repayValue] using hmaxDebtDecrease)
       hdecreaseCoeff
 
 /-- Direct counterpart of Midnight's `testMaxRepaidMeansRecovery`, whose
     assertion is `remainingDebt <= newMaxDebt + 3`. The proof is stronger
-    internally (`+2`) and weakens to the Solidity test's `+3` tolerance. -/
+    internally (`+1`) and weakens to the Solidity test's `+3` tolerance. -/
 theorem rcf_maxRepaid_matches_solidity_test_tolerance
     (p : RCFParams) (s : HealthState) (collateral price : Nat)
     (hunhealthy : s.debt > s.maxDebt)
@@ -797,8 +795,8 @@ theorem rcf_maxRepaid_matches_solidity_test_tolerance
         (maxDebtDecreaseFromSeizure collateral
           (seizedAssetsFromRepayValue (mulDivDown (maxRepaid p s) p.lif WAD) price)
           price p.lltv)) := by
-  have h2 :=
-    rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
+  have h1 :=
+    rcf_maxRepaid_restores_unhealthy_with_one_slack_of_collateral_seizure
       p s collateral price hunhealthy hlltv hcoeff hmaxDebtDecrease hseized
   unfold healthyWithin at *
   omega
