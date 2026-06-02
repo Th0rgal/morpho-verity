@@ -6,6 +6,7 @@ testing, or reproducibility.
 | Path | Source | License |
 |------|--------|---------|
 | `morpho-blue/` | `https://github.com/morpho-org/morpho-blue.git` | See `morpho-blue/LICENSE` |
+| `morpho-midnight/` | `https://github.com/morpho-org/midnight.git` | See `morpho-midnight/LICENSE` and `morpho-midnight/LICENSE-SECONDARY` |
 | `.lake/packages/` | Lean and Lake dependencies fetched by Lake | See each dependency's license |
 
 The root `LICENSE` applies to this repository's original work. It does not

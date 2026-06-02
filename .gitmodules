@@ -1,3 +1,6 @@
 [submodule "morpho-blue"]
 	path = morpho-blue
 	url = https://github.com/morpho-org/morpho-blue.git
+[submodule "morpho-midnight"]
+	path = morpho-midnight
+	url = https://github.com/morpho-org/midnight.git
