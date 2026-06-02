@@ -61,9 +61,14 @@ theorem denominator_pos_of_coeffValid
   unfold denominator debtDecreaseCoeff at *
   omega
 
-/-- Solidity's normal-mode `maxRepaid` expression, in loan units. -/
+/-- Solidity-shaped normal-mode `maxRepaid` expression, in loan units.
+
+    The branch condition follows Midnight: `lltv < WAD` selects the formula.
+    Proofs that use the formula arithmetically separately require
+    `lif * lltv < WAD^2`, which is the safe-denominator domain for the natural
+    number model. -/
 def maxRepaid (p : RCFParams) (s : HealthState) : Nat :=
-  if p.lltv < WAD ∧ p.lif * p.lltv < scale then
+  if p.lltv < WAD then
     mulDivUp (s.debt - s.maxDebt) scale (denominator p)
   else
     UINT256_MAX
@@ -74,13 +79,12 @@ theorem maxRepaid_eq_solidity_formula
     (hcoeff : debtDecreaseCoeff p < scale) :
     maxRepaid p s =
       mulDivUp (s.debt - s.maxDebt) scale (denominator p) := by
-  have hcoeffRaw : p.lif * p.lltv < scale := by
-    simpa [debtDecreaseCoeff] using hcoeff
-  simp [maxRepaid, hlltv, hcoeffRaw]
+  have _hden : denominator p > 0 := denominator_pos_of_coeffValid p hcoeff
+  simp [maxRepaid, hlltv]
 
-theorem maxRepaid_eq_uint256Max_of_not_solidity_formula_domain
+theorem maxRepaid_eq_uint256Max_of_not_lltv
     (p : RCFParams) (s : HealthState)
-    (h : ¬ (p.lltv < WAD ∧ p.lif * p.lltv < scale)) :
+    (h : ¬ p.lltv < WAD) :
     maxRepaid p s = UINT256_MAX := by
   simp [maxRepaid, h]
 
@@ -124,7 +128,7 @@ theorem maxRepaid_le_debt_of_coeff_debt_le_maxDebt
     omega
   have hr :
       maxRepaid p s = mulDivUp excess scale (denominator p) := by
-    simp [maxRepaid, excess, hlltv, hcoeffRaw]
+    simp [maxRepaid, excess, hlltv]
   rw [hr]
   unfold mulDivUp
   rw [ceilDiv_le_iff hdenpos]
@@ -158,7 +162,7 @@ theorem maxRepaid_pos_of_unhealthy
     norm_num
   have hr :
       maxRepaid p s = mulDivUp excess scale (denominator p) := by
-    simp [maxRepaid, excess, hlltv, hcoeffRaw]
+    simp [maxRepaid, excess, hlltv]
   rw [hr]
   unfold mulDivUp
   exact Nat.div_pos
@@ -504,7 +508,7 @@ theorem maxRepaid_roundingSafe_of_decrease_le_coeff
     omega
   have hr :
       r = mulDivUp excess scale (denominator p) := by
-    simp [r, maxRepaid, excess, hlltv, hcoeffRaw]
+    simp [r, maxRepaid, excess, hlltv]
   have hceil : excess * scale ≤ r * denominator p := by
     rw [hr]
     exact le_mulDivUp_mul hdenpos
@@ -555,7 +559,7 @@ theorem maxRepaid_roundingSafeWithin_of_decrease_le_coeff_with_slack
     omega
   have hr :
       r = mulDivUp excess scale (denominator p) := by
-    simp [r, maxRepaid, excess, hlltv, hcoeffRaw]
+    simp [r, maxRepaid, excess, hlltv]
   have hceil : excess * scale ≤ r * denominator p := by
     rw [hr]
     exact le_mulDivUp_mul hdenpos

@@ -110,9 +110,9 @@ conditional collateral-bitmap clear, zero-bad-debt no-op, health-payoff, and
 lender-credit-cover projections into one generated-body target.
 The normal-mode `lif` local is tied to the selected collateral's `maxLif`;
 post-maturity `lif` interpolation remains outside this normal-mode proof.
-The `maxRepaid` helper matches Solidity's `type(uint256).max` fallback outside
-the normal-mode formula domain, although the recovery theorem itself uses the
-`lltv < WAD` and positive-denominator branch.
+The `maxRepaid` helper follows Solidity's branch condition: formula for
+`lltv < WAD`, `type(uint256).max` for `lltv >= WAD`. The recovery theorem only
+uses the positive-denominator subdomain `lif * lltv < WAD^2`.
 
 ## Verification Commands
 

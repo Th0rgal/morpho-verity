@@ -74,8 +74,10 @@ The model keeps the same normal-mode `maxRepaid` expression:
 mulDivUp (debt - maxDebt) (WAD * WAD) (WAD * WAD - lif * lltv)
 ```
 
-Outside the formula domain, the Lean helper matches Solidity's
-`type(uint256).max` fallback.
+The branch condition matches Solidity: the formula is used when `lltv < WAD`,
+and the helper returns `type(uint256).max` when `lltv >= WAD`. The recovery
+proofs additionally require `lif * lltv < WAD^2`, which is the
+positive-denominator domain for the natural-number arithmetic.
 
 The checked theorem is:
 
@@ -96,7 +98,7 @@ rcf_maxRepaid_restores_unhealthy_with_two_slack_of_collateral_seizure
 rcf_maxRepaid_matches_solidity_test_tolerance
 denominator_pos_of_coeffValid
 maxRepaid_eq_solidity_formula
-maxRepaid_eq_uint256Max_of_not_solidity_formula_domain
+maxRepaid_eq_uint256Max_of_not_lltv
 maxRepaid_pos_of_unhealthy
 normalModeMaxRepaidProjection_matches_solidity_test_tolerance
 normalModeMaxRepaidProjection_singleOther_matches_solidity_test_tolerance
