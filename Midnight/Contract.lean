@@ -554,6 +554,8 @@ verity_contract MidnightRCF where
     let postUpdateCredit1 := sub postSlashCredit1 accruedFee1
     return add postUpdateCredit0 postUpdateCredit1 <= newTotalUnits
 
+  -- Same slashing formula as `badDebtCoversTwoPostSlashCredits`, kept under a
+  -- storage-oriented name because the proof consumes it after lender updates.
   function badDebtCoversTwoStoredCreditsAfterUpdates
       (totalUnits : Uint256, badDebt : Uint256, oldLossFactor : Uint256,
         credit0 : Uint256, credit1 : Uint256) :

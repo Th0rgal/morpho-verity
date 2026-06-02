@@ -731,6 +731,8 @@ example :
             (Expr.localVar "postUpdateCredit1")).le
           (Expr.localVar "newTotalUnits"))] := rfl
 
+/- This body intentionally mirrors `badDebtCoversTwoPostSlashCredits_modelBody`.
+   The separate name pins the storage-after-update property surface. -/
 example :
     Midnight.Contract.MidnightRCF.badDebtCoversTwoStoredCreditsAfterUpdates_modelBody =
       [Stmt.letVar "newLossFactor"
