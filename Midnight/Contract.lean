@@ -43,10 +43,12 @@ def shl (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shl shift value
     * collateral bitmap clearing lines 679-681,
     * withdrawable increase line 682,
     * a combined normal-mode repaid-input local sequencing surface for lines
-      625-717,
+      625-717, specialized to `repaidUnits = maxRepaid` after the RCF guard's
+      left disjunct is already satisfied,
     * a single normal-mode local `liquidate` sequence that combines the
       bad-debt market writes, max-repay branch, borrower/collateral writes,
-      payer/callback branch, and return pair from lines 625-717,
+      payer/callback branch, and return pair from lines 625-717 under the same
+      `repaidUnits = maxRepaid` specialization,
     * payer/callback branch and returned pair lines 686, 704-717,
     * `updatePositionView` post-slash credit, pending-fee slashing, and
       accrued-fee subtraction lines 802-818, including the returned triple.
@@ -294,8 +296,8 @@ verity_contract MidnightRCF where
       (originalDebt : Uint256, badDebt : Uint256, maxDebt : Uint256,
         lltv : Uint256, lif : Uint256, liquidatedCollatPrice : Uint256,
         collateral : Uint256, collateralBitmap : Uint256, collateralIndex : Uint256,
-        withdrawable : Uint256, rcfThreshold : Uint256, callback : Address,
-        msgSender : Address, callbackReturn : Uint256) :
+        withdrawable : Uint256, callback : Address, msgSender : Address,
+        callbackReturn : Uint256) :
       Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256, Uint256,
         Address, Bool, Uint256, Uint256] := do
     let currentDebt := sub originalDebt badDebt
@@ -315,18 +317,6 @@ verity_contract MidnightRCF where
     let seizedAssets := mulDivDown repayValue
       1000000000000000000000000000000000000
       liquidatedCollatPrice
-    let collateralRepayCapacity := mulDivDown
-      (mulDivDown collateral liquidatedCollatPrice
-        1000000000000000000000000000000000000)
-      1000000000000000000
-      lif
-    let mut capacityShortfall := 0
-    if collateralRepayCapacity > maxRepaid then
-      capacityShortfall := sub collateralRepayCapacity maxRepaid
-    else
-      capacityShortfall := capacityShortfall
-    let rcfAccepted := repaidUnits <= maxRepaid ||
-      capacityShortfall < rcfThreshold
     let newCollateral := sub collateral seizedAssets
     let mut postBitmap := collateralBitmap
     if newCollateral == 0 && seizedAssets > 0 then
@@ -344,7 +334,7 @@ verity_contract MidnightRCF where
       callbackReturn ==
         57683088179238363159977504707935902064464440500167392520350201799917296135842
     return (currentDebt, maxRepaid, seizedAssets, newCollateral, postBitmap,
-      postWithdrawable, finalDebt, payer, callbackAccepted && rcfAccepted,
+      postWithdrawable, finalDebt, payer, callbackAccepted,
       seizedAssets, repaidUnits)
 
   function normalModeLiquidateLocalSequence
@@ -352,8 +342,8 @@ verity_contract MidnightRCF where
         continuousFeeCredit : Uint256, badDebt : Uint256, maxDebt : Uint256,
         lltv : Uint256, lif : Uint256, liquidatedCollatPrice : Uint256,
         collateral : Uint256, collateralBitmap : Uint256, collateralIndex : Uint256,
-        withdrawable : Uint256, rcfThreshold : Uint256, callback : Address,
-        msgSender : Address, callbackReturn : Uint256) :
+        withdrawable : Uint256, callback : Address, msgSender : Address,
+        callbackReturn : Uint256) :
       Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256, Uint256,
         Uint256, Uint256, Uint256, Uint256, Address, Bool, Uint256, Uint256] := do
     let mut postBadDebtDebt := originalDebt
@@ -394,18 +384,6 @@ verity_contract MidnightRCF where
     let seizedAssets := mulDivDown repayValue
       1000000000000000000000000000000000000
       liquidatedCollatPrice
-    let collateralRepayCapacity := mulDivDown
-      (mulDivDown collateral liquidatedCollatPrice
-        1000000000000000000000000000000000000)
-      1000000000000000000
-      lif
-    let mut capacityShortfall := 0
-    if collateralRepayCapacity > maxRepaid then
-      capacityShortfall := sub collateralRepayCapacity maxRepaid
-    else
-      capacityShortfall := capacityShortfall
-    let rcfAccepted := repaidUnits <= maxRepaid ||
-      capacityShortfall < rcfThreshold
     let newCollateral := sub collateral seizedAssets
     let mut postBitmap := collateralBitmap
     if newCollateral == 0 && seizedAssets > 0 then
@@ -424,7 +402,7 @@ verity_contract MidnightRCF where
         57683088179238363159977504707935902064464440500167392520350201799917296135842
     return (postBadDebtDebt, newTotalUnits, newLossFactor, newContinuousFeeCredit,
       currentDebt, maxRepaid, seizedAssets, newCollateral, postBitmap,
-      postWithdrawable, finalDebt, payer, callbackAccepted && rcfAccepted,
+      postWithdrawable, finalDebt, payer, callbackAccepted,
       seizedAssets, repaidUnits)
 
   function badDebtCollateralRepayable

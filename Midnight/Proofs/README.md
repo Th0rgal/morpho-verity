@@ -33,6 +33,7 @@ by the RCF and accounting proofs:
 - `callbackReturnAccepted`;
 - `liquidateReturn`;
 - `normalModeRepaidInputLocalSequence`;
+- `normalModeLiquidateLocalSequence`;
 - `badDebtCollateralRepayable`;
 - `collateralLoopStep`;
 - `rcfAllows`;
@@ -52,6 +53,10 @@ by the RCF and accounting proofs:
 
 `ContractShape.lean` pins the generated Verity model bodies for these functions
 with `rfl` examples, so formula drift is caught by `lake build Midnight.Proofs`.
+The general `normalModeRcfLocalSequence` keeps the RCF threshold branch. The
+`normalModeRepaidInputLocalSequence` and `normalModeLiquidateLocalSequence`
+surfaces specialize to `repaidUnits = maxRepaid`, where the guard's left
+disjunct is already satisfied, so they expose no dead `rcfThreshold` parameter.
 The current proof/extraction boundary is summarized in `TRUST_BOUNDARIES.md`.
 The current completion audit is summarized in `COMPLETION_AUDIT.md`.
 

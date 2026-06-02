@@ -376,26 +376,6 @@ example :
         ((Expr.localVar "repayValue").mulDivDown
           (Expr.literal 1000000000000000000000000000000000000)
           (Expr.param "liquidatedCollatPrice")),
-       Stmt.letVar "collateralRepayCapacity"
-        (((Expr.param "collateral").mulDivDown
-            (Expr.param "liquidatedCollatPrice")
-            (Expr.literal 1000000000000000000000000000000000000)).mulDivDown
-          (Expr.literal 1000000000000000000)
-          (Expr.param "lif")),
-       Stmt.letVar "capacityShortfall" (Expr.literal 0),
-       Stmt.ite
-        ((Expr.localVar "collateralRepayCapacity").gt
-          (Expr.localVar "maxRepaid"))
-        [Stmt.assignVar "capacityShortfall"
-          ((Expr.localVar "collateralRepayCapacity").sub
-            (Expr.localVar "maxRepaid"))]
-        [Stmt.assignVar "capacityShortfall"
-          (Expr.localVar "capacityShortfall")],
-       Stmt.letVar "rcfAccepted"
-        (Expr.logicalOr
-          ((Expr.localVar "repaidUnits").le (Expr.localVar "maxRepaid"))
-          ((Expr.localVar "capacityShortfall").lt
-            (Expr.param "rcfThreshold"))),
        Stmt.letVar "newCollateral"
         ((Expr.param "collateral").sub (Expr.localVar "seizedAssets")),
        Stmt.letVar "postBitmap" (Expr.param "collateralBitmap"),
@@ -434,9 +414,7 @@ example :
          Expr.localVar "postWithdrawable",
          Expr.localVar "finalDebt",
          Expr.localVar "payer",
-         Expr.logicalAnd
-          (Expr.localVar "callbackAccepted")
-          (Expr.localVar "rcfAccepted"),
+         Expr.localVar "callbackAccepted",
          Expr.localVar "seizedAssets",
          Expr.localVar "repaidUnits"]] := rfl
 
@@ -493,26 +471,6 @@ example :
         ((Expr.localVar "repayValue").mulDivDown
           (Expr.literal 1000000000000000000000000000000000000)
           (Expr.param "liquidatedCollatPrice")),
-       Stmt.letVar "collateralRepayCapacity"
-        (((Expr.param "collateral").mulDivDown
-            (Expr.param "liquidatedCollatPrice")
-            (Expr.literal 1000000000000000000000000000000000000)).mulDivDown
-          (Expr.literal 1000000000000000000)
-          (Expr.param "lif")),
-       Stmt.letVar "capacityShortfall" (Expr.literal 0),
-       Stmt.ite
-        ((Expr.localVar "collateralRepayCapacity").gt
-          (Expr.localVar "maxRepaid"))
-        [Stmt.assignVar "capacityShortfall"
-          ((Expr.localVar "collateralRepayCapacity").sub
-            (Expr.localVar "maxRepaid"))]
-        [Stmt.assignVar "capacityShortfall"
-          (Expr.localVar "capacityShortfall")],
-       Stmt.letVar "rcfAccepted"
-        (Expr.logicalOr
-          ((Expr.localVar "repaidUnits").le (Expr.localVar "maxRepaid"))
-          ((Expr.localVar "capacityShortfall").lt
-            (Expr.param "rcfThreshold"))),
        Stmt.letVar "newCollateral"
         ((Expr.param "collateral").sub (Expr.localVar "seizedAssets")),
        Stmt.letVar "postBitmap" (Expr.param "collateralBitmap"),
@@ -555,9 +513,7 @@ example :
          Expr.localVar "postWithdrawable",
          Expr.localVar "finalDebt",
          Expr.localVar "payer",
-         Expr.logicalAnd
-          (Expr.localVar "callbackAccepted")
-          (Expr.localVar "rcfAccepted"),
+         Expr.localVar "callbackAccepted",
          Expr.localVar "seizedAssets",
          Expr.localVar "repaidUnits"]] := rfl
 
