@@ -368,8 +368,9 @@ example :
                 (Expr.literal 1000000000000000000)).sub
               ((Expr.param "lif").mul (Expr.param "lltv"))))]
         [Stmt.assignVar "maxRepaid" (Expr.localVar "maxRepaid")],
+       Stmt.letVar "repaidUnits" (Expr.localVar "maxRepaid"),
        Stmt.letVar "repayValue"
-        ((Expr.localVar "maxRepaid").mulDivDown (Expr.param "lif")
+        ((Expr.localVar "repaidUnits").mulDivDown (Expr.param "lif")
           (Expr.literal 1000000000000000000)),
        Stmt.letVar "seizedAssets"
         ((Expr.localVar "repayValue").mulDivDown
@@ -392,7 +393,7 @@ example :
           (Expr.localVar "capacityShortfall")],
        Stmt.letVar "rcfAccepted"
         (Expr.logicalOr
-          ((Expr.localVar "maxRepaid").le (Expr.localVar "maxRepaid"))
+          ((Expr.localVar "repaidUnits").le (Expr.localVar "maxRepaid"))
           ((Expr.localVar "capacityShortfall").lt
             (Expr.param "rcfThreshold"))),
        Stmt.letVar "newCollateral"
@@ -409,9 +410,9 @@ example :
               (Expr.shl (Expr.param "collateralIndex") (Expr.literal 1))))]
         [Stmt.assignVar "postBitmap" (Expr.localVar "postBitmap")],
        Stmt.letVar "postWithdrawable"
-        ((Expr.param "withdrawable").add (Expr.localVar "maxRepaid")),
+        ((Expr.param "withdrawable").add (Expr.localVar "repaidUnits")),
        Stmt.letVar "finalDebt"
-        ((Expr.localVar "currentDebt").sub (Expr.localVar "maxRepaid")),
+        ((Expr.localVar "currentDebt").sub (Expr.localVar "repaidUnits")),
        Stmt.letVar "payer" (Expr.param "msgSender"),
        Stmt.ite
         (Expr.logicalNot
@@ -437,7 +438,7 @@ example :
           (Expr.localVar "callbackAccepted")
           (Expr.localVar "rcfAccepted"),
          Expr.localVar "seizedAssets",
-         Expr.localVar "maxRepaid"]] := rfl
+         Expr.localVar "repaidUnits"]] := rfl
 
 example :
     Midnight.Contract.MidnightRCF.normalModeLiquidateLocalSequence_modelBody =
@@ -484,8 +485,9 @@ example :
                 (Expr.literal 1000000000000000000)).sub
               ((Expr.param "lif").mul (Expr.param "lltv"))))]
         [Stmt.assignVar "maxRepaid" (Expr.localVar "maxRepaid")],
+       Stmt.letVar "repaidUnits" (Expr.localVar "maxRepaid"),
        Stmt.letVar "repayValue"
-        ((Expr.localVar "maxRepaid").mulDivDown (Expr.param "lif")
+        ((Expr.localVar "repaidUnits").mulDivDown (Expr.param "lif")
           (Expr.literal 1000000000000000000)),
        Stmt.letVar "seizedAssets"
         ((Expr.localVar "repayValue").mulDivDown
@@ -508,7 +510,7 @@ example :
           (Expr.localVar "capacityShortfall")],
        Stmt.letVar "rcfAccepted"
         (Expr.logicalOr
-          ((Expr.localVar "maxRepaid").le (Expr.localVar "maxRepaid"))
+          ((Expr.localVar "repaidUnits").le (Expr.localVar "maxRepaid"))
           ((Expr.localVar "capacityShortfall").lt
             (Expr.param "rcfThreshold"))),
        Stmt.letVar "newCollateral"
@@ -525,9 +527,9 @@ example :
               (Expr.shl (Expr.param "collateralIndex") (Expr.literal 1))))]
         [Stmt.assignVar "postBitmap" (Expr.localVar "postBitmap")],
        Stmt.letVar "postWithdrawable"
-        ((Expr.param "withdrawable").add (Expr.localVar "maxRepaid")),
+        ((Expr.param "withdrawable").add (Expr.localVar "repaidUnits")),
        Stmt.letVar "finalDebt"
-        ((Expr.localVar "currentDebt").sub (Expr.localVar "maxRepaid")),
+        ((Expr.localVar "currentDebt").sub (Expr.localVar "repaidUnits")),
        Stmt.letVar "payer" (Expr.param "msgSender"),
        Stmt.ite
         (Expr.logicalNot
@@ -557,7 +559,7 @@ example :
           (Expr.localVar "callbackAccepted")
           (Expr.localVar "rcfAccepted"),
          Expr.localVar "seizedAssets",
-         Expr.localVar "maxRepaid"]] := rfl
+         Expr.localVar "repaidUnits"]] := rfl
 
 example :
     Midnight.Contract.MidnightRCF.badDebtCollateralRepayable_modelBody =
