@@ -32,6 +32,36 @@ environment assumptions (constant price, no accrual) are named in
 [`Morpho/Proofs.lean`](Morpho/Proofs.lean) for a file-by-file map of the proof
 layer.
 
+## Midnight Proofs
+
+The repository also contains a focused Midnight proof package under
+[`Midnight/`](Midnight/). [`Midnight/Contract.lean`](Midnight/Contract.lean)
+defines a `verity_contract MidnightRCF` surface for the normal-mode `liquidate`
+arithmetic, bad-debt socialization, bitmap loop shape, storage-local writes,
+observable return/event fields, callback/transfer planning, and the
+`updatePositionView` credit projection. [`ContractShape.lean`](Midnight/Proofs/ContractShape.lean)
+pins the generated Verity model bodies with `rfl` checks.
+
+`lake build Midnight.Proofs` checks two requested Midnight properties:
+
+- **RCF recovery.** In normal mode, choosing `repaidUnits = maxRepaid` passes the
+  RCF guard and brings the projected borrower state back within the same small
+  health tolerance used by Midnight's Solidity test. The proof uses the
+  Solidity-shaped `maxRepaid`, seized-assets formula, collateral-loop max-debt
+  projection, selected collateral price, and checked debt/collateral subtraction
+  bounds.
+- **Lender-credit cover after bad debt.** After bad-debt slashing and lender
+  synchronization, the updated market `totalUnits` covers the sum of in-scope
+  lenders' up-to-date credit. The proof models the exact loss-factor update,
+  `totalUnits` decrease, continuous-fee-credit update, `updatePositionView`
+  returned credit, and stored-credit writeback for the projected lenders.
+
+The remaining Midnight boundary is generated-body and storage extraction:
+connecting the real `liquidate` implementation, storage bitmaps, market debt
+list, lender snapshots, external calls, oracle reads, and token transfers to the
+modeled local projections. The detailed inventory lives in
+[`Midnight/Proofs/TRUST_BOUNDARIES.md`](Midnight/Proofs/TRUST_BOUNDARIES.md).
+
 ## Scope and trust boundaries
 
 - **Per-entrypoint correspondence.** Each Morpho entrypoint must match one of the
@@ -76,6 +106,12 @@ cd morpho-verity
 lake build Morpho.Proofs
 ```
 
+To check the focused Midnight package:
+
+```bash
+lake build Midnight.Proofs
+```
+
 To build the whole project (contract, libraries, compiler):
 
 ```bash
@@ -107,6 +143,9 @@ Morpho/
   Libraries/             # WAD math, shares math, constants, utils (translated from MathLib.sol etc.)
   Compiler/              # artifact packaging + Yul codegen config over Morpho.Contract.Morpho.spec
   Proofs/                # the health/liquidation proof layer (HealthModel, Property1/2, Refinement)
+Midnight/
+  Contract.lean          # focused verity_contract MidnightRCF arithmetic surface
+  Proofs/                # RCF and totalUnits/slashing proof layer
 morpho-blue/             # Morpho Blue Solidity reference (git submodule)
 verity-foundry/          # Foundry project for testing the Verity-compiled artifact
 scripts/                 # artifact build, parity runner, Yul-identity report, CI checks

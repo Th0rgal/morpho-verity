@@ -22,5 +22,13 @@ lean_lib «Morpho» where
     .submodules `Morpho.Proofs
   ]
 
+lean_lib «Midnight» where
+  globs := #[
+    .one `Midnight,
+    .one `Midnight.Contract,
+    .one `Midnight.Proofs,
+    .submodules `Midnight.Proofs
+  ]
+
 lean_exe «morpho-verity-compiler» where
   root := `MorphoCompiler
