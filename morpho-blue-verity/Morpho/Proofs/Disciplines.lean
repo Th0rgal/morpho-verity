@@ -43,7 +43,7 @@ def marketIdRead (mp : MarketParams) (cs : ContractState) : Bytes32 :=
 
 def oraclePriceRead (mp : MarketParams) (cs : ContractState) : Uint256 :=
   cs.ecmResults
-    (Compiler.Modules.Oracle.oracleReadUint256Module "_ecm" 0 0).name
+    (Compiler.Modules.Oracle.oracleReadUint256Module "_ecm" 0xa035b1fe 0).name
     [addressToWord mp.oracle] 0
 
 def MarketIdAligned (P : Position) : Prop :=
@@ -112,18 +112,18 @@ def repayStep (P : Position) : Step :=
 
 def borrowStep (P : Position) : Step :=
   fun s s' =>
-    ∃ assets shares onBehalf receiver out cs cs',
+    ∃ assets shares receiver out cs cs',
       s = project P.mp P.id P.account P.price cs ∧
       s' = project P.mp P.id P.account P.price cs' ∧
-      (borrow P.mp assets shares onBehalf receiver).run cs =
+      (borrow P.mp assets shares P.account receiver).run cs =
         ContractResult.success out cs'
 
 def withdrawCollateralStep (P : Position) : Step :=
   fun s s' =>
-    ∃ assets onBehalf receiver out cs cs',
+    ∃ assets receiver out cs cs',
       s = project P.mp P.id P.account P.price cs ∧
       s' = project P.mp P.id P.account P.price cs' ∧
-      (withdrawCollateral P.mp assets onBehalf receiver).run cs =
+      (withdrawCollateral P.mp assets P.account receiver).run cs =
         ContractResult.success out cs'
 
 def liquidateStep (P : Position) : Step :=
