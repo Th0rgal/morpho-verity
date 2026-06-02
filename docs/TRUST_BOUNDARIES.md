@@ -7,15 +7,15 @@ health properties. Everything below is what those claims rest on.
 
 ## Artifact Packaging
 
-`Morpho/Compiler/ArtifactConfig.lean` is not a second contract definition. The
-single Morpho source of truth is `Morpho/Contract.lean`, where
+`morpho-blue-verity/Morpho/Compiler/ArtifactConfig.lean` is not a second contract definition. The
+single Morpho source of truth is `morpho-blue-verity/Morpho/Contract.lean`, where
 `verity_contract Morpho` produces `Morpho.Contract.Morpho.spec`.
 
 `ArtifactConfig.lean` adapts that macro-produced spec for the standalone compiler
 CLI by setting the emitted artifact name, filtering internal helper functions
 out of the external selector/ABI surface, and making the linked external
 dependency set explicit. That dependency set is empty: `keccakMarketParams`,
-`borrowRate`, and `oraclePrice` are implemented in `Morpho/Contract.lean`
+`borrowRate`, and `oraclePrice` are implemented in `morpho-blue-verity/Morpho/Contract.lean`
 through Verity ECM modules. CI enforces this boundary through
 `scripts/check_morpho_artifact_boundary.py`.
 
@@ -66,7 +66,7 @@ operations or explicit guards.
 ## Refinement Proof Status
 
 The refinement layer now assembles generated-body steps from
-`Morpho/Proofs/Disciplines.lean` instead of keeping all entrypoint obligations as
+`morpho-blue-verity/Morpho/Proofs/Disciplines.lean` instead of keeping all entrypoint obligations as
 opaque assumptions:
 
 - `supply`, `withdraw`, `supplyCollateral`, and `repay` discharge their monotone

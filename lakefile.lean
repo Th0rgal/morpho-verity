@@ -9,6 +9,7 @@ require verity from git
 
 @[default_target]
 lean_lib «Morpho» where
+  srcDir := "morpho-blue-verity"
   -- Keep the Morpho library explicit so no hand-written compiler model can
   -- become a second source of truth by glob expansion.
   globs := #[
@@ -23,6 +24,7 @@ lean_lib «Morpho» where
   ]
 
 lean_lib «Midnight» where
+  srcDir := "morpho-midnight-verity"
   globs := #[
     .one `Midnight,
     .one `Midnight.Contract,
@@ -31,4 +33,5 @@ lean_lib «Midnight» where
   ]
 
 lean_exe «morpho-verity-compiler» where
+  srcDir := "morpho-blue-verity"
   root := `MorphoCompiler

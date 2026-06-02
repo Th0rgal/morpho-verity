@@ -10,19 +10,19 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ALLOWED_FILES = {
-  ROOT / "Morpho" / "Compiler" / "ArtifactConfig.lean",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "ArtifactConfig.lean",
 }
 FORBIDDEN_LEGACY_FILES = {
-  ROOT / "Morpho" / "Types.lean": "legacy hand-written protocol projection model",
-  ROOT / "Morpho" / "Compiler" / "Spec.lean": "legacy hand-written CompilationModel",
-  ROOT / "Morpho" / "Compiler" / "MacroSlice.lean": "migration-era macro slice alias",
-  ROOT / "Morpho" / "Compiler" / "Generated.lean": "misleading compiler adapter name",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Types.lean": "legacy hand-written protocol projection model",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "Spec.lean": "legacy hand-written CompilationModel",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "MacroSlice.lean": "migration-era macro slice alias",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "Generated.lean": "misleading compiler adapter name",
 }
-TARGET_GLOB = ROOT / "Morpho" / "Compiler"
+TARGET_GLOB = ROOT / "morpho-blue-verity" / "Morpho" / "Compiler"
 SYMBOL_RE = re.compile(r"\b(morphoSpec|morphoSelectors)\b")
 SECOND_MODEL_RE = re.compile(r"\b(MorphoState|protocolBorrow|protocolSupply|marketId)\b")
-ARTIFACT_CONFIG_PATH = ROOT / "Morpho" / "Compiler" / "ArtifactConfig.lean"
-MACRO_PATH = ROOT / "Morpho" / "Contract.lean"
+ARTIFACT_CONFIG_PATH = ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "ArtifactConfig.lean"
+MACRO_PATH = ROOT / "morpho-blue-verity" / "Morpho" / "Contract.lean"
 TRUST_DOC_PATH = ROOT / "docs" / "TRUST_BOUNDARIES.md"
 REQUIRED_EXTERNAL_AXIOMS: dict[str, str] = {}
 LOCAL_OBLIGATION_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*assumed\b")
@@ -163,7 +163,7 @@ def main() -> None:
       offenders.append(str(path.relative_to(ROOT)))
 
   second_model_offenders: list[str] = []
-  for path in sorted((ROOT / "Morpho").rglob("*.lean")):
+  for path in sorted((ROOT / "morpho-blue-verity" / "Morpho").rglob("*.lean")):
     if path == MACRO_PATH:
       continue
     text = read_text(path)

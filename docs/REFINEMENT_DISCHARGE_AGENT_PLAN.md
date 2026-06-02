@@ -6,19 +6,19 @@ Implement the remaining refinement-discharge work for Morpho: prove the structur
 
 ## Current Diagnosis
 
-The previous direct strategy tried to reduce complete generated contract bodies inside `Morpho/Proofs/Refinement.lean`. That is conceptually right but too heavy for Lean performance. The path forward is to move body-reduction work into small, specialized helper lemmas and leave `Refinement.lean` as an assembly layer.
+The previous direct strategy tried to reduce complete generated contract bodies inside `morpho-blue-verity/Morpho/Proofs/Refinement.lean`. That is conceptually right but too heavy for Lean performance. The path forward is to move body-reduction work into small, specialized helper lemmas and leave `Refinement.lean` as an assembly layer.
 
 Current state to re-check before editing:
 
-- `Morpho/Proofs/HealthFaithful.lean` exists and `healthFaithful_of_noOverflow`
+- `morpho-blue-verity/Morpho/Proofs/HealthFaithful.lean` exists and `healthFaithful_of_noOverflow`
   is used by refinement instead of an opaque `HealthFaithful` assumption.
-- `Morpho/Proofs/Disciplines.lean` discharges the monotone entrypoints
+- `morpho-blue-verity/Morpho/Proofs/Disciplines.lean` discharges the monotone entrypoints
   (`supply`, `withdraw`, `supplyCollateral`, `repay`) and the generated
   `_isHealthy` guards for `withdrawCollateral` and `borrow`.
 - `borrow` has been factored so the post-accrual commit-and-health-check block and
   both amount modes are proved by `guardedDiscipline_borrowCommitAndCheck`,
   `guardedDiscipline_borrowAssetsMode`, and
-  `guardedDiscipline_borrowSharesMode`; `Morpho/Proofs/Refinement.lean` now uses
+  `guardedDiscipline_borrowSharesMode`; `morpho-blue-verity/Morpho/Proofs/Refinement.lean` now uses
   `guardedDiscipline_borrow` instead of a `GuardedDiscipline` assumption.
 - `liquidate` now proves the generated unhealthy guard extraction and the
   post-accrual/pre-state bridge under the explicit contract-side no-accrual
@@ -62,23 +62,23 @@ Keep heavyweight proof reductions out of `Refinement.lean`.
 
 Suggested modules:
 
-- `Morpho/Proofs/StorageFrame.lean`
+- `morpho-blue-verity/Morpho/Proofs/StorageFrame.lean`
   - Slot/key injectivity assumptions.
   - Low-level storage equality/framing lemmas.
 
-- `Morpho/Proofs/FramePreserve.lean`
+- `morpho-blue-verity/Morpho/Proofs/FramePreserve.lean`
   - `PreservesSlot` / `StoragePreserving` lemmas.
   - Helpers for events, raw logs, callbacks, ECM reads, and external-call-like operations that do not mutate Morpho storage.
 
-- `Morpho/Proofs/Disciplines.lean`
+- `morpho-blue-verity/Morpho/Proofs/Disciplines.lean`
   - Entry-point-specific proofs of monotonicity/framing/guard facts.
   - This should import generated contract bodies and helper modules, but expose small theorem statements.
 
-- `Morpho/Proofs/HealthFaithful.lean`
+- `morpho-blue-verity/Morpho/Proofs/HealthFaithful.lean`
   - Keep the arithmetic bridge here.
   - Expose `healthFaithful_of_noOverflow` and any smaller bounded `mulDiv` lemmas.
 
-- `Morpho/Proofs/Refinement.lean`
+- `morpho-blue-verity/Morpho/Proofs/Refinement.lean`
   - Import the above.
   - Assemble `Refines` theorems.
   - Avoid reducing full generated bodies here.
@@ -129,8 +129,8 @@ Use workers only on disjoint write scopes to avoid conflicts.
 
 Scope:
 
-- `Morpho/Proofs/StorageFrame.lean`
-- `Morpho/Proofs/FramePreserve.lean`
+- `morpho-blue-verity/Morpho/Proofs/StorageFrame.lean`
+- `morpho-blue-verity/Morpho/Proofs/FramePreserve.lean`
 
 Task:
 
@@ -147,7 +147,7 @@ Output:
 
 Scope:
 
-- `Morpho/Proofs/Disciplines.lean`
+- `morpho-blue-verity/Morpho/Proofs/Disciplines.lean`
 - Possibly one helper file for packed-field lemmas.
 
 Task:
@@ -163,7 +163,7 @@ Depends on:
 
 Scope:
 
-- `Morpho/Proofs/Disciplines.lean` or `Morpho/Proofs/GuardDiscipline.lean`
+- `morpho-blue-verity/Morpho/Proofs/Disciplines.lean` or `morpho-blue-verity/Morpho/Proofs/GuardDiscipline.lean`
 
 Task:
 
@@ -180,7 +180,7 @@ Depends on:
 
 Scope:
 
-- `Morpho/Proofs/LiquidationDiscipline.lean` or the liquidation section of `Disciplines.lean`
+- `morpho-blue-verity/Morpho/Proofs/LiquidationDiscipline.lean` or the liquidation section of `Disciplines.lean`
 
 Task:
 
@@ -197,7 +197,7 @@ Depends on:
 
 Scope:
 
-- `Morpho/Proofs/HealthFaithful.lean`
+- `morpho-blue-verity/Morpho/Proofs/HealthFaithful.lean`
 - Any arithmetic helper module it imports.
 
 Task:
@@ -210,7 +210,7 @@ Task:
 
 Scope:
 
-- `Morpho/Proofs/Refinement.lean`
+- `morpho-blue-verity/Morpho/Proofs/Refinement.lean`
 - status JSON/docs/checker files
 - article/docs, including `docs/TRUST_BOUNDARIES.md`
 

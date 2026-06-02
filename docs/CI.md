@@ -2,7 +2,7 @@
 
 Operational reference for building the Verity artifact, running the parity and
 Yul-identity gates, and the environment/timeout knobs CI uses. None of this is
-needed to verify the proofs — for that see the top-level `README.md`.
+needed to verify the proofs - for that see the top-level `README.md`.
 
 ## Artifact build
 

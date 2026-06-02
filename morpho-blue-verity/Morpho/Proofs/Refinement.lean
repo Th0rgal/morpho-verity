@@ -1,0 +1,353 @@
+/-
+  Refinement - the bridge obligations tying the proof model to the contract.
+
+  `Morpho/Proofs/HealthModel.lean` is a *projection* of contract storage, not an
+  authority. For the properties to say anything about the real contract, each
+  Morpho entrypoint must, restricted to the watched account, match one of the two
+  `OpShape` cases of `Property1` after projection. We state those obligations here
+  as explicit `Prop`s.
+
+  These propositions are specifications with proof terms below. The abstract
+  `modelStep` section discharges them at the hand-transcribed model level. The
+  `Contract` namespace at the end of this file then closes the gap to the
+  generated code: there each entrypoint's `Step` is the *real* executable
+  `verity_contract Morpho` body, run to success and projected through
+  `Projection.lean`, and the classified shape is discharged from named boundary
+  obligations (field locality, the `require(_isHealthy)` guards, arithmetic
+  faithfulness). The residual step-to-EVM-bytecode link stays empirical, guarded
+  by the differential tests.
+
+  Stating the obligations this way keeps the boundary honest: the model cannot
+  silently diverge from the contract, because the gap is named and enumerated.
+-/
+
+import Morpho.Proofs.Property1
+import Morpho.Proofs.Projection
+import Morpho.Proofs.HealthFaithful
+import Morpho.Proofs.Disciplines
+
+namespace Morpho.Proofs.Refinement
+
+open Morpho.Proofs.HealthModel
+open Morpho.Proofs.HealthModel.HealthState
+open Morpho.Proofs.Env
+open Morpho.Proofs.Property1
+open Morpho.Proofs.Projection
+
+/-- The Morpho entrypoints, as they affect a single watched position. -/
+inductive Entrypoint where
+  | supply | withdraw | supplyCollateral | withdrawCollateral
+  | borrow | repay | liquidate
+  | otherAccount   -- any call acting on a *different* account in the same market
+  deriving DecidableEq, Repr
+
+/-- Which shape each entrypoint produces, at constant price and without accrual.
+    `borrow`/`withdrawCollateral` are self-guarded (they end in `require(_isHealthy)`);
+    `liquidate` requires the target be *unhealthy* (`require(!_isHealthy)`,
+    Contract.lean:853), so it cannot fire on a healthy watched account; everything
+    else is monotone for the watched account. -/
+def classify : Entrypoint → (HealthState → HealthState → Prop)
+  | .borrow             => fun _ s' => healthy s'
+  | .withdrawCollateral => fun _ s' => healthy s'
+  | .liquidate          => fun s _  => ¬ healthy s
+  | _                   => fun s s' => MonotoneFor s s'
+
+/--
+  Refinement obligation for one entrypoint: every successful contract step
+  `s ⟶ s'` (already projected to `HealthState`), under the environment
+  assumptions, satisfies the classified shape. `step` here stands in for the
+  projected contract semantics to be supplied by the extraction layer.
+-/
+def Refines (e : Entrypoint) (step : Step) : Prop :=
+  Assumptions step → ∀ s s', step s s' → classify e s s'
+
+/--
+  Given the refinement obligation for an entrypoint, Property 1 transfers to the
+  real (projected) contract step: a healthy account stays healthy. This is the
+  payoff - once `Refines e step` is discharged, no extra health reasoning is
+  needed per entrypoint.
+-/
+theorem property1_for_entrypoint
+    {e : Entrypoint} {step : Step}
+    (href : Refines e step) (hasm : Assumptions step)
+    {s s' : HealthState} (hstep : step s s') (hs : healthy s) :
+    healthy s' := by
+  have hshape := href hasm s s' hstep
+  cases e with
+  | borrow             => exact hshape
+  | withdrawCollateral => exact hshape
+  | liquidate          => exact absurd hs hshape
+  | _                  => exact no_operation_breaks_health (.monotone hshape) hs
+
+/-
+  Concrete model `Step` relations per entrypoint, transcribed from the watched
+  account's field writes/guards in `Contract.lean`. These give `Refines` something
+  concrete to discharge against - the same model-transcription discipline used in
+  `Operations.lean` / `Property2.lean`. The model↔EVM-bytecode gap is guarded
+  empirically by the differential tests; see `HealthModel.lean`.
+-/
+namespace ModelStep
+
+/-- Lender-side ops (`supply`, `withdraw`): the watched borrow position is untouched. -/
+def lenderSide (s s' : HealthState) : Prop :=
+  s'.borrowShares = s.borrowShares ∧ s'.collateral = s.collateral ∧ s'.lltv = s.lltv
+
+/-- `supplyCollateral`: collateral does not fall; debt fields fixed. -/
+def supplyCollateral (s s' : HealthState) : Prop :=
+  s.collateral ≤ s'.collateral ∧ s'.borrowShares = s.borrowShares ∧ s'.lltv = s.lltv
+
+/-- `repay`: borrow shares do not rise; collateral fixed. -/
+def repay (s s' : HealthState) : Prop :=
+  s'.borrowShares ≤ s.borrowShares ∧ s'.collateral = s.collateral ∧ s'.lltv = s.lltv
+
+/-- An op by a *different* account: the watched position's own fields are fixed;
+    only the shared market totals move (the borrow index, bounded by `NoAccrual`). -/
+def otherAccount (s s' : HealthState) : Prop :=
+  s'.borrowShares = s.borrowShares ∧ s'.collateral = s.collateral ∧ s'.lltv = s.lltv
+
+/-- `borrow` / `withdrawCollateral`: both end in `require(_isHealthy)` (Contract.lean),
+    so a successful call lands in a healthy post-state by construction. -/
+def guarded (_ s' : HealthState) : Prop := healthy s'
+
+/-- `liquidate`: guarded by `require(_isHealthy == false)` on the target
+    (Contract.lean:854), so it only fires on an unhealthy watched account. -/
+def liquidate (s _ : HealthState) : Prop := ¬ healthy s
+
+end ModelStep
+
+/-- The concrete model step assigned to each entrypoint. -/
+def modelStep : Entrypoint → Step
+  | .supply             => ModelStep.lenderSide
+  | .withdraw           => ModelStep.lenderSide
+  | .supplyCollateral   => ModelStep.supplyCollateral
+  | .repay              => ModelStep.repay
+  | .otherAccount       => ModelStep.otherAccount
+  | .borrow             => ModelStep.guarded
+  | .withdrawCollateral => ModelStep.guarded
+  | .liquidate          => ModelStep.liquidate
+
+/-- Build the `MonotoneFor` witness a monotone entrypoint needs: `price_eq` and
+    `index_nogrow` come from the trusted environment (`ConstPrice` / `NoAccrual`),
+    the remaining three from the entrypoint's own field discipline. -/
+private theorem monotoneFor_of {step : Step} (asm : Assumptions step)
+    {s s' : HealthState} (hstep : step s s')
+    (hl : s'.lltv = s.lltv) (hc : s.collateral ≤ s'.collateral)
+    (hb : s'.borrowShares ≤ s.borrowShares) : MonotoneFor s s' :=
+  { price_eq := asm.constPrice s s' hstep
+    lltv_eq := hl
+    collateral_ge := hc
+    shares_le := hb
+    index_nogrow := asm.noAccrual s s' hstep }
+
+/--
+  **#1 discharged.** Each entrypoint's model step satisfies its classified shape.
+  The monotone entrypoints (`supply`, `withdraw`, `supplyCollateral`, `repay`,
+  `otherAccount`) land in `MonotoneFor` - collateral does not fall, shares do not
+  rise, and the index does not grow (the last two trusted inputs from `Assumptions`).
+  The self-guarded entrypoints (`borrow`, `withdrawCollateral`) carry `healthy s'`
+  directly from their final `require(_isHealthy)`. `liquidate` carries `¬ healthy s`
+  from its `require(!_isHealthy)` guard.
+-/
+theorem refines_modelStep : ∀ e, Refines e (modelStep e) := by
+  intro e
+  cases e with
+  | supply =>
+      intro asm s s' h; simp only [modelStep, ModelStep.lenderSide] at h
+      obtain ⟨hb, hc, hl⟩ := h
+      exact monotoneFor_of asm (by simp [modelStep, ModelStep.lenderSide, hb, hc, hl])
+        hl (le_of_eq hc.symm) (le_of_eq hb)
+  | withdraw =>
+      intro asm s s' h; simp only [modelStep, ModelStep.lenderSide] at h
+      obtain ⟨hb, hc, hl⟩ := h
+      exact monotoneFor_of asm (by simp [modelStep, ModelStep.lenderSide, hb, hc, hl])
+        hl (le_of_eq hc.symm) (le_of_eq hb)
+  | supplyCollateral =>
+      intro asm s s' h; simp only [modelStep, ModelStep.supplyCollateral] at h
+      obtain ⟨hc, hb, hl⟩ := h
+      exact monotoneFor_of asm (by simp [modelStep, ModelStep.supplyCollateral, hc, hb, hl])
+        hl hc (le_of_eq hb)
+  | repay =>
+      intro asm s s' h; simp only [modelStep, ModelStep.repay] at h
+      obtain ⟨hb, hc, hl⟩ := h
+      exact monotoneFor_of asm (by simp [modelStep, ModelStep.repay, hb, hc, hl])
+        hl (le_of_eq hc.symm) hb
+  | otherAccount =>
+      intro asm s s' h; simp only [modelStep, ModelStep.otherAccount] at h
+      obtain ⟨hb, hc, hl⟩ := h
+      exact monotoneFor_of asm (by simp [modelStep, ModelStep.otherAccount, hb, hc, hl])
+        hl (le_of_eq hc.symm) (le_of_eq hb)
+  | borrow =>
+      intro _ s s' h; simpa only [modelStep, ModelStep.guarded, classify] using h
+  | withdrawCollateral =>
+      intro _ s s' h; simpa only [modelStep, ModelStep.guarded, classify] using h
+  | liquidate =>
+      intro _ s s' h; simpa only [modelStep, ModelStep.liquidate, classify] using h
+
+/--
+  **#5 resolved.** Property 1, end-to-end on the model steps: composing
+  `refines_modelStep` with `property1_for_entrypoint`, every entrypoint preserves a
+  healthy watched account under constant price and no accrual. The self-guarded
+  cases now derive their post-state health from the entrypoint's final
+  `require(_isHealthy)` (threaded through `ModelStep.guarded`), so the former guard
+  tautology is now a genuine consequence of the discharged `Refines`.
+-/
+theorem property1_holds (e : Entrypoint) (hasm : Assumptions (modelStep e))
+    {s s' : HealthState} (hstep : modelStep e s s') (hs : healthy s) : healthy s' :=
+  property1_for_entrypoint (refines_modelStep e) hasm hstep hs
+
+/-
+  Refinement v2 - `Step`s built from the real generated contract bodies.
+
+  The `modelStep` relations above are hand-transcribed. This section removes that
+  middle layer: every entrypoint's `Step` is now a *successful run of the actual
+  generated body*, projected through `Projection.project`. Nothing hand-written
+  stands between the `Step` and the contract. Each classified shape is discharged
+  from one or two explicitly named boundaries, which is exactly what the
+  differential suite covers:
+
+  - monotone entrypoints (`supply`, `withdraw`, `supplyCollateral`, `repay`,
+    `otherAccount`): `MonotoneDiscipline` - a successful run keeps the watched
+    position inside the monotone envelope (collateral does not fall, borrow shares
+    do not rise, `lltv` fixed);
+  - self-guarded entrypoints (`borrow`, `withdrawCollateral`): `GuardedDiscipline`
+    - a successful run lands in a healthy post-state, from the final
+    `require(_isHealthy)`;
+  - `liquidate`: `GuardUnhealthy` proves its generated
+    `require(!_isHealthy)` guard fired after `_accrueInterest`, and the
+    no-accrual bridge replays that guard on the original projected pre-state.
+-/
+namespace Contract
+
+open Contracts
+open Morpho.Contract.Morpho (MarketParams liquidate _isHealthyWithPrice
+  supply withdraw supplyCollateral withdrawCollateral repay borrow)
+open Morpho.Proofs.Disciplines
+open Morpho.Proofs.FramePreserve
+
+/-
+  The non-liquidate entrypoints. Each `Step` below is the real generated body of
+  that entrypoint, run to success and projected at the watched position `(id,
+  account)` - never a hand-written model. The classified shape is then discharged
+  from one named boundary obligation: the projected field movement a successful
+  run guarantees. That obligation is the storage-write-locality fact (a supply
+  call does not touch the watched borrow position, a repay does not raise its
+  shares, and so on); it is what the differential parity suite checks, named here
+  rather than re-derived by symbolic execution of the full body.
+-/
+
+/-- A monotone entrypoint refines `MonotoneFor` from its field discipline: the
+    `lltv`/collateral/shares facts come from the discipline, `price` and the
+    borrow index from the trusted `Assumptions`. -/
+theorem refines_of_monotone {e : Entrypoint} {st : Step}
+    (he : classify e = fun s s' => MonotoneFor s s')
+    (hdisc : MonotoneDiscipline st) : Refines e st := by
+  intro asm s s' h
+  obtain ⟨hl, hc, hb⟩ := hdisc s s' h
+  rw [he]; exact monotoneFor_of asm h hl hc hb
+
+/-- A self-guarded entrypoint refines `healthy s'` directly from its guard. -/
+theorem refines_of_guarded {e : Entrypoint} {st : Step}
+    (he : classify e = fun _ s' => healthy s')
+    (hdisc : GuardedDiscipline st) : Refines e st := by
+  intro _ s s' h; rw [he]; exact hdisc s s' h
+
+theorem refines_supply (P : Position) :
+    Refines .supply (supplyStep P) := refines_of_monotone rfl (monotoneDiscipline_supply P)
+
+theorem refines_withdraw (P : Position) :
+    Refines .withdraw (withdrawStep P) := refines_of_monotone rfl (monotoneDiscipline_withdraw P)
+
+theorem refines_supplyCollateral (P : Position) :
+    Refines .supplyCollateral (supplyCollateralStep P) :=
+  refines_of_monotone rfl (monotoneDiscipline_supplyCollateral P)
+
+theorem refines_repay (P : Position) :
+    Refines .repay (repayStep P) := refines_of_monotone rfl (monotoneDiscipline_repay P)
+
+theorem refines_borrow (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (horacleFits : LocalNoOverflowFor P) :
+    Refines .borrow (borrowStep P) :=
+  refines_of_guarded rfl (guardedDiscipline_borrow P hid hprice horacleFits)
+
+theorem refines_withdrawCollateral (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (horacleFits : LocalNoOverflowFor P) :
+    Refines .withdrawCollateral (withdrawCollateralStep P) :=
+  refines_of_guarded rfl (guardedDiscipline_withdrawCollateral P hid hprice horacleFits)
+
+/-
+  `liquidate`. The step is the real generated body run to success and projected
+  at the watched position. Its classified shape is `¬ healthy s`: a liquidation
+  is only the right operation on an already-unhealthy position. This is
+  discharged from a proved structural guard extraction plus the no-accrual
+  contract-side discipline. `GuardUnhealthy` is the contract's own
+  `require(!_isHealthy)`: a successful run forces the post-accrual health test to
+  have returned `false`. `liquidate_preStateUnhealthy_of_accrueInterest_identity`
+  relates that generated post-accrual guard back to the original projected
+  pre-state under the no-accrual assumption.
+-/
+
+/-- `liquidate`: the generated `require(!_isHealthy)` guard, read off a
+    successful run. A success means the post-accrual health test returned
+    `false`. -/
+def GuardUnhealthy (P : Position) : Prop :=
+  ∀ seized repaid data out cs cs',
+    (liquidate P.mp P.account seized repaid data).run cs
+        = Verity.ContractResult.success out cs' →
+      ∃ stPostAccrue stHealth,
+        (_isHealthyWithPrice P.mp P.id P.account P.price).run stPostAccrue
+          = Verity.ContractResult.success false stHealth
+
+/-- The structural `liquidate` guard is proved from the generated body. -/
+theorem guardUnhealthy_liquidate (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) :
+    GuardUnhealthy P :=
+  liquidate_guardUnhealthy_afterAccrue_price P hid hprice
+
+/-- Post-accrual/pre-state bridge from a successful `liquidate` run back to the
+    original projected pre-state. The generated guard itself fires after
+    `_accrueInterest`, while this proposition records the no-accrual consequence
+    needed by the model-level classifier. -/
+def LiquidatePreStateUnhealthy (P : Position) : Prop :=
+  ∀ seized repaid data out cs cs',
+    (liquidate P.mp P.account seized repaid data).run cs
+        = Verity.ContractResult.success out cs' →
+      ∃ csHealth,
+      (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
+        = Verity.ContractResult.success false csHealth
+
+/-- The post-accrual/pre-state bridge follows from the generated body and
+    no-accrual: `_accrueInterest` leaves the local state unchanged, so the
+    generated unhealthy guard can be replayed on the original pre-state. -/
+theorem liquidatePreStateUnhealthy_of_accrueInterestIdentity (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hnoAccrual : AccrueInterestIdentityFor P) :
+    LiquidatePreStateUnhealthy P :=
+  liquidate_preStateUnhealthy_of_accrueInterest_identity P hid hprice hnoAccrual
+
+/-- `liquidate` refines `¬ healthy s` from its generated guard plus no-accrual:
+    the guard makes the contract health test `false` on the pre-state, and
+    `healthFaithful_of_noOverflow` carries that to the model's `healthy`
+    predicate on the projection. -/
+theorem refines_liquidate (P : Position)
+    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hnoAccrual : AccrueInterestIdentityFor P)
+    (horacleFits : LocalNoOverflowFor P) :
+    Refines .liquidate (liquidateStep P) := by
+  intro _ s s' h
+  obtain ⟨seized, repaid, data, out, cs, cs', hs, _, hrun⟩ := h
+  obtain ⟨csHealth, hbool⟩ :=
+    liquidatePreStateUnhealthy_of_accrueInterestIdentity P hid hprice hnoAccrual
+      seized repaid data out cs cs' hrun
+  have hfaith :=
+    Morpho.Proofs.HealthFaithful.healthFaithful_of_noOverflow
+      P.mp P.id P.account P.price cs
+        (noOverflow_of_localNoOverflow P cs (horacleFits cs))
+  have hiff := hfaith false csHealth hbool
+  simp only [classify, hs]
+  exact fun hh => Bool.false_ne_true (hiff.mpr hh)
+
+end Contract
+
+end Morpho.Proofs.Refinement

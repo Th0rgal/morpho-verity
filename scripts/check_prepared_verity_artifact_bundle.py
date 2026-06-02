@@ -19,8 +19,8 @@ INPUT_DIGEST_PATHS = (
   pathlib.Path("lean-toolchain"),
   pathlib.Path("lake-manifest.json"),
   pathlib.Path("lakefile.lean"),
-  pathlib.Path("Morpho.lean"),
-  pathlib.Path("MorphoCompiler.lean"),
+  pathlib.Path("morpho-blue-verity/Morpho.lean"),
+  pathlib.Path("morpho-blue-verity/MorphoCompiler.lean"),
   pathlib.Path("scripts/prepare_verity_morpho_artifact.sh"),
   pathlib.Path("scripts/apply_yul_rewrite_pipeline.py"),
   pathlib.Path("config/parity-target.json"),
@@ -29,7 +29,7 @@ INPUT_DIGEST_PATHS = (
   pathlib.Path("artifacts/inputs/BorrowRate.yul"),
   pathlib.Path("artifacts/inputs/OraclePrice.yul"),
   pathlib.Path("artifacts/inputs/CollateralPrice.yul"),
-  pathlib.Path("Morpho"),
+  pathlib.Path("morpho-blue-verity/Morpho"),
 )
 
 
@@ -184,7 +184,7 @@ def _iter_input_digest_files(root: pathlib.Path) -> list[pathlib.Path]:
     # Byte-wise sort on the path string to match the producer
     # (prepare_verity_morpho_artifact.sh uses `find -print0 | sort -z`). A
     # component-wise sort (the default for pathlib) diverges whenever a file and
-    # a directory share a prefix (e.g. Morpho/Proofs.lean vs Morpho/Proofs/),
+    # a directory share a prefix (e.g. morpho-blue-verity/Morpho/Proofs.lean vs morpho-blue-verity/Morpho/Proofs/),
     # which would yield a digest the producer never computes.
     files.extend(
       sorted(

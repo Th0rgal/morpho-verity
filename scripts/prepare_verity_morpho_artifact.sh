@@ -85,8 +85,8 @@ compute_input_digest() {
     "${ROOT_DIR}/lean-toolchain" \
     "${ROOT_DIR}/lake-manifest.json" \
     "${ROOT_DIR}/lakefile.lean" \
-    "${ROOT_DIR}/Morpho.lean" \
-    "${ROOT_DIR}/MorphoCompiler.lean" \
+    "${ROOT_DIR}/morpho-blue-verity/Morpho.lean" \
+    "${ROOT_DIR}/morpho-blue-verity/MorphoCompiler.lean" \
     "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh" \
     "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" \
     "${ROOT_DIR}/config/parity-target.json" \
@@ -95,7 +95,7 @@ compute_input_digest() {
     "${ROOT_DIR}/artifacts/inputs/BorrowRate.yul" \
     "${ROOT_DIR}/artifacts/inputs/OraclePrice.yul" \
     "${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul" \
-    "${ROOT_DIR}/Morpho"; do
+    "${ROOT_DIR}/morpho-blue-verity/Morpho"; do
     if [[ -f "${path}" ]]; then
       files+=("${path}")
     elif [[ -d "${path}" ]]; then

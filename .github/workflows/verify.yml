@@ -56,7 +56,7 @@ jobs:
 
       # CI is unset for the build so Mathlib's `says` tactic does not switch into
       # verify mode (it keys off the CI env var). says-verify re-runs `simp?` and
-      # fails on upstream simp-set drift in Mathlib's own CauSeq/Basic.lean — a
+      # fails on upstream simp-set drift in Mathlib's own CauSeq/Basic.lean - a
       # failure unrelated to this repo. With CI unset the build matches the local
       # toolchain build, which passes.
       - name: Build Verity contract

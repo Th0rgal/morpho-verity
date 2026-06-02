@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail-closed check for Morpho contract event metadata.
 
-The canonical compiler boundary is the macro contract in Morpho/Contract.lean.
+The canonical compiler boundary is the macro contract in morpho-blue-verity/Morpho/Contract.lean.
 Keep that event_defs surface synchronized with Morpho Blue's EventsLib so
 missing event payloads cannot silently pass.
 """
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 EVENTS_LIB_PATH = ROOT / "morpho-blue" / "src" / "libraries" / "EventsLib.sol"
-CONTRACT_PATH = ROOT / "Morpho" / "Contract.lean"
+CONTRACT_PATH = ROOT / "morpho-blue-verity" / "Morpho" / "Contract.lean"
 
 SOL_EVENT_RE = re.compile(r"\bevent\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*;", re.DOTALL)
 
