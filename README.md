@@ -27,6 +27,14 @@ Build the Verity model and proofs:
 lake build Morpho.Proofs
 ```
 
+The generated-entrypoint refinement surface is explicit: `Morpho.Proofs`
+builds against typed local discipline obligations in
+`morpho-blue-verity/Morpho/Proofs/Disciplines.lean` for generated-body field
+movement, health guards, and local no-overflow facts. The compact health,
+refinement, and property theorems are checked by Lean; replacing those
+generated-body obligations with smaller internal proofs is still tracked as a
+proof-engineering task.
+
 Run Morpho Blue's original tests against the Verity-compiled artifact:
 
 ```bash
@@ -34,7 +42,11 @@ Run Morpho Blue's original tests against the Verity-compiled artifact:
 ```
 
 The parity target is pinned in `config/parity-target.json`. The target tuple is
-checked against `morpho-blue/foundry.toml`.
+checked against `morpho-blue/foundry.toml`. The latest local parity evidence in
+this workspace is green: both `out/parity/morpho_blue_solidity.log` and
+`out/parity/morpho_blue_verity.log` report 145 passing tests, 0 failures, and 0
+skipped on 2026-06-02 10:10 UTC. The mechanical review manifest is
+`MORPH_BLUE_MAPPING.md`.
 
 ## Verify Morpho Midnight
 
@@ -95,6 +107,7 @@ Proof entrypoints:
 
 Operational docs:
 
+- `MORPH_BLUE_MAPPING.md`
 - `docs/PARITY_TARGET.md`
 - `docs/CI.md`
 - `docs/TRUST_BOUNDARIES.md`

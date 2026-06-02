@@ -222,7 +222,6 @@ open Contracts
 open Morpho.Contract.Morpho (MarketParams liquidate _isHealthyWithPrice
   supply withdraw supplyCollateral withdrawCollateral repay borrow)
 open Morpho.Proofs.Disciplines
-open Morpho.Proofs.FramePreserve
 
 /-
   The non-liquidate entrypoints. Each `Step` below is the real generated body of

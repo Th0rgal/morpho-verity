@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed check that only allowlisted jobs use continue-on-error."""
+"""Fail-closed check that verify.yml does not use continue-on-error."""
 
 from __future__ import annotations
 
@@ -14,9 +14,7 @@ from ci_workflow_helpers import strip_yaml_scalar
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
 JOB_CONTINUE_ON_ERROR_RE = re.compile(r"^(\s*)continue-on-error:\s*(.*?)\s*$")
-ALLOWED_JOB_CONTINUE_ON_ERROR = frozenset(
-  {"yul-identity-report", "verity-compiled-tests", "morpho-blue-parity"}
-)
+ALLOWED_JOB_CONTINUE_ON_ERROR = frozenset()
 
 
 class CiWorkflowContinueOnErrorError(RuntimeError):
@@ -76,12 +74,7 @@ def validate_continue_on_error(job_blocks: dict[str, str]) -> list[str]:
         f"job {job_name} continue-on-error must be literal true when present, found: {value}"
       )
       continue
-    if job_name not in ALLOWED_JOB_CONTINUE_ON_ERROR:
-      allowlist = ", ".join(sorted(ALLOWED_JOB_CONTINUE_ON_ERROR))
-      failures.append(
-        f"job {job_name} must not set continue-on-error; only allowlisted jobs may do so: "
-        f"{allowlist}"
-      )
+    failures.append(f"job {job_name} must not set continue-on-error")
 
   step_level = collect_step_level_continue_on_error_jobs(job_blocks)
   if step_level:
@@ -93,7 +86,7 @@ def validate_continue_on_error(job_blocks: dict[str, str]) -> list[str]:
 
 def main() -> int:
   parser = argparse.ArgumentParser(
-    description="Validate only allowlisted verify.yml jobs use literal continue-on-error: true"
+    description="Validate verify.yml does not use continue-on-error"
   )
   parser.add_argument(
     "--workflow",

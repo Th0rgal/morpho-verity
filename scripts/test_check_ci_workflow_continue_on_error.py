@@ -16,7 +16,6 @@ if str(SCRIPT_DIR) not in sys.path:
   sys.path.insert(0, str(SCRIPT_DIR))
 
 from check_ci_workflow_continue_on_error import (  # noqa: E402
-  ALLOWED_JOB_CONTINUE_ON_ERROR,
   collect_job_continue_on_error_values,
   collect_step_level_continue_on_error_jobs,
   main,
@@ -82,7 +81,7 @@ class CollectStepLevelContinueOnErrorJobsTests(unittest.TestCase):
 
 
 class ValidateContinueOnErrorTests(unittest.TestCase):
-  def test_accepts_allowlisted_jobs(self) -> None:
+  def test_rejects_former_allowlisted_jobs(self) -> None:
     job_blocks = {
       "yul-identity-report": "\n".join(
         [
@@ -93,6 +92,15 @@ class ValidateContinueOnErrorTests(unittest.TestCase):
           "      - run: echo hi",
         ]
       ),
+    }
+
+    self.assertEqual(
+      validate_continue_on_error(job_blocks),
+      ["job yul-identity-report must not set continue-on-error"],
+    )
+
+  def test_accepts_jobs_without_continue_on_error(self) -> None:
+    job_blocks = {
       "parity-target": "\n".join(
         [
           "  parity-target:",
@@ -100,7 +108,7 @@ class ValidateContinueOnErrorTests(unittest.TestCase):
           "    steps:",
           "      - run: echo hi",
         ]
-      ),
+      )
     }
 
     self.assertEqual(validate_continue_on_error(job_blocks), [])
@@ -119,10 +127,7 @@ class ValidateContinueOnErrorTests(unittest.TestCase):
 
     self.assertEqual(
       validate_continue_on_error(job_blocks),
-      [
-        "job parity-target must not set continue-on-error; only allowlisted jobs may do so: "
-        + ", ".join(sorted(ALLOWED_JOB_CONTINUE_ON_ERROR))
-      ],
+      ["job parity-target must not set continue-on-error"],
     )
 
   def test_rejects_expression_value(self) -> None:
@@ -299,7 +304,9 @@ class CliTests(unittest.TestCase):
           str(pathlib.Path("..") / "inputs" / "verify.yml"),
         ]
         os.chdir(runner)
-        self.assertEqual(main(), 0)
+        with self.assertRaises(SystemExit) as raised:
+          main()
+        self.assertEqual(raised.exception.code, 1)
       finally:
         os.chdir(old_cwd)
         sys.argv = old_argv

@@ -19,6 +19,16 @@ The Morpho Blue comparison path is:
    Morpho Blue test suite against it.
 4. `config/parity-target.json` pins the Solidity build tuple used for parity.
 
+Current local evidence: `lake build Morpho.Proofs` is the proof gate. The
+generated-entrypoint discipline layer is explicit:
+`morpho-blue-verity/Morpho/Proofs/Disciplines.lean` defines real generated-body
+`Step`s and states field-movement, guard-extraction, and local no-overflow
+facts as typed local axioms. The compact health, refinement, and property
+theorems build against that boundary. `out/parity/morpho_blue_solidity.log` plus
+`out/parity/morpho_blue_verity.log` record the latest local full-suite parity
+run. On 2026-06-02 10:10 UTC both logs reported 145 passing tests, 0 failures,
+and 0 skipped.
+
 The Morpho Midnight comparison path is:
 
 1. `morpho-midnight/src/Midnight.sol` is the upstream reference.
@@ -42,22 +52,22 @@ The Morpho Midnight comparison path is:
 - CI contains fail-closed checks for parity target drift, artifact layout, event
   surface drift, and script coverage.
 
-## Proposed Next Steps
+## Current Gaps And Next Steps
 
-0. Fix full Morpho Blue parity before external handoff.
+0. Keep Morpho Blue parity fail-closed in CI.
 
-   The repository has the right parity command, but the current Verity artifact
-   does not yet pass the full Morpho Blue suite. The latest local run completed
-   the Solidity reference pass, then failed on the Verity pass with 95 passing
-   tests and 50 failing tests. Do not present the implementation as full-test
-   compatible until this is green.
+   The local full-suite parity run is green, so the Blue parity workflow lane no
+   longer uses `continue-on-error`. Future regressions in the Yul identity
+   report, Verity artifact smoke tests, or full Morpho Blue differential suite
+   should fail the workflow.
 
-1. Add a generated comparison manifest.
+1. Maintain the mechanical Morpho Blue mapping manifest.
 
-   Create `docs/MORPHO_BLUE_MAPPING.md` from a script. It should map each
-   upstream Solidity file, function, event, and library to its Verity file and
-   proof coverage status. This gives Morpho a review checklist instead of a
-   narrative.
+   `MORPH_BLUE_MAPPING.md` maps upstream Solidity functions to Verity functions,
+   proof status, and test status. It is currently hand-maintained and should be
+   regenerated mechanically if the source surface changes. Keep the generated
+   body discipline axiom boundary visible in this manifest until those local
+   obligations are replaced by smaller Lean proofs.
 
 2. Add a Midnight comparison manifest.
 
