@@ -385,6 +385,17 @@ language/compiler features.
 
 ## Verity Additions Needed For A Faithful Midnight Port
 
+### Immediate Upstream Work
+
+Opened Verity PR: <https://github.com/lfglabs-dev/verity/pull/1945>
+
+That PR adds source-level `function internal` visibility to the Verity macro
+surface. It lets a Midnight port keep Solidity-like helper functions in source
+without exposing them in selector dispatch or ABI JSON. This is only a first
+source-faithfulness prerequisite: it does not yet implement dynamic calldata
+struct ABI, fixed arrays inside mapping structs, CREATE2/SSTORE2 code-as-data,
+or callback ABI generation.
+
 ### A. Solidity ABI Codec As A First-Class Library
 
 Required capabilities:
