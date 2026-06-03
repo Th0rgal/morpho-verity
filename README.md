@@ -56,23 +56,56 @@ Build the focused Midnight proof package:
 lake build Midnight.Proofs
 ```
 
+Build the executable artifact for the focused `MidnightRCF` proof model:
+
+```bash
+./scripts/prepare_focused_midnight_artifact.sh
+```
+
+This emits `artifacts/midnight-focused/MidnightRCF.yul`,
+`MidnightRCF.abi.json`, and `MidnightRCF.bin.raw`. It is executable bytecode for
+the focused proof model, not a full `IMidnight` implementation.
+
 Run Morpho Midnight's original Foundry tests against upstream Solidity:
 
 ```bash
 MORPHO_MIDNIGHT_PARITY_MODE=solidity ./scripts/run_morpho_midnight_parity.sh
 ```
 
-Run the same original tests against a complete Verity-compiled Midnight
-creation bytecode artifact:
+Build the complete Verity-compiled Midnight artifact:
+
+```bash
+./scripts/prepare_midnight_artifact.sh
+```
+
+Run the same original tests against that Verity artifact:
 
 ```bash
 MORPHO_MIDNIGHT_PARITY_MODE=verity ./scripts/run_morpho_midnight_parity.sh
 ```
 
 That command expects `artifacts/midnight/Midnight.bin.raw`, or a file supplied
-through `MORPHO_MIDNIGHT_ARTIFACT_RAW`. The current Midnight package is a
-focused proof model for liquidation and slashing arithmetic. It is not yet a
-complete compiled replacement for `morpho-midnight/src/Midnight.sol`.
+through `MORPHO_MIDNIGHT_ARTIFACT_RAW`. The current local parity evidence is
+green: both Solidity and Verity Midnight modes report 373 passing tests, 0
+failures, and 0 skipped.
+
+Midnight Yul identity is not exact. The checked gate is a fail-closed drift
+manifest:
+
+```bash
+python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate
+```
+
+That report compares Solidity `Midnight.sol` `irOptimized` Yul with
+`artifacts/midnight/Midnight.yul` and requires the function-level drift to match
+`config/midnight-yul-identity-unsupported.json`.
+
+The current Midnight mapping manifest is `MORPHO_MIDNIGHT_MAPPING.md`; validate
+it with:
+
+```bash
+python3 scripts/check_morpho_midnight_mapping.py
+```
 
 ## Compare With Morpho Blue
 
@@ -108,6 +141,8 @@ Proof entrypoints:
 Operational docs:
 
 - `MORPH_BLUE_MAPPING.md`
+- `MORPHO_MIDNIGHT_MAPPING.md`
+- `docs/MIDNIGHT_VERITY_PLAN.md`
 - `docs/PARITY_TARGET.md`
 - `docs/CI.md`
 - `docs/TRUST_BOUNDARIES.md`

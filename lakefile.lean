@@ -28,6 +28,8 @@ lean_lib «Midnight» where
   globs := #[
     .one `Midnight,
     .one `Midnight.Contract,
+    .one `Midnight.Compiler.ArtifactConfig,
+    .one `Midnight.Compiler.Main,
     .one `Midnight.Proofs,
     .submodules `Midnight.Proofs
   ]
@@ -35,3 +37,7 @@ lean_lib «Midnight» where
 lean_exe «morpho-verity-compiler» where
   srcDir := "morpho-blue-verity"
   root := `MorphoCompiler
+
+lean_exe «midnight-verity-compiler» where
+  srcDir := "morpho-midnight-verity"
+  root := `MidnightCompiler

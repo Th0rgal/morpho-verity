@@ -141,7 +141,7 @@ example :
         [Stmt.return
           (Expr.logicalAnd
             (Expr.eq (Expr.param "liquidationLocked") (Expr.literal 0))
-            (Expr.gt (Expr.param "timestamp") (Expr.param "maturity")))]
+            (Expr.gt (Expr.param "blockTimestamp") (Expr.param "maturity")))]
         [Stmt.return
           (Expr.logicalAnd
             (Expr.eq (Expr.param "liquidationLocked") (Expr.literal 0))
@@ -176,7 +176,7 @@ example :
       [Stmt.ite
         (Expr.param "postMaturityMode")
         [Stmt.letVar "elapsed"
-          ((Expr.param "timestamp").sub (Expr.param "maturity")),
+          ((Expr.param "blockTimestamp").sub (Expr.param "maturity")),
          Stmt.letVar "postMaturityLif"
           ((Expr.literal 1000000000000000000).add
             (((Expr.param "maxLif").sub
@@ -826,8 +826,8 @@ example :
           (Expr.localVar "postSlashPendingFee")],
        Stmt.letVar "accrualEnd" (Expr.param "maturity"),
        Stmt.ite
-        ((Expr.param "timestamp").le (Expr.param "maturity"))
-        [Stmt.assignVar "accrualEnd" (Expr.param "timestamp")]
+        ((Expr.param "blockTimestamp").le (Expr.param "maturity"))
+        [Stmt.assignVar "accrualEnd" (Expr.param "blockTimestamp")]
         [Stmt.assignVar "accrualEnd" (Expr.localVar "accrualEnd")],
        Stmt.letVar "fee" (Expr.literal 0),
        Stmt.ite

@@ -1,0 +1,12 @@
+{
+  "id": "morpho-midnight-solidity-yul-manifest-v1",
+  "gateMode": "unsupported-manifest",
+  "soliditySource": "morpho-midnight/src/Midnight.sol",
+  "solidityArtifact": "morpho-midnight/out/Midnight.sol/Midnight.json",
+  "unsupportedManifest": "config/midnight-yul-identity-unsupported.json",
+  "artifactCandidates": [
+    "artifacts/midnight/Midnight.rewritten.yul",
+    "artifacts/midnight/Midnight.yul"
+  ],
+  "notes": "Checked manifest for Midnight-specific Solidity Yul drift gating. The gate compares Midnight.sol irOptimized Yul against the first available Midnight Yul artifact candidate and fails closed unless the function-level drift exactly matches config/midnight-yul-identity-unsupported.json. This does not claim strict Yul equivalence."
+}
