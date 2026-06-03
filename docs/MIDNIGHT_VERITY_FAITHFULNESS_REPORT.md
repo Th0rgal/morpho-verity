@@ -357,15 +357,20 @@ To claim stronger Yul equivalence, the next gate must move from
 - `bisimulation`: generated Verity Yul and Solidity Yul differ structurally but
   are related by a machine-checked equivalence relation.
 
-## Verity Latest: What Already Exists
+## Verity Base: What Already Exists
 
-The latest Verity source at `e405b21f` already contains relevant pieces:
+The Verity base analyzed for this report, `e405b21f`, already contains relevant
+pieces:
 
 - ABI value types for `uint8`, `uint16`, `address`, `bytes32`, `bytes`,
   dynamic arrays, fixed arrays, tuples, named structs, ADTs, and newtypes.
 - Storage support for scalar fields, mappings, mapping chains, mapping structs,
   nested mapping structs, dynamic storage arrays, packed bits, and word-offset
   writes.
+- Internal helper calls through `FunctionSpec.isInternal`,
+  `Expr.internalCall`, `Stmt.internalCall`, `Stmt.internalCallAssign`, generated
+  `internal_<name>` helper specs, qualified helper inclusion, multi-return
+  internal helpers, and higher-order helper monomorphization.
 - Low-level expressions for `call`, `staticcall`, `delegatecall`,
   `calldataload`, `calldatasize`, `returndataSize`, `extcodesize`, `tload`,
   `keccak256`, memory loads, and fork-gated intrinsics.
@@ -388,12 +393,12 @@ language/compiler features.
 
 Opened Verity PR: <https://github.com/lfglabs-dev/verity/pull/1945>
 
-That PR adds source-level `function internal` visibility to the Verity macro
-surface. It lets a Midnight port keep Solidity-like helper functions in source
-without exposing them in selector dispatch or ABI JSON. This is only a first
-source-faithfulness prerequisite: it does not yet implement dynamic calldata
-struct ABI, fixed arrays inside mapping structs, CREATE2/SSTORE2 code-as-data,
-or callback ABI generation.
+That PR intentionally does not add a new internal-call mechanism: internal
+helper calls already existed in Verity and are covered by the existing
+CompilationModel and macro tests. The PR instead focuses on Midnight-specific
+source gaps that were not already covered cleanly: fixed arrays inside mapping
+structs, CREATE2/SSTORE2 code-as-data surfaces, callback ABI usage, and trust
+surface reporting for the new low-level mechanics.
 
 ### A. Solidity ABI Codec As A First-Class Library
 
