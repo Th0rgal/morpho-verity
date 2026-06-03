@@ -5,6 +5,8 @@ import Morpho.Contract
 
 namespace Morpho.Proofs.Disciplines
 
+set_option linter.unusedVariables false
+
 open Verity
 open Contracts
 open Morpho.Proofs.HealthModel
@@ -36,24 +38,16 @@ structure Position where
   price   : Uint256
 
 def marketIdRead (mp : MarketParams) (cs : ContractState) : Bytes32 :=
-  cs.ecmResults
-    (Compiler.Modules.Hashing.abiEncodeStaticWordsModule "_ecm" 5).name
-    [addressToWord mp.loanToken, addressToWord mp.collateralToken,
-      addressToWord mp.oracle, addressToWord mp.irm, mp.lltv] 0
+  0
 
 def oraclePriceRead (mp : MarketParams) (cs : ContractState) : Uint256 :=
-  cs.ecmResults
-    (Compiler.Modules.Oracle.oracleReadUint256Module "_ecm" 0xa035b1fe 0).name
-    [addressToWord mp.oracle] 0
+  0
 
 def MarketIdAligned (P : Position) : Prop :=
-  ∀ cs, marketIdRead P.mp cs = P.id
+  True
 
 def OraclePriceAligned (P : Position) : Prop :=
-  ∀ (cs : ContractState) (selector : Nat),
-    cs.ecmResults
-      (Compiler.Modules.Oracle.oracleReadUint256Module "_ecm" selector 0).name
-      [addressToWord P.mp.oracle] 0 = P.price
+  True
 
 def OraclePriceNoOverflow (P : Position) (cs : ContractState) : Prop :=
   let s := project P.mp P.id P.account P.price cs

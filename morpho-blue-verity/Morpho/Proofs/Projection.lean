@@ -21,9 +21,10 @@
     collateral-price multiplication remains an explicit oracle-price domain.
 
   - The price word. `_isHealthyWithPrice` takes the oracle price as an argument;
-    the contract obtains it through an `ecmCall` reading the ECM environment
-    (`ContractState.ecmResults`). `project` takes the same word as an argument so
-    the model and the contract test the *same* price.
+    the executable contract obtains it through an `ecmCall`, but the current
+    Verity runtime state no longer stores ECM results. `project` takes the same
+    word as an explicit argument so the model and the contract test the *same*
+    assumed price.
 -/
 
 import Morpho.Proofs.HealthModel
@@ -53,7 +54,8 @@ def runWord (c : Contract Uint256) (cs : ContractState) : Uint256 :=
   - the two market totals are shared across positions in market `id`;
   - `lltv` is the market parameter the contract passes to `_isHealthyWithPrice`
     (a call argument, not storage);
-  - `price` is the oracle word, supplied by the ECM environment.
+  - `price` is the oracle word, supplied as an explicit external-world
+    assumption.
 -/
 def project (mp : MarketParams) (id : Bytes32) (account : Address)
     (price : Uint256) (cs : ContractState) : HealthState :=

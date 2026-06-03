@@ -9,7 +9,6 @@ BIN="${OUT_DIR}/Midnight.bin"
 BIN_RAW="${OUT_DIR}/Midnight.bin.raw"
 MANIFEST="${OUT_DIR}/Midnight.artifact-manifest.env"
 UNIQUIFY_YUL_SHADOWS="${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
-PATCH_MIDNIGHT_SSTORE2="${ROOT_DIR}/scripts/patch_midnight_sstore2_yul.py"
 
 compute_input_digest() {
   local -a files=(
@@ -23,7 +22,6 @@ compute_input_digest() {
     "${ROOT_DIR}/morpho-midnight-verity/MidnightCompiler.lean"
     "${ROOT_DIR}/scripts/prepare_midnight_artifact.sh"
     "${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
-    "${ROOT_DIR}/scripts/patch_midnight_sstore2_yul.py"
   )
 
   {
@@ -73,7 +71,6 @@ if [[ ! -s "${YUL}" || ! -s "${ABI}" ]]; then
 fi
 
 python3 "${UNIQUIFY_YUL_SHADOWS}" --input "${YUL}" --output "${YUL}"
-python3 "${PATCH_MIDNIGHT_SSTORE2}" --input "${YUL}" --output "${YUL}"
 
 solc --strict-assembly --bin "${YUL}" \
   | awk '/Binary representation:/{getline; print; exit}' \

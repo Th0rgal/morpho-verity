@@ -4,7 +4,7 @@
   A successful entrypoint run is a tree of `bind`/`pure`/`if` over primitives:
   storage reads (`structMemberAt`/`structMember2At`), context reads, guards
   (`require`), arithmetic (`addPanic`/`subPanic`/`mulPanic`), events, external
-  calls (`ecmEnvRead`/`ecmDo`), and storage writes (`setStructMemberAt`/
+  calls (`ecmDo`), and storage writes (`setStructMemberAt`/
   `setStructMember2At`). All but the writes leave the whole storage function
   unchanged; a write changes exactly one slot.
 
@@ -137,11 +137,6 @@ theorem StoragePreserving.getMapping2 (s : StorageSlot (Address → Address → 
     (k1 k2 : Address) :
     StoragePreserving (Verity.getMapping2 s k1 k2) := by
   intro cs v cs' h; unfold Verity.getMapping2 at h; injection h with _ hcs; subst hcs; rfl
-
-theorem StoragePreserving.ecmEnvRead (mod : Compiler.ECM.ExternalCallModule)
-    (args : List Uint256) (idx : Nat) :
-    StoragePreserving (ecmEnvRead mod args idx) := by
-  intro cs v cs' h; unfold Contracts.ecmEnvRead at h; injection h with _ hcs; subst hcs; rfl
 
 theorem StoragePreserving.requireSomeUint (opt : Option Uint256) (msg : String) :
     StoragePreserving (Stdlib.Math.requireSomeUint opt msg) := by

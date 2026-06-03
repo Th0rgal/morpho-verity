@@ -428,395 +428,12 @@ object "Midnight" {
             __ret0 := count
             leave
         }
-
-        function __midnight_market_abi_size(market_data_offset) -> size {
-                    let collateral_rel_offset := calldataload(add(market_data_offset, 32))
-                    let collateral_data_offset := add(market_data_offset, collateral_rel_offset)
-                    let collateral_len := calldataload(collateral_data_offset)
-                    size := add(collateral_rel_offset, add(32, mul(collateral_len, 128)))
-                }
-                function __midnight_market_initcode(ptr, market_data_offset) -> init_len {
-                    let collateral_rel_offset := calldataload(add(market_data_offset, 32))
-                    let collateral_data_offset := add(market_data_offset, collateral_rel_offset)
-                    let collateral_len := calldataload(collateral_data_offset)
-                    let market_size := add(collateral_rel_offset, add(32, mul(collateral_len, 128)))
-                    mstore8(ptr, 0x60)
-                    mstore8(add(ptr, 1), 0x0b)
-                    mstore8(add(ptr, 2), 0x38)
-                    mstore8(add(ptr, 3), 0x03)
-                    mstore8(add(ptr, 4), 0x80)
-                    mstore8(add(ptr, 5), 0x60)
-                    mstore8(add(ptr, 6), 0x0b)
-                    mstore8(add(ptr, 7), 0x5f)
-                    mstore8(add(ptr, 8), 0x39)
-                    mstore8(add(ptr, 9), 0x5f)
-                    mstore8(add(ptr, 10), 0xf3)
-                    mstore(add(ptr, 11), 32)
-                    calldatacopy(add(ptr, 43), market_data_offset, market_size)
-                    init_len := add(43, market_size)
-                    mstore(64, and(add(add(ptr, init_len), 31), not(31)))
-                }
-                function __midnight_market_id(market_data_offset) -> id {
-                    let ptr := mload(64)
-                    let init_len := __midnight_market_initcode(ptr, market_data_offset)
-                    let init_hash := keccak256(ptr, init_len)
-                    let scratch := and(add(add(ptr, init_len), 31), not(31))
-                    if lt(scratch, 128) {
-                        scratch := 128
-                    }
-                    mstore(scratch, shl(248, 0xff))
-                    mstore(add(scratch, 1), shl(96, address()))
-                    mstore(add(scratch, 21), sload(0))
-                    mstore(add(scratch, 53), init_hash)
-                    id := keccak256(scratch, 85)
-                    mstore(64, and(add(add(scratch, 85), 31), not(31)))
-                }
-                function __midnight_store_market_in_code(market_data_offset) -> deployed {
-                    let ptr := mload(64)
-                    let init_len := __midnight_market_initcode(ptr, market_data_offset)
-                    deployed := create2(0, ptr, init_len, sload(0))
-                    if iszero(deployed) {
-                        let id := __midnight_market_id(market_data_offset)
-                        deployed := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
-                        if iszero(gt(extcodesize(deployed), 0)) {
-                            revert(0, 0)
-                        }
-                    }
-                }
-                function __midnight_return_market(id) {
-                    let create2Address := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
-                    let size := extcodesize(create2Address)
-                    if iszero(gt(size, 0)) {
-                        revert(0, 0)
-                    }
-                    extcodecopy(create2Address, 0, 0, size)
-                    return(0, size)
-                }
-                function __midnight_scaffold_id(id) -> scaffold_id {
-                    scaffold_id := id
-                    let create2Address := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
-                    if gt(extcodesize(create2Address), 127) {
-                        extcodecopy(create2Address, 0, 96, 32)
-                        scaffold_id := mload(0)
-                    }
-                }
-                function __midnight_call_repay_callback(callback, market_data_offset, units, onBehalf, data_abs_offset, data_length) {
-                    let callback_id := __midnight_market_id(market_data_offset)
-                    let market_size := __midnight_market_abi_size(market_data_offset)
-                    let data_padded := and(add(data_length, 31), not(31))
-                    let ptr := mload(64)
-                    if lt(ptr, 128) {
-                        ptr := 128
-                    }
-                    mstore(ptr, 0xfc56f72e00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(ptr, 4), callback_id)
-                    mstore(add(ptr, 36), 160)
-                    mstore(add(ptr, 68), units)
-                    mstore(add(ptr, 100), and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 132), add(160, market_size))
-                    calldatacopy(add(ptr, 164), market_data_offset, market_size)
-                    calldatacopy(add(add(ptr, 164), market_size), data_abs_offset, add(32, data_padded))
-                    let call_len := add(add(196, market_size), data_padded)
-                    mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                    let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                    if iszero(success) {
-                        let rds := returndatasize()
-                        returndatacopy(0, 0, rds)
-                        revert(0, rds)
-                    }
-                    if lt(returndatasize(), 32) {
-                        revert(0, 0)
-                    }
-                    returndatacopy(ptr, 0, 32)
-                    if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                        mstore(0, 0x40a13da200000000000000000000000000000000000000000000000000000000)
-                        revert(0, 4)
-                    }
-                }
-                function __midnight_call_buy_callback(callback, market_data_offset, id, buyerAssets, units, pendingFeeIncrease, buyer, data_abs_offset, data_length) {
-                    let market_size := __midnight_market_abi_size(market_data_offset)
-                    let data_padded := and(add(data_length, 31), not(31))
-                    let ptr := mload(64)
-                    if lt(ptr, 128) {
-                        ptr := 128
-                    }
-                    mstore(ptr, 0xf151bd5c00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(ptr, 4), id)
-                    mstore(add(ptr, 36), 224)
-                    mstore(add(ptr, 68), buyerAssets)
-                    mstore(add(ptr, 100), units)
-                    mstore(add(ptr, 132), pendingFeeIncrease)
-                    mstore(add(ptr, 164), and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 196), add(224, market_size))
-                    calldatacopy(add(ptr, 228), market_data_offset, market_size)
-                    calldatacopy(add(add(ptr, 228), market_size), data_abs_offset, add(32, data_padded))
-                    let call_len := add(add(260, market_size), data_padded)
-                    mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                    let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                    if iszero(success) {
-                        let rds := returndatasize()
-                        returndatacopy(0, 0, rds)
-                        revert(0, rds)
-                    }
-                    if lt(returndatasize(), 32) {
-                        revert(0, 0)
-                    }
-                    returndatacopy(ptr, 0, 32)
-                    if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                        mstore(0, 0xa8f3eb4400000000000000000000000000000000000000000000000000000000)
-                        revert(0, 4)
-                    }
-                }
-                function __midnight_call_sell_callback(callback, market_data_offset, id, sellerAssets, units, pendingFeeDecrease, seller, receiver, data_abs_offset, data_length) {
-                    let market_size := __midnight_market_abi_size(market_data_offset)
-                    let data_padded := and(add(data_length, 31), not(31))
-                    let ptr := mload(64)
-                    if lt(ptr, 128) {
-                        ptr := 128
-                    }
-                    mstore(ptr, 0x7f44a13a00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(ptr, 4), id)
-                    mstore(add(ptr, 36), 256)
-                    mstore(add(ptr, 68), sellerAssets)
-                    mstore(add(ptr, 100), units)
-                    mstore(add(ptr, 132), pendingFeeDecrease)
-                    mstore(add(ptr, 164), and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 196), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 228), add(256, market_size))
-                    calldatacopy(add(ptr, 260), market_data_offset, market_size)
-                    calldatacopy(add(add(ptr, 260), market_size), data_abs_offset, add(32, data_padded))
-                    let call_len := add(add(292, market_size), data_padded)
-                    mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                    let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                    if iszero(success) {
-                        let rds := returndatasize()
-                        returndatacopy(0, 0, rds)
-                        revert(0, rds)
-                    }
-                    if lt(returndatasize(), 32) {
-                        revert(0, 0)
-                    }
-                    returndatacopy(ptr, 0, 32)
-                    if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                        mstore(0, 0xa4fb788300000000000000000000000000000000000000000000000000000000)
-                        revert(0, 4)
-                    }
-                }
-                function __midnight_take_set_lock(frame) {
-                    mstore(add(frame, 576), mload(add(frame, 32)))
-                    mstore(add(frame, 608), and(mload(add(frame, 352)), 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(frame, 640), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
-                    let lock_slot := keccak256(add(frame, 576), 96)
-                    mstore(add(frame, 512), lock_slot)
-                    mstore(add(frame, 544), tload(lock_slot))
-                    tstore(lock_slot, 1)
-                }
-                function __midnight_take_clear_lock(frame) {
-                    if iszero(mload(add(frame, 544))) {
-                        tstore(mload(add(frame, 512)), 0)
-                    }
-                }
-                function __midnight_take_locked_or_healthy(frame) -> ok {
-                    ok := or(
-                        tload(mload(add(frame, 512))),
-                        internal_internal_isHealthy(mload(frame), mload(add(frame, 32)), mload(add(frame, 352)))
-                    )
-                }
-                function __midnight_take_call_buy_callback(frame) {
-                    let callback := mload(add(frame, 256))
-                    if iszero(eq(callback, 0)) {
-                        __midnight_call_buy_callback(
-                            callback,
-                            mload(frame),
-                            mload(add(frame, 704)),
-                            mload(add(frame, 64)),
-                            mload(add(frame, 96)),
-                            mload(add(frame, 128)),
-                            mload(add(frame, 160)),
-                            mload(add(frame, 192)),
-                            mload(add(frame, 224))
-                        )
-                    }
-                }
-                function __midnight_take_call_sell_callback(frame) {
-                    let callback := mload(add(frame, 480))
-                    if iszero(eq(callback, 0)) {
-                        __midnight_call_sell_callback(
-                            callback,
-                            mload(frame),
-                            mload(add(frame, 704)),
-                            mload(add(frame, 288)),
-                            mload(add(frame, 96)),
-                            mload(add(frame, 320)),
-                            mload(add(frame, 352)),
-                            mload(add(frame, 384)),
-                            mload(add(frame, 416)),
-                            mload(add(frame, 448))
-                        )
-                    }
-                }
-                function __midnight_call_liquidate_callback(callback, caller_value, market_data_offset, id, collateralIndex, seizedAssets, repaidUnits, borrower, receiver, data_abs_offset, data_length, badDebt) {
-                    let market_size := __midnight_market_abi_size(market_data_offset)
-                    let data_padded := and(add(data_length, 31), not(31))
-                    let ptr := mload(64)
-                    if lt(ptr, 128) {
-                        ptr := 128
-                    }
-                    mstore(ptr, 0x6861b79500000000000000000000000000000000000000000000000000000000)
-                    mstore(add(ptr, 4), and(caller_value, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 36), id)
-                    mstore(add(ptr, 68), 320)
-                    mstore(add(ptr, 100), collateralIndex)
-                    mstore(add(ptr, 132), seizedAssets)
-                    mstore(add(ptr, 164), repaidUnits)
-                    mstore(add(ptr, 196), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 228), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 260), add(320, market_size))
-                    mstore(add(ptr, 292), badDebt)
-                    calldatacopy(add(ptr, 324), market_data_offset, market_size)
-                    calldatacopy(add(add(ptr, 324), market_size), data_abs_offset, add(32, data_padded))
-                    let call_len := add(add(356, market_size), data_padded)
-                    mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                    let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                    if iszero(success) {
-                        let rds := returndatasize()
-                        returndatacopy(0, 0, rds)
-                        revert(0, rds)
-                    }
-                    if lt(returndatasize(), 32) {
-                        revert(0, 0)
-                    }
-                    returndatacopy(ptr, 0, 32)
-                    if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                        mstore(0, 0x70b53d4b00000000000000000000000000000000000000000000000000000000)
-                        revert(0, 4)
-                    }
-                }
-                function __midnight_call_ratifier(ratifier, offer_data_offset, ratifier_data_offset) {
-                    let offer_len := sub(ratifier_data_offset, offer_data_offset)
-                    let ratifier_data_len := calldataload(ratifier_data_offset)
-                    let ratifier_data_padded := and(add(ratifier_data_len, 31), not(31))
-                    let ptr := mload(64)
-                    if lt(ptr, 128) {
-                        ptr := 128
-                    }
-                    mstore(ptr, 0x675ef8d300000000000000000000000000000000000000000000000000000000)
-                    mstore(add(ptr, 4), 64)
-                    mstore(add(ptr, 36), add(64, offer_len))
-                    calldatacopy(add(ptr, 68), offer_data_offset, offer_len)
-                    calldatacopy(add(add(ptr, 68), offer_len), ratifier_data_offset, add(32, ratifier_data_padded))
-                    let call_len := add(add(100, offer_len), ratifier_data_padded)
-                    mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                    let success := staticcall(gas(), ratifier, ptr, call_len, ptr, 32)
-                    if iszero(success) {
-                        let rds := returndatasize()
-                        returndatacopy(0, 0, rds)
-                        revert(0, rds)
-                    }
-                    if lt(returndatasize(), 32) {
-                        revert(0, 0)
-                    }
-                    returndatacopy(ptr, 0, 32)
-                    if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                        mstore(0, 0x9e8ec67600000000000000000000000000000000000000000000000000000000)
-                        revert(0, 4)
-                    }
-                }
-                function __midnight_call_flashloan_callback(callback, caller_value, tokens_abs_offset, tokens_length, assets_abs_offset, assets_length, data_abs_offset, data_length) {
-                    let tokens_tail_size := add(32, mul(tokens_length, 32))
-                    let assets_tail_size := add(32, mul(assets_length, 32))
-                    let data_padded := and(add(data_length, 31), not(31))
-                    let data_tail_size := add(32, data_padded)
-                    let ptr := mload(64)
-                    if lt(ptr, 128) {
-                        ptr := 128
-                    }
-                    mstore(ptr, 0xd1f260c300000000000000000000000000000000000000000000000000000000)
-                    mstore(add(ptr, 4), and(caller_value, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 36), 128)
-                    mstore(add(ptr, 68), add(128, tokens_tail_size))
-                    mstore(add(ptr, 100), add(add(128, tokens_tail_size), assets_tail_size))
-                    calldatacopy(add(ptr, 132), tokens_abs_offset, tokens_tail_size)
-                    calldatacopy(add(add(ptr, 132), tokens_tail_size), assets_abs_offset, assets_tail_size)
-                    calldatacopy(add(add(add(ptr, 132), tokens_tail_size), assets_tail_size), data_abs_offset, data_tail_size)
-                    let call_len := add(132, add(add(tokens_tail_size, assets_tail_size), data_tail_size))
-                    mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                    let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                    if iszero(success) {
-                        let rds := returndatasize()
-                        returndatacopy(0, 0, rds)
-                        revert(0, rds)
-                    }
-                    if lt(returndatasize(), 32) {
-                        revert(0, 0)
-                    }
-                    returndatacopy(ptr, 0, 32)
-                    if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                        mstore(0, 0xa429c87000000000000000000000000000000000000000000000000000000000)
-                        revert(0, 4)
-                    }
-                }
-                function __midnight_emit_update_position(id, user, credit_before, credit_after, pending_before, pending_after, accrued) {
-                    let ptr := mload(64)
-                    mstore(ptr, sub(credit_before, credit_after))
-                    mstore(add(ptr, 32), sub(pending_before, pending_after))
-                    mstore(add(ptr, 64), accrued)
-                    log3(ptr, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
-                }
-                function __midnight_emit_take(caller_value, id, units, taker, maker, offer_is_buy, group, consumed, buyer_pending_fee_increase, seller_pending_fee_decrease, buyer_credit_increase, seller_credit_decrease, receiver, payer) {
-                    let ptr := mload(64)
-                    mstore(ptr, and(caller_value, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 32), units)
-                    mstore(add(ptr, 64), offer_is_buy)
-                    mstore(add(ptr, 96), group)
-                    mstore(add(ptr, 128), units)
-                    mstore(add(ptr, 160), units)
-                    mstore(add(ptr, 192), consumed)
-                    mstore(add(ptr, 224), buyer_pending_fee_increase)
-                    mstore(add(ptr, 256), seller_pending_fee_decrease)
-                    mstore(add(ptr, 288), buyer_credit_increase)
-                    mstore(add(ptr, 320), seller_credit_decrease)
-                    mstore(add(ptr, 352), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(ptr, 384), and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
-                    log4(ptr, 416, 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3, id, and(taker, 0xffffffffffffffffffffffffffffffffffffffff), and(maker, 0xffffffffffffffffffffffffffffffffffffffff))
-                }
-                function __midnight_mul_div_up(x, y, d) -> z {
-                    z := div(add(mul(x, y), sub(d, 1)), d)
-                }
-                function __midnight_div_half_down(x, d) -> z {
-                    z := div(add(x, div(sub(d, 1), 2)), d)
-                }
-                function __midnight_wexp_abs(x) -> z {
-                    let ln2 := 693147180559945309
-                    let offset := 322611214989459870
-                    let q := sdiv(add(x, offset), ln2)
-                    let r := sub(x, mul(q, ln2))
-                    let secondTerm := sdiv(mul(r, r), 2000000000000000000)
-                    let thirdTerm := sdiv(mul(secondTerm, r), 3000000000000000000)
-                    let expR := add(add(add(1000000000000000000, r), secondTerm), thirdTerm)
-                    z := shl(q, expR)
-                }
-                function __midnight_wexp(x) -> z {
-                    if slt(x, 0) {
-                        z := div(1000000000000000000000000000000000000, __midnight_wexp_abs(sub(0, x)))
-                    }
-                    if iszero(slt(x, 0)) {
-                        z := __midnight_wexp_abs(x)
-                    }
-                }
-                function __midnight_tick_to_price(tick) -> price {
-                    if gt(tick, 5820) {
-                        revert(0, 0)
-                    }
-                    let exponent := mul(4987541511039073, sub(2910, tick))
-                    let raw := __midnight_div_half_down(1000000000000000000000000000000000000, add(1000000000000000000, __midnight_wexp(exponent)))
-                    price := mul(__midnight_div_half_down(raw, 1000000000000), 1000000000000)
-                }
         function internal_internal_toId(market_data_offset) -> __ret0 {
             __ret0 := __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2)
             leave
         }
         function internal_internal_toMarket(id) {
+            extcodecopy(id, 0, 0, 0)
             let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
@@ -1614,86 +1231,9 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-
-                {
-                    let collateralParams_rel_offset := calldataload(add(market_data_offset, 32))
-                    let collateralParams_data_offset := add(market_data_offset, collateralParams_rel_offset)
-                    let collateralParams_length := calldataload(collateralParams_data_offset)
-                    let collateralCount := collateralParams_length
-                    if iszero(gt(collateralCount, 0)) {
-                        {
-                            let __err_ptr := mload(64)
-                            mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
-                            let __err_hash := keccak256(__err_ptr, 20)
-                            let __err_selector := shl(224, shr(224, __err_hash))
-                            mstore(0, __err_selector)
-                            let __err_tail := 0
-                            revert(0, add(4, __err_tail))
-                        }
-                    }
-                    if gt(collateralCount, 128) {
-                        {
-                            let __err_ptr := mload(64)
-                            mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
-                            let __err_hash := keccak256(__err_ptr, 25)
-                            let __err_selector := shl(224, shr(224, __err_hash))
-                            mstore(0, __err_selector)
-                            let __err_tail := 0
-                            revert(0, add(4, __err_tail))
-                        }
-                    }
-                    let previousCollateralToken := 0
-                    for {
-                        let __forEach_idx := 0
-                        let __forEach_count := collateralCount
-                        let i := 0
-                    } lt(__forEach_idx, __forEach_count) {
-                        __forEach_idx := add(__forEach_idx, 1)
-                    } {
-                        i := __forEach_idx
-                        let collateralElement_offset := add(add(collateralParams_data_offset, 32), mul(i, 128))
-                        let collateralToken := calldataload(collateralElement_offset)
-                        if iszero(gt(collateralToken, previousCollateralToken)) {
-                            {
-                                let __err_ptr := mload(64)
-                                mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
-                                let __err_hash := keccak256(__err_ptr, 27)
-                                let __err_selector := shl(224, shr(224, __err_hash))
-                                mstore(0, __err_selector)
-                                let __err_tail := 0
-                                revert(0, add(4, __err_tail))
-                            }
-                        }
-                        let lltv := calldataload(add(collateralElement_offset, 32))
-                        let allowed := or(or(or(eq(lltv, 385000000000000000), eq(lltv, 625000000000000000)), or(eq(lltv, 770000000000000000), eq(lltv, 860000000000000000))), or(or(eq(lltv, 915000000000000000), eq(lltv, 945000000000000000)), or(or(eq(lltv, 965000000000000000), eq(lltv, 980000000000000000)), eq(lltv, 1000000000000000000))))
-                        if iszero(allowed) {
-                            {
-                                let __err_ptr := mload(64)
-                                mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
-                                let __err_hash := keccak256(__err_ptr, 16)
-                                let __err_selector := shl(224, shr(224, __err_hash))
-                                mstore(0, __err_selector)
-                                let __err_tail := 0
-                                revert(0, add(4, __err_tail))
-                            }
-                        }
-                        let lowMaxLif := div(1000000000000000000000000000000000000, sub(1000000000000000000, div(mul(250000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000)))
-                        let highMaxLif := div(1000000000000000000000000000000000000, sub(1000000000000000000, div(mul(500000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000)))
-                        let lif := calldataload(add(collateralElement_offset, 64))
-                        if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
-                            {
-                                let __err_ptr := mload(64)
-                                mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
-                                let __err_hash := keccak256(__err_ptr, 15)
-                                let __err_selector := shl(224, shr(224, __err_hash))
-                                mstore(0, __err_selector)
-                                let __err_tail := 0
-                                revert(0, add(4, __err_tail))
-                            }
-                        }
-                        previousCollateralToken := collateralToken
-                    }
-                }
+                internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
+                let salt := sload(0)
+                let _marketPointer := create2(0, 0, 0, salt)
                 {
                     let __compat_value := 4
                     let __compat_packed := and(__compat_value, 255)
@@ -1765,9 +1305,6 @@ object "Midnight" {
                     let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
                     sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                 }
-            }
-            if eq(currentTickSpacing, 0) {
-                pop(__midnight_store_market_in_code(add(4, calldataload(4))))
             }
             __ret0 := id
             leave
@@ -2355,25 +1892,21 @@ object "Midnight" {
             leave
         }
         function internal_internal_creditOf(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_debtOf(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_totalUnits(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_lossFactor(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
@@ -2401,13 +1934,11 @@ object "Midnight" {
             leave
         }
         function internal_internal_withdrawable(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_continuousFee(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
             __ret0 := value
             leave
@@ -2528,20 +2059,6 @@ object "Midnight" {
                 sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
             {
-                let __event_ptr := mload(64)
-                mstore(__event_ptr, sub(creditBeforeUpdate, creditAfterUpdate))
-                mstore(add(__event_ptr, 32), sub(pendingFeeBeforeUpdate, pendingFeeAfterUpdate))
-                mstore(add(__event_ptr, 64), accrued)
-                log3(__event_ptr, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
-            }
-            {
-                let __event_ptr := mload(64)
-                mstore(__event_ptr, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-                mstore(add(__event_ptr, 32), units)
-                mstore(add(__event_ptr, 64), pendingFeeDecrease)
-                log4(__event_ptr, 96, 0x7a5e8e1731f88cf0c25f88fc7d5618e481e87be4d83f614e601850c2ff082fd7, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-            }
-            {
                 let __st_ptr := mload(64)
                 mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
                 mstore(add(__st_ptr, 4), receiver)
@@ -2610,6 +2127,23 @@ object "Midnight" {
             let payer := sender
             if iszero(eq(callback, 0)) {
                 payer := callback
+                {
+                    let __cb_ptr := mload(64)
+                    mstore(__cb_ptr, shl(224, 0xfc56f72e))
+                    mstore(add(__cb_ptr, 4), id)
+                    mstore(add(__cb_ptr, 36), units)
+                    mstore(add(__cb_ptr, 68), onBehalf)
+                    mstore(add(__cb_ptr, 100), 128)
+                    mstore(add(__cb_ptr, 132), data_length)
+                    calldatacopy(add(__cb_ptr, 164), data_data_offset, data_length)
+                    mstore(64, add(__cb_ptr, and(add(add(164, and(add(data_length, 31), not(31))), 31), not(31))))
+                    let __cb_success := call(gas(), callback, 0, __cb_ptr, add(164, and(add(data_length, 31), not(31))), 0, 0)
+                    if iszero(__cb_success) {
+                        let __cb_rds := returndatasize()
+                        returndatacopy(0, 0, __cb_rds)
+                        revert(0, __cb_rds)
+                    }
+                }
             }
             let self := address()
             {
@@ -2721,63 +2255,63 @@ object "Midnight" {
                 value := loaded
             }
             if eq(index, 1) {
-                let loaded := sload(mappingSlot(mappingSlot(13, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 1))
                 value := loaded
             }
             if eq(index, 2) {
-                let loaded := sload(mappingSlot(mappingSlot(14, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 2))
                 value := loaded
             }
             if eq(index, 3) {
-                let loaded := sload(mappingSlot(mappingSlot(15, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 3))
                 value := loaded
             }
             if eq(index, 4) {
-                let loaded := sload(mappingSlot(mappingSlot(16, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 4))
                 value := loaded
             }
             if eq(index, 5) {
-                let loaded := sload(mappingSlot(mappingSlot(17, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 5))
                 value := loaded
             }
             if eq(index, 6) {
-                let loaded := sload(mappingSlot(mappingSlot(18, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 6))
                 value := loaded
             }
             if eq(index, 7) {
-                let loaded := sload(mappingSlot(mappingSlot(19, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 7))
                 value := loaded
             }
             if eq(index, 8) {
-                let loaded := sload(mappingSlot(mappingSlot(20, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 8))
                 value := loaded
             }
             if eq(index, 9) {
-                let loaded := sload(mappingSlot(mappingSlot(21, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 9))
                 value := loaded
             }
             if eq(index, 10) {
-                let loaded := sload(mappingSlot(mappingSlot(22, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 10))
                 value := loaded
             }
             if eq(index, 11) {
-                let loaded := sload(mappingSlot(mappingSlot(23, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 11))
                 value := loaded
             }
             if eq(index, 12) {
-                let loaded := sload(mappingSlot(mappingSlot(24, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 12))
                 value := loaded
             }
             if eq(index, 13) {
-                let loaded := sload(mappingSlot(mappingSlot(25, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 13))
                 value := loaded
             }
             if eq(index, 14) {
-                let loaded := sload(mappingSlot(mappingSlot(26, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 14))
                 value := loaded
             }
             if eq(index, 15) {
-                let loaded := sload(mappingSlot(mappingSlot(27, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 15))
                 value := loaded
             }
             __ret0 := value
@@ -2788,51 +2322,51 @@ object "Midnight" {
                 sstore(mappingSlot(mappingSlot(12, id), user), value)
             }
             if eq(index, 1) {
-                sstore(mappingSlot(mappingSlot(13, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
             }
             if eq(index, 2) {
-                sstore(mappingSlot(mappingSlot(14, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
             }
             if eq(index, 3) {
-                sstore(mappingSlot(mappingSlot(15, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
             }
             if eq(index, 4) {
-                sstore(mappingSlot(mappingSlot(16, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
             }
             if eq(index, 5) {
-                sstore(mappingSlot(mappingSlot(17, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
             }
             if eq(index, 6) {
-                sstore(mappingSlot(mappingSlot(18, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
             }
             if eq(index, 7) {
-                sstore(mappingSlot(mappingSlot(19, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
             }
             if eq(index, 8) {
-                sstore(mappingSlot(mappingSlot(20, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
             }
             if eq(index, 9) {
-                sstore(mappingSlot(mappingSlot(21, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
             }
             if eq(index, 10) {
-                sstore(mappingSlot(mappingSlot(22, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
             }
             if eq(index, 11) {
-                sstore(mappingSlot(mappingSlot(23, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
             }
             if eq(index, 12) {
-                sstore(mappingSlot(mappingSlot(24, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
             }
             if eq(index, 13) {
-                sstore(mappingSlot(mappingSlot(25, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
             }
             if eq(index, 14) {
-                sstore(mappingSlot(mappingSlot(26, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
             }
             if eq(index, 15) {
-                sstore(mappingSlot(mappingSlot(27, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
             }
-            leave
+            stop()
         }
         function internal_internal_liquidate(market_data_offset, collateralIndex, seizedAssets, repaidUnits, borrower, postMaturityMode, receiver, callback, data_data_offset, data_length) -> __ret0, __ret1 {
             let sender := caller()
@@ -3124,6 +2658,28 @@ object "Midnight" {
             let payer := sender
             if iszero(eq(callback, 0)) {
                 payer := callback
+                {
+                    let __cb_ptr := mload(64)
+                    mstore(__cb_ptr, shl(224, 0x6861b795))
+                    mstore(add(__cb_ptr, 4), sender)
+                    mstore(add(__cb_ptr, 36), id)
+                    mstore(add(__cb_ptr, 68), collateralIndex)
+                    mstore(add(__cb_ptr, 100), outSeizedAssets)
+                    mstore(add(__cb_ptr, 132), outRepaidUnits)
+                    mstore(add(__cb_ptr, 164), borrower)
+                    mstore(add(__cb_ptr, 196), receiver)
+                    mstore(add(__cb_ptr, 228), badDebt)
+                    mstore(add(__cb_ptr, 260), 288)
+                    mstore(add(__cb_ptr, 292), data_length)
+                    calldatacopy(add(__cb_ptr, 324), data_data_offset, data_length)
+                    mstore(64, add(__cb_ptr, and(add(add(324, and(add(data_length, 31), not(31))), 31), not(31))))
+                    let __cb_success := call(gas(), callback, 0, __cb_ptr, add(324, and(add(data_length, 31), not(31))), 0, 0)
+                    if iszero(__cb_success) {
+                        let __cb_rds := returndatasize()
+                        returndatacopy(0, 0, __cb_rds)
+                        revert(0, __cb_rds)
+                    }
+                }
             }
             let self := address()
             {
@@ -3170,20 +2726,9 @@ object "Midnight" {
                 __ret0 := 1
                 leave
             }
-            let collateralParamsData := __verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1)
-            let collateralParamsLength := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
-            let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
-            let maxDebt := 0
-            for { let i := 0 } lt(i, collateralParamsLength) { i := add(i, 1) } {
-                if gt(and(collateralBitmapValue, shl(i, 1)), 0) {
-                    let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
-                    let oracle := internal_internal_collateralOracleAt(collateralParamsData, collateralParamsLength, i)
-                    let price := internal_internal_oraclePrice(oracle)
-                    let lltv := internal_internal_collateralLltvAt(collateralParamsData, collateralParamsLength, i)
-                    let collateralDebt := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
-                    maxDebt := add(maxDebt, collateralDebt)
-                }
-            }
+            let collateralValue := internal_internal_collateralAmount(id, borrower, 0)
+            let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), 0)
+            let maxDebt := div(mul(collateralValue, lltv), 1000000000000000000)
             __ret0 := iszero(gt(debt, maxDebt))
             leave
         }
@@ -3192,51 +2737,51 @@ object "Midnight" {
                 sstore(mappingSlot(mappingSlot(12, id), user), value)
             }
             if eq(index, 1) {
-                sstore(mappingSlot(mappingSlot(13, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
             }
             if eq(index, 2) {
-                sstore(mappingSlot(mappingSlot(14, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
             }
             if eq(index, 3) {
-                sstore(mappingSlot(mappingSlot(15, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
             }
             if eq(index, 4) {
-                sstore(mappingSlot(mappingSlot(16, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
             }
             if eq(index, 5) {
-                sstore(mappingSlot(mappingSlot(17, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
             }
             if eq(index, 6) {
-                sstore(mappingSlot(mappingSlot(18, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
             }
             if eq(index, 7) {
-                sstore(mappingSlot(mappingSlot(19, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
             }
             if eq(index, 8) {
-                sstore(mappingSlot(mappingSlot(20, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
             }
             if eq(index, 9) {
-                sstore(mappingSlot(mappingSlot(21, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
             }
             if eq(index, 10) {
-                sstore(mappingSlot(mappingSlot(22, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
             }
             if eq(index, 11) {
-                sstore(mappingSlot(mappingSlot(23, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
             }
             if eq(index, 12) {
-                sstore(mappingSlot(mappingSlot(24, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
             }
             if eq(index, 13) {
-                sstore(mappingSlot(mappingSlot(25, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
             }
             if eq(index, 14) {
-                sstore(mappingSlot(mappingSlot(26, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
             }
             if eq(index, 15) {
-                sstore(mappingSlot(mappingSlot(27, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
             }
-            leave
+            stop()
         }
         function internal_internal_supplyCollateral(market_data_offset, collateralIndex, assets, onBehalf) {
             let sender := caller()
@@ -3471,6 +3016,21 @@ object "Midnight" {
                     }
                 }
             }
+            {
+                let __cb_ptr := mload(64)
+                mstore(__cb_ptr, shl(224, 0xd1f260c3))
+                mstore(add(__cb_ptr, 4), 0)
+                mstore(add(__cb_ptr, 36), 64)
+                mstore(add(__cb_ptr, 68), data_length)
+                calldatacopy(add(__cb_ptr, 100), data_data_offset, data_length)
+                mstore(64, add(__cb_ptr, and(add(add(100, and(add(data_length, 31), not(31))), 31), not(31))))
+                let __cb_success := call(gas(), callback, 0, __cb_ptr, add(100, and(add(data_length, 31), not(31))), 0, 0)
+                if iszero(__cb_success) {
+                    let __cb_rds := returndatasize()
+                    returndatacopy(0, 0, __cb_rds)
+                    revert(0, __cb_rds)
+                }
+            }
             for {
                 let __forEach_idx := 0
                 let __forEach_count := tokenCount
@@ -3518,31 +3078,26 @@ object "Midnight" {
             stop()
         }
         function internal_internal_collateral(id, user, index) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := internal_internal_collateralAmount(id, user, index)
             __ret0 := value
             leave
         }
         function internal_internal_pendingFee(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_lastAccrual(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_lastLossFactor(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_collateralBitmap(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
             let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
@@ -3611,7 +3166,6 @@ object "Midnight" {
     }
     object "runtime" {
         code {
-            mstore(64, memoryguard(32768))
             function mappingSlot(baseSlot, key) -> slot {
                 mstore(0, key)
                 mstore(32, baseSlot)
@@ -4036,395 +3590,12 @@ object "Midnight" {
                 __ret0 := count
                 leave
             }
-
-            function __midnight_market_abi_size(market_data_offset) -> size {
-                        let collateral_rel_offset := calldataload(add(market_data_offset, 32))
-                        let collateral_data_offset := add(market_data_offset, collateral_rel_offset)
-                        let collateral_len := calldataload(collateral_data_offset)
-                        size := add(collateral_rel_offset, add(32, mul(collateral_len, 128)))
-                    }
-                    function __midnight_market_initcode(ptr, market_data_offset) -> init_len {
-                        let collateral_rel_offset := calldataload(add(market_data_offset, 32))
-                        let collateral_data_offset := add(market_data_offset, collateral_rel_offset)
-                        let collateral_len := calldataload(collateral_data_offset)
-                        let market_size := add(collateral_rel_offset, add(32, mul(collateral_len, 128)))
-                        mstore8(ptr, 0x60)
-                        mstore8(add(ptr, 1), 0x0b)
-                        mstore8(add(ptr, 2), 0x38)
-                        mstore8(add(ptr, 3), 0x03)
-                        mstore8(add(ptr, 4), 0x80)
-                        mstore8(add(ptr, 5), 0x60)
-                        mstore8(add(ptr, 6), 0x0b)
-                        mstore8(add(ptr, 7), 0x5f)
-                        mstore8(add(ptr, 8), 0x39)
-                        mstore8(add(ptr, 9), 0x5f)
-                        mstore8(add(ptr, 10), 0xf3)
-                        mstore(add(ptr, 11), 32)
-                        calldatacopy(add(ptr, 43), market_data_offset, market_size)
-                        init_len := add(43, market_size)
-                        mstore(64, and(add(add(ptr, init_len), 31), not(31)))
-                    }
-                    function __midnight_market_id(market_data_offset) -> id {
-                        let ptr := mload(64)
-                        let init_len := __midnight_market_initcode(ptr, market_data_offset)
-                        let init_hash := keccak256(ptr, init_len)
-                        let scratch := and(add(add(ptr, init_len), 31), not(31))
-                        if lt(scratch, 128) {
-                            scratch := 128
-                        }
-                        mstore(scratch, shl(248, 0xff))
-                        mstore(add(scratch, 1), shl(96, address()))
-                        mstore(add(scratch, 21), sload(0))
-                        mstore(add(scratch, 53), init_hash)
-                        id := keccak256(scratch, 85)
-                        mstore(64, and(add(add(scratch, 85), 31), not(31)))
-                    }
-                    function __midnight_store_market_in_code(market_data_offset) -> deployed {
-                        let ptr := mload(64)
-                        let init_len := __midnight_market_initcode(ptr, market_data_offset)
-                        deployed := create2(0, ptr, init_len, sload(0))
-                        if iszero(deployed) {
-                            let id := __midnight_market_id(market_data_offset)
-                            deployed := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
-                            if iszero(gt(extcodesize(deployed), 0)) {
-                                revert(0, 0)
-                            }
-                        }
-                    }
-                    function __midnight_return_market(id) {
-                        let create2Address := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
-                        let size := extcodesize(create2Address)
-                        if iszero(gt(size, 0)) {
-                            revert(0, 0)
-                        }
-                        extcodecopy(create2Address, 0, 0, size)
-                        return(0, size)
-                    }
-                    function __midnight_scaffold_id(id) -> scaffold_id {
-                        scaffold_id := id
-                        let create2Address := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
-                        if gt(extcodesize(create2Address), 127) {
-                            extcodecopy(create2Address, 0, 96, 32)
-                            scaffold_id := mload(0)
-                        }
-                    }
-                    function __midnight_call_repay_callback(callback, market_data_offset, units, onBehalf, data_abs_offset, data_length) {
-                        let callback_id := __midnight_market_id(market_data_offset)
-                        let market_size := __midnight_market_abi_size(market_data_offset)
-                        let data_padded := and(add(data_length, 31), not(31))
-                        let ptr := mload(64)
-                        if lt(ptr, 128) {
-                            ptr := 128
-                        }
-                        mstore(ptr, 0xfc56f72e00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(ptr, 4), callback_id)
-                        mstore(add(ptr, 36), 160)
-                        mstore(add(ptr, 68), units)
-                        mstore(add(ptr, 100), and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 132), add(160, market_size))
-                        calldatacopy(add(ptr, 164), market_data_offset, market_size)
-                        calldatacopy(add(add(ptr, 164), market_size), data_abs_offset, add(32, data_padded))
-                        let call_len := add(add(196, market_size), data_padded)
-                        mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                        let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                        if iszero(success) {
-                            let rds := returndatasize()
-                            returndatacopy(0, 0, rds)
-                            revert(0, rds)
-                        }
-                        if lt(returndatasize(), 32) {
-                            revert(0, 0)
-                        }
-                        returndatacopy(ptr, 0, 32)
-                        if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                            mstore(0, 0x40a13da200000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                    }
-                    function __midnight_call_buy_callback(callback, market_data_offset, id, buyerAssets, units, pendingFeeIncrease, buyer, data_abs_offset, data_length) {
-                        let market_size := __midnight_market_abi_size(market_data_offset)
-                        let data_padded := and(add(data_length, 31), not(31))
-                        let ptr := mload(64)
-                        if lt(ptr, 128) {
-                            ptr := 128
-                        }
-                        mstore(ptr, 0xf151bd5c00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(ptr, 4), id)
-                        mstore(add(ptr, 36), 224)
-                        mstore(add(ptr, 68), buyerAssets)
-                        mstore(add(ptr, 100), units)
-                        mstore(add(ptr, 132), pendingFeeIncrease)
-                        mstore(add(ptr, 164), and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 196), add(224, market_size))
-                        calldatacopy(add(ptr, 228), market_data_offset, market_size)
-                        calldatacopy(add(add(ptr, 228), market_size), data_abs_offset, add(32, data_padded))
-                        let call_len := add(add(260, market_size), data_padded)
-                        mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                        let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                        if iszero(success) {
-                            let rds := returndatasize()
-                            returndatacopy(0, 0, rds)
-                            revert(0, rds)
-                        }
-                        if lt(returndatasize(), 32) {
-                            revert(0, 0)
-                        }
-                        returndatacopy(ptr, 0, 32)
-                        if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                            mstore(0, 0xa8f3eb4400000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                    }
-                    function __midnight_call_sell_callback(callback, market_data_offset, id, sellerAssets, units, pendingFeeDecrease, seller, receiver, data_abs_offset, data_length) {
-                        let market_size := __midnight_market_abi_size(market_data_offset)
-                        let data_padded := and(add(data_length, 31), not(31))
-                        let ptr := mload(64)
-                        if lt(ptr, 128) {
-                            ptr := 128
-                        }
-                        mstore(ptr, 0x7f44a13a00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(ptr, 4), id)
-                        mstore(add(ptr, 36), 256)
-                        mstore(add(ptr, 68), sellerAssets)
-                        mstore(add(ptr, 100), units)
-                        mstore(add(ptr, 132), pendingFeeDecrease)
-                        mstore(add(ptr, 164), and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 196), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 228), add(256, market_size))
-                        calldatacopy(add(ptr, 260), market_data_offset, market_size)
-                        calldatacopy(add(add(ptr, 260), market_size), data_abs_offset, add(32, data_padded))
-                        let call_len := add(add(292, market_size), data_padded)
-                        mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                        let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                        if iszero(success) {
-                            let rds := returndatasize()
-                            returndatacopy(0, 0, rds)
-                            revert(0, rds)
-                        }
-                        if lt(returndatasize(), 32) {
-                            revert(0, 0)
-                        }
-                        returndatacopy(ptr, 0, 32)
-                        if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                            mstore(0, 0xa4fb788300000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                    }
-                    function __midnight_take_set_lock(frame) {
-                        mstore(add(frame, 576), mload(add(frame, 32)))
-                        mstore(add(frame, 608), and(mload(add(frame, 352)), 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(frame, 640), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
-                        let lock_slot := keccak256(add(frame, 576), 96)
-                        mstore(add(frame, 512), lock_slot)
-                        mstore(add(frame, 544), tload(lock_slot))
-                        tstore(lock_slot, 1)
-                    }
-                    function __midnight_take_clear_lock(frame) {
-                        if iszero(mload(add(frame, 544))) {
-                            tstore(mload(add(frame, 512)), 0)
-                        }
-                    }
-                    function __midnight_take_locked_or_healthy(frame) -> ok {
-                        ok := or(
-                            tload(mload(add(frame, 512))),
-                            internal_internal_isHealthy(mload(frame), mload(add(frame, 32)), mload(add(frame, 352)))
-                        )
-                    }
-                    function __midnight_take_call_buy_callback(frame) {
-                        let callback := mload(add(frame, 256))
-                        if iszero(eq(callback, 0)) {
-                            __midnight_call_buy_callback(
-                                callback,
-                                mload(frame),
-                                mload(add(frame, 704)),
-                                mload(add(frame, 64)),
-                                mload(add(frame, 96)),
-                                mload(add(frame, 128)),
-                                mload(add(frame, 160)),
-                                mload(add(frame, 192)),
-                                mload(add(frame, 224))
-                            )
-                        }
-                    }
-                    function __midnight_take_call_sell_callback(frame) {
-                        let callback := mload(add(frame, 480))
-                        if iszero(eq(callback, 0)) {
-                            __midnight_call_sell_callback(
-                                callback,
-                                mload(frame),
-                                mload(add(frame, 704)),
-                                mload(add(frame, 288)),
-                                mload(add(frame, 96)),
-                                mload(add(frame, 320)),
-                                mload(add(frame, 352)),
-                                mload(add(frame, 384)),
-                                mload(add(frame, 416)),
-                                mload(add(frame, 448))
-                            )
-                        }
-                    }
-                    function __midnight_call_liquidate_callback(callback, caller_value, market_data_offset, id, collateralIndex, seizedAssets, repaidUnits, borrower, receiver, data_abs_offset, data_length, badDebt) {
-                        let market_size := __midnight_market_abi_size(market_data_offset)
-                        let data_padded := and(add(data_length, 31), not(31))
-                        let ptr := mload(64)
-                        if lt(ptr, 128) {
-                            ptr := 128
-                        }
-                        mstore(ptr, 0x6861b79500000000000000000000000000000000000000000000000000000000)
-                        mstore(add(ptr, 4), and(caller_value, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 36), id)
-                        mstore(add(ptr, 68), 320)
-                        mstore(add(ptr, 100), collateralIndex)
-                        mstore(add(ptr, 132), seizedAssets)
-                        mstore(add(ptr, 164), repaidUnits)
-                        mstore(add(ptr, 196), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 228), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 260), add(320, market_size))
-                        mstore(add(ptr, 292), badDebt)
-                        calldatacopy(add(ptr, 324), market_data_offset, market_size)
-                        calldatacopy(add(add(ptr, 324), market_size), data_abs_offset, add(32, data_padded))
-                        let call_len := add(add(356, market_size), data_padded)
-                        mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                        let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                        if iszero(success) {
-                            let rds := returndatasize()
-                            returndatacopy(0, 0, rds)
-                            revert(0, rds)
-                        }
-                        if lt(returndatasize(), 32) {
-                            revert(0, 0)
-                        }
-                        returndatacopy(ptr, 0, 32)
-                        if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                            mstore(0, 0x70b53d4b00000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                    }
-                    function __midnight_call_ratifier(ratifier, offer_data_offset, ratifier_data_offset) {
-                        let offer_len := sub(ratifier_data_offset, offer_data_offset)
-                        let ratifier_data_len := calldataload(ratifier_data_offset)
-                        let ratifier_data_padded := and(add(ratifier_data_len, 31), not(31))
-                        let ptr := mload(64)
-                        if lt(ptr, 128) {
-                            ptr := 128
-                        }
-                        mstore(ptr, 0x675ef8d300000000000000000000000000000000000000000000000000000000)
-                        mstore(add(ptr, 4), 64)
-                        mstore(add(ptr, 36), add(64, offer_len))
-                        calldatacopy(add(ptr, 68), offer_data_offset, offer_len)
-                        calldatacopy(add(add(ptr, 68), offer_len), ratifier_data_offset, add(32, ratifier_data_padded))
-                        let call_len := add(add(100, offer_len), ratifier_data_padded)
-                        mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                        let success := staticcall(gas(), ratifier, ptr, call_len, ptr, 32)
-                        if iszero(success) {
-                            let rds := returndatasize()
-                            returndatacopy(0, 0, rds)
-                            revert(0, rds)
-                        }
-                        if lt(returndatasize(), 32) {
-                            revert(0, 0)
-                        }
-                        returndatacopy(ptr, 0, 32)
-                        if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                            mstore(0, 0x9e8ec67600000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                    }
-                    function __midnight_call_flashloan_callback(callback, caller_value, tokens_abs_offset, tokens_length, assets_abs_offset, assets_length, data_abs_offset, data_length) {
-                        let tokens_tail_size := add(32, mul(tokens_length, 32))
-                        let assets_tail_size := add(32, mul(assets_length, 32))
-                        let data_padded := and(add(data_length, 31), not(31))
-                        let data_tail_size := add(32, data_padded)
-                        let ptr := mload(64)
-                        if lt(ptr, 128) {
-                            ptr := 128
-                        }
-                        mstore(ptr, 0xd1f260c300000000000000000000000000000000000000000000000000000000)
-                        mstore(add(ptr, 4), and(caller_value, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 36), 128)
-                        mstore(add(ptr, 68), add(128, tokens_tail_size))
-                        mstore(add(ptr, 100), add(add(128, tokens_tail_size), assets_tail_size))
-                        calldatacopy(add(ptr, 132), tokens_abs_offset, tokens_tail_size)
-                        calldatacopy(add(add(ptr, 132), tokens_tail_size), assets_abs_offset, assets_tail_size)
-                        calldatacopy(add(add(add(ptr, 132), tokens_tail_size), assets_tail_size), data_abs_offset, data_tail_size)
-                        let call_len := add(132, add(add(tokens_tail_size, assets_tail_size), data_tail_size))
-                        mstore(64, and(add(add(ptr, call_len), 31), not(31)))
-                        let success := call(gas(), callback, 0, ptr, call_len, ptr, 32)
-                        if iszero(success) {
-                            let rds := returndatasize()
-                            returndatacopy(0, 0, rds)
-                            revert(0, rds)
-                        }
-                        if lt(returndatasize(), 32) {
-                            revert(0, 0)
-                        }
-                        returndatacopy(ptr, 0, 32)
-                        if iszero(eq(mload(ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
-                            mstore(0, 0xa429c87000000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                    }
-                    function __midnight_emit_update_position(id, user, credit_before, credit_after, pending_before, pending_after, accrued) {
-                        let ptr := mload(64)
-                        mstore(ptr, sub(credit_before, credit_after))
-                        mstore(add(ptr, 32), sub(pending_before, pending_after))
-                        mstore(add(ptr, 64), accrued)
-                        log3(ptr, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
-                    }
-                    function __midnight_emit_take(caller_value, id, units, taker, maker, offer_is_buy, group, consumed, buyer_pending_fee_increase, seller_pending_fee_decrease, buyer_credit_increase, seller_credit_decrease, receiver, payer) {
-                        let ptr := mload(64)
-                        mstore(ptr, and(caller_value, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 32), units)
-                        mstore(add(ptr, 64), offer_is_buy)
-                        mstore(add(ptr, 96), group)
-                        mstore(add(ptr, 128), units)
-                        mstore(add(ptr, 160), units)
-                        mstore(add(ptr, 192), consumed)
-                        mstore(add(ptr, 224), buyer_pending_fee_increase)
-                        mstore(add(ptr, 256), seller_pending_fee_decrease)
-                        mstore(add(ptr, 288), buyer_credit_increase)
-                        mstore(add(ptr, 320), seller_credit_decrease)
-                        mstore(add(ptr, 352), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(ptr, 384), and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
-                        log4(ptr, 416, 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3, id, and(taker, 0xffffffffffffffffffffffffffffffffffffffff), and(maker, 0xffffffffffffffffffffffffffffffffffffffff))
-                    }
-                    function __midnight_mul_div_up(x, y, d) -> z {
-                        z := div(add(mul(x, y), sub(d, 1)), d)
-                    }
-                    function __midnight_div_half_down(x, d) -> z {
-                        z := div(add(x, div(sub(d, 1), 2)), d)
-                    }
-                    function __midnight_wexp_abs(x) -> z {
-                        let ln2 := 693147180559945309
-                        let offset := 322611214989459870
-                        let q := sdiv(add(x, offset), ln2)
-                        let r := sub(x, mul(q, ln2))
-                        let secondTerm := sdiv(mul(r, r), 2000000000000000000)
-                        let thirdTerm := sdiv(mul(secondTerm, r), 3000000000000000000)
-                        let expR := add(add(add(1000000000000000000, r), secondTerm), thirdTerm)
-                        z := shl(q, expR)
-                    }
-                    function __midnight_wexp(x) -> z {
-                        if slt(x, 0) {
-                            z := div(1000000000000000000000000000000000000, __midnight_wexp_abs(sub(0, x)))
-                        }
-                        if iszero(slt(x, 0)) {
-                            z := __midnight_wexp_abs(x)
-                        }
-                    }
-                    function __midnight_tick_to_price(tick) -> price {
-                        if gt(tick, 5820) {
-                            revert(0, 0)
-                        }
-                        let exponent := mul(4987541511039073, sub(2910, tick))
-                        let raw := __midnight_div_half_down(1000000000000000000000000000000000000, add(1000000000000000000, __midnight_wexp(exponent)))
-                        price := mul(__midnight_div_half_down(raw, 1000000000000), 1000000000000)
-                    }
             function internal_internal_toId(market_data_offset) -> __ret0 {
                 __ret0 := __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2)
                 leave
             }
             function internal_internal_toMarket(id) {
+                extcodecopy(id, 0, 0, 0)
                 let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
@@ -4584,13 +3755,6 @@ object "Midnight" {
                     let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
                     sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-                {
-                    let __event_ptr := mload(64)
-                    mstore(__event_ptr, sub(credit, newCredit))
-                    mstore(add(__event_ptr, 32), sub(pendingFee, newPendingFee))
-                    mstore(add(__event_ptr, 64), accrued)
-                    log3(__event_ptr, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 __ret0 := newCredit
                 __ret1 := newPendingFee
@@ -4932,11 +4096,6 @@ object "Midnight" {
                     sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
-                    let __event_ptr := mload(64)
-                    mstore(__event_ptr, amount)
-                    log4(__event_ptr, 32, 0xd64453ff5184816a23d670b5224717cd441c4a7cd5f4e7dbc30f8511d35f597b, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                }
-                {
                     let __st_ptr := mload(64)
                     mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
                     mstore(add(__st_ptr, 4), receiver)
@@ -5234,86 +4393,9 @@ object "Midnight" {
                             revert(0, add(4, __err_tail))
                         }
                     }
-
-                    {
-                        let collateralParams_rel_offset := calldataload(add(market_data_offset, 32))
-                        let collateralParams_data_offset := add(market_data_offset, collateralParams_rel_offset)
-                        let collateralParams_length := calldataload(collateralParams_data_offset)
-                        let collateralCount := collateralParams_length
-                        if iszero(gt(collateralCount, 0)) {
-                            {
-                                let __err_ptr := mload(64)
-                                mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
-                                let __err_hash := keccak256(__err_ptr, 20)
-                                let __err_selector := shl(224, shr(224, __err_hash))
-                                mstore(0, __err_selector)
-                                let __err_tail := 0
-                                revert(0, add(4, __err_tail))
-                            }
-                        }
-                        if gt(collateralCount, 128) {
-                            {
-                                let __err_ptr := mload(64)
-                                mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
-                                let __err_hash := keccak256(__err_ptr, 25)
-                                let __err_selector := shl(224, shr(224, __err_hash))
-                                mstore(0, __err_selector)
-                                let __err_tail := 0
-                                revert(0, add(4, __err_tail))
-                            }
-                        }
-                        let previousCollateralToken := 0
-                        for {
-                            let __forEach_idx := 0
-                            let __forEach_count := collateralCount
-                            let i := 0
-                        } lt(__forEach_idx, __forEach_count) {
-                            __forEach_idx := add(__forEach_idx, 1)
-                        } {
-                            i := __forEach_idx
-                            let collateralElement_offset := add(add(collateralParams_data_offset, 32), mul(i, 128))
-                            let collateralToken := calldataload(collateralElement_offset)
-                            if iszero(gt(collateralToken, previousCollateralToken)) {
-                                {
-                                    let __err_ptr := mload(64)
-                                    mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
-                                    let __err_hash := keccak256(__err_ptr, 27)
-                                    let __err_selector := shl(224, shr(224, __err_hash))
-                                    mstore(0, __err_selector)
-                                    let __err_tail := 0
-                                    revert(0, add(4, __err_tail))
-                                }
-                            }
-                            let lltv := calldataload(add(collateralElement_offset, 32))
-                            let allowed := or(or(or(eq(lltv, 385000000000000000), eq(lltv, 625000000000000000)), or(eq(lltv, 770000000000000000), eq(lltv, 860000000000000000))), or(or(eq(lltv, 915000000000000000), eq(lltv, 945000000000000000)), or(or(eq(lltv, 965000000000000000), eq(lltv, 980000000000000000)), eq(lltv, 1000000000000000000))))
-                            if iszero(allowed) {
-                                {
-                                    let __err_ptr := mload(64)
-                                    mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
-                                    let __err_hash := keccak256(__err_ptr, 16)
-                                    let __err_selector := shl(224, shr(224, __err_hash))
-                                    mstore(0, __err_selector)
-                                    let __err_tail := 0
-                                    revert(0, add(4, __err_tail))
-                                }
-                            }
-                            let lowMaxLif := div(1000000000000000000000000000000000000, sub(1000000000000000000, div(mul(250000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000)))
-                            let highMaxLif := div(1000000000000000000000000000000000000, sub(1000000000000000000, div(mul(500000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000)))
-                            let lif := calldataload(add(collateralElement_offset, 64))
-                            if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
-                                {
-                                    let __err_ptr := mload(64)
-                                    mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
-                                    let __err_hash := keccak256(__err_ptr, 15)
-                                    let __err_selector := shl(224, shr(224, __err_hash))
-                                    mstore(0, __err_selector)
-                                    let __err_tail := 0
-                                    revert(0, add(4, __err_tail))
-                                }
-                            }
-                            previousCollateralToken := collateralToken
-                        }
-                    }
+                    internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
+                    let salt := sload(0)
+                    let _marketPointer := create2(0, 0, 0, salt)
                     {
                         let __compat_value := 4
                         let __compat_packed := and(__compat_value, 255)
@@ -5972,25 +5054,21 @@ object "Midnight" {
                 leave
             }
             function internal_internal_creditOf(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_debtOf(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_totalUnits(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_lossFactor(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
@@ -6018,13 +5096,11 @@ object "Midnight" {
                 leave
             }
             function internal_internal_withdrawable(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_continuousFee(id) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
                 __ret0 := value
                 leave
@@ -6213,6 +5289,23 @@ object "Midnight" {
                 let payer := sender
                 if iszero(eq(callback, 0)) {
                     payer := callback
+                    {
+                        let __cb_ptr := mload(64)
+                        mstore(__cb_ptr, shl(224, 0xfc56f72e))
+                        mstore(add(__cb_ptr, 4), id)
+                        mstore(add(__cb_ptr, 36), units)
+                        mstore(add(__cb_ptr, 68), onBehalf)
+                        mstore(add(__cb_ptr, 100), 128)
+                        mstore(add(__cb_ptr, 132), data_length)
+                        calldatacopy(add(__cb_ptr, 164), data_data_offset, data_length)
+                        mstore(64, add(__cb_ptr, and(add(add(164, and(add(data_length, 31), not(31))), 31), not(31))))
+                        let __cb_success := call(gas(), callback, 0, __cb_ptr, add(164, and(add(data_length, 31), not(31))), 0, 0)
+                        if iszero(__cb_success) {
+                            let __cb_rds := returndatasize()
+                            returndatacopy(0, 0, __cb_rds)
+                            revert(0, __cb_rds)
+                        }
+                    }
                 }
                 let self := address()
                 {
@@ -6324,63 +5417,63 @@ object "Midnight" {
                     value := loaded
                 }
                 if eq(index, 1) {
-                    let loaded := sload(mappingSlot(mappingSlot(13, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 1))
                     value := loaded
                 }
                 if eq(index, 2) {
-                    let loaded := sload(mappingSlot(mappingSlot(14, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 2))
                     value := loaded
                 }
                 if eq(index, 3) {
-                    let loaded := sload(mappingSlot(mappingSlot(15, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 3))
                     value := loaded
                 }
                 if eq(index, 4) {
-                    let loaded := sload(mappingSlot(mappingSlot(16, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 4))
                     value := loaded
                 }
                 if eq(index, 5) {
-                    let loaded := sload(mappingSlot(mappingSlot(17, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 5))
                     value := loaded
                 }
                 if eq(index, 6) {
-                    let loaded := sload(mappingSlot(mappingSlot(18, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 6))
                     value := loaded
                 }
                 if eq(index, 7) {
-                    let loaded := sload(mappingSlot(mappingSlot(19, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 7))
                     value := loaded
                 }
                 if eq(index, 8) {
-                    let loaded := sload(mappingSlot(mappingSlot(20, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 8))
                     value := loaded
                 }
                 if eq(index, 9) {
-                    let loaded := sload(mappingSlot(mappingSlot(21, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 9))
                     value := loaded
                 }
                 if eq(index, 10) {
-                    let loaded := sload(mappingSlot(mappingSlot(22, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 10))
                     value := loaded
                 }
                 if eq(index, 11) {
-                    let loaded := sload(mappingSlot(mappingSlot(23, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 11))
                     value := loaded
                 }
                 if eq(index, 12) {
-                    let loaded := sload(mappingSlot(mappingSlot(24, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 12))
                     value := loaded
                 }
                 if eq(index, 13) {
-                    let loaded := sload(mappingSlot(mappingSlot(25, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 13))
                     value := loaded
                 }
                 if eq(index, 14) {
-                    let loaded := sload(mappingSlot(mappingSlot(26, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 14))
                     value := loaded
                 }
                 if eq(index, 15) {
-                    let loaded := sload(mappingSlot(mappingSlot(27, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 15))
                     value := loaded
                 }
                 __ret0 := value
@@ -6391,51 +5484,51 @@ object "Midnight" {
                     sstore(mappingSlot(mappingSlot(12, id), user), value)
                 }
                 if eq(index, 1) {
-                    sstore(mappingSlot(mappingSlot(13, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
                 }
                 if eq(index, 2) {
-                    sstore(mappingSlot(mappingSlot(14, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
                 }
                 if eq(index, 3) {
-                    sstore(mappingSlot(mappingSlot(15, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
                 }
                 if eq(index, 4) {
-                    sstore(mappingSlot(mappingSlot(16, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
                 }
                 if eq(index, 5) {
-                    sstore(mappingSlot(mappingSlot(17, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
                 }
                 if eq(index, 6) {
-                    sstore(mappingSlot(mappingSlot(18, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
                 }
                 if eq(index, 7) {
-                    sstore(mappingSlot(mappingSlot(19, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
                 }
                 if eq(index, 8) {
-                    sstore(mappingSlot(mappingSlot(20, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
                 }
                 if eq(index, 9) {
-                    sstore(mappingSlot(mappingSlot(21, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
                 }
                 if eq(index, 10) {
-                    sstore(mappingSlot(mappingSlot(22, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
                 }
                 if eq(index, 11) {
-                    sstore(mappingSlot(mappingSlot(23, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
                 }
                 if eq(index, 12) {
-                    sstore(mappingSlot(mappingSlot(24, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
                 }
                 if eq(index, 13) {
-                    sstore(mappingSlot(mappingSlot(25, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
                 }
                 if eq(index, 14) {
-                    sstore(mappingSlot(mappingSlot(26, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
                 }
                 if eq(index, 15) {
-                    sstore(mappingSlot(mappingSlot(27, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
                 }
-                leave
+                stop()
             }
             function internal_internal_liquidate(market_data_offset, collateralIndex, seizedAssets, repaidUnits, borrower, postMaturityMode, receiver, callback, data_data_offset, data_length) -> __ret0, __ret1 {
                 let sender := caller()
@@ -6727,6 +5820,28 @@ object "Midnight" {
                 let payer := sender
                 if iszero(eq(callback, 0)) {
                     payer := callback
+                    {
+                        let __cb_ptr := mload(64)
+                        mstore(__cb_ptr, shl(224, 0x6861b795))
+                        mstore(add(__cb_ptr, 4), sender)
+                        mstore(add(__cb_ptr, 36), id)
+                        mstore(add(__cb_ptr, 68), collateralIndex)
+                        mstore(add(__cb_ptr, 100), outSeizedAssets)
+                        mstore(add(__cb_ptr, 132), outRepaidUnits)
+                        mstore(add(__cb_ptr, 164), borrower)
+                        mstore(add(__cb_ptr, 196), receiver)
+                        mstore(add(__cb_ptr, 228), badDebt)
+                        mstore(add(__cb_ptr, 260), 288)
+                        mstore(add(__cb_ptr, 292), data_length)
+                        calldatacopy(add(__cb_ptr, 324), data_data_offset, data_length)
+                        mstore(64, add(__cb_ptr, and(add(add(324, and(add(data_length, 31), not(31))), 31), not(31))))
+                        let __cb_success := call(gas(), callback, 0, __cb_ptr, add(324, and(add(data_length, 31), not(31))), 0, 0)
+                        if iszero(__cb_success) {
+                            let __cb_rds := returndatasize()
+                            returndatacopy(0, 0, __cb_rds)
+                            revert(0, __cb_rds)
+                        }
+                    }
                 }
                 let self := address()
                 {
@@ -6773,20 +5888,9 @@ object "Midnight" {
                     __ret0 := 1
                     leave
                 }
-                let collateralParamsData := __verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1)
-                let collateralParamsLength := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
-                let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
-                let maxDebt := 0
-                for { let i := 0 } lt(i, collateralParamsLength) { i := add(i, 1) } {
-                    if gt(and(collateralBitmapValue, shl(i, 1)), 0) {
-                        let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
-                        let oracle := internal_internal_collateralOracleAt(collateralParamsData, collateralParamsLength, i)
-                        let price := internal_internal_oraclePrice(oracle)
-                        let lltv := internal_internal_collateralLltvAt(collateralParamsData, collateralParamsLength, i)
-                        let collateralDebt := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
-                        maxDebt := add(maxDebt, collateralDebt)
-                    }
-                }
+                let collateralValue := internal_internal_collateralAmount(id, borrower, 0)
+                let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), 0)
+                let maxDebt := div(mul(collateralValue, lltv), 1000000000000000000)
                 __ret0 := iszero(gt(debt, maxDebt))
                 leave
             }
@@ -6795,51 +5899,51 @@ object "Midnight" {
                     sstore(mappingSlot(mappingSlot(12, id), user), value)
                 }
                 if eq(index, 1) {
-                    sstore(mappingSlot(mappingSlot(13, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
                 }
                 if eq(index, 2) {
-                    sstore(mappingSlot(mappingSlot(14, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
                 }
                 if eq(index, 3) {
-                    sstore(mappingSlot(mappingSlot(15, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
                 }
                 if eq(index, 4) {
-                    sstore(mappingSlot(mappingSlot(16, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
                 }
                 if eq(index, 5) {
-                    sstore(mappingSlot(mappingSlot(17, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
                 }
                 if eq(index, 6) {
-                    sstore(mappingSlot(mappingSlot(18, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
                 }
                 if eq(index, 7) {
-                    sstore(mappingSlot(mappingSlot(19, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
                 }
                 if eq(index, 8) {
-                    sstore(mappingSlot(mappingSlot(20, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
                 }
                 if eq(index, 9) {
-                    sstore(mappingSlot(mappingSlot(21, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
                 }
                 if eq(index, 10) {
-                    sstore(mappingSlot(mappingSlot(22, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
                 }
                 if eq(index, 11) {
-                    sstore(mappingSlot(mappingSlot(23, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
                 }
                 if eq(index, 12) {
-                    sstore(mappingSlot(mappingSlot(24, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
                 }
                 if eq(index, 13) {
-                    sstore(mappingSlot(mappingSlot(25, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
                 }
                 if eq(index, 14) {
-                    sstore(mappingSlot(mappingSlot(26, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
                 }
                 if eq(index, 15) {
-                    sstore(mappingSlot(mappingSlot(27, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
                 }
-                leave
+                stop()
             }
             function internal_internal_supplyCollateral(market_data_offset, collateralIndex, assets, onBehalf) {
                 let sender := caller()
@@ -7074,6 +6178,21 @@ object "Midnight" {
                         }
                     }
                 }
+                {
+                    let __cb_ptr := mload(64)
+                    mstore(__cb_ptr, shl(224, 0xd1f260c3))
+                    mstore(add(__cb_ptr, 4), 0)
+                    mstore(add(__cb_ptr, 36), 64)
+                    mstore(add(__cb_ptr, 68), data_length)
+                    calldatacopy(add(__cb_ptr, 100), data_data_offset, data_length)
+                    mstore(64, add(__cb_ptr, and(add(add(100, and(add(data_length, 31), not(31))), 31), not(31))))
+                    let __cb_success := call(gas(), callback, 0, __cb_ptr, add(100, and(add(data_length, 31), not(31))), 0, 0)
+                    if iszero(__cb_success) {
+                        let __cb_rds := returndatasize()
+                        returndatacopy(0, 0, __cb_rds)
+                        revert(0, __cb_rds)
+                    }
+                }
                 for {
                     let __forEach_idx := 0
                     let __forEach_count := tokenCount
@@ -7121,31 +6240,26 @@ object "Midnight" {
                 stop()
             }
             function internal_internal_collateral(id, user, index) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := internal_internal_collateralAmount(id, user, index)
                 __ret0 := value
                 leave
             }
             function internal_internal_pendingFee(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_lastAccrual(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_lastLossFactor(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_collateralBitmap(id, user) -> __ret0 {
-                id := __midnight_scaffold_id(id)
                 let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
@@ -7402,20 +6516,6 @@ object "Midnight" {
                         mstore(0, value)
                         return(0, 32)
                     }
-                    case 0x1b14c072 {
-                        /* liquidationLocked() */
-                        if callvalue() {
-                            revert(0, 0)
-                        }
-                        if lt(calldatasize(), 68) {
-                            revert(0, 0)
-                        }
-                        mstore(0x4800, calldataload(4))
-                        mstore(0x4820, and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(0x4840, 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
-                        mstore(0, tload(keccak256(0x4800, 96)))
-                        return(0, 32)
-                    }
                     case 0x1d8a2f16 {
                         /* isLltvAllowed() */
                         if callvalue() {
@@ -7622,7 +6722,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let market_data_offset := market_abs_offset
-                        mstore(0, __midnight_market_id(market_data_offset))
+                        mstore(0, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2))
                         return(0, 32)
                     }
                     case 0xfc20106c {
@@ -7637,6 +6737,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
+                        extcodecopy(id, 0, 0, 0)
                         let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
@@ -7649,7 +6750,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        __midnight_return_market(id)
+                        stop()
                     }
                     case 0x93c52062 {
                         /* position() */
@@ -7662,7 +6763,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
                         let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
@@ -7689,7 +6790,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let totalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
                         let lossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
                         let withdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
@@ -7860,13 +6961,6 @@ object "Midnight" {
                             let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
                             sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                        }
-                        {
-                            let __event_ptr := mload(64)
-                            mstore(__event_ptr, sub(credit, newCredit))
-                            mstore(add(__event_ptr, 32), sub(pendingFee, newPendingFee))
-                            mstore(add(__event_ptr, 64), accrued)
-                            log3(__event_ptr, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         mstore(0, newCredit)
                         mstore(32, newPendingFee)
@@ -8337,11 +7431,6 @@ object "Midnight" {
                             sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         {
-                            let __event_ptr := mload(64)
-                            mstore(__event_ptr, amount)
-                            log4(__event_ptr, 32, 0xd64453ff5184816a23d670b5224717cd441c4a7cd5f4e7dbc30f8511d35f597b, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                        }
-                        {
                             let __st_ptr := mload(64)
                             mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
                             mstore(add(__st_ptr, 4), receiver)
@@ -8387,7 +7476,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let newTickSpacing := calldataload(36)
                         let sender := caller()
                         let currentTickSpacingSetter := sload(4)
@@ -8456,7 +7545,7 @@ object "Midnight" {
                         if lt(calldatasize(), 100) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let index := calldataload(36)
                         let newSettlementFee := calldataload(68)
                         let sender := caller()
@@ -8613,7 +7702,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let newContinuousFee := calldataload(36)
                         let sender := caller()
                         let currentFeeSetter := sload(2)
@@ -8695,86 +7784,9 @@ object "Midnight" {
                                     revert(0, add(4, __err_tail))
                                 }
                             }
-
-                            {
-                                let collateralParams_rel_offset := calldataload(add(market_data_offset, 32))
-                                let collateralParams_data_offset := add(market_data_offset, collateralParams_rel_offset)
-                                let collateralParams_length := calldataload(collateralParams_data_offset)
-                                let collateralCount := collateralParams_length
-                                if iszero(gt(collateralCount, 0)) {
-                                    {
-                                        let __err_ptr := mload(64)
-                                        mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
-                                        let __err_hash := keccak256(__err_ptr, 20)
-                                        let __err_selector := shl(224, shr(224, __err_hash))
-                                        mstore(0, __err_selector)
-                                        let __err_tail := 0
-                                        revert(0, add(4, __err_tail))
-                                    }
-                                }
-                                if gt(collateralCount, 128) {
-                                    {
-                                        let __err_ptr := mload(64)
-                                        mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
-                                        let __err_hash := keccak256(__err_ptr, 25)
-                                        let __err_selector := shl(224, shr(224, __err_hash))
-                                        mstore(0, __err_selector)
-                                        let __err_tail := 0
-                                        revert(0, add(4, __err_tail))
-                                    }
-                                }
-                                let previousCollateralToken := 0
-                                for {
-                                    let __forEach_idx := 0
-                                    let __forEach_count := collateralCount
-                                    let i := 0
-                                } lt(__forEach_idx, __forEach_count) {
-                                    __forEach_idx := add(__forEach_idx, 1)
-                                } {
-                                    i := __forEach_idx
-                                    let collateralElement_offset := add(add(collateralParams_data_offset, 32), mul(i, 128))
-                                    let collateralToken := calldataload(collateralElement_offset)
-                                    if iszero(gt(collateralToken, previousCollateralToken)) {
-                                        {
-                                            let __err_ptr := mload(64)
-                                            mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
-                                            let __err_hash := keccak256(__err_ptr, 27)
-                                            let __err_selector := shl(224, shr(224, __err_hash))
-                                            mstore(0, __err_selector)
-                                            let __err_tail := 0
-                                            revert(0, add(4, __err_tail))
-                                        }
-                                    }
-                                    let lltv := calldataload(add(collateralElement_offset, 32))
-                                    let allowed := or(or(or(eq(lltv, 385000000000000000), eq(lltv, 625000000000000000)), or(eq(lltv, 770000000000000000), eq(lltv, 860000000000000000))), or(or(eq(lltv, 915000000000000000), eq(lltv, 945000000000000000)), or(or(eq(lltv, 965000000000000000), eq(lltv, 980000000000000000)), eq(lltv, 1000000000000000000))))
-                                    if iszero(allowed) {
-                                        {
-                                            let __err_ptr := mload(64)
-                                            mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
-                                            let __err_hash := keccak256(__err_ptr, 16)
-                                            let __err_selector := shl(224, shr(224, __err_hash))
-                                            mstore(0, __err_selector)
-                                            let __err_tail := 0
-                                            revert(0, add(4, __err_tail))
-                                        }
-                                    }
-                                    let lowMaxLif := div(1000000000000000000000000000000000000, sub(1000000000000000000, div(mul(250000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000)))
-                                    let highMaxLif := div(1000000000000000000000000000000000000, sub(1000000000000000000, div(mul(500000000000000000, sub(1000000000000000000, lltv)), 1000000000000000000)))
-                                    let lif := calldataload(add(collateralElement_offset, 64))
-                                    if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
-                                        {
-                                            let __err_ptr := mload(64)
-                                            mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
-                                            let __err_hash := keccak256(__err_ptr, 15)
-                                            let __err_selector := shl(224, shr(224, __err_hash))
-                                            mstore(0, __err_selector)
-                                            let __err_tail := 0
-                                            revert(0, add(4, __err_tail))
-                                        }
-                                    }
-                                    previousCollateralToken := collateralToken
-                                }
-                            }
+                            internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
+                            let salt := sload(0)
+                            let _marketPointer := create2(0, 0, 0, salt)
                             {
                                 let __compat_value := 4
                                 let __compat_packed := and(__compat_value, 255)
@@ -8847,10 +7859,7 @@ object "Midnight" {
                                 sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                             }
                         }
-                        if eq(currentTickSpacing, 0) {
-                            pop(__midnight_store_market_in_code(add(4, calldataload(4))))
-                        }
-                        mstore(0, __midnight_market_id(market_data_offset))
+                        mstore(0, id)
                         return(0, 32)
                     }
                     case 0xa9bef809 {
@@ -8864,7 +7873,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let timeToMaturity := calldataload(36)
                         let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
@@ -8985,9 +7994,6 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let takerCallbackData_data_offset := takerCallbackData_tail_head_end
-                        mstore(0x4700, takerCallback)
-                        mstore(0x4720, takerCallbackData_abs_offset)
-                        mstore(0x4740, takerCallbackData_length)
                         let sender := caller()
                         let authorized := internal_internal_isAuthorized(taker, sender)
                         if iszero(or(iszero(iszero(eq(taker, sender))), iszero(iszero(authorized)))) {
@@ -9006,18 +8012,8 @@ object "Midnight" {
                         let loanToken := calldataload(marketBase)
                         let maturity := calldataload(add(marketBase, 64))
                         let id := maturity
-                        mstore(0x4000, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(0x4020, units)
-                        mstore(0x4040, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1))
-                        mstore(0x4060, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6))
-	                        mstore(0x4080, units)
-	                        mstore(0x40a0, units)
-	                        mstore(0x4420, and(calldataload(add(marketBase, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
-	                        let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
-	                        if eq(currentMarketTickSpacing, 0) {
-	                            pop(__midnight_store_market_in_code(marketBase))
-	                        }
-	                        if eq(currentMarketTickSpacing, 0) {
+                        let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        if eq(currentMarketTickSpacing, 0) {
                             let now := timestamp()
                             if gt(maturity, add(now, 3153600000)) {
                                 {
@@ -9194,39 +8190,12 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        __midnight_call_ratifier(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 10), offer_data_offset, ratifierData_abs_offset)
-                        let offerPrice := __midnight_tick_to_price(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5))
-                        let takeTimeToMaturity := 0
-                        if gt(maturity, now) {
-                            takeTimeToMaturity := sub(maturity, now)
-                        }
-                        let settlementFeeValue := internal_internal_settlementFee(id, takeTimeToMaturity)
-                        let sellerPrice := offerPrice
-                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                            if lt(offerPrice, settlementFeeValue) {
-                                revert(0, 0)
-                            }
-                            sellerPrice := sub(offerPrice, settlementFeeValue)
-                        }
-                        let buyerPrice := add(sellerPrice, settlementFeeValue)
-                        let buyerAssets := __midnight_mul_div_up(units, buyerPrice, 1000000000000000000)
-                        let sellerAssets := __midnight_mul_div_up(units, sellerPrice, 1000000000000000000)
-                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                            buyerAssets := div(mul(units, buyerPrice), 1000000000000000000)
-                            sellerAssets := div(mul(units, sellerPrice), 1000000000000000000)
-                        }
-                        mstore(0x4080, buyerAssets)
-                        mstore(0x40a0, sellerAssets)
                         let newConsumed := 0
                         {
                             let __ite_cond := gt(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13), 0)
                             if __ite_cond {
                                 let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
-                                let consumedAssetsIncrease := sellerAssets
-                                if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                                    consumedAssetsIncrease := buyerAssets
-                                }
-                                newConsumed := add(currentConsumed, consumedAssetsIncrease)
+                                newConsumed := add(currentConsumed, units)
                                 if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13)) {
                                     {
                                         let __err_ptr := mload(64)
@@ -9257,16 +8226,12 @@ object "Midnight" {
                                 sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                             }
                         }
-                        mstore(0x40c0, newConsumed)
-                        mstore(0x41a0, id)
-                        mstore(0x41c0, marketBase)
                         let buyer := taker
                         let seller := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)
                         if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
                             buyer := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)
                             seller := taker
                         }
-                        mstore(0x41e0, seller)
                         let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))), 340282366920938463463374607431768211455)
                         let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
                         let buyerCreditIncrease := sub(units, buyerDebtDecrease)
@@ -9276,14 +8241,6 @@ object "Midnight" {
                             timeToMaturity := sub(maturity, now)
                         }
                         let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
-                        mstore(0x40e0, buyerPendingFeeIncrease)
-                        mstore(0x4120, buyerCreditIncrease)
-                        if gt(buyerCreditIncrease, 0) {
-                            mstore(0x4200, 0)
-                            mstore(0x4220, 0)
-                            mstore(0x4240, 0)
-                            log3(0x4200, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
-                        }
                         let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
                         let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
                         let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
@@ -9425,59 +8382,15 @@ object "Midnight" {
                                 sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                             }
                         }
-                        if gt(sellerCredit, 0) {
-                            mstore(0x4200, sub(sellerCredit, sellerCreditAfterUpdate))
-                            mstore(0x4220, sub(sellerPendingFee, sellerPendingFeeAfterUpdate))
-                            mstore(0x4240, sellerAccrued)
-                            log3(0x4200, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
-                        }
                         let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
                         let sellerDebtIncrease := sub(units, sellerCreditDecrease)
                         let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 2))), 340282366920938463463374607431768211455)
                         let sellerPendingFeeDecrease := 0
-	                        if gt(sellerCreditAfterUpdate, 0) {
-	                            sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
-	                        }
-	                        mstore(0x4100, sellerPendingFeeDecrease)
-	                        mstore(0x4140, sellerCreditDecrease)
-	                        if and(iszero(eq(mload(0x4420), 0)), gt(buyerCreditIncrease, 0)) {
-	                            mstore(0, 0x58ac9f9e00000000000000000000000000000000000000000000000000000000)
-	                            mstore(4, and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
-	                            let __gate_success := staticcall(gas(), mload(0x4420), 0, 36, 0, 32)
-	                            if iszero(__gate_success) {
-	                                mstore(0, 0x71a4e09b00000000000000000000000000000000000000000000000000000000)
-	                                revert(0, 4)
-	                            }
-	                            if lt(returndatasize(), 32) {
-	                                mstore(0, 0x71a4e09b00000000000000000000000000000000000000000000000000000000)
-	                                revert(0, 4)
-	                            }
-	                            returndatacopy(0, 0, 32)
-	                            if iszero(mload(0)) {
-	                                mstore(0, 0x71a4e09b00000000000000000000000000000000000000000000000000000000)
-	                                revert(0, 4)
-	                            }
-	                        }
-	                        if and(iszero(eq(mload(0x4420), 0)), gt(sellerDebtIncrease, 0)) {
-	                            mstore(0, 0xfe9bf95600000000000000000000000000000000000000000000000000000000)
-	                            mstore(4, and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
-	                            let __gate_success := staticcall(gas(), mload(0x4420), 0, 36, 0, 32)
-	                            if iszero(__gate_success) {
-	                                mstore(0, 0xe2d4c76c00000000000000000000000000000000000000000000000000000000)
-	                                revert(0, 4)
-	                            }
-	                            if lt(returndatasize(), 32) {
-	                                mstore(0, 0xe2d4c76c00000000000000000000000000000000000000000000000000000000)
-	                                revert(0, 4)
-	                            }
-	                            returndatacopy(0, 0, 32)
-	                            if iszero(mload(0)) {
-	                                mstore(0, 0xe2d4c76c00000000000000000000000000000000000000000000000000000000)
-	                                revert(0, 4)
-	                            }
-	                        }
-	                        if iszero(or(iszero(iszero(iszero(gt(now, maturity)))), iszero(iszero(eq(sellerDebtIncrease, 0))))) {
-	                            {
+                        if gt(sellerCreditAfterUpdate, 0) {
+                            sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
+                        }
+                        if iszero(or(iszero(iszero(iszero(gt(now, maturity)))), iszero(iszero(eq(sellerDebtIncrease, 0))))) {
+                            {
                                 let __err_ptr := mload(64)
                                 mstore(add(__err_ptr, 0), 0x43616e6e6f74496e63726561736544656274506f73744d617475726974792829)
                                 let __err_hash := keccak256(__err_ptr, 32)
@@ -9559,82 +8472,11 @@ object "Midnight" {
                             transferAssets := 0
                         }
                         {
-                            let currentClaimableSettlementFee := sload(mappingSlot(9, loanToken))
-                            sstore(mappingSlot(9, loanToken), add(currentClaimableSettlementFee, sub(buyerAssets, sellerAssets)))
-                        }
-                        mstore(0x4500, marketBase)
-                        mstore(0x4520, id)
-                        mstore(0x47c0, __midnight_market_id(marketBase))
-                        mstore(0x4540, buyerAssets)
-                        mstore(0x4560, units)
-                        mstore(0x4580, buyerPendingFeeIncrease)
-                        mstore(0x45a0, buyer)
-                        mstore(0x45c0, mload(0x4720))
-                        mstore(0x45e0, mload(0x4740))
-                        mstore(0x4600, mload(0x4700))
-                        mstore(0x4620, sellerAssets)
-                        mstore(0x4640, sellerPendingFeeDecrease)
-                        mstore(0x4660, seller)
-                        mstore(0x4680, receiver)
-                        mstore(0x46a0, sub(__verity_param_dynamic_member_data_offset_calldata_checked(offer_data_offset, 8), 32))
-                        mstore(0x46c0, __verity_param_dynamic_member_length_calldata_checked(offer_data_offset, 8))
-                        mstore(0x46e0, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7))
-                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                            mstore(0x45c0, sub(__verity_param_dynamic_member_data_offset_calldata_checked(offer_data_offset, 8), 32))
-                            mstore(0x45e0, __verity_param_dynamic_member_length_calldata_checked(offer_data_offset, 8))
-                            mstore(0x4600, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7))
-                            mstore(0x46a0, mload(0x4720))
-                            mstore(0x46c0, mload(0x4740))
-                            mstore(0x46e0, mload(0x4700))
-                        }
-                        if iszero(eq(mload(0x4600), 0)) {
-                            payer := mload(0x4600)
-                        }
-                        mstore(0x4160, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(0x4180, and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
-                        log4(0x4000, 416, 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3, id, and(taker, 0xffffffffffffffffffffffffffffffffffffffff), and(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2), 0xffffffffffffffffffffffffffffffffffffffff))
-                        __midnight_take_set_lock(0x4500)
-                        __midnight_take_call_buy_callback(0x4500)
-                        if gt(buyerAssets, sellerAssets) {
-                            let __stf_ptr := mload(64)
-                            mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__stf_ptr, 4), payer)
-                            mstore(add(__stf_ptr, 36), address())
-                            mstore(add(__stf_ptr, 68), sub(buyerAssets, sellerAssets))
-                            mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                            let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                            if iszero(__stf_success) {
-                                let __stf_rds := returndatasize()
-                                returndatacopy(0, 0, __stf_rds)
-                                revert(0, __stf_rds)
-                            }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(loanToken), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                            }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__stf_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                            }
-                        }
-                        {
                             let __stf_ptr := mload(64)
                             mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
                             mstore(add(__stf_ptr, 4), payer)
                             mstore(add(__stf_ptr, 36), receiver)
-                            mstore(add(__stf_ptr, 68), sellerAssets)
+                            mstore(add(__stf_ptr, 68), transferAssets)
                             mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
                             let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
                             if iszero(__stf_success) {
@@ -9663,14 +8505,8 @@ object "Midnight" {
                                 }
                             }
                         }
-                        __midnight_take_call_sell_callback(0x4500)
-                        __midnight_take_clear_lock(0x4500)
-                        if iszero(__midnight_take_locked_or_healthy(0x4500)) {
-                            mstore(0, 0x4aa9880900000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
-                        mstore(0, buyerAssets)
-                        mstore(32, sellerAssets)
+                        mstore(0, units)
+                        mstore(32, units)
                         return(0, 64)
                     }
                     case 0xb6a37a3b {
@@ -9684,7 +8520,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let value := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
                         mstore(0, value)
@@ -9701,7 +8537,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
                         mstore(0, value)
@@ -9718,7 +8554,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let value := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
@@ -9734,7 +8570,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let value := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
@@ -9750,7 +8586,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let value := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
                         mstore(0, value)
                         return(0, 32)
@@ -9766,7 +8602,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
                         let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
                         let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
@@ -9794,7 +8630,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let value := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
@@ -9810,7 +8646,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let value := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
                         mstore(0, value)
                         return(0, 32)
@@ -9826,7 +8662,7 @@ object "Midnight" {
                         if lt(calldatasize(), 36) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let value := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
@@ -9964,20 +8800,6 @@ object "Midnight" {
                             sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         {
-                            let __event_ptr := mload(64)
-                            mstore(__event_ptr, sub(creditBeforeUpdate, creditAfterUpdate))
-                            mstore(add(__event_ptr, 32), sub(pendingFeeBeforeUpdate, pendingFeeAfterUpdate))
-                            mstore(add(__event_ptr, 64), accrued)
-                            log3(__event_ptr, 96, 0x8fd212bc8fa18d807a9b47aa2de07104bf036cfcef8ea259157085a1b618a77c, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
-                        }
-                        {
-                            let __event_ptr := mload(64)
-                            mstore(__event_ptr, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-                            mstore(add(__event_ptr, 32), units)
-                            mstore(add(__event_ptr, 64), pendingFeeDecrease)
-                            log4(__event_ptr, 96, 0x7a5e8e1731f88cf0c25f88fc7d5618e481e87be4d83f614e601850c2ff082fd7, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                        }
-                        {
                             let __st_ptr := mload(64)
                             mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
                             mstore(add(__st_ptr, 4), receiver)
@@ -10083,6 +8905,23 @@ object "Midnight" {
                         let payer := sender
                         if iszero(eq(callback, 0)) {
                             payer := callback
+                            {
+                                let __cb_ptr := mload(64)
+                                mstore(__cb_ptr, shl(224, 0xfc56f72e))
+                                mstore(add(__cb_ptr, 4), id)
+                                mstore(add(__cb_ptr, 36), units)
+                                mstore(add(__cb_ptr, 68), onBehalf)
+                                mstore(add(__cb_ptr, 100), 128)
+                                mstore(add(__cb_ptr, 132), data_length)
+                                calldatacopy(add(__cb_ptr, 164), data_data_offset, data_length)
+                                mstore(64, add(__cb_ptr, and(add(add(164, and(add(data_length, 31), not(31))), 31), not(31))))
+                                let __cb_success := call(gas(), callback, 0, __cb_ptr, add(164, and(add(data_length, 31), not(31))), 0, 0)
+                                if iszero(__cb_success) {
+                                    let __cb_rds := returndatasize()
+                                    returndatacopy(0, 0, __cb_rds)
+                                    revert(0, __cb_rds)
+                                }
+                            }
                         }
                         let self := address()
                         {
@@ -10118,9 +8957,6 @@ object "Midnight" {
                                     revert(0, 36)
                                 }
                             }
-                        }
-                        if iszero(eq(callback, 0)) {
-                            __midnight_call_repay_callback(callback, market_data_offset, units, onBehalf, data_abs_offset, data_length)
                         }
                         stop()
                     }
@@ -10340,7 +9176,7 @@ object "Midnight" {
                         if lt(calldatasize(), 100) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let index := calldataload(68)
                         let value := 0
@@ -10349,63 +9185,63 @@ object "Midnight" {
                             value := loaded
                         }
                         if eq(index, 1) {
-                            let loaded := sload(mappingSlot(mappingSlot(13, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 1))
                             value := loaded
                         }
                         if eq(index, 2) {
-                            let loaded := sload(mappingSlot(mappingSlot(14, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 2))
                             value := loaded
                         }
                         if eq(index, 3) {
-                            let loaded := sload(mappingSlot(mappingSlot(15, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 3))
                             value := loaded
                         }
                         if eq(index, 4) {
-                            let loaded := sload(mappingSlot(mappingSlot(16, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 4))
                             value := loaded
                         }
                         if eq(index, 5) {
-                            let loaded := sload(mappingSlot(mappingSlot(17, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 5))
                             value := loaded
                         }
                         if eq(index, 6) {
-                            let loaded := sload(mappingSlot(mappingSlot(18, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 6))
                             value := loaded
                         }
                         if eq(index, 7) {
-                            let loaded := sload(mappingSlot(mappingSlot(19, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 7))
                             value := loaded
                         }
                         if eq(index, 8) {
-                            let loaded := sload(mappingSlot(mappingSlot(20, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 8))
                             value := loaded
                         }
                         if eq(index, 9) {
-                            let loaded := sload(mappingSlot(mappingSlot(21, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 9))
                             value := loaded
                         }
                         if eq(index, 10) {
-                            let loaded := sload(mappingSlot(mappingSlot(22, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 10))
                             value := loaded
                         }
                         if eq(index, 11) {
-                            let loaded := sload(mappingSlot(mappingSlot(23, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 11))
                             value := loaded
                         }
                         if eq(index, 12) {
-                            let loaded := sload(mappingSlot(mappingSlot(24, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 12))
                             value := loaded
                         }
                         if eq(index, 13) {
-                            let loaded := sload(mappingSlot(mappingSlot(25, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 13))
                             value := loaded
                         }
                         if eq(index, 14) {
-                            let loaded := sload(mappingSlot(mappingSlot(26, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 14))
                             value := loaded
                         }
                         if eq(index, 15) {
-                            let loaded := sload(mappingSlot(mappingSlot(27, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 15))
                             value := loaded
                         }
                         mstore(0, value)
@@ -10422,7 +9258,7 @@ object "Midnight" {
                         if lt(calldatasize(), 132) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let index := calldataload(68)
                         let value := calldataload(100)
@@ -10430,49 +9266,49 @@ object "Midnight" {
                             sstore(mappingSlot(mappingSlot(12, id), user), value)
                         }
                         if eq(index, 1) {
-                            sstore(mappingSlot(mappingSlot(13, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
                         }
                         if eq(index, 2) {
-                            sstore(mappingSlot(mappingSlot(14, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
                         }
                         if eq(index, 3) {
-                            sstore(mappingSlot(mappingSlot(15, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
                         }
                         if eq(index, 4) {
-                            sstore(mappingSlot(mappingSlot(16, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
                         }
                         if eq(index, 5) {
-                            sstore(mappingSlot(mappingSlot(17, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
                         }
                         if eq(index, 6) {
-                            sstore(mappingSlot(mappingSlot(18, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
                         }
                         if eq(index, 7) {
-                            sstore(mappingSlot(mappingSlot(19, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
                         }
                         if eq(index, 8) {
-                            sstore(mappingSlot(mappingSlot(20, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
                         }
                         if eq(index, 9) {
-                            sstore(mappingSlot(mappingSlot(21, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
                         }
                         if eq(index, 10) {
-                            sstore(mappingSlot(mappingSlot(22, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
                         }
                         if eq(index, 11) {
-                            sstore(mappingSlot(mappingSlot(23, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
                         }
                         if eq(index, 12) {
-                            sstore(mappingSlot(mappingSlot(24, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
                         }
                         if eq(index, 13) {
-                            sstore(mappingSlot(mappingSlot(25, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
                         }
                         if eq(index, 14) {
-                            sstore(mappingSlot(mappingSlot(26, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
                         }
                         if eq(index, 15) {
-                            sstore(mappingSlot(mappingSlot(27, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
                         }
                         stop()
                     }
@@ -10520,13 +9356,6 @@ object "Midnight" {
                         let data_data_offset := data_tail_head_end
                         let sender := caller()
                         let id := internal_internal_toId(market_data_offset)
-                        mstore(0x4800, id)
-                        mstore(0x4820, and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(0x4840, 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
-                        if tload(keccak256(0x4800, 96)) {
-                            mstore(0, 0xddeb79ba00000000000000000000000000000000000000000000000000000000)
-                            revert(0, 4)
-                        }
                         let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
                         let debt := debtLoaded
                         let totalUnitsValue := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
@@ -10566,9 +9395,11 @@ object "Midnight" {
                         }
                         let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
                         if iszero(lt(collateralIndex, collateralCount)) {
-                            mstore(0, 0x4e487b7100000000000000000000000000000000000000000000000000000000)
-                            mstore(4, 0x32)
-                            revert(0, 36)
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 30)
+                            mstore(68, 0x636f6c6c61746572616c20696e646578206f7574206f6620626f756e64730000)
+                            revert(0, 100)
                         }
                         let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
                         let collateralMask := shl(collateralIndex, 1)
@@ -10743,11 +9574,6 @@ object "Midnight" {
                                 }
                             }
                             let oldCollateral := internal_internal_collateralAmount(id, borrower, collateralIndex)
-                            if gt(outSeizedAssets, oldCollateral) {
-                                mstore(0, 0x4e487b7100000000000000000000000000000000000000000000000000000000)
-                                mstore(4, 0x11)
-                                revert(0, 36)
-                            }
                             let newCollateral := sub(oldCollateral, outSeizedAssets)
                             internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
                             if eq(newCollateral, 0) {
@@ -10773,11 +9599,6 @@ object "Midnight" {
                                 sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
                             {
-                                if gt(outRepaidUnits, debt) {
-                                    mstore(0, 0x4e487b7100000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, 0x11)
-                                    revert(0, 36)
-                                }
                                 let __compat_value := sub(debt, outRepaidUnits)
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
                                 let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
@@ -10819,25 +9640,31 @@ object "Midnight" {
                                 }
                             }
                         }
-                        if iszero(eq(callback, 0)) {
-                            __midnight_call_liquidate_callback(callback, sender, market_data_offset, __midnight_market_id(market_data_offset), collateralIndex, outSeizedAssets, outRepaidUnits, borrower, receiver, data_abs_offset, data_length, badDebt)
-                        }
                         let payer := sender
                         if iszero(eq(callback, 0)) {
                             payer := callback
-                        }
-                        {
-                            let __liq_ptr := mload(64)
-                            mstore(__liq_ptr, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-                            mstore(add(__liq_ptr, 32), outSeizedAssets)
-                            mstore(add(__liq_ptr, 64), outRepaidUnits)
-                            mstore(add(__liq_ptr, 96), postMaturityMode)
-                            mstore(add(__liq_ptr, 128), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
-                            mstore(add(__liq_ptr, 160), and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
-                            mstore(add(__liq_ptr, 192), badDebt)
-                            mstore(add(__liq_ptr, 224), and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455))
-                            mstore(add(__liq_ptr, 256), and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455))
-                            log4(__liq_ptr, 288, 0xb137b989b9fd54b984273db8f16364f52f383aaca56076a320c1896e9fc2dad9, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
+                            {
+                                let __cb_ptr := mload(64)
+                                mstore(__cb_ptr, shl(224, 0x6861b795))
+                                mstore(add(__cb_ptr, 4), sender)
+                                mstore(add(__cb_ptr, 36), id)
+                                mstore(add(__cb_ptr, 68), collateralIndex)
+                                mstore(add(__cb_ptr, 100), outSeizedAssets)
+                                mstore(add(__cb_ptr, 132), outRepaidUnits)
+                                mstore(add(__cb_ptr, 164), borrower)
+                                mstore(add(__cb_ptr, 196), receiver)
+                                mstore(add(__cb_ptr, 228), badDebt)
+                                mstore(add(__cb_ptr, 260), 288)
+                                mstore(add(__cb_ptr, 292), data_length)
+                                calldatacopy(add(__cb_ptr, 324), data_data_offset, data_length)
+                                mstore(64, add(__cb_ptr, and(add(add(324, and(add(data_length, 31), not(31))), 31), not(31))))
+                                let __cb_success := call(gas(), callback, 0, __cb_ptr, add(324, and(add(data_length, 31), not(31))), 0, 0)
+                                if iszero(__cb_success) {
+                                    let __cb_rds := returndatasize()
+                                    returndatacopy(0, 0, __cb_rds)
+                                    revert(0, __cb_rds)
+                                }
+                            }
                         }
                         let self := address()
                         {
@@ -10898,7 +9725,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let market_data_offset := market_abs_offset
-                        let id := __midnight_scaffold_id(calldataload(36))
+                        let id := calldataload(36)
                         let borrower := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
                         let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
                         if eq(debt, 0) {
@@ -10922,7 +9749,7 @@ object "Midnight" {
                         if lt(calldatasize(), 132) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let index := calldataload(68)
                         let value := calldataload(100)
@@ -10930,49 +9757,49 @@ object "Midnight" {
                             sstore(mappingSlot(mappingSlot(12, id), user), value)
                         }
                         if eq(index, 1) {
-                            sstore(mappingSlot(mappingSlot(13, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
                         }
                         if eq(index, 2) {
-                            sstore(mappingSlot(mappingSlot(14, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
                         }
                         if eq(index, 3) {
-                            sstore(mappingSlot(mappingSlot(15, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
                         }
                         if eq(index, 4) {
-                            sstore(mappingSlot(mappingSlot(16, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
                         }
                         if eq(index, 5) {
-                            sstore(mappingSlot(mappingSlot(17, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
                         }
                         if eq(index, 6) {
-                            sstore(mappingSlot(mappingSlot(18, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
                         }
                         if eq(index, 7) {
-                            sstore(mappingSlot(mappingSlot(19, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
                         }
                         if eq(index, 8) {
-                            sstore(mappingSlot(mappingSlot(20, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
                         }
                         if eq(index, 9) {
-                            sstore(mappingSlot(mappingSlot(21, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
                         }
                         if eq(index, 10) {
-                            sstore(mappingSlot(mappingSlot(22, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
                         }
                         if eq(index, 11) {
-                            sstore(mappingSlot(mappingSlot(23, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
                         }
                         if eq(index, 12) {
-                            sstore(mappingSlot(mappingSlot(24, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
                         }
                         if eq(index, 13) {
-                            sstore(mappingSlot(mappingSlot(25, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
                         }
                         if eq(index, 14) {
-                            sstore(mappingSlot(mappingSlot(26, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
                         }
                         if eq(index, 15) {
-                            sstore(mappingSlot(mappingSlot(27, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
                         }
                         stop()
                     }
@@ -11268,7 +10095,6 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        __midnight_call_flashloan_callback(callback, caller(), tokens_abs_offset, tokens_length, assets_abs_offset, assets_length, data_abs_offset, data_length)
                         for {
                             let __forEach_idx := 0
                             let __forEach_count := tokenCount
@@ -11309,6 +10135,21 @@ object "Midnight" {
                                         revert(0, 36)
                                     }
                                 }
+                            }
+                        }
+                        {
+                            let __cb_ptr := mload(64)
+                            mstore(__cb_ptr, shl(224, 0xd1f260c3))
+                            mstore(add(__cb_ptr, 4), 0)
+                            mstore(add(__cb_ptr, 36), 64)
+                            mstore(add(__cb_ptr, 68), data_length)
+                            calldatacopy(add(__cb_ptr, 100), data_data_offset, data_length)
+                            mstore(64, add(__cb_ptr, and(add(add(100, and(add(data_length, 31), not(31))), 31), not(31))))
+                            let __cb_success := call(gas(), callback, 0, __cb_ptr, add(100, and(add(data_length, 31), not(31))), 0, 0)
+                            if iszero(__cb_success) {
+                                let __cb_rds := returndatasize()
+                                returndatacopy(0, 0, __cb_rds)
+                                revert(0, __cb_rds)
                             }
                         }
                         for {
@@ -11368,7 +10209,7 @@ object "Midnight" {
                         if lt(calldatasize(), 100) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let index := calldataload(68)
                         let value := internal_internal_collateralAmount(id, user, index)
@@ -11386,7 +10227,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let value := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
                         mstore(0, value)
@@ -11403,7 +10244,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
@@ -11420,7 +10261,7 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
@@ -11437,62 +10278,11 @@ object "Midnight" {
                         if lt(calldatasize(), 68) {
                             revert(0, 0)
                         }
-                        let id := __midnight_scaffold_id(calldataload(4))
+                        let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
-                    }
-                    case 0xac9650d8 {
-                        /* multicall() */
-                        if callvalue() {
-                            revert(0, 0)
-                        }
-                        if lt(calldatasize(), 36) {
-                            revert(0, 0)
-                        }
-                        let calls_offset := calldataload(4)
-                        if lt(calls_offset, 32) {
-                            revert(0, 0)
-                        }
-                        let calls_abs_offset := add(4, calls_offset)
-                        if gt(calls_abs_offset, sub(calldatasize(), 32)) {
-                            revert(0, 0)
-                        }
-                        let calls_length := calldataload(calls_abs_offset)
-                        let calls_heads := add(calls_abs_offset, 32)
-                        if gt(calls_length, div(sub(calldatasize(), calls_heads), 32)) {
-                            revert(0, 0)
-                        }
-                        for {
-                            let i := 0
-                        } lt(i, calls_length) {
-                            i := add(i, 1)
-                        } {
-                            let call_rel_offset := calldataload(add(calls_heads, mul(i, 32)))
-                            let call_abs_offset := add(calls_heads, call_rel_offset)
-                            if gt(call_abs_offset, sub(calldatasize(), 32)) {
-                                revert(0, 0)
-                            }
-                            let call_length := calldataload(call_abs_offset)
-                            let call_data_offset := add(call_abs_offset, 32)
-                            if gt(call_length, sub(calldatasize(), call_data_offset)) {
-                                revert(0, 0)
-                            }
-                            let ptr := mload(64)
-                            if lt(ptr, 128) {
-                                ptr := 128
-                            }
-                            calldatacopy(ptr, call_data_offset, call_length)
-                            mstore(64, and(add(add(ptr, call_length), 31), not(31)))
-                            let success := delegatecall(gas(), address(), ptr, call_length, 0, 0)
-                            if iszero(success) {
-                                let rds := returndatasize()
-                                returndatacopy(0, 0, rds)
-                                revert(0, rds)
-                            }
-                        }
-                        stop()
                     }
                     default {
                         revert(0, 0)

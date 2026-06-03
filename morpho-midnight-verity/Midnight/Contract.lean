@@ -1,5 +1,7 @@
 import Contracts.Common
+import Compiler.Modules.Callbacks
 import Compiler.Modules.Calls
+import Compiler.Modules.Create2SSTORE2
 import Compiler.Modules.Oracle
 import Verity.Core
 import Verity.Stdlib.Math
@@ -700,22 +702,9 @@ verity_contract Midnight where
       debt @word 2 packed(0,128),
       collateralBitmap @word 2 packed(128,128)
     ]) := slot 11
-    collateral0Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 12
-    collateral1Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 13
-    collateral2Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 14
-    collateral3Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 15
-    collateral4Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 16
-    collateral5Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 17
-    collateral6Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 18
-    collateral7Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 19
-    collateral8Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 20
-    collateral9Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 21
-    collateral10Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 22
-    collateral11Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 23
-    collateral12Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 24
-    collateral13Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 25
-    collateral14Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 26
-    collateral15Slot : MappingStruct2(Bytes32,Address,[amount @word 0]) := slot 27
+    collateralSlot : MappingStruct2(Bytes32,Address,[
+      amounts : FixedArray Uint256 16 @word 0
+    ]) := slot 12
 
   struct CollateralParams where
     token : Address,
@@ -983,6 +972,8 @@ verity_contract Midnight where
     return market.maturity
 
   function toMarket (id : Bytes32) : Unit := do
+    ecmDo Compiler.Modules.Create2SSTORE2.readCodeModule
+      [addressToWord (wordToAddress id), ZERO, ZERO, ZERO]
     let currentTickSpacing ← structMember "marketStateSlot" id "tickSpacing"
     requireError (currentTickSpacing > ZERO) MarketNotCreated()
 
@@ -1309,6 +1300,9 @@ verity_contract Midnight where
       let now ← blockTimestamp
       requireError (market.maturity <= add now HUNDRED_YEARS) MaturityTooFar()
       validateCollateralParams market.collateralParams
+      let salt ← getStorage initialChainIdSlot
+      let _marketPointer ← ecmCall Compiler.Modules.Create2SSTORE2.deployModule
+        [ZERO, ZERO, ZERO, salt]
       setStructMember "marketStateSlot" id "tickSpacing" DEFAULT_TICK_SPACING
       let settlementFeeCbp0 ← defaultSettlementFeeCbp market.loanToken ZERO
       let settlementFeeCbp1 ← defaultSettlementFeeCbp market.loanToken ONE
@@ -1730,6 +1724,8 @@ verity_contract Midnight where
     let mut payer := sender
     if callback != 0 then
       payer := callback
+      ecmDo (Compiler.Modules.Callbacks.callbackModule 0xfc56f72e 3 "data")
+        [addressToWord callback, id, units, addressToWord onBehalf]
     else
       pure ()
     let self ← contractAddress
@@ -1778,82 +1774,82 @@ verity_contract Midnight where
   function collateralAmount (id : Bytes32, user : Address, index : Uint256) : Uint256 := do
     let mut value := ZERO
     if index == 0 then
-      let loaded ← structMember2 "collateral0Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[0]"
       value := loaded
     else
       pure ()
     if index == 1 then
-      let loaded ← structMember2 "collateral1Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[1]"
       value := loaded
     else
       pure ()
     if index == 2 then
-      let loaded ← structMember2 "collateral2Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[2]"
       value := loaded
     else
       pure ()
     if index == 3 then
-      let loaded ← structMember2 "collateral3Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[3]"
       value := loaded
     else
       pure ()
     if index == 4 then
-      let loaded ← structMember2 "collateral4Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[4]"
       value := loaded
     else
       pure ()
     if index == 5 then
-      let loaded ← structMember2 "collateral5Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[5]"
       value := loaded
     else
       pure ()
     if index == 6 then
-      let loaded ← structMember2 "collateral6Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[6]"
       value := loaded
     else
       pure ()
     if index == 7 then
-      let loaded ← structMember2 "collateral7Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[7]"
       value := loaded
     else
       pure ()
     if index == 8 then
-      let loaded ← structMember2 "collateral8Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[8]"
       value := loaded
     else
       pure ()
     if index == 9 then
-      let loaded ← structMember2 "collateral9Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[9]"
       value := loaded
     else
       pure ()
     if index == 10 then
-      let loaded ← structMember2 "collateral10Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[10]"
       value := loaded
     else
       pure ()
     if index == 11 then
-      let loaded ← structMember2 "collateral11Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[11]"
       value := loaded
     else
       pure ()
     if index == 12 then
-      let loaded ← structMember2 "collateral12Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[12]"
       value := loaded
     else
       pure ()
     if index == 13 then
-      let loaded ← structMember2 "collateral13Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[13]"
       value := loaded
     else
       pure ()
     if index == 14 then
-      let loaded ← structMember2 "collateral14Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[14]"
       value := loaded
     else
       pure ()
     if index == 15 then
-      let loaded ← structMember2 "collateral15Slot" id user "amount"
+      let loaded ← structMember2 "collateralSlot" id user "amounts[15]"
       value := loaded
     else
       pure ()
@@ -1862,67 +1858,67 @@ verity_contract Midnight where
   function allow_post_interaction_writes writeCollateralAmount
       (id : Bytes32, user : Address, index : Uint256, value : Uint256) : Unit := do
     if index == 0 then
-      setStructMember2 "collateral0Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[0]" value
     else
       pure ()
     if index == 1 then
-      setStructMember2 "collateral1Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[1]" value
     else
       pure ()
     if index == 2 then
-      setStructMember2 "collateral2Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[2]" value
     else
       pure ()
     if index == 3 then
-      setStructMember2 "collateral3Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[3]" value
     else
       pure ()
     if index == 4 then
-      setStructMember2 "collateral4Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[4]" value
     else
       pure ()
     if index == 5 then
-      setStructMember2 "collateral5Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[5]" value
     else
       pure ()
     if index == 6 then
-      setStructMember2 "collateral6Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[6]" value
     else
       pure ()
     if index == 7 then
-      setStructMember2 "collateral7Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[7]" value
     else
       pure ()
     if index == 8 then
-      setStructMember2 "collateral8Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[8]" value
     else
       pure ()
     if index == 9 then
-      setStructMember2 "collateral9Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[9]" value
     else
       pure ()
     if index == 10 then
-      setStructMember2 "collateral10Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[10]" value
     else
       pure ()
     if index == 11 then
-      setStructMember2 "collateral11Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[11]" value
     else
       pure ()
     if index == 12 then
-      setStructMember2 "collateral12Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[12]" value
     else
       pure ()
     if index == 13 then
-      setStructMember2 "collateral13Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[13]" value
     else
       pure ()
     if index == 14 then
-      setStructMember2 "collateral14Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[14]" value
     else
       pure ()
     if index == 15 then
-      setStructMember2 "collateral15Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[15]" value
     else
       pure ()
 
@@ -2081,6 +2077,10 @@ verity_contract Midnight where
     let mut payer := sender
     if callback != 0 then
       payer := callback
+      ecmDo (Compiler.Modules.Callbacks.callbackModule 0x6861b795 8 "data")
+        [addressToWord callback, addressToWord sender, id, collateralIndex,
+          outSeizedAssets, outRepaidUnits, addressToWord borrower,
+          addressToWord receiver, badDebt]
     else
       pure ()
     let self ← contractAddress
@@ -2101,67 +2101,67 @@ verity_contract Midnight where
   function allow_post_interaction_writes setCollateralAmount
       (id : Bytes32, user : Address, index : Uint256, value : Uint256) : Unit := do
     if index == 0 then
-      setStructMember2 "collateral0Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[0]" value
     else
       pure ()
     if index == 1 then
-      setStructMember2 "collateral1Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[1]" value
     else
       pure ()
     if index == 2 then
-      setStructMember2 "collateral2Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[2]" value
     else
       pure ()
     if index == 3 then
-      setStructMember2 "collateral3Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[3]" value
     else
       pure ()
     if index == 4 then
-      setStructMember2 "collateral4Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[4]" value
     else
       pure ()
     if index == 5 then
-      setStructMember2 "collateral5Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[5]" value
     else
       pure ()
     if index == 6 then
-      setStructMember2 "collateral6Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[6]" value
     else
       pure ()
     if index == 7 then
-      setStructMember2 "collateral7Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[7]" value
     else
       pure ()
     if index == 8 then
-      setStructMember2 "collateral8Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[8]" value
     else
       pure ()
     if index == 9 then
-      setStructMember2 "collateral9Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[9]" value
     else
       pure ()
     if index == 10 then
-      setStructMember2 "collateral10Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[10]" value
     else
       pure ()
     if index == 11 then
-      setStructMember2 "collateral11Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[11]" value
     else
       pure ()
     if index == 12 then
-      setStructMember2 "collateral12Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[12]" value
     else
       pure ()
     if index == 13 then
-      setStructMember2 "collateral13Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[13]" value
     else
       pure ()
     if index == 14 then
-      setStructMember2 "collateral14Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[14]" value
     else
       pure ()
     if index == 15 then
-      setStructMember2 "collateral15Slot" id user "amount" value
+      setStructMember2 "collateralSlot" id user "amounts[15]" value
     else
       pure ()
 
@@ -2230,6 +2230,8 @@ verity_contract Midnight where
     requireError (tokenCount == assetCount) InconsistentInput()
     forEach "i" tokenCount (do
       safeTransfer (arrayElement tokens i) callback (arrayElement assets i))
+    ecmDo (Compiler.Modules.Callbacks.callbackModule 0xd1f260c3 1 "data")
+      [addressToWord callback, ZERO]
     forEach "i" tokenCount (do
       let self ← contractAddress
       safeTransferFrom (arrayElement tokens i) callback self (arrayElement assets i))

@@ -26,8 +26,8 @@ The weak point is structural fidelity. The Verity source still relies on:
 - a separate focused proof model, `MidnightRCF`;
 - a full `Midnight` contract whose source layout and some source-level bodies
   differ materially from Solidity;
-- a 1583-line Yul postprocess script for SSTORE2/CREATE2, callbacks, runtime
-  helpers, and compatibility logic;
+- source-level ECM assumptions for CREATE2/SSTORE2 and callback ABI mechanics
+  whose protocol-specific memory/layout obligations are not fully discharged;
 - a Yul drift gate with `75` functions only in Solidity and `240` functions
   only in Verity;
 - proofs attached to named projections rather than fully discharged from the
@@ -52,7 +52,6 @@ The commit adds:
 - `artifacts/midnight/Midnight.bin.raw`
 - `artifacts/midnight/Midnight.abi.json`
 - `scripts/prepare_midnight_artifact.sh`
-- `scripts/patch_midnight_sstore2_yul.py`
 - `config/midnight-yul-identity.json`
 - `config/midnight-yul-identity-unsupported.json`
 - `MORPHO_MIDNIGHT_MAPPING.md`
@@ -61,12 +60,11 @@ The commit adds:
 then runs:
 
 1. `uniquify_yul_shadows.py`
-2. `patch_midnight_sstore2_yul.py`
-3. `solc --strict-assembly --bin`
+2. `solc --strict-assembly --bin`
 
-That means the committed `Midnight.bin.raw` is not just the direct Yul emitted
-by the Verity macro. It is the Verity-generated Yul after a Midnight-specific
-Yul postprocess.
+That means the committed `Midnight.bin.raw` is built from direct Verity output
+plus the generic shadow-name canonicalization pass; there is no longer a
+Midnight-specific Yul behavior patch in the artifact path.
 
 ## What Is Missing For Near Line-By-Line Faithfulness
 
@@ -83,22 +81,23 @@ Solidity:
 Current Verity source:
 
 - `toId` returns `market.maturity`.
-- `toMarket` only checks `marketState[id].tickSpacing > 0` and returns `Unit`.
-- `patch_midnight_sstore2_yul.py` injects Yul helpers such as
-  `__midnight_market_initcode`, `__midnight_market_id`,
-  `__midnight_store_market_in_code`, and `__midnight_return_market`.
+- `touchMarket` and `toMarket` now use source-level CREATE2/SSTORE2 ECMs, but
+  the exact `SSTORE2_PREFIX ++ abi.encode(market)` initcode layout and return
+  decoding are still ECM trust-surface obligations.
+- `toMarket` still checks `marketState[id].tickSpacing > 0` and returns `Unit`;
+  it does not reconstruct the full `Market` value in source.
 
 This is the single clearest sign that the source is not yet faithful. A reviewer
-reading `Midnight/Contract.lean` does not see the real `IdLib` algorithm; the
-compiled artifact obtains that behavior from a postprocess.
+reading `Midnight/Contract.lean` now sees the low-level CREATE2/SSTORE2
+boundaries, but does not yet see the full `IdLib` preimage construction or
+dynamic market return decoder as ordinary Verity source.
 
 Needed:
 
 - first-class Verity support for dynamic `abi.encode(market)`;
-- first-class `create2`;
-- first-class `extcodesize` / `extcodecopy` / code-backed data;
-- a source-level SSTORE2 helper library whose generated body is pinned by Lean,
-  not injected after compilation.
+- fully typed dynamic `abi.encode(market)` support for the SSTORE2 preimage;
+- a source-level SSTORE2 helper library whose generated body is pinned by Lean;
+- CREATE2 address derivation and code-backed market decoding proofs.
 
 ### 2. Storage Layout Does Not Match Solidity
 
@@ -466,8 +465,9 @@ Why Midnight needs it:
 Implementation sketch:
 
 1. Add low-level primitives for `create2`, `extcodecopy`, and `mstore8`.
-2. Add a standard SSTORE2 module with Lean semantics.
-3. Replace `patch_midnight_sstore2_yul.py` with source-level Verity code.
+2. Extend the standard SSTORE2 module from source-level mechanics to typed
+   market initcode/decode helpers.
+3. Keep Midnight artifact generation free of protocol-specific Yul patches.
 4. Prove the generated helper matches the SSTORE2 prefix and address formula.
 
 ### D. Memory-Safe Assembly Surface
@@ -491,7 +491,7 @@ Why Midnight needs it:
 
 Implementation sketch:
 
-1. Promote the stable parts of the patch script into typed statements.
+1. Promote stable memory helpers into typed statements.
 2. Keep only rare cases as `UnsafeYulFragment`.
 3. Require every unsafe fragment to name memory reads/writes and termination.
 4. Add proof rules for common memory-copy and byte-store idioms.
@@ -550,35 +550,34 @@ Implementation sketch:
 Required capabilities:
 
 - compare Verity source function names to Solidity function names;
-- detect protocol-specific postprocess rewrites;
+- detect protocol-specific post-generation rewrites;
 - fail when an artifact depends on non-source Yul helpers;
 - produce source-to-Yul proof obligations for every helper.
 
 Why Midnight needs it:
 
-- the current artifact depends materially on `patch_midnight_sstore2_yul.py`;
 - reviewers need to know whether a behavior is in Verity source or in a Yul
-  patch.
+  post-generation pass.
 
 Implementation sketch:
 
 1. Generate a helper-origin table for every Yul function.
 2. Mark each helper as `source`, `compiler-runtime`, `linked-library`, or
-   `postprocess`.
-3. Fail presentation-mode CI if any protocol behavior is `postprocess`.
-4. Allow postprocess only for verified canonicalization passes.
+   `post-generation`.
+3. Fail presentation-mode CI if any protocol behavior is post-generated.
+4. Allow post-generation passes only for verified canonicalization.
 
 ## Migration Plan To Near Line-By-Line
 
 ### Phase 1: Remove Yul Patch Dependence
 
-Goal: `scripts/prepare_midnight_artifact.sh` no longer calls
-`patch_midnight_sstore2_yul.py`.
+Goal: `scripts/prepare_midnight_artifact.sh` no longer calls a
+Midnight-specific Yul behavior patch.
 
 Tasks:
 
-- implement SSTORE2/CREATE2 in Verity source;
-- implement callback ABI builders in Verity source;
+- keep SSTORE2/CREATE2 on the Verity source/ECM trust surface;
+- keep callback ABI builders in Verity source/ECMs;
 - implement dynamic `Market` return encoding;
 - keep the current parity artifact as a regression target.
 
@@ -624,7 +623,7 @@ Exit criteria:
 - `MORPHO_MIDNIGHT_MAPPING.md` can mark each function as
   `source-faithful`, not merely `test-parity`;
 - source reviewers can compare Verity and Solidity function-by-function without
-  understanding a postprocess script.
+  understanding a protocol-specific post-generation pass.
 
 ### Phase 4: Tighten Yul Gate
 
@@ -678,18 +677,20 @@ For Midnight, "extremely faithful" should mean all of the following:
 9. Yul drift is exact or justified by proved rewrites.
 10. RCF and `totalUnits` proofs are discharged from the full executable model.
 
-The current repo satisfies item 1 at the artifact/harness level, partially
-satisfies items 6-7 through test parity and Yul patching, and does not yet
-satisfy items 2, 4, 8, 9, or 10.
+The current repo satisfies item 1 at the artifact/harness level and now
+satisfies item 8 for the artifact build path. It partially satisfies items 6-7
+through source-level ECMs and remaining assumptions, and does not yet satisfy
+items 2, 4, 9, or 10.
 
 ## Recommended Next Work Items
 
 1. Add a `source-faithfulness` column to `MORPHO_MIDNIGHT_MAPPING.md`, separate
    from `test-parity`.
-2. Make CI fail if `prepare_midnight_artifact.sh` uses a protocol-specific Yul
-   patch in presentation mode.
+2. Keep CI failing if `prepare_midnight_artifact.sh` uses a protocol-specific
+   Yul patch in presentation mode.
 3. Implement exact Solidity storage layout for `Position` and `MarketState`.
-4. Implement Verity source-level SSTORE2/CREATE2 and remove the market-id patch.
+4. Discharge the remaining SSTORE2/CREATE2 market initcode and decode
+   assumptions.
 5. Replace `isHealthy` with the real bitmap/MSB/oracle loop.
 6. Replace `take` calldata offset introspection with typed nested struct
    projections.

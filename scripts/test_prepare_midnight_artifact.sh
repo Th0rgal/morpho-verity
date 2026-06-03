@@ -24,4 +24,9 @@ if grep -Fq "MidnightRCF.bin.raw" "${SCRIPT}"; then
   exit 1
 fi
 
+if grep -Fq "patch_midnight_sstore2_yul.py" "${SCRIPT}"; then
+  echo "Midnight artifact script must not run a Midnight-specific Yul patch"
+  exit 1
+fi
+
 echo "prepare-midnight-artifact script check: OK"
