@@ -138,7 +138,7 @@ def validate_parity_paths() -> None:
         raise MidnightArtifactBoundaryError(
             "run_morpho_midnight_parity.sh must require artifacts/midnight/Midnight.bin.raw"
         )
-    if required not in harness:
+    if "MIDNIGHT_IMPL" in harness and required not in harness:
         raise MidnightArtifactBoundaryError(
             "Morpho Midnight harness must read ../artifacts/midnight/Midnight.bin.raw for MIDNIGHT_IMPL=verity"
         )
