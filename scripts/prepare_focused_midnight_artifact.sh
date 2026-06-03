@@ -30,7 +30,7 @@ compute_input_digest() {
         echo "ERROR: missing focused Midnight artifact input: ${path}" >&2
         return 2
       fi
-      sha256sum "${path}"
+      printf '%s  %s\n' "$(sha256sum "${path}" | awk '{print $1}')" "${path#${ROOT_DIR}/}"
     done
   } | sha256sum | awk '{print $1}'
 }

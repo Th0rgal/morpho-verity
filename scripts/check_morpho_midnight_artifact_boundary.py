@@ -66,7 +66,7 @@ def compute_focused_input_digest() -> str:
         require_nonempty(path, "focused artifact input")
         h.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("utf-8"))
         h.update(b"  ")
-        h.update(str(path).encode("utf-8"))
+        h.update(str(path.relative_to(ROOT)).encode("utf-8"))
         h.update(b"\n")
     return h.hexdigest()
 
