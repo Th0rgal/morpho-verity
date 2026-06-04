@@ -1,4 +1,5 @@
 import Contracts.Common
+import Mathlib.Data.Nat.Bitwise
 
 namespace Contracts
 
@@ -96,7 +97,7 @@ private lemma testBit_packedMask_coe (w i : Nat) :
       = (decide (i < 256) && decide (i < w)) := by
   rw [testBit_ofNat, testBit_packedMask]
 
-theorem decode_encode_eq (current value : Uint256) (offset width : Nat)
+theorem public_decode_encode_eq (current value : Uint256) (offset width : Nat)
     (hoff : offset + width ≤ 256) (hval : value.val < 2 ^ width) :
     decodePackedWord (encodePackedWord current value offset width) offset width = value := by
   apply Uint256.ext
@@ -131,7 +132,7 @@ theorem decode_encode_eq (current value : Uint256) (offset width : Nat)
     have hd256 : decide (j < 256) = false := by simp [Nat.not_lt.mpr hj256]
     simp [hval_bit, hd256]
 
-theorem decode_encode_disjoint (current value : Uint256) (o1 w1 o2 w2 : Nat)
+theorem public_decode_encode_disjoint (current value : Uint256) (o1 w1 o2 w2 : Nat)
     (hbound1 : o1 + w1 ≤ 256) (hbound2 : o2 + w2 ≤ 256)
     (hdisj : o1 + w1 ≤ o2 ∨ o2 + w2 ≤ o1) :
     decodePackedWord (encodePackedWord current value o2 w2) o1 w1
@@ -168,6 +169,19 @@ theorem decode_encode_disjoint (current value : Uint256) (o1 w1 o2 w2 : Nat)
   · push_neg at hj256
     have hd256 : decide (j < 256) = false := by simp [Nat.not_lt.mpr hj256]
     simp [hd256]
+
+theorem public_decode_lt_width (word : Uint256) (offset width : Nat) :
+    (decodePackedWord word offset width).val < 2 ^ width := by
+  unfold decodePackedWord
+  apply Nat.lt_of_testBit width
+  · simp only [testBit_and, testBit_shr, testBit_packedMask_coe]
+    simp
+  · simp
+  · intro j hj
+    simp only [testBit_and, testBit_shr, testBit_packedMask_coe]
+    have hjw : ¬ j < width := by omega
+    have hne : width ≠ j := by omega
+    simp [hjw, Nat.testBit_two_pow_of_ne hne]
 
 end PackedWord
 

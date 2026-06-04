@@ -240,53 +240,80 @@ object "Midnight" {
             let __word_pos := add(__member_data_pos, add(32, mul(inner_index, 32)))
             word := mload(__word_pos)
         }
+        function internal_internal_multicall(calls_data_offset, calls_length) {
+            {
+                let __mc_head := calldataload(4)
+                let __mc_base := add(4, __mc_head)
+                let __mc_len := calldataload(__mc_base)
+                let __mc_i := 0
+                for {
+                } lt(__mc_i, __mc_len) {
+                    __mc_i := add(__mc_i, 1)
+                } {
+                    let __mc_elem_head := calldataload(add(add(__mc_base, 32), mul(__mc_i, 32)))
+                    let __mc_elem := add(add(__mc_base, 32), __mc_elem_head)
+                    let __mc_size := calldataload(__mc_elem)
+                    let __mc_data := add(__mc_elem, 32)
+                    let __mc_ptr := mload(64)
+                    calldatacopy(__mc_ptr, __mc_data, __mc_size)
+                    mstore(64, add(__mc_ptr, and(add(__mc_size, 31), not(31))))
+                    let __mc_success := delegatecall(gas(), address(), __mc_ptr, __mc_size, 0, 0)
+                    if iszero(__mc_success) {
+                        let __mc_rds := returndatasize()
+                        returndatacopy(0, 0, __mc_rds)
+                        revert(0, __mc_rds)
+                    }
+                }
+            }
+            stop()
+        }
         function internal_internal_INITIAL_CHAIN_ID() -> __ret0 {
-            let cid := sload(0)
+            let cid := sload(1024)
             __ret0 := cid
             leave
         }
         function internal_internal_roleSetter() -> __ret0 {
-            let value := sload(1)
+            let value := sload(7)
             __ret0 := value
             leave
         }
         function internal_internal_feeSetter() -> __ret0 {
-            let value := sload(2)
+            let value := sload(8)
             __ret0 := value
             leave
         }
         function internal_internal_feeClaimer() -> __ret0 {
-            let value := sload(3)
+            let value := sload(9)
             __ret0 := value
             leave
         }
         function internal_internal_tickSpacingSetter() -> __ret0 {
-            let value := sload(4)
+            let value := sload(10)
             __ret0 := value
             leave
         }
         function internal_internal_consumed(user, group) -> __ret0 {
-            let value := sload(mappingSlot(mappingSlot(5, user), group))
+            let value := sload(mappingSlot(mappingSlot(2, user), group))
             __ret0 := value
             leave
         }
         function internal_internal_isAuthorized(authorizer, authorized) -> __ret0 {
-            let value := sload(mappingSlot(mappingSlot(6, authorizer), authorized))
+            let value := sload(mappingSlot(mappingSlot(3, authorizer), authorized))
             __ret0 := iszero(eq(value, 0))
             leave
         }
         function internal_internal_defaultSettlementFeeCbp(loanToken, index) -> __ret0 {
-            let value := sload(mappingSlot(mappingSlot(7, loanToken), index))
+            let value := sload(mappingSlot(mappingSlot(4, loanToken), index))
             __ret0 := value
             leave
         }
         function internal_internal_defaultContinuousFee(loanToken) -> __ret0 {
-            let value := sload(mappingSlot(8, loanToken))
+            let value := sload(mappingSlot(5, loanToken))
             __ret0 := value
             leave
         }
         function internal_internal_claimableSettlementFee(token) -> __ret0 {
-            let value := sload(mappingSlot(9, token))
+            let value := sload(mappingSlot(6, token))
             __ret0 := value
             leave
         }
@@ -429,12 +456,41 @@ object "Midnight" {
             leave
         }
         function internal_internal_toId(market_data_offset) -> __ret0 {
-            __ret0 := __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2)
+            let initialChainId := sload(1024)
+            let self := address()
+            let id := 0
+            {
+                let __midnight_id_ptr := mload(64)
+                mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
+                mstore(add(__midnight_id_ptr, 11), 32)
+                let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
+                mstore(__midnight_id_tuple_ptr, calldataload(market_data_offset))
+                mstore(add(__midnight_id_tuple_ptr, 32), 192)
+                mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                let __midnight_id_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
+                let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
+                mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
+                calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
+                let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
+                let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
+                let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
+                mstore(__midnight_id_outer_ptr, shl(248, 255))
+                mstore(add(__midnight_id_outer_ptr, 1), shl(96, self))
+                mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
+                mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
+                id := keccak256(__midnight_id_outer_ptr, 85)
+                mstore(64, add(__midnight_id_outer_ptr, 96))
+            }
+            __ret0 := id
             leave
         }
         function internal_internal_toMarket(id) {
-            extcodecopy(id, 0, 0, 0)
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -446,15 +502,22 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
+            {
+                let __midnight_market_return_pointer := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
+                let __midnight_market_return_length := extcodesize(__midnight_market_return_pointer)
+                let __midnight_market_return_ptr := mload(64)
+                extcodecopy(__midnight_market_return_pointer, __midnight_market_return_ptr, 0, __midnight_market_return_length)
+                return(__midnight_market_return_ptr, __midnight_market_return_length)
+            }
             stop()
         }
         function internal_internal_position(id, user) -> __ret0, __ret1, __ret2, __ret3, __ret4, __ret5 {
-            let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-            let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
-            let collateralBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+            let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+            let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
+            let collateralBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
             __ret0 := credit
             __ret1 := pendingFee
             __ret2 := lastLossFactor
@@ -464,19 +527,19 @@ object "Midnight" {
             leave
         }
         function internal_internal_marketState(id) -> __ret0, __ret1, __ret2, __ret3, __ret4, __ret5, __ret6, __ret7, __ret8, __ret9, __ret10, __ret11, __ret12 {
-            let totalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-            let lossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-            let withdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-            let continuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-            let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
-            let continuousFee := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
-            let tickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let totalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+            let lossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+            let withdrawable := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+            let continuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+            let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
+            let continuousFee := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+            let tickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             __ret0 := totalUnits
             __ret1 := lossFactor
             __ret2 := withdrawable
@@ -493,11 +556,11 @@ object "Midnight" {
             leave
         }
         function internal_internal_updatePositionView(market_data_offset, id, user) -> __ret0, __ret1, __ret2 {
-            let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-            let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-            let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+            let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+            let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             let now := timestamp()
             let postSlashCredit := 0
             if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -522,7 +585,7 @@ object "Midnight" {
         }
         function internal_internal_updatePosition(market_data_offset, user) -> __ret0, __ret1, __ret2 {
             let id := internal_internal_toId(market_data_offset)
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -534,11 +597,11 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-            let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-            let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+            let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+            let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             let now := timestamp()
             let postSlashCredit := 0
             if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -558,41 +621,53 @@ object "Midnight" {
             }
             let newCredit := sub(postSlashCredit, accrued)
             let newPendingFee := sub(postSlashPendingFee, accrued)
+            let creditDecrease := sub(credit, newCredit)
+            let pendingFeeDecrease := sub(pendingFee, newPendingFee)
             {
                 let __compat_value := newCredit
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), user))
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), user))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(mappingSlot(11, id), user), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(mappingSlot(mappingSlot(0, id), user), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
             {
                 let __compat_value := marketLossFactor
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), user), 1))
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), user), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(mappingSlot(11, id), user), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
             {
                 let __compat_value := newPendingFee
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), user))
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), user))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(mappingSlot(mappingSlot(11, id), user), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(mappingSlot(mappingSlot(0, id), user), or(__compat_slot_cleared, shl(128, __compat_packed)))
             }
             {
                 let __compat_value := now
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), user), 1))
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), user), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(add(mappingSlot(mappingSlot(11, id), user), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
             }
-            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := add(currentContinuousFeeCredit, accrued)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+            }
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 55)
+                mstore(add(__evt_ptr, 0), creditDecrease)
+                mstore(add(__evt_ptr, 32), pendingFeeDecrease)
+                mstore(add(__evt_ptr, 64), accrued)
+                log3(__evt_ptr, 96, __evt_topic0, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             __ret0 := newCredit
             __ret1 := newPendingFee
@@ -601,7 +676,7 @@ object "Midnight" {
         }
         function internal_internal_setRoleSetter(newRoleSetter) {
             let sender := caller()
-            let currentRoleSetter := sload(1)
+            let currentRoleSetter := sload(7)
             if iszero(eq(sender, currentRoleSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -613,12 +688,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(1, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+            sstore(7, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
             stop()
         }
         function internal_internal_setFeeSetter(newFeeSetter) {
             let sender := caller()
-            let currentRoleSetter := sload(1)
+            let currentRoleSetter := sload(7)
             if iszero(eq(sender, currentRoleSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -630,12 +705,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(2, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+            sstore(8, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
             stop()
         }
         function internal_internal_setFeeClaimer(newFeeClaimer) {
             let sender := caller()
-            let currentRoleSetter := sload(1)
+            let currentRoleSetter := sload(7)
             if iszero(eq(sender, currentRoleSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -647,12 +722,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(3, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
+            sstore(9, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
             stop()
         }
         function internal_internal_setTickSpacingSetter(newTickSpacingSetter) {
             let sender := caller()
-            let currentRoleSetter := sload(1)
+            let currentRoleSetter := sload(7)
             if iszero(eq(sender, currentRoleSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -664,12 +739,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(4, and(newTickSpacingSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+            sstore(10, and(newTickSpacingSetter, 0xffffffffffffffffffffffffffffffffffffffff))
             stop()
         }
         function internal_internal_setIsAuthorized(authorized, newIsAuthorized, onBehalf) {
             let sender := caller()
-            let currentAuth := sload(mappingSlot(mappingSlot(6, onBehalf), sender))
+            let currentAuth := sload(mappingSlot(mappingSlot(3, onBehalf), sender))
             if iszero(or(iszero(iszero(eq(sender, onBehalf))), iszero(iszero(iszero(eq(currentAuth, 0)))))) {
                 {
                     let __err_ptr := mload(64)
@@ -691,12 +766,12 @@ object "Midnight" {
                     flag := 0
                 }
             }
-            sstore(mappingSlot(mappingSlot(6, onBehalf), authorized), flag)
+            sstore(mappingSlot(mappingSlot(3, onBehalf), authorized), flag)
             stop()
         }
         function internal_internal_setConsumed(group, amount, onBehalf) {
             let sender := caller()
-            let currentAuth := sload(mappingSlot(mappingSlot(6, onBehalf), sender))
+            let currentAuth := sload(mappingSlot(mappingSlot(3, onBehalf), sender))
             if iszero(or(iszero(iszero(eq(sender, onBehalf))), iszero(iszero(iszero(eq(currentAuth, 0)))))) {
                 {
                     let __err_ptr := mload(64)
@@ -708,7 +783,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let current := sload(mappingSlot(mappingSlot(5, onBehalf), group))
+            let current := sload(mappingSlot(mappingSlot(2, onBehalf), group))
             if lt(amount, current) {
                 {
                     let __err_ptr := mload(64)
@@ -720,12 +795,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(mappingSlot(mappingSlot(5, onBehalf), group), amount)
+            sstore(mappingSlot(mappingSlot(2, onBehalf), group), amount)
             stop()
         }
         function internal_internal_setDefaultSettlementFee(loanToken, index, newSettlementFee) {
             let sender := caller()
-            let currentFeeSetter := sload(2)
+            let currentFeeSetter := sload(8)
             if iszero(eq(sender, currentFeeSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -789,12 +864,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(mappingSlot(mappingSlot(7, loanToken), index), div(newSettlementFee, 1000000000000))
+            sstore(mappingSlot(mappingSlot(4, loanToken), index), div(newSettlementFee, 1000000000000))
             stop()
         }
         function internal_internal_setDefaultContinuousFee(loanToken, newContinuousFee) {
             let sender := caller()
-            let currentFeeSetter := sload(2)
+            let currentFeeSetter := sload(8)
             if iszero(eq(sender, currentFeeSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -817,12 +892,12 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(mappingSlot(8, loanToken), newContinuousFee)
+            sstore(mappingSlot(5, loanToken), newContinuousFee)
             stop()
         }
         function internal_internal_claimSettlementFee(token, amount, receiver) {
             let sender := caller()
-            let currentFeeClaimer := sload(3)
+            let currentFeeClaimer := sload(9)
             if iszero(eq(sender, currentFeeClaimer)) {
                 {
                     let __err_ptr := mload(64)
@@ -834,7 +909,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let claimable := sload(mappingSlot(9, token))
+            let claimable := sload(mappingSlot(6, token))
             if gt(amount, claimable) {
                 {
                     let __err_ptr := mload(64)
@@ -846,7 +921,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            sstore(mappingSlot(9, token), sub(claimable, amount))
+            sstore(mappingSlot(6, token), sub(claimable, amount))
             {
                 let __st_ptr := mload(64)
                 mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -885,7 +960,7 @@ object "Midnight" {
         function internal_internal_claimContinuousFee(market_data_offset, amount, receiver) {
             let id := internal_internal_toId(market_data_offset)
             let sender := caller()
-            let currentFeeClaimer := sload(3)
+            let currentFeeClaimer := sload(9)
             if iszero(eq(sender, currentFeeClaimer)) {
                 {
                     let __err_ptr := mload(64)
@@ -897,7 +972,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -909,29 +984,37 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(currentContinuousFeeCredit, amount)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
             }
-            let currentTotalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let currentTotalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(currentTotalUnits, amount)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(10, id))
+                let __compat_slot_word := sload(mappingSlot(1, id))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
-            let currentWithdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let currentWithdrawable := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(currentWithdrawable, amount)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            }
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x436c61696d436f6e74696e756f757346656528616464726573732c6279746573)
+                mstore(add(__evt_ptr, 32), 0x33322c75696e743235362c616464726573732900000000000000000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 51)
+                mstore(add(__evt_ptr, 0), amount)
+                log4(__evt_ptr, 32, __evt_topic0, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             {
                 let __st_ptr := mload(64)
@@ -970,7 +1053,7 @@ object "Midnight" {
         }
         function internal_internal_setMarketTickSpacing(id, newTickSpacing) {
             let sender := caller()
-            let currentTickSpacingSetter := sload(4)
+            let currentTickSpacingSetter := sload(10)
             if iszero(eq(sender, currentTickSpacingSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -982,7 +1065,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -1019,15 +1102,15 @@ object "Midnight" {
             {
                 let __compat_value := newTickSpacing
                 let __compat_packed := and(__compat_value, 255)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                 let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
             }
             stop()
         }
         function internal_internal_setMarketSettlementFee(id, index, newSettlementFee) {
             let sender := caller()
-            let currentFeeSetter := sload(2)
+            let currentFeeSetter := sload(8)
             if iszero(eq(sender, currentFeeSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -1091,7 +1174,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -1108,70 +1191,70 @@ object "Midnight" {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
             }
             if eq(index, 1) {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                 }
             }
             if eq(index, 2) {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                 }
             }
             if eq(index, 3) {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                 }
             }
             if eq(index, 4) {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                 }
             }
             if eq(index, 5) {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                 }
             }
             if eq(index, 6) {
                 {
                     let __compat_value := newSettlementFeeCbp
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                 }
             }
             stop()
         }
         function internal_internal_setMarketContinuousFee(id, newContinuousFee) {
             let sender := caller()
-            let currentFeeSetter := sload(2)
+            let currentFeeSetter := sload(8)
             if iszero(eq(sender, currentFeeSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -1194,7 +1277,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -1209,15 +1292,15 @@ object "Midnight" {
             {
                 let __compat_value := newContinuousFee
                 let __compat_packed := and(__compat_value, 4294967295)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                 let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
             }
             stop()
         }
         function internal_internal_touchMarket(market_data_offset) -> __ret0 {
             let id := internal_internal_toId(market_data_offset)
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if eq(currentTickSpacing, 0) {
                 let now := timestamp()
                 if gt(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2), add(now, 3153600000)) {
@@ -1232,14 +1315,53 @@ object "Midnight" {
                     }
                 }
                 internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
-                let salt := sload(0)
-                let _marketPointer := create2(0, 0, 0, salt)
+                let salt := sload(1024)
+                let _marketPointer := 0
+                {
+                    let __midnight_store_ptr := mload(64)
+                    mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                    mstore(add(__midnight_store_ptr, 11), 32)
+                    let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                    mstore(__midnight_store_tuple_ptr, and(mload(market_data_offset), 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                    mstore(add(__midnight_store_tuple_ptr, 64), mload(add(market_data_offset, 64)))
+                    mstore(add(__midnight_store_tuple_ptr, 96), mload(add(market_data_offset, 96)))
+                    mstore(add(__midnight_store_tuple_ptr, 128), and(mload(add(market_data_offset, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(add(__midnight_store_tuple_ptr, 160), and(mload(add(market_data_offset, 160)), 0xffffffffffffffffffffffffffffffffffffffff))
+                    let __midnight_store_array_ptr := mload(add(market_data_offset, 32))
+                    let __midnight_store_collateral_length := mload(__midnight_store_array_ptr)
+                    let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                    mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                    let __midnight_store_dst := add(__midnight_store_tuple_ptr, 224)
+                    let __midnight_store_src_ptr := add(__midnight_store_array_ptr, 32)
+                    let __midnight_store_src_end := add(__midnight_store_src_ptr, mul(__midnight_store_collateral_length, 32))
+                    for {
+                    } lt(__midnight_store_src_ptr, __midnight_store_src_end) {
+                        __midnight_store_src_ptr := add(__midnight_store_src_ptr, 32)
+                    } {
+                        let __midnight_store_item_ptr := mload(__midnight_store_src_ptr)
+                        mstore(__midnight_store_dst, and(mload(__midnight_store_item_ptr), 0xffffffffffffffffffffffffffffffffffffffff))
+                        mstore(add(__midnight_store_dst, 32), mload(add(__midnight_store_item_ptr, 32)))
+                        mstore(add(__midnight_store_dst, 64), mload(add(__midnight_store_item_ptr, 64)))
+                        mstore(add(__midnight_store_dst, 96), and(mload(add(__midnight_store_item_ptr, 96)), 0xffffffffffffffffffffffffffffffffffffffff))
+                        __midnight_store_dst := add(__midnight_store_dst, 128)
+                    }
+                    let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                    let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                    _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                    if iszero(_marketPointer) {
+                        mstore(0, shl(224, 0x4e487b71))
+                        mstore(4, 81)
+                        revert(0, 36)
+                    }
+                    mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                }
                 {
                     let __compat_value := 4
                     let __compat_packed := and(__compat_value, 255)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                 }
                 let settlementFeeCbp0 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0)
                 let settlementFeeCbp1 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1)
@@ -1248,69 +1370,69 @@ object "Midnight" {
                 let settlementFeeCbp4 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 4)
                 let settlementFeeCbp5 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 5)
                 let settlementFeeCbp6 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 6)
-                let continuous := sload(mappingSlot(8, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)))
+                let continuous := sload(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)))
                 {
                     let __compat_value := settlementFeeCbp0
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp1
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp2
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp3
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp4
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp5
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp6
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                 }
                 {
                     let __compat_value := continuous
                     let __compat_packed := and(__compat_value, 4294967295)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                 }
             }
             __ret0 := id
             leave
         }
         function internal_internal_settlementFee(id, timeToMaturity) -> __ret0 {
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(gt(currentTickSpacing, 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -1322,13 +1444,13 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
+            let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
             let start := 15552000
             let finish := 31104000
             let feeLower := mul(settlementFeeCbp5, 1000000000000)
@@ -1375,6 +1497,330 @@ object "Midnight" {
                 }
             }
         }
+        function internal_internal_tickToPrice(tick) -> __ret0 {
+            if gt(tick, 5820) {
+                {
+                    let __err_ptr := mload(64)
+                    mstore(add(__err_ptr, 0), 0x5469636b4f75744f6652616e6765282900000000000000000000000000000000)
+                    let __err_hash := keccak256(__err_ptr, 16)
+                    let __err_selector := shl(224, shr(224, __err_hash))
+                    mstore(0, __err_selector)
+                    let __err_tail := 0
+                    revert(0, add(4, __err_tail))
+                }
+            }
+            let price := 0
+            {
+                let __tp_x := mul(4987541511039073, sub(2910, tick))
+                let __tp_abs := __tp_x
+                let __tp_negative := slt(__tp_x, 0)
+                if __tp_negative {
+                    __tp_abs := sub(0, __tp_x)
+                }
+                let __tp_q := div(add(__tp_abs, 322611214989459870), 693147180559945309)
+                let __tp_r := sub(__tp_abs, mul(__tp_q, 693147180559945309))
+                let __tp_second := sdiv(mul(__tp_r, __tp_r), 2000000000000000000)
+                let __tp_third := sdiv(mul(__tp_second, __tp_r), 3000000000000000000)
+                let __tp_expR := add(1000000000000000000, add(__tp_r, add(__tp_second, __tp_third)))
+                let __tp_wexp := shl(__tp_q, __tp_expR)
+                if __tp_negative {
+                    __tp_wexp := div(1000000000000000000000000000000000000, __tp_wexp)
+                }
+                let __tp_den := add(1000000000000000000, __tp_wexp)
+                let __tp_raw := div(add(1000000000000000000000000000000000000, div(sub(__tp_den, 1), 2)), __tp_den)
+                price := mul(div(add(__tp_raw, div(sub(1000000000000, 1), 2)), 1000000000000), 1000000000000)
+            }
+            __ret0 := price
+            leave
+        }
+        function internal_internal_enterGateCanIncreaseCredit(gate, account) -> __ret0 {
+            let allowed := 0
+            {
+                let __ecwr_ptr := mload(64)
+                mstore(__ecwr_ptr, shl(224, 0x58ac9f9e))
+                mstore(add(__ecwr_ptr, 4), account)
+                mstore(64, add(__ecwr_ptr, 64))
+                let __ecwr_success := staticcall(gas(), gate, __ecwr_ptr, 36, __ecwr_ptr, 32)
+                if iszero(__ecwr_success) {
+                    let __ecwr_rds := returndatasize()
+                    returndatacopy(0, 0, __ecwr_rds)
+                    revert(0, __ecwr_rds)
+                }
+                if lt(returndatasize(), 32) {
+                    revert(0, 0)
+                }
+                allowed := mload(__ecwr_ptr)
+            }
+            __ret0 := allowed
+            leave
+        }
+        function internal_internal_enterGateCanIncreaseDebt(gate, account) -> __ret0 {
+            let allowed := 0
+            {
+                let __ecwr_ptr := mload(64)
+                mstore(__ecwr_ptr, shl(224, 0xfe9bf956))
+                mstore(add(__ecwr_ptr, 4), account)
+                mstore(64, add(__ecwr_ptr, 64))
+                let __ecwr_success := staticcall(gas(), gate, __ecwr_ptr, 36, __ecwr_ptr, 32)
+                if iszero(__ecwr_success) {
+                    let __ecwr_rds := returndatasize()
+                    returndatacopy(0, 0, __ecwr_rds)
+                    revert(0, __ecwr_rds)
+                }
+                if lt(returndatasize(), 32) {
+                    revert(0, 0)
+                }
+                allowed := mload(__ecwr_ptr)
+            }
+            __ret0 := allowed
+            leave
+        }
+        function internal_internal_updateBuyerForTake(id, buyer, units, maturity, now) -> __ret0 {
+            let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), buyer), 2))), 340282366920938463463374607431768211455)
+            let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
+            let buyerCreditIncrease := sub(units, buyerDebtDecrease)
+            let continuousFeeValue := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+            let timeToMaturity := 0
+            if gt(maturity, now) {
+                timeToMaturity := sub(maturity, now)
+            }
+            let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
+            let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), buyer))), 340282366920938463463374607431768211455)
+            let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), buyer))), 340282366920938463463374607431768211455)
+            let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))), 340282366920938463463374607431768211455)
+            let buyerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))), 340282366920938463463374607431768211455)
+            let buyerMarketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+            let buyerPostSlashCredit := 0
+            if lt(buyerLastLossFactor, 340282366920938463463374607431768211455) {
+                buyerPostSlashCredit := div(mul(buyerCredit, sub(340282366920938463463374607431768211455, buyerMarketLossFactor)), sub(340282366920938463463374607431768211455, buyerLastLossFactor))
+            }
+            let buyerPostSlashPendingFee := 0
+            if gt(buyerCredit, 0) {
+                buyerPostSlashPendingFee := sub(buyerPendingFee, div(add(mul(buyerPendingFee, sub(buyerCredit, buyerPostSlashCredit)), sub(buyerCredit, 1)), buyerCredit))
+            }
+            let buyerAccrualEnd := maturity
+            if iszero(gt(now, maturity)) {
+                buyerAccrualEnd := now
+            }
+            let buyerAccrued := 0
+            if lt(buyerLastAccrual, maturity) {
+                buyerAccrued := div(mul(buyerPostSlashPendingFee, sub(buyerAccrualEnd, buyerLastAccrual)), sub(maturity, buyerLastAccrual))
+            }
+            let buyerCreditAfterUpdate := sub(buyerPostSlashCredit, buyerAccrued)
+            let buyerPendingFeeAfterUpdate := sub(buyerPostSlashPendingFee, buyerAccrued)
+            let buyerCreditDecrease := sub(buyerCredit, buyerCreditAfterUpdate)
+            let buyerPendingFeeDecreaseForUpdate := sub(buyerPendingFee, buyerPendingFeeAfterUpdate)
+            if or(iszero(iszero(gt(buyerCredit, 0))), iszero(iszero(gt(buyerCreditIncrease, 0)))) {
+                {
+                    let __compat_value := buyerCreditAfterUpdate
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __compat_value := buyerMarketLossFactor
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(add(mappingSlot(mappingSlot(0, id), buyer), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __compat_value := buyerPendingFeeAfterUpdate
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                {
+                    let __compat_value := now
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(add(mappingSlot(mappingSlot(0, id), buyer), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                {
+                    let __compat_value := add(currentContinuousFeeCredit, buyerAccrued)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+            }
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 55)
+                mstore(add(__evt_ptr, 0), buyerCreditDecrease)
+                mstore(add(__evt_ptr, 32), buyerPendingFeeDecreaseForUpdate)
+                mstore(add(__evt_ptr, 64), buyerAccrued)
+                log3(__evt_ptr, 96, __evt_topic0, id, and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
+            }
+            {
+                let __compat_value := sub(buyerDebt, buyerDebtDecrease)
+                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 2))
+                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                sstore(add(mappingSlot(mappingSlot(0, id), buyer), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            }
+            {
+                let __compat_value := add(buyerPendingFeeAfterUpdate, buyerPendingFeeIncrease)
+                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
+            }
+            {
+                let __compat_value := add(buyerCreditAfterUpdate, buyerCreditIncrease)
+                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            }
+            __ret0 := buyerCreditIncrease
+            leave
+        }
+        function internal_internal_updateSellerForTake(id, seller, units, maturity, now) -> __ret0, __ret1, __ret2 {
+            let sellerCredit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), seller))), 340282366920938463463374607431768211455)
+            let sellerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), seller))), 340282366920938463463374607431768211455)
+            let sellerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), seller), 1))), 340282366920938463463374607431768211455)
+            let sellerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), seller), 1))), 340282366920938463463374607431768211455)
+            let sellerMarketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+            let sellerPostSlashCredit := 0
+            if lt(sellerLastLossFactor, 340282366920938463463374607431768211455) {
+                sellerPostSlashCredit := div(mul(sellerCredit, sub(340282366920938463463374607431768211455, sellerMarketLossFactor)), sub(340282366920938463463374607431768211455, sellerLastLossFactor))
+            }
+            let sellerPostSlashPendingFee := 0
+            if gt(sellerCredit, 0) {
+                sellerPostSlashPendingFee := sub(sellerPendingFee, div(add(mul(sellerPendingFee, sub(sellerCredit, sellerPostSlashCredit)), sub(sellerCredit, 1)), sellerCredit))
+            }
+            let sellerAccrualEnd := maturity
+            if iszero(gt(now, maturity)) {
+                sellerAccrualEnd := now
+            }
+            let sellerAccrued := 0
+            if lt(sellerLastAccrual, maturity) {
+                sellerAccrued := div(mul(sellerPostSlashPendingFee, sub(sellerAccrualEnd, sellerLastAccrual)), sub(maturity, sellerLastAccrual))
+            }
+            let sellerCreditAfterUpdate := sub(sellerPostSlashCredit, sellerAccrued)
+            let sellerPendingFeeAfterUpdate := sub(sellerPostSlashPendingFee, sellerAccrued)
+            let sellerCreditDecreaseForUpdate := sub(sellerCredit, sellerCreditAfterUpdate)
+            let sellerPendingFeeDecreaseForUpdate := sub(sellerPendingFee, sellerPendingFeeAfterUpdate)
+            if gt(sellerCredit, 0) {
+                {
+                    let __compat_value := sellerCreditAfterUpdate
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __compat_value := sellerMarketLossFactor
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 1))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(add(mappingSlot(mappingSlot(0, id), seller), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __compat_value := sellerPendingFeeAfterUpdate
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                {
+                    let __compat_value := now
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 1))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(add(mappingSlot(mappingSlot(0, id), seller), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                {
+                    let __compat_value := add(currentContinuousFeeCredit, sellerAccrued)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+            }
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 55)
+                mstore(add(__evt_ptr, 0), sellerCreditDecreaseForUpdate)
+                mstore(add(__evt_ptr, 32), sellerPendingFeeDecreaseForUpdate)
+                mstore(add(__evt_ptr, 64), sellerAccrued)
+                log3(__evt_ptr, 96, __evt_topic0, id, and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
+            }
+            let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
+            let sellerDebtIncrease := sub(units, sellerCreditDecrease)
+            let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), seller), 2))), 340282366920938463463374607431768211455)
+            let sellerPendingFeeDecrease := 0
+            if gt(sellerCreditAfterUpdate, 0) {
+                sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
+            }
+            {
+                let __compat_value := sub(sellerPendingFeeAfterUpdate, sellerPendingFeeDecrease)
+                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+            }
+            {
+                let __compat_value := sub(sellerCreditAfterUpdate, sellerCreditDecrease)
+                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            }
+            {
+                let __compat_value := add(sellerDebt, sellerDebtIncrease)
+                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 2))
+                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                sstore(add(mappingSlot(mappingSlot(0, id), seller), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            }
+            __ret0 := sellerCreditDecrease
+            __ret1 := sellerDebtIncrease
+            __ret2 := sellerPendingFeeDecrease
+            leave
+        }
+        function internal_internal_takeAssetsForPrice(id, units, tick, offerIsBuy, maturity, now, buyerCreditIncrease) -> __ret0, __ret1, __ret2 {
+            let offerPrice := internal_internal_tickToPrice(tick)
+            let timeToMaturityForFee := 0
+            if gt(maturity, now) {
+                timeToMaturityForFee := sub(maturity, now)
+            }
+            let settlementFeeValue := internal_internal_settlementFee(id, timeToMaturityForFee)
+            let continuousFeeValueForCallback := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+            let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValueForCallback, timeToMaturityForFee)), 1000000000000000000)
+            let sellerPrice := offerPrice
+            if offerIsBuy {
+                sellerPrice := sub(offerPrice, settlementFeeValue)
+            }
+            let buyerPrice := add(sellerPrice, settlementFeeValue)
+            let buyerAssets := 0
+            let sellerAssets := 0
+            {
+                let __ite_cond := offerIsBuy
+                if __ite_cond {
+                    buyerAssets := div(mul(units, buyerPrice), 1000000000000000000)
+                    sellerAssets := div(mul(units, sellerPrice), 1000000000000000000)
+                }
+                if iszero(__ite_cond) {
+                    buyerAssets := div(add(mul(units, buyerPrice), sub(1000000000000000000, 1)), 1000000000000000000)
+                    sellerAssets := div(add(mul(units, sellerPrice), sub(1000000000000000000, 1)), 1000000000000000000)
+                }
+            }
+            __ret0 := buyerAssets
+            __ret1 := sellerAssets
+            __ret2 := buyerPendingFeeIncrease
+            leave
+        }
         function internal_internal_take(offer_data_offset, ratifierData_data_offset, ratifierData_length, units, taker, receiverIfTakerIsSeller, takerCallback, takerCallbackData_data_offset, takerCallbackData_length) -> __ret0, __ret1 {
             let sender := caller()
             let authorized := internal_internal_isAuthorized(taker, sender)
@@ -1393,8 +1839,38 @@ object "Midnight" {
             let marketBase := add(offerBase, calldataload(offerBase))
             let loanToken := calldataload(marketBase)
             let maturity := calldataload(add(marketBase, 64))
-            let id := maturity
-            let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let enterGate := calldataload(add(marketBase, 128))
+            let initialChainId := sload(1024)
+            let contractSelf := address()
+            let id := 0
+            {
+                let __midnight_id_ptr := mload(64)
+                mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
+                mstore(add(__midnight_id_ptr, 11), 32)
+                let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
+                mstore(__midnight_id_tuple_ptr, calldataload(marketBase))
+                mstore(add(__midnight_id_tuple_ptr, 32), 192)
+                mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                let __midnight_id_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
+                let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
+                mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
+                calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
+                let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
+                let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
+                let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
+                mstore(__midnight_id_outer_ptr, shl(248, 255))
+                mstore(add(__midnight_id_outer_ptr, 1), shl(96, contractSelf))
+                mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
+                mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
+                id := keccak256(__midnight_id_outer_ptr, 85)
+                mstore(64, add(__midnight_id_outer_ptr, 96))
+            }
+            let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if eq(currentMarketTickSpacing, 0) {
                 let now := timestamp()
                 if gt(maturity, add(now, 3153600000)) {
@@ -1411,9 +1887,9 @@ object "Midnight" {
                 {
                     let __compat_value := 4
                     let __compat_packed := and(__compat_value, 255)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                 }
                 let settlementFeeCbp0 := internal_internal_defaultSettlementFeeCbp(loanToken, 0)
                 let settlementFeeCbp1 := internal_internal_defaultSettlementFeeCbp(loanToken, 1)
@@ -1422,66 +1898,66 @@ object "Midnight" {
                 let settlementFeeCbp4 := internal_internal_defaultSettlementFeeCbp(loanToken, 4)
                 let settlementFeeCbp5 := internal_internal_defaultSettlementFeeCbp(loanToken, 5)
                 let settlementFeeCbp6 := internal_internal_defaultSettlementFeeCbp(loanToken, 6)
-                let continuous := sload(mappingSlot(8, loanToken))
+                let continuous := sload(mappingSlot(5, loanToken))
                 {
                     let __compat_value := settlementFeeCbp0
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp1
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp2
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp3
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp4
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp5
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                 }
                 {
                     let __compat_value := settlementFeeCbp6
                     let __compat_packed := and(__compat_value, 65535)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                 }
                 {
                     let __compat_value := continuous
                     let __compat_packed := and(__compat_value, 4294967295)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                 }
             }
-            let lossFactorValue := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-            if iszero(lt(lossFactorValue, 340282366920938463463374607431768211455)) {
+            let lossFactorForGuard := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+            if iszero(lt(lossFactorForGuard, 340282366920938463463374607431768211455)) {
                 {
                     let __err_ptr := mload(64)
                     mstore(add(__err_ptr, 0), 0x4d61726b65744c6f7373466163746f724d617865644f75742829000000000000)
@@ -1503,7 +1979,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if iszero(eq(mod(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5), currentTickSpacing), 0)) {
                 {
                     let __err_ptr := mload(64)
@@ -1561,6 +2037,72 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
+            {
+                let __rat_ptr := mload(64)
+                let __rat_offer_ptr := add(__rat_ptr, 68)
+                let __rat_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                let __rat_collateral_offset := add(__rat_market_offset, calldataload(add(__rat_market_offset, 32)))
+                let __rat_collateral_length := calldataload(__rat_collateral_offset)
+                let __rat_collateral_bytes := mul(__rat_collateral_length, 128)
+                let __rat_market_size := add(224, __rat_collateral_bytes)
+                let __rat_padded_market_size := and(add(__rat_market_size, 31), not(31))
+                let __rat_callback_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                let __rat_callback_data_length := calldataload(__rat_callback_data_offset)
+                let __rat_padded_callback_data_length := and(add(__rat_callback_data_length, 31), not(31))
+                let __rat_offer_size := add(448, add(__rat_padded_market_size, add(32, __rat_padded_callback_data_length)))
+                let __rat_padded_offer_size := and(add(__rat_offer_size, 31), not(31))
+                let __rat_data_ptr := add(__rat_offer_ptr, __rat_padded_offer_size)
+                let __rat_padded_data_length := and(add(ratifierData_length, 31), not(31))
+                let __rat_total := add(68, add(__rat_padded_offer_size, add(32, __rat_padded_data_length)))
+                mstore(__rat_ptr, shl(224, 0x675ef8d3))
+                mstore(add(__rat_ptr, 4), 64)
+                mstore(add(__rat_ptr, 36), add(64, __rat_padded_offer_size))
+                mstore(__rat_offer_ptr, 448)
+                for {
+                    let __rat_i := 1
+                } lt(__rat_i, 8) {
+                    __rat_i := add(__rat_i, 1)
+                } {
+                    mstore(add(__rat_offer_ptr, mul(__rat_i, 32)), calldataload(add(offer_data_offset, mul(__rat_i, 32))))
+                }
+                mstore(add(__rat_offer_ptr, 256), add(448, __rat_padded_market_size))
+                for {
+                    let __rat_j := 9
+                } lt(__rat_j, 14) {
+                    __rat_j := add(__rat_j, 1)
+                } {
+                    mstore(add(__rat_offer_ptr, mul(__rat_j, 32)), calldataload(add(offer_data_offset, mul(__rat_j, 32))))
+                }
+                let __rat_market_ptr := add(__rat_offer_ptr, 448)
+                mstore(__rat_market_ptr, calldataload(__rat_market_offset))
+                mstore(add(__rat_market_ptr, 32), 192)
+                for {
+                    let __rat_m := 2
+                } lt(__rat_m, 6) {
+                    __rat_m := add(__rat_m, 1)
+                } {
+                    mstore(add(__rat_market_ptr, mul(__rat_m, 32)), calldataload(add(__rat_market_offset, mul(__rat_m, 32))))
+                }
+                mstore(add(__rat_market_ptr, 192), __rat_collateral_length)
+                calldatacopy(add(__rat_market_ptr, 224), add(__rat_collateral_offset, 32), __rat_collateral_bytes)
+                mstore(add(__rat_offer_ptr, add(448, __rat_padded_market_size)), __rat_callback_data_length)
+                calldatacopy(add(__rat_offer_ptr, add(480, __rat_padded_market_size)), add(__rat_callback_data_offset, 32), __rat_callback_data_length)
+                mstore(add(__rat_offer_ptr, add(480, add(__rat_padded_market_size, __rat_callback_data_length))), 0)
+                mstore(__rat_data_ptr, ratifierData_length)
+                calldatacopy(add(__rat_data_ptr, 32), ratifierData_data_offset, ratifierData_length)
+                mstore(add(__rat_data_ptr, add(32, ratifierData_length)), 0)
+                mstore(64, add(__rat_ptr, and(add(__rat_total, 31), not(31))))
+                let __rat_success := staticcall(gas(), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 10), __rat_ptr, __rat_total, __rat_ptr, 32)
+                if iszero(__rat_success) {
+                    let __rat_rds := returndatasize()
+                    returndatacopy(0, 0, __rat_rds)
+                    revert(0, __rat_rds)
+                }
+                if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__rat_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                    mstore(0, shl(224, 0x9e8ec676))
+                    revert(0, 4)
+                }
+            }
             if gt(units, 340282366920938463463374607431768211455) {
                 {
                     let __err_ptr := mload(64)
@@ -1576,8 +2118,47 @@ object "Midnight" {
             {
                 let __ite_cond := gt(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13), 0)
                 if __ite_cond {
-                    let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
-                    newConsumed := add(currentConsumed, units)
+                    let offerPriceConsumed := internal_internal_tickToPrice(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5))
+                    let timeToMaturityConsumed := 0
+                    if gt(maturity, now) {
+                        timeToMaturityConsumed := sub(maturity, now)
+                    }
+                    let settlementFeeConsumed := internal_internal_settlementFee(id, timeToMaturityConsumed)
+                    let sellerPriceConsumed := offerPriceConsumed
+                    if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                        sellerPriceConsumed := sub(offerPriceConsumed, settlementFeeConsumed)
+                    }
+                    let buyerPriceConsumed := add(sellerPriceConsumed, settlementFeeConsumed)
+                    let buyerAssetsConsumed := 0
+                    let sellerAssetsConsumed := 0
+                    {
+                        let __ite_cond_1 := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                        if __ite_cond_1 {
+                            buyerAssetsConsumed := div(mul(units, buyerPriceConsumed), 1000000000000000000)
+                            sellerAssetsConsumed := div(mul(units, sellerPriceConsumed), 1000000000000000000)
+                        }
+                        if iszero(__ite_cond_1) {
+                            buyerAssetsConsumed := div(add(mul(units, buyerPriceConsumed), sub(1000000000000000000, 1)), 1000000000000000000)
+                            sellerAssetsConsumed := div(add(mul(units, sellerPriceConsumed), sub(1000000000000000000, 1)), 1000000000000000000)
+                        }
+                    }
+                    if lt(buyerAssetsConsumed, sellerAssetsConsumed) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x496e636f6e73697374656e74496e707574282900000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 19)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let currentConsumed := sload(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
+                    let consumedIncrease := sellerAssetsConsumed
+                    if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                        consumedIncrease := buyerAssetsConsumed
+                    }
+                    newConsumed := add(currentConsumed, consumedIncrease)
                     if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13)) {
                         {
                             let __err_ptr := mload(64)
@@ -1589,10 +2170,10 @@ object "Midnight" {
                             revert(0, add(4, __err_tail))
                         }
                     }
-                    sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
+                    sstore(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                 }
                 if iszero(__ite_cond) {
-                    let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
+                    let currentConsumed := sload(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
                     newConsumed := add(currentConsumed, units)
                     if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 12)) {
                         {
@@ -1605,7 +2186,7 @@ object "Midnight" {
                             revert(0, add(4, __err_tail))
                         }
                     }
-                    sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
+                    sstore(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                 }
             }
             let buyer := taker
@@ -1614,163 +2195,8 @@ object "Midnight" {
                 buyer := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)
                 seller := taker
             }
-            let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))), 340282366920938463463374607431768211455)
-            let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
-            let buyerCreditIncrease := sub(units, buyerDebtDecrease)
-            let continuousFeeValue := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
-            let timeToMaturity := 0
-            if gt(maturity, now) {
-                timeToMaturity := sub(maturity, now)
-            }
-            let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
-            let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
-            let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
-            let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
-            let buyerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
-            let buyerPostSlashCredit := 0
-            if lt(buyerLastLossFactor, 340282366920938463463374607431768211455) {
-                buyerPostSlashCredit := div(mul(buyerCredit, sub(340282366920938463463374607431768211455, lossFactorValue)), sub(340282366920938463463374607431768211455, buyerLastLossFactor))
-            }
-            let buyerPostSlashPendingFee := 0
-            if gt(buyerCredit, 0) {
-                buyerPostSlashPendingFee := sub(buyerPendingFee, div(add(mul(buyerPendingFee, sub(buyerCredit, buyerPostSlashCredit)), sub(buyerCredit, 1)), buyerCredit))
-            }
-            let buyerAccrualEnd := maturity
-            if iszero(gt(now, maturity)) {
-                buyerAccrualEnd := now
-            }
-            let buyerAccrued := 0
-            if lt(buyerLastAccrual, maturity) {
-                buyerAccrued := div(mul(buyerPostSlashPendingFee, sub(buyerAccrualEnd, buyerLastAccrual)), sub(maturity, buyerLastAccrual))
-            }
-            let buyerCreditAfterUpdate := sub(buyerPostSlashCredit, buyerAccrued)
-            let buyerPendingFeeAfterUpdate := sub(buyerPostSlashPendingFee, buyerAccrued)
-            if or(iszero(iszero(gt(buyerCredit, 0))), iszero(iszero(gt(buyerCreditIncrease, 0)))) {
-                {
-                    let __compat_value := buyerCreditAfterUpdate
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                }
-                {
-                    let __compat_value := lossFactorValue
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), buyer), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                }
-                {
-                    let __compat_value := buyerPendingFeeAfterUpdate
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-                {
-                    let __compat_value := now
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(mappingSlot(11, id), buyer), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                {
-                    let __compat_value := add(currentContinuousFeeCredit, buyerAccrued)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-            }
-            {
-                let __compat_value := sub(buyerDebt, buyerDebtDecrease)
-                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))
-                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(mappingSlot(11, id), buyer), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
-            }
-            {
-                let __compat_value := add(buyerPendingFeeAfterUpdate, buyerPendingFeeIncrease)
-                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
-            }
-            {
-                let __compat_value := add(buyerCreditAfterUpdate, buyerCreditIncrease)
-                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
-            }
-            let sellerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), seller))), 340282366920938463463374607431768211455)
-            let sellerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), seller))), 340282366920938463463374607431768211455)
-            let sellerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 1))), 340282366920938463463374607431768211455)
-            let sellerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), seller), 1))), 340282366920938463463374607431768211455)
-            let sellerPostSlashCredit := 0
-            if lt(sellerLastLossFactor, 340282366920938463463374607431768211455) {
-                sellerPostSlashCredit := div(mul(sellerCredit, sub(340282366920938463463374607431768211455, lossFactorValue)), sub(340282366920938463463374607431768211455, sellerLastLossFactor))
-            }
-            let sellerPostSlashPendingFee := 0
-            if gt(sellerCredit, 0) {
-                sellerPostSlashPendingFee := sub(sellerPendingFee, div(add(mul(sellerPendingFee, sub(sellerCredit, sellerPostSlashCredit)), sub(sellerCredit, 1)), sellerCredit))
-            }
-            let sellerAccrualEnd := maturity
-            if iszero(gt(now, maturity)) {
-                sellerAccrualEnd := now
-            }
-            let sellerAccrued := 0
-            if lt(sellerLastAccrual, maturity) {
-                sellerAccrued := div(mul(sellerPostSlashPendingFee, sub(sellerAccrualEnd, sellerLastAccrual)), sub(maturity, sellerLastAccrual))
-            }
-            let sellerCreditAfterUpdate := sub(sellerPostSlashCredit, sellerAccrued)
-            let sellerPendingFeeAfterUpdate := sub(sellerPostSlashPendingFee, sellerAccrued)
-            if gt(sellerCredit, 0) {
-                {
-                    let __compat_value := sellerCreditAfterUpdate
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                }
-                {
-                    let __compat_value := lossFactorValue
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 1))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), seller), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                }
-                {
-                    let __compat_value := sellerPendingFeeAfterUpdate
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-                {
-                    let __compat_value := now
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 1))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(mappingSlot(11, id), seller), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                {
-                    let __compat_value := add(currentContinuousFeeCredit, sellerAccrued)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-            }
-            let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
-            let sellerDebtIncrease := sub(units, sellerCreditDecrease)
-            let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 2))), 340282366920938463463374607431768211455)
-            let sellerPendingFeeDecrease := 0
-            if gt(sellerCreditAfterUpdate, 0) {
-                sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
-            }
+            let buyerCreditIncrease := internal_internal_updateBuyerForTake(id, buyer, units, maturity, now)
+            let sellerCreditDecrease, sellerDebtIncrease, sellerPendingFeeDecrease := internal_internal_updateSellerForTake(id, seller, units, maturity, now)
             if iszero(or(iszero(iszero(iszero(gt(now, maturity)))), iszero(iszero(eq(sellerDebtIncrease, 0))))) {
                 {
                     let __err_ptr := mload(64)
@@ -1805,37 +2231,66 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            {
-                let __compat_value := sub(sellerPendingFeeAfterUpdate, sellerPendingFeeDecrease)
-                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+            let buyerGateAllowed := 1
+            if iszero(eq(enterGate, 0)) {
+                if gt(buyerCreditIncrease, 0) {
+                    let canIncreaseCredit := internal_internal_enterGateCanIncreaseCredit(enterGate, buyer)
+                    buyerGateAllowed := iszero(eq(canIncreaseCredit, 0))
+                }
             }
-            {
-                let __compat_value := sub(sellerCreditAfterUpdate, sellerCreditDecrease)
-                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            if iszero(buyerGateAllowed) {
+                {
+                    let __err_ptr := mload(64)
+                    mstore(add(__err_ptr, 0), 0x4275796572476174656446726f6d496e6372656173696e674372656469742829)
+                    let __err_hash := keccak256(__err_ptr, 32)
+                    let __err_selector := shl(224, shr(224, __err_hash))
+                    mstore(0, __err_selector)
+                    let __err_tail := 0
+                    revert(0, add(4, __err_tail))
+                }
             }
-            {
-                let __compat_value := add(sellerDebt, sellerDebtIncrease)
-                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 2))
-                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(mappingSlot(11, id), seller), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            let sellerGateAllowed := 1
+            if iszero(eq(enterGate, 0)) {
+                if gt(sellerDebtIncrease, 0) {
+                    let canIncreaseDebt := internal_internal_enterGateCanIncreaseDebt(enterGate, seller)
+                    sellerGateAllowed := iszero(eq(canIncreaseDebt, 0))
+                }
             }
-            let currentTotalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            if iszero(sellerGateAllowed) {
+                {
+                    let __err_ptr := mload(64)
+                    mstore(add(__err_ptr, 0), 0x53656c6c6572476174656446726f6d496e6372656173696e6744656274282900)
+                    let __err_hash := keccak256(__err_ptr, 31)
+                    let __err_selector := shl(224, shr(224, __err_hash))
+                    mstore(0, __err_selector)
+                    let __err_tail := 0
+                    revert(0, add(4, __err_tail))
+                }
+            }
+            let currentTotalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             let newTotalUnits := add(currentTotalUnits, buyerCreditIncrease)
             newTotalUnits := sub(newTotalUnits, sellerCreditDecrease)
             {
                 let __compat_value := newTotalUnits
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(10, id))
+                let __compat_slot_word := sload(mappingSlot(1, id))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
+            let buyerAssets, sellerAssets, buyerPendingFeeIncrease := internal_internal_takeAssetsForPrice(id, units, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1), maturity, now, buyerCreditIncrease)
+            if lt(buyerAssets, sellerAssets) {
+                {
+                    let __err_ptr := mload(64)
+                    mstore(add(__err_ptr, 0), 0x496e636f6e73697374656e74496e707574282900000000000000000000000000)
+                    let __err_hash := keccak256(__err_ptr, 19)
+                    let __err_selector := shl(224, shr(224, __err_hash))
+                    mstore(0, __err_selector)
+                    let __err_tail := 0
+                    revert(0, add(4, __err_tail))
+                }
+            }
+            let claimableBefore := sload(mappingSlot(6, loanToken))
+            sstore(mappingSlot(6, loanToken), add(claimableBefore, sub(buyerAssets, sellerAssets)))
             let receiver := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 9)
             if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
                 receiver := receiverIfTakerIsSeller
@@ -1849,81 +2304,399 @@ object "Midnight" {
                     payer := sender
                 }
             }
-            let transferAssets := units
+            let buyerCallback := takerCallback
             if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                transferAssets := 0
+                buyerCallback := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7)
+            }
+            let offerIsBuyWord := 0
+            if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                offerIsBuyWord := 1
+            }
+            let takeEventPtr := mload(64)
+            mstore(takeEventPtr, sender)
+            mstore(add(takeEventPtr, 32), units)
+            mstore(add(takeEventPtr, 64), offerIsBuyWord)
+            mstore(add(takeEventPtr, 96), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6))
+            mstore(add(takeEventPtr, 128), buyerAssets)
+            mstore(add(takeEventPtr, 160), sellerAssets)
+            mstore(64, add(takeEventPtr, 416))
+            mstore(add(takeEventPtr, 192), newConsumed)
+            mstore(add(takeEventPtr, 224), buyerPendingFeeIncrease)
+            mstore(add(takeEventPtr, 256), sellerPendingFeeDecrease)
+            mstore(add(takeEventPtr, 288), buyerCreditIncrease)
+            mstore(add(takeEventPtr, 320), sellerCreditDecrease)
+            mstore(add(takeEventPtr, 352), receiver)
+            mstore(add(takeEventPtr, 384), payer)
+            log4(takeEventPtr, 416, 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3, id, taker, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2))
+            {
+                let __liq_lock_ptr := mload(64)
+                mstore(__liq_lock_ptr, id)
+                mstore(add(__liq_lock_ptr, 32), seller)
+                mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                tstore(__liq_lock_slot, add(tload(__liq_lock_slot), 1))
+            }
+            if iszero(eq(buyerCallback, 0)) {
+                payer := buyerCallback
+                {
+                    let __ite_cond := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                    if __ite_cond {
+                        {
+                            let __buycb_ptr := mload(64)
+                            let __buycb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                            let __buycb_collateral_offset := add(__buycb_market_offset, calldataload(add(__buycb_market_offset, 32)))
+                            let __buycb_collateral_length := calldataload(__buycb_collateral_offset)
+                            let __buycb_collateral_bytes := mul(__buycb_collateral_length, 128)
+                            let __buycb_market_size := add(224, __buycb_collateral_bytes)
+                            let __buycb_padded_market_size := and(add(__buycb_market_size, 31), not(31))
+                            let __buycb_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                            let __buycb_data_length := calldataload(__buycb_data_offset)
+                            let __buycb_padded_data_len := and(add(__buycb_data_length, 31), not(31))
+                            let __buycb_market_ptr := add(__buycb_ptr, 228)
+                            let __buycb_data_ptr := add(__buycb_market_ptr, __buycb_padded_market_size)
+                            let __buycb_total := add(228, add(__buycb_padded_market_size, add(32, __buycb_padded_data_len)))
+                            mstore(__buycb_ptr, shl(224, 0xf151bd5c))
+                            mstore(add(__buycb_ptr, 4), id)
+                            mstore(add(__buycb_ptr, 36), 224)
+                            mstore(add(__buycb_ptr, 68), buyerAssets)
+                            mstore(add(__buycb_ptr, 100), units)
+                            mstore(add(__buycb_ptr, 132), buyerPendingFeeIncrease)
+                            mstore(add(__buycb_ptr, 164), buyer)
+                            mstore(add(__buycb_ptr, 196), add(224, __buycb_padded_market_size))
+                            mstore(__buycb_market_ptr, calldataload(__buycb_market_offset))
+                            mstore(add(__buycb_market_ptr, 32), 192)
+                            for {
+                                let __buycb_m := 2
+                            } lt(__buycb_m, 6) {
+                                __buycb_m := add(__buycb_m, 1)
+                            } {
+                                mstore(add(__buycb_market_ptr, mul(__buycb_m, 32)), calldataload(add(__buycb_market_offset, mul(__buycb_m, 32))))
+                            }
+                            mstore(add(__buycb_market_ptr, 192), __buycb_collateral_length)
+                            calldatacopy(add(__buycb_market_ptr, 224), add(__buycb_collateral_offset, 32), __buycb_collateral_bytes)
+                            mstore(__buycb_data_ptr, __buycb_data_length)
+                            calldatacopy(add(__buycb_data_ptr, 32), add(__buycb_data_offset, 32), __buycb_data_length)
+                            mstore(add(__buycb_data_ptr, add(32, __buycb_data_length)), 0)
+                            mstore(64, add(__buycb_ptr, and(add(__buycb_total, 31), not(31))))
+                            let __buycb_success := call(gas(), buyerCallback, 0, __buycb_ptr, __buycb_total, __buycb_ptr, 32)
+                            if iszero(__buycb_success) {
+                                let __buycb_rds := returndatasize()
+                                returndatacopy(0, 0, __buycb_rds)
+                                revert(0, __buycb_rds)
+                            }
+                            if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__buycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                mstore(0, shl(224, 0xa8f3eb44))
+                                revert(0, 4)
+                            }
+                        }
+                    }
+                    if iszero(__ite_cond) {
+                        {
+                            let __buycb_ptr := mload(64)
+                            let __buycb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                            let __buycb_collateral_offset := add(__buycb_market_offset, calldataload(add(__buycb_market_offset, 32)))
+                            let __buycb_collateral_length := calldataload(__buycb_collateral_offset)
+                            let __buycb_collateral_bytes := mul(__buycb_collateral_length, 128)
+                            let __buycb_market_size := add(224, __buycb_collateral_bytes)
+                            let __buycb_padded_market_size := and(add(__buycb_market_size, 31), not(31))
+                            let __buycb_data_offset := sub(takerCallbackData_data_offset, 32)
+                            let __buycb_data_length := calldataload(__buycb_data_offset)
+                            let __buycb_padded_data_len := and(add(__buycb_data_length, 31), not(31))
+                            let __buycb_market_ptr := add(__buycb_ptr, 228)
+                            let __buycb_data_ptr := add(__buycb_market_ptr, __buycb_padded_market_size)
+                            let __buycb_total := add(228, add(__buycb_padded_market_size, add(32, __buycb_padded_data_len)))
+                            mstore(__buycb_ptr, shl(224, 0xf151bd5c))
+                            mstore(add(__buycb_ptr, 4), id)
+                            mstore(add(__buycb_ptr, 36), 224)
+                            mstore(add(__buycb_ptr, 68), buyerAssets)
+                            mstore(add(__buycb_ptr, 100), units)
+                            mstore(add(__buycb_ptr, 132), buyerPendingFeeIncrease)
+                            mstore(add(__buycb_ptr, 164), buyer)
+                            mstore(add(__buycb_ptr, 196), add(224, __buycb_padded_market_size))
+                            mstore(__buycb_market_ptr, calldataload(__buycb_market_offset))
+                            mstore(add(__buycb_market_ptr, 32), 192)
+                            for {
+                                let __buycb_m := 2
+                            } lt(__buycb_m, 6) {
+                                __buycb_m := add(__buycb_m, 1)
+                            } {
+                                mstore(add(__buycb_market_ptr, mul(__buycb_m, 32)), calldataload(add(__buycb_market_offset, mul(__buycb_m, 32))))
+                            }
+                            mstore(add(__buycb_market_ptr, 192), __buycb_collateral_length)
+                            calldatacopy(add(__buycb_market_ptr, 224), add(__buycb_collateral_offset, 32), __buycb_collateral_bytes)
+                            mstore(__buycb_data_ptr, __buycb_data_length)
+                            calldatacopy(add(__buycb_data_ptr, 32), add(__buycb_data_offset, 32), __buycb_data_length)
+                            mstore(add(__buycb_data_ptr, add(32, __buycb_data_length)), 0)
+                            mstore(64, add(__buycb_ptr, and(add(__buycb_total, 31), not(31))))
+                            let __buycb_success := call(gas(), buyerCallback, 0, __buycb_ptr, __buycb_total, __buycb_ptr, 32)
+                            if iszero(__buycb_success) {
+                                let __buycb_rds := returndatasize()
+                                returndatacopy(0, 0, __buycb_rds)
+                                revert(0, __buycb_rds)
+                            }
+                            if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__buycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                mstore(0, shl(224, 0xa8f3eb44))
+                                revert(0, 4)
+                            }
+                        }
+                    }
+                }
+            }
+            let feeAssets := sub(buyerAssets, sellerAssets)
+            if gt(feeAssets, 0) {
+                let self := address()
+                {
+                    let __stf_ptr := mload(64)
+                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__stf_ptr, 4), payer)
+                    mstore(add(__stf_ptr, 36), self)
+                    mstore(add(__stf_ptr, 68), feeAssets)
+                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
+                    let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
+                    if iszero(__stf_success) {
+                        let __stf_rds := returndatasize()
+                        returndatacopy(0, 0, __stf_rds)
+                        revert(0, __stf_rds)
+                    }
+                    let __erc20_rds := returndatasize()
+                    if iszero(__erc20_rds) {
+                        if iszero(gt(extcodesize(loanToken), 0)) {
+                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                            revert(0, 36)
+                        }
+                    }
+                    if __erc20_rds {
+                        if iszero(eq(__erc20_rds, 32)) {
+                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                            revert(0, 36)
+                        }
+                        if iszero(eq(mload(__stf_ptr), 1)) {
+                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                            revert(0, 36)
+                        }
+                    }
+                }
+            }
+            if gt(sellerAssets, 0) {
+                {
+                    let __stf_ptr := mload(64)
+                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__stf_ptr, 4), payer)
+                    mstore(add(__stf_ptr, 36), receiver)
+                    mstore(add(__stf_ptr, 68), sellerAssets)
+                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
+                    let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
+                    if iszero(__stf_success) {
+                        let __stf_rds := returndatasize()
+                        returndatacopy(0, 0, __stf_rds)
+                        revert(0, __stf_rds)
+                    }
+                    let __erc20_rds := returndatasize()
+                    if iszero(__erc20_rds) {
+                        if iszero(gt(extcodesize(loanToken), 0)) {
+                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                            revert(0, 36)
+                        }
+                    }
+                    if __erc20_rds {
+                        if iszero(eq(__erc20_rds, 32)) {
+                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                            revert(0, 36)
+                        }
+                        if iszero(eq(mload(__stf_ptr), 1)) {
+                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                            revert(0, 36)
+                        }
+                    }
+                }
+            }
+            let sellerCallback := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7)
+            if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                sellerCallback := takerCallback
+            }
+            if iszero(eq(sellerCallback, 0)) {
+                {
+                    let __ite_cond := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                    if __ite_cond {
+                        {
+                            let __sellcb_ptr := mload(64)
+                            let __sellcb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                            let __sellcb_collateral_offset := add(__sellcb_market_offset, calldataload(add(__sellcb_market_offset, 32)))
+                            let __sellcb_collateral_length := calldataload(__sellcb_collateral_offset)
+                            let __sellcb_collateral_bytes := mul(__sellcb_collateral_length, 128)
+                            let __sellcb_market_size := add(224, __sellcb_collateral_bytes)
+                            let __sellcb_padded_market_size := and(add(__sellcb_market_size, 31), not(31))
+                            let __sellcb_data_offset := sub(takerCallbackData_data_offset, 32)
+                            let __sellcb_data_length := calldataload(__sellcb_data_offset)
+                            let __sellcb_padded_data_len := and(add(__sellcb_data_length, 31), not(31))
+                            let __sellcb_market_ptr := add(__sellcb_ptr, 260)
+                            let __sellcb_data_ptr := add(__sellcb_market_ptr, __sellcb_padded_market_size)
+                            let __sellcb_total := add(260, add(__sellcb_padded_market_size, add(32, __sellcb_padded_data_len)))
+                            mstore(__sellcb_ptr, shl(224, 0x7f44a13a))
+                            mstore(add(__sellcb_ptr, 4), id)
+                            mstore(add(__sellcb_ptr, 36), 256)
+                            mstore(add(__sellcb_ptr, 68), sellerAssets)
+                            mstore(add(__sellcb_ptr, 100), units)
+                            mstore(add(__sellcb_ptr, 132), sellerPendingFeeDecrease)
+                            mstore(add(__sellcb_ptr, 164), seller)
+                            mstore(add(__sellcb_ptr, 196), receiver)
+                            mstore(add(__sellcb_ptr, 228), add(256, __sellcb_padded_market_size))
+                            mstore(__sellcb_market_ptr, calldataload(__sellcb_market_offset))
+                            mstore(add(__sellcb_market_ptr, 32), 192)
+                            for {
+                                let __sellcb_m := 2
+                            } lt(__sellcb_m, 6) {
+                                __sellcb_m := add(__sellcb_m, 1)
+                            } {
+                                mstore(add(__sellcb_market_ptr, mul(__sellcb_m, 32)), calldataload(add(__sellcb_market_offset, mul(__sellcb_m, 32))))
+                            }
+                            mstore(add(__sellcb_market_ptr, 192), __sellcb_collateral_length)
+                            calldatacopy(add(__sellcb_market_ptr, 224), add(__sellcb_collateral_offset, 32), __sellcb_collateral_bytes)
+                            mstore(__sellcb_data_ptr, __sellcb_data_length)
+                            calldatacopy(add(__sellcb_data_ptr, 32), add(__sellcb_data_offset, 32), __sellcb_data_length)
+                            mstore(add(__sellcb_data_ptr, add(32, __sellcb_data_length)), 0)
+                            mstore(64, add(__sellcb_ptr, and(add(__sellcb_total, 31), not(31))))
+                            let __sellcb_success := call(gas(), sellerCallback, 0, __sellcb_ptr, __sellcb_total, __sellcb_ptr, 32)
+                            if iszero(__sellcb_success) {
+                                let __sellcb_rds := returndatasize()
+                                returndatacopy(0, 0, __sellcb_rds)
+                                revert(0, __sellcb_rds)
+                            }
+                            if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__sellcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                mstore(0, shl(224, 0xa4fb7883))
+                                revert(0, 4)
+                            }
+                        }
+                    }
+                    if iszero(__ite_cond) {
+                        {
+                            let __sellcb_ptr := mload(64)
+                            let __sellcb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                            let __sellcb_collateral_offset := add(__sellcb_market_offset, calldataload(add(__sellcb_market_offset, 32)))
+                            let __sellcb_collateral_length := calldataload(__sellcb_collateral_offset)
+                            let __sellcb_collateral_bytes := mul(__sellcb_collateral_length, 128)
+                            let __sellcb_market_size := add(224, __sellcb_collateral_bytes)
+                            let __sellcb_padded_market_size := and(add(__sellcb_market_size, 31), not(31))
+                            let __sellcb_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                            let __sellcb_data_length := calldataload(__sellcb_data_offset)
+                            let __sellcb_padded_data_len := and(add(__sellcb_data_length, 31), not(31))
+                            let __sellcb_market_ptr := add(__sellcb_ptr, 260)
+                            let __sellcb_data_ptr := add(__sellcb_market_ptr, __sellcb_padded_market_size)
+                            let __sellcb_total := add(260, add(__sellcb_padded_market_size, add(32, __sellcb_padded_data_len)))
+                            mstore(__sellcb_ptr, shl(224, 0x7f44a13a))
+                            mstore(add(__sellcb_ptr, 4), id)
+                            mstore(add(__sellcb_ptr, 36), 256)
+                            mstore(add(__sellcb_ptr, 68), sellerAssets)
+                            mstore(add(__sellcb_ptr, 100), units)
+                            mstore(add(__sellcb_ptr, 132), sellerPendingFeeDecrease)
+                            mstore(add(__sellcb_ptr, 164), seller)
+                            mstore(add(__sellcb_ptr, 196), receiver)
+                            mstore(add(__sellcb_ptr, 228), add(256, __sellcb_padded_market_size))
+                            mstore(__sellcb_market_ptr, calldataload(__sellcb_market_offset))
+                            mstore(add(__sellcb_market_ptr, 32), 192)
+                            for {
+                                let __sellcb_m := 2
+                            } lt(__sellcb_m, 6) {
+                                __sellcb_m := add(__sellcb_m, 1)
+                            } {
+                                mstore(add(__sellcb_market_ptr, mul(__sellcb_m, 32)), calldataload(add(__sellcb_market_offset, mul(__sellcb_m, 32))))
+                            }
+                            mstore(add(__sellcb_market_ptr, 192), __sellcb_collateral_length)
+                            calldatacopy(add(__sellcb_market_ptr, 224), add(__sellcb_collateral_offset, 32), __sellcb_collateral_bytes)
+                            mstore(__sellcb_data_ptr, __sellcb_data_length)
+                            calldatacopy(add(__sellcb_data_ptr, 32), add(__sellcb_data_offset, 32), __sellcb_data_length)
+                            mstore(add(__sellcb_data_ptr, add(32, __sellcb_data_length)), 0)
+                            mstore(64, add(__sellcb_ptr, and(add(__sellcb_total, 31), not(31))))
+                            let __sellcb_success := call(gas(), sellerCallback, 0, __sellcb_ptr, __sellcb_total, __sellcb_ptr, 32)
+                            if iszero(__sellcb_success) {
+                                let __sellcb_rds := returndatasize()
+                                returndatacopy(0, 0, __sellcb_rds)
+                                revert(0, __sellcb_rds)
+                            }
+                            if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__sellcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                mstore(0, shl(224, 0xa4fb7883))
+                                revert(0, 4)
+                            }
+                        }
+                    }
+                }
+            }
+            let lockedAfterCallbacks := 0
+            {
+                let __liq_lock_ptr := mload(64)
+                mstore(__liq_lock_ptr, id)
+                mstore(add(__liq_lock_ptr, 32), seller)
+                mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                let __liq_lock_depth := tload(__liq_lock_slot)
+                if gt(__liq_lock_depth, 0) {
+                    __liq_lock_depth := sub(__liq_lock_depth, 1)
+                    tstore(__liq_lock_slot, __liq_lock_depth)
+                }
+                lockedAfterCallbacks := __liq_lock_depth
             }
             {
-                let __stf_ptr := mload(64)
-                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__stf_ptr, 4), payer)
-                mstore(add(__stf_ptr, 36), receiver)
-                mstore(add(__stf_ptr, 68), transferAssets)
-                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                if iszero(__stf_success) {
-                    let __stf_rds := returndatasize()
-                    returndatacopy(0, 0, __stf_rds)
-                    revert(0, __stf_rds)
+                let __ite_cond := iszero(eq(lockedAfterCallbacks, 0))
+                if __ite_cond {
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(loanToken), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__stf_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                if iszero(__ite_cond) {
+                    let sellerHealthy := internal_internal_isHealthy(add(offer_data_offset, calldataload(offer_data_offset)), id, seller)
+                    if iszero(iszero(eq(sellerHealthy, 0))) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x53656c6c657249734c6971756964617461626c65282900000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 22)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
                     }
                 }
             }
-            __ret0 := units
-            __ret1 := units
+            __ret0 := buyerAssets
+            __ret1 := sellerAssets
             leave
         }
         function internal_internal_creditOf(id, user) -> __ret0 {
-            let value := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
+            let value := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_debtOf(id, user) -> __ret0 {
-            let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+            let value := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_totalUnits(id) -> __ret0 {
-            let value := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let value := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_lossFactor(id) -> __ret0 {
-            let value := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let value := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_tickSpacing(id) -> __ret0 {
-            let value := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+            let value := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             __ret0 := value
             leave
         }
         function internal_internal_settlementFeeCbps(id) -> __ret0, __ret1, __ret2, __ret3, __ret4, __ret5, __ret6 {
-            let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-            let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
+            let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+            let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
             __ret0 := settlementFeeCbp0
             __ret1 := settlementFeeCbp1
             __ret2 := settlementFeeCbp2
@@ -1934,17 +2707,17 @@ object "Midnight" {
             leave
         }
         function internal_internal_withdrawable(id) -> __ret0 {
-            let value := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let value := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_continuousFee(id) -> __ret0 {
-            let value := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
+            let value := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
             __ret0 := value
             leave
         }
         function internal_internal_continuousFeeCredit(id) -> __ret0 {
-            let value := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let value := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
@@ -1963,11 +2736,11 @@ object "Midnight" {
                 }
             }
             let id := internal_internal_toId(market_data_offset)
-            let creditBeforeUpdate := and(shr(0, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
-            let pendingFeeBeforeUpdate := and(shr(128, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
-            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))), 340282366920938463463374607431768211455)
-            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))), 340282366920938463463374607431768211455)
-            let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let creditBeforeUpdate := and(shr(0, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
+            let pendingFeeBeforeUpdate := and(shr(128, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
+            let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))), 340282366920938463463374607431768211455)
+            let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))), 340282366920938463463374607431768211455)
+            let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             let now := timestamp()
             let postSlashCredit := 0
             if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -1990,38 +2763,50 @@ object "Midnight" {
             {
                 let __compat_value := creditAfterUpdate
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
             {
                 let __compat_value := marketLossFactor
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
             {
                 let __compat_value := pendingFeeAfterUpdate
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
             }
             {
                 let __compat_value := now
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
             }
-            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := add(currentContinuousFeeCredit, accrued)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+            }
+            let creditDecrease := sub(creditBeforeUpdate, creditAfterUpdate)
+            let updatePendingFeeDecrease := sub(pendingFeeBeforeUpdate, pendingFeeAfterUpdate)
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 55)
+                mstore(add(__evt_ptr, 0), creditDecrease)
+                mstore(add(__evt_ptr, 32), updatePendingFeeDecrease)
+                mstore(add(__evt_ptr, 64), accrued)
+                log3(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             let pendingFeeDecrease := 0
             if gt(creditAfterUpdate, 0) {
@@ -2030,33 +2815,43 @@ object "Midnight" {
             {
                 let __compat_value := sub(pendingFeeAfterUpdate, pendingFeeDecrease)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
             }
-            let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
+            let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(credit, units)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
-            let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(withdrawableAmount, units)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
-            let total := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let total := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(total, units)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(mappingSlot(10, id))
+                let __compat_slot_word := sload(mappingSlot(1, id))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+            }
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x576974686472617728616464726573732c627974657333322c75696e74323536)
+                mstore(add(__evt_ptr, 32), 0x2c616464726573732c616464726573732c75696e743235362900000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 57)
+                mstore(add(__evt_ptr, 0), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(__evt_ptr, 32), units)
+                mstore(add(__evt_ptr, 64), pendingFeeDecrease)
+                log4(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             {
                 let __st_ptr := mload(64)
@@ -2108,40 +2903,69 @@ object "Midnight" {
                 }
             }
             let id := internal_internal_toId(market_data_offset)
-            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := sub(debt, units)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
-            let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+            let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
             {
                 let __compat_value := add(withdrawableAmount, units)
                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
             }
             let payer := sender
             if iszero(eq(callback, 0)) {
                 payer := callback
                 {
-                    let __cb_ptr := mload(64)
-                    mstore(__cb_ptr, shl(224, 0xfc56f72e))
-                    mstore(add(__cb_ptr, 4), id)
-                    mstore(add(__cb_ptr, 36), units)
-                    mstore(add(__cb_ptr, 68), onBehalf)
-                    mstore(add(__cb_ptr, 100), 128)
-                    mstore(add(__cb_ptr, 132), data_length)
-                    calldatacopy(add(__cb_ptr, 164), data_data_offset, data_length)
-                    mstore(64, add(__cb_ptr, and(add(add(164, and(add(data_length, 31), not(31))), 31), not(31))))
-                    let __cb_success := call(gas(), callback, 0, __cb_ptr, add(164, and(add(data_length, 31), not(31))), 0, 0)
-                    if iszero(__cb_success) {
-                        let __cb_rds := returndatasize()
-                        returndatacopy(0, 0, __cb_rds)
-                        revert(0, __cb_rds)
+                    let __repaycb_ptr := mload(64)
+                    let __repaycb_market_offset := add(4, calldataload(4))
+                    let __repaycb_collateral_offset := add(__repaycb_market_offset, calldataload(add(__repaycb_market_offset, 32)))
+                    let __repaycb_collateral_length := calldataload(__repaycb_collateral_offset)
+                    let __repaycb_collateral_bytes := mul(__repaycb_collateral_length, 128)
+                    let __repaycb_market_size := add(224, __repaycb_collateral_bytes)
+                    let __repaycb_padded_market_size := and(add(__repaycb_market_size, 31), not(31))
+                    let __repaycb_data_offset := sub(data_data_offset, 32)
+                    let __repaycb_data_length := calldataload(__repaycb_data_offset)
+                    let __repaycb_padded_data_len := and(add(__repaycb_data_length, 31), not(31))
+                    let __repaycb_market_ptr := add(__repaycb_ptr, 164)
+                    let __repaycb_data_ptr := add(__repaycb_market_ptr, __repaycb_padded_market_size)
+                    let __repaycb_total := add(164, add(__repaycb_padded_market_size, add(32, __repaycb_padded_data_len)))
+                    mstore(__repaycb_ptr, shl(224, 0xfc56f72e))
+                    mstore(add(__repaycb_ptr, 4), id)
+                    mstore(add(__repaycb_ptr, 36), 160)
+                    mstore(add(__repaycb_ptr, 68), units)
+                    mstore(add(__repaycb_ptr, 100), onBehalf)
+                    mstore(add(__repaycb_ptr, 132), add(160, __repaycb_padded_market_size))
+                    mstore(__repaycb_market_ptr, calldataload(__repaycb_market_offset))
+                    mstore(add(__repaycb_market_ptr, 32), 192)
+                    for {
+                        let __repaycb_m := 2
+                    } lt(__repaycb_m, 6) {
+                        __repaycb_m := add(__repaycb_m, 1)
+                    } {
+                        mstore(add(__repaycb_market_ptr, mul(__repaycb_m, 32)), calldataload(add(__repaycb_market_offset, mul(__repaycb_m, 32))))
+                    }
+                    mstore(add(__repaycb_market_ptr, 192), __repaycb_collateral_length)
+                    calldatacopy(add(__repaycb_market_ptr, 224), add(__repaycb_collateral_offset, 32), __repaycb_collateral_bytes)
+                    mstore(__repaycb_data_ptr, __repaycb_data_length)
+                    calldatacopy(add(__repaycb_data_ptr, 32), add(__repaycb_data_offset, 32), __repaycb_data_length)
+                    mstore(add(__repaycb_data_ptr, add(32, __repaycb_data_length)), 0)
+                    mstore(64, add(__repaycb_ptr, and(add(__repaycb_total, 31), not(31))))
+                    let __repaycb_success := call(gas(), callback, 0, __repaycb_ptr, __repaycb_total, __repaycb_ptr, 32)
+                    if iszero(__repaycb_success) {
+                        let __repaycb_rds := returndatasize()
+                        returndatacopy(0, 0, __repaycb_rds)
+                        revert(0, __repaycb_rds)
+                    }
+                    if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__repaycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                        mstore(0, shl(224, 0x40a13da2))
+                        revert(0, 4)
                     }
                 }
             }
@@ -2248,132 +3072,985 @@ object "Midnight" {
             __ret0 := allowed
             leave
         }
+        function internal_internal_liquidationLockedValue(id, user) -> __ret0 {
+            let locked := 0
+            {
+                let __liq_lock_ptr := mload(64)
+                mstore(__liq_lock_ptr, id)
+                mstore(add(__liq_lock_ptr, 32), user)
+                mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                locked := tload(keccak256(__liq_lock_ptr, 96))
+            }
+            __ret0 := locked
+            leave
+        }
+        function internal_internal_liquidationLockExchange(id, user, value) -> __ret0 {
+            let previous := 0
+            {
+                let __liq_lock_ptr := mload(64)
+                mstore(__liq_lock_ptr, id)
+                mstore(add(__liq_lock_ptr, 32), user)
+                mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                previous := tload(__liq_lock_slot)
+                tstore(__liq_lock_slot, value)
+            }
+            __ret0 := previous
+            leave
+        }
+        function internal_internal_liquidationLocked(id, user) -> __ret0 {
+            let locked := internal_internal_liquidationLockedValue(id, user)
+            __ret0 := iszero(eq(locked, 0))
+            leave
+        }
         function internal_internal_collateralAmount(id, user, index) -> __ret0 {
             let value := 0
             if eq(index, 0) {
-                let loaded := sload(mappingSlot(mappingSlot(12, id), user))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 3))
                 value := loaded
             }
             if eq(index, 1) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 1))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 4))
                 value := loaded
             }
             if eq(index, 2) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 2))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 5))
                 value := loaded
             }
             if eq(index, 3) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 3))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 6))
                 value := loaded
             }
             if eq(index, 4) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 4))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 7))
                 value := loaded
             }
             if eq(index, 5) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 5))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 8))
                 value := loaded
             }
             if eq(index, 6) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 6))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 9))
                 value := loaded
             }
             if eq(index, 7) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 7))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 10))
                 value := loaded
             }
             if eq(index, 8) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 8))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 11))
                 value := loaded
             }
             if eq(index, 9) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 9))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 12))
                 value := loaded
             }
             if eq(index, 10) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 10))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 13))
                 value := loaded
             }
             if eq(index, 11) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 11))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 14))
                 value := loaded
             }
             if eq(index, 12) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 12))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 15))
                 value := loaded
             }
             if eq(index, 13) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 13))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 16))
                 value := loaded
             }
             if eq(index, 14) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 14))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 17))
                 value := loaded
             }
             if eq(index, 15) {
-                let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 15))
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 18))
+                value := loaded
+            }
+            if eq(index, 16) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 19))
+                value := loaded
+            }
+            if eq(index, 17) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 20))
+                value := loaded
+            }
+            if eq(index, 18) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 21))
+                value := loaded
+            }
+            if eq(index, 19) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 22))
+                value := loaded
+            }
+            if eq(index, 20) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 23))
+                value := loaded
+            }
+            if eq(index, 21) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 24))
+                value := loaded
+            }
+            if eq(index, 22) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 25))
+                value := loaded
+            }
+            if eq(index, 23) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 26))
+                value := loaded
+            }
+            if eq(index, 24) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 27))
+                value := loaded
+            }
+            if eq(index, 25) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 28))
+                value := loaded
+            }
+            if eq(index, 26) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 29))
+                value := loaded
+            }
+            if eq(index, 27) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 30))
+                value := loaded
+            }
+            if eq(index, 28) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 31))
+                value := loaded
+            }
+            if eq(index, 29) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 32))
+                value := loaded
+            }
+            if eq(index, 30) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 33))
+                value := loaded
+            }
+            if eq(index, 31) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 34))
+                value := loaded
+            }
+            if eq(index, 32) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 35))
+                value := loaded
+            }
+            if eq(index, 33) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 36))
+                value := loaded
+            }
+            if eq(index, 34) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 37))
+                value := loaded
+            }
+            if eq(index, 35) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 38))
+                value := loaded
+            }
+            if eq(index, 36) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 39))
+                value := loaded
+            }
+            if eq(index, 37) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 40))
+                value := loaded
+            }
+            if eq(index, 38) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 41))
+                value := loaded
+            }
+            if eq(index, 39) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 42))
+                value := loaded
+            }
+            if eq(index, 40) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 43))
+                value := loaded
+            }
+            if eq(index, 41) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 44))
+                value := loaded
+            }
+            if eq(index, 42) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 45))
+                value := loaded
+            }
+            if eq(index, 43) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 46))
+                value := loaded
+            }
+            if eq(index, 44) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 47))
+                value := loaded
+            }
+            if eq(index, 45) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 48))
+                value := loaded
+            }
+            if eq(index, 46) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 49))
+                value := loaded
+            }
+            if eq(index, 47) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 50))
+                value := loaded
+            }
+            if eq(index, 48) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 51))
+                value := loaded
+            }
+            if eq(index, 49) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 52))
+                value := loaded
+            }
+            if eq(index, 50) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 53))
+                value := loaded
+            }
+            if eq(index, 51) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 54))
+                value := loaded
+            }
+            if eq(index, 52) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 55))
+                value := loaded
+            }
+            if eq(index, 53) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 56))
+                value := loaded
+            }
+            if eq(index, 54) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 57))
+                value := loaded
+            }
+            if eq(index, 55) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 58))
+                value := loaded
+            }
+            if eq(index, 56) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 59))
+                value := loaded
+            }
+            if eq(index, 57) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 60))
+                value := loaded
+            }
+            if eq(index, 58) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 61))
+                value := loaded
+            }
+            if eq(index, 59) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 62))
+                value := loaded
+            }
+            if eq(index, 60) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 63))
+                value := loaded
+            }
+            if eq(index, 61) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 64))
+                value := loaded
+            }
+            if eq(index, 62) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 65))
+                value := loaded
+            }
+            if eq(index, 63) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 66))
+                value := loaded
+            }
+            if eq(index, 64) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 67))
+                value := loaded
+            }
+            if eq(index, 65) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 68))
+                value := loaded
+            }
+            if eq(index, 66) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 69))
+                value := loaded
+            }
+            if eq(index, 67) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 70))
+                value := loaded
+            }
+            if eq(index, 68) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 71))
+                value := loaded
+            }
+            if eq(index, 69) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 72))
+                value := loaded
+            }
+            if eq(index, 70) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 73))
+                value := loaded
+            }
+            if eq(index, 71) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 74))
+                value := loaded
+            }
+            if eq(index, 72) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 75))
+                value := loaded
+            }
+            if eq(index, 73) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 76))
+                value := loaded
+            }
+            if eq(index, 74) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 77))
+                value := loaded
+            }
+            if eq(index, 75) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 78))
+                value := loaded
+            }
+            if eq(index, 76) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 79))
+                value := loaded
+            }
+            if eq(index, 77) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 80))
+                value := loaded
+            }
+            if eq(index, 78) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 81))
+                value := loaded
+            }
+            if eq(index, 79) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 82))
+                value := loaded
+            }
+            if eq(index, 80) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 83))
+                value := loaded
+            }
+            if eq(index, 81) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 84))
+                value := loaded
+            }
+            if eq(index, 82) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 85))
+                value := loaded
+            }
+            if eq(index, 83) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 86))
+                value := loaded
+            }
+            if eq(index, 84) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 87))
+                value := loaded
+            }
+            if eq(index, 85) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 88))
+                value := loaded
+            }
+            if eq(index, 86) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 89))
+                value := loaded
+            }
+            if eq(index, 87) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 90))
+                value := loaded
+            }
+            if eq(index, 88) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 91))
+                value := loaded
+            }
+            if eq(index, 89) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 92))
+                value := loaded
+            }
+            if eq(index, 90) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 93))
+                value := loaded
+            }
+            if eq(index, 91) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 94))
+                value := loaded
+            }
+            if eq(index, 92) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 95))
+                value := loaded
+            }
+            if eq(index, 93) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 96))
+                value := loaded
+            }
+            if eq(index, 94) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 97))
+                value := loaded
+            }
+            if eq(index, 95) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 98))
+                value := loaded
+            }
+            if eq(index, 96) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 99))
+                value := loaded
+            }
+            if eq(index, 97) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 100))
+                value := loaded
+            }
+            if eq(index, 98) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 101))
+                value := loaded
+            }
+            if eq(index, 99) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 102))
+                value := loaded
+            }
+            if eq(index, 100) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 103))
+                value := loaded
+            }
+            if eq(index, 101) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 104))
+                value := loaded
+            }
+            if eq(index, 102) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 105))
+                value := loaded
+            }
+            if eq(index, 103) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 106))
+                value := loaded
+            }
+            if eq(index, 104) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 107))
+                value := loaded
+            }
+            if eq(index, 105) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 108))
+                value := loaded
+            }
+            if eq(index, 106) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 109))
+                value := loaded
+            }
+            if eq(index, 107) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 110))
+                value := loaded
+            }
+            if eq(index, 108) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 111))
+                value := loaded
+            }
+            if eq(index, 109) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 112))
+                value := loaded
+            }
+            if eq(index, 110) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 113))
+                value := loaded
+            }
+            if eq(index, 111) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 114))
+                value := loaded
+            }
+            if eq(index, 112) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 115))
+                value := loaded
+            }
+            if eq(index, 113) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 116))
+                value := loaded
+            }
+            if eq(index, 114) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 117))
+                value := loaded
+            }
+            if eq(index, 115) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 118))
+                value := loaded
+            }
+            if eq(index, 116) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 119))
+                value := loaded
+            }
+            if eq(index, 117) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 120))
+                value := loaded
+            }
+            if eq(index, 118) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 121))
+                value := loaded
+            }
+            if eq(index, 119) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 122))
+                value := loaded
+            }
+            if eq(index, 120) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 123))
+                value := loaded
+            }
+            if eq(index, 121) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 124))
+                value := loaded
+            }
+            if eq(index, 122) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 125))
+                value := loaded
+            }
+            if eq(index, 123) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 126))
+                value := loaded
+            }
+            if eq(index, 124) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 127))
+                value := loaded
+            }
+            if eq(index, 125) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 128))
+                value := loaded
+            }
+            if eq(index, 126) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 129))
+                value := loaded
+            }
+            if eq(index, 127) {
+                let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 130))
                 value := loaded
             }
             __ret0 := value
             leave
         }
-        function internal_internal_writeCollateralAmount(id, user, index, value) {
+        function internal_internal_liquidationDebtSnapshot(id, borrower, collateralCount, collateralBitmapValue, collateralParamsOffset, originalDebt) -> __ret0, __ret1 {
+            let maxDebtValue := 0
+            let badDebt := originalDebt
+            for {
+                let __forEach_idx := 0
+                let __forEach_count := collateralCount
+                let i := 0
+            } lt(__forEach_idx, __forEach_count) {
+                __forEach_idx := add(__forEach_idx, 1)
+            } {
+                i := __forEach_idx
+                let mask := shl(i, 1)
+                if gt(and(collateralBitmapValue, mask), 0) {
+                    let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
+                    let collateralParamOffset := add(add(collateralParamsOffset, 32), mul(i, 128))
+                    let oracle := calldataload(add(collateralParamOffset, 96))
+                    let price := internal_internal_oraclePrice(oracle)
+                    let lltv := calldataload(add(collateralParamOffset, 32))
+                    let maxLifValue := calldataload(add(collateralParamOffset, 64))
+                    let collateralDebtValue := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
+                    maxDebtValue := add(maxDebtValue, collateralDebtValue)
+                    let repayable := div(add(mul(div(add(mul(activeCollateral, price), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000), 1000000000000000000), sub(maxLifValue, 1)), maxLifValue)
+                    {
+                        let __ite_cond := gt(badDebt, repayable)
+                        if __ite_cond {
+                            badDebt := sub(badDebt, repayable)
+                        }
+                        if iszero(__ite_cond) {
+                            badDebt := 0
+                        }
+                    }
+                }
+            }
+            __ret0 := maxDebtValue
+            __ret1 := badDebt
+            leave
+        }
+        function internal_internal_writeCollateralAmount(id, user, index, value) -> __ret0 {
             if eq(index, 0) {
-                sstore(mappingSlot(mappingSlot(12, id), user), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 3), value)
             }
             if eq(index, 1) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 4), value)
             }
             if eq(index, 2) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 5), value)
             }
             if eq(index, 3) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 6), value)
             }
             if eq(index, 4) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 7), value)
             }
             if eq(index, 5) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 8), value)
             }
             if eq(index, 6) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 9), value)
             }
             if eq(index, 7) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 10), value)
             }
             if eq(index, 8) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 11), value)
             }
             if eq(index, 9) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 12), value)
             }
             if eq(index, 10) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 13), value)
             }
             if eq(index, 11) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 14), value)
             }
             if eq(index, 12) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 15), value)
             }
             if eq(index, 13) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 16), value)
             }
             if eq(index, 14) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 17), value)
             }
             if eq(index, 15) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 18), value)
             }
-            stop()
+            if eq(index, 16) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 19), value)
+            }
+            if eq(index, 17) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 20), value)
+            }
+            if eq(index, 18) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 21), value)
+            }
+            if eq(index, 19) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 22), value)
+            }
+            if eq(index, 20) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 23), value)
+            }
+            if eq(index, 21) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 24), value)
+            }
+            if eq(index, 22) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 25), value)
+            }
+            if eq(index, 23) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 26), value)
+            }
+            if eq(index, 24) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 27), value)
+            }
+            if eq(index, 25) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 28), value)
+            }
+            if eq(index, 26) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 29), value)
+            }
+            if eq(index, 27) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 30), value)
+            }
+            if eq(index, 28) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 31), value)
+            }
+            if eq(index, 29) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 32), value)
+            }
+            if eq(index, 30) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 33), value)
+            }
+            if eq(index, 31) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 34), value)
+            }
+            if eq(index, 32) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 35), value)
+            }
+            if eq(index, 33) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 36), value)
+            }
+            if eq(index, 34) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 37), value)
+            }
+            if eq(index, 35) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 38), value)
+            }
+            if eq(index, 36) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 39), value)
+            }
+            if eq(index, 37) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 40), value)
+            }
+            if eq(index, 38) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 41), value)
+            }
+            if eq(index, 39) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 42), value)
+            }
+            if eq(index, 40) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 43), value)
+            }
+            if eq(index, 41) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 44), value)
+            }
+            if eq(index, 42) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 45), value)
+            }
+            if eq(index, 43) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 46), value)
+            }
+            if eq(index, 44) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 47), value)
+            }
+            if eq(index, 45) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 48), value)
+            }
+            if eq(index, 46) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 49), value)
+            }
+            if eq(index, 47) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 50), value)
+            }
+            if eq(index, 48) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 51), value)
+            }
+            if eq(index, 49) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 52), value)
+            }
+            if eq(index, 50) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 53), value)
+            }
+            if eq(index, 51) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 54), value)
+            }
+            if eq(index, 52) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 55), value)
+            }
+            if eq(index, 53) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 56), value)
+            }
+            if eq(index, 54) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 57), value)
+            }
+            if eq(index, 55) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 58), value)
+            }
+            if eq(index, 56) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 59), value)
+            }
+            if eq(index, 57) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 60), value)
+            }
+            if eq(index, 58) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 61), value)
+            }
+            if eq(index, 59) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 62), value)
+            }
+            if eq(index, 60) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 63), value)
+            }
+            if eq(index, 61) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 64), value)
+            }
+            if eq(index, 62) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 65), value)
+            }
+            if eq(index, 63) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 66), value)
+            }
+            if eq(index, 64) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 67), value)
+            }
+            if eq(index, 65) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 68), value)
+            }
+            if eq(index, 66) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 69), value)
+            }
+            if eq(index, 67) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 70), value)
+            }
+            if eq(index, 68) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 71), value)
+            }
+            if eq(index, 69) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 72), value)
+            }
+            if eq(index, 70) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 73), value)
+            }
+            if eq(index, 71) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 74), value)
+            }
+            if eq(index, 72) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 75), value)
+            }
+            if eq(index, 73) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 76), value)
+            }
+            if eq(index, 74) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 77), value)
+            }
+            if eq(index, 75) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 78), value)
+            }
+            if eq(index, 76) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 79), value)
+            }
+            if eq(index, 77) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 80), value)
+            }
+            if eq(index, 78) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 81), value)
+            }
+            if eq(index, 79) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 82), value)
+            }
+            if eq(index, 80) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 83), value)
+            }
+            if eq(index, 81) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 84), value)
+            }
+            if eq(index, 82) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 85), value)
+            }
+            if eq(index, 83) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 86), value)
+            }
+            if eq(index, 84) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 87), value)
+            }
+            if eq(index, 85) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 88), value)
+            }
+            if eq(index, 86) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 89), value)
+            }
+            if eq(index, 87) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 90), value)
+            }
+            if eq(index, 88) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 91), value)
+            }
+            if eq(index, 89) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 92), value)
+            }
+            if eq(index, 90) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 93), value)
+            }
+            if eq(index, 91) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 94), value)
+            }
+            if eq(index, 92) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 95), value)
+            }
+            if eq(index, 93) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 96), value)
+            }
+            if eq(index, 94) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 97), value)
+            }
+            if eq(index, 95) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 98), value)
+            }
+            if eq(index, 96) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 99), value)
+            }
+            if eq(index, 97) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 100), value)
+            }
+            if eq(index, 98) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 101), value)
+            }
+            if eq(index, 99) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 102), value)
+            }
+            if eq(index, 100) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 103), value)
+            }
+            if eq(index, 101) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 104), value)
+            }
+            if eq(index, 102) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 105), value)
+            }
+            if eq(index, 103) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 106), value)
+            }
+            if eq(index, 104) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 107), value)
+            }
+            if eq(index, 105) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 108), value)
+            }
+            if eq(index, 106) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 109), value)
+            }
+            if eq(index, 107) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 110), value)
+            }
+            if eq(index, 108) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 111), value)
+            }
+            if eq(index, 109) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 112), value)
+            }
+            if eq(index, 110) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 113), value)
+            }
+            if eq(index, 111) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 114), value)
+            }
+            if eq(index, 112) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 115), value)
+            }
+            if eq(index, 113) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 116), value)
+            }
+            if eq(index, 114) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 117), value)
+            }
+            if eq(index, 115) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 118), value)
+            }
+            if eq(index, 116) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 119), value)
+            }
+            if eq(index, 117) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 120), value)
+            }
+            if eq(index, 118) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 121), value)
+            }
+            if eq(index, 119) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 122), value)
+            }
+            if eq(index, 120) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 123), value)
+            }
+            if eq(index, 121) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 124), value)
+            }
+            if eq(index, 122) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 125), value)
+            }
+            if eq(index, 123) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 126), value)
+            }
+            if eq(index, 124) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 127), value)
+            }
+            if eq(index, 125) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 128), value)
+            }
+            if eq(index, 126) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 129), value)
+            }
+            if eq(index, 127) {
+                sstore(add(mappingSlot(mappingSlot(0, id), user), 130), value)
+            }
+            __ret0 := 0
+            leave
         }
         function internal_internal_liquidate(market_data_offset, collateralIndex, seizedAssets, repaidUnits, borrower, postMaturityMode, receiver, callback, data_data_offset, data_length) -> __ret0, __ret1 {
             let sender := caller()
             let id := internal_internal_toId(market_data_offset)
-            let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+            let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
             let debt := debtLoaded
-            let totalUnitsValue := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+            let totalUnitsValue := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
             if iszero(or(iszero(iszero(eq(seizedAssets, 0))), iszero(iszero(eq(repaidUnits, 0))))) {
                 {
                     let __err_ptr := mload(64)
@@ -2409,14 +4086,20 @@ object "Midnight" {
                 }
             }
             let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
-            if iszero(lt(collateralIndex, collateralCount)) {
-                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-                mstore(4, 32)
-                mstore(36, 30)
-                mstore(68, 0x636f6c6c61746572616c20696e646578206f7574206f6620626f756e64730000)
-                revert(0, 100)
+            {
+                let __ite_cond := lt(collateralIndex, collateralCount)
+                if __ite_cond {
+                }
+                if iszero(__ite_cond) {
+                    mstore(0, shl(224, 1313373041))
+                    mstore(4, 50)
+                    revert(0, 36)
+                }
             }
-            let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+            let _collateralIndexBoundsCheck := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+            let marketDataOffset := add(calldataload(4), 4)
+            let collateralParamsOffset := add(marketDataOffset, calldataload(add(marketDataOffset, 32)))
+            let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
             let collateralMask := shl(collateralIndex, 1)
             if or(iszero(iszero(gt(seizedAssets, 0))), iszero(iszero(gt(repaidUnits, 0)))) {
                 if iszero(gt(and(collateralBitmapValue, collateralMask), 0)) {
@@ -2428,42 +4111,23 @@ object "Midnight" {
                 }
             }
             let originalDebt := debt
-            let maxDebtValue := 0
-            let badDebt := originalDebt
-            let liquidatedCollatPrice := 0
-            for {
-                let __forEach_idx := 0
-                let __forEach_count := collateralCount
-                let i := 0
-            } lt(__forEach_idx, __forEach_count) {
-                __forEach_idx := add(__forEach_idx, 1)
-            } {
-                i := __forEach_idx
-                let mask := shl(i, 1)
-                if gt(and(collateralBitmapValue, mask), 0) {
-                    let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
-                    let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                    let price := internal_internal_oraclePrice(oracle)
-                    let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                    let maxLifValue := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                    if eq(i, collateralIndex) {
-                        liquidatedCollatPrice := price
-                    }
-                    let collateralDebtValue := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
-                    maxDebtValue := add(maxDebtValue, collateralDebtValue)
-                    let repayable := div(add(mul(div(add(mul(activeCollateral, price), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000), 1000000000000000000), sub(maxLifValue, 1)), maxLifValue)
-                    {
-                        let __ite_cond := gt(badDebt, repayable)
-                        if __ite_cond {
-                            badDebt := sub(badDebt, repayable)
-                        }
-                        if iszero(__ite_cond) {
-                            badDebt := 0
-                        }
-                    }
+            let maxDebtValue, badDebt := internal_internal_liquidationDebtSnapshot(id, borrower, collateralCount, collateralBitmapValue, collateralParamsOffset, originalDebt)
+            let selectedCollateralParamOffsetForPrice := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+            let selectedOracle := calldataload(add(selectedCollateralParamOffsetForPrice, 96))
+            let liquidatedCollatPrice := internal_internal_oraclePrice(selectedOracle)
+            let now := timestamp()
+            let lockedBeforeLiquidation := internal_internal_liquidationLockedValue(id, borrower)
+            if iszero(eq(lockedBeforeLiquidation, 0)) {
+                {
+                    let __err_ptr := mload(64)
+                    mstore(add(__err_ptr, 0), 0x4e6f744c6971756964617461626c652829000000000000000000000000000000)
+                    let __err_hash := keccak256(__err_ptr, 17)
+                    let __err_selector := shl(224, shr(224, __err_hash))
+                    mstore(0, __err_selector)
+                    let __err_tail := 0
+                    revert(0, add(4, __err_tail))
                 }
             }
-            let now := timestamp()
             {
                 let __ite_cond := postMaturityMode
                 if __ite_cond {
@@ -2497,28 +4161,28 @@ object "Midnight" {
                 {
                     let __compat_value := sub(debt, badDebt)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 debt := sub(debt, badDebt)
-                let oldLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let oldLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 let newLossFactor := sub(340282366920938463463374607431768211455, div(mul(sub(340282366920938463463374607431768211455, oldLossFactor), sub(totalUnitsValue, badDebt)), totalUnitsValue))
                 {
                     let __compat_value := newLossFactor
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(10, id))
+                    let __compat_slot_word := sload(mappingSlot(1, id))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
                 {
                     let __compat_value := sub(totalUnitsValue, badDebt)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(10, id))
+                    let __compat_slot_word := sload(mappingSlot(1, id))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
-                let oldContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let oldContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 let newContinuousFeeCredit := 0
                 if lt(oldLossFactor, 340282366920938463463374607431768211455) {
                     newContinuousFeeCredit := div(mul(oldContinuousFeeCredit, sub(340282366920938463463374607431768211455, newLossFactor)), sub(340282366920938463463374607431768211455, oldLossFactor))
@@ -2526,15 +4190,16 @@ object "Midnight" {
                 {
                     let __compat_value := newContinuousFeeCredit
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
             }
             let outSeizedAssets := seizedAssets
             let outRepaidUnits := repaidUnits
             if or(iszero(iszero(gt(outRepaidUnits, 0))), iszero(iszero(gt(outSeizedAssets, 0)))) {
-                let maxLifValue := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                let selectedCollateralParamOffset := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                let maxLifValue := calldataload(add(selectedCollateralParamOffset, 64))
                 let lif := maxLifValue
                 if postMaturityMode {
                     let elapsed := sub(now, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2))
@@ -2563,7 +4228,7 @@ object "Midnight" {
                     if __ite_cond {
                     }
                     if iszero(__ite_cond) {
-                        let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                        let lltv := calldataload(add(selectedCollateralParamOffset, 32))
                         let maxRepaidValue := 115792089237316195423570985008687907853269984665640564039457584007913129639935
                         if lt(lltv, 1000000000000000000) {
                             maxRepaidValue := div(add(mul(sub(debt, maxDebtValue), mul(1000000000000000000, 1000000000000000000)), sub(sub(mul(1000000000000000000, 1000000000000000000), mul(lif, lltv)), 1)), sub(mul(1000000000000000000, 1000000000000000000), mul(lif, lltv)))
@@ -2589,39 +4254,75 @@ object "Midnight" {
                     }
                 }
                 let oldCollateral := internal_internal_collateralAmount(id, borrower, collateralIndex)
+                if lt(oldCollateral, outSeizedAssets) {
+                    mstore(0, shl(224, 1313373041))
+                    mstore(4, 17)
+                    revert(0, 36)
+                }
                 let newCollateral := sub(oldCollateral, outSeizedAssets)
-                internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
+                let _writeOk := internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
                 if eq(newCollateral, 0) {
                     if gt(outSeizedAssets, 0) {
-                        let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                        let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                         let mask := shl(collateralIndex, 1)
                         let newBitmap := and(oldBitmap, not(mask))
                         {
                             let __compat_value := newBitmap
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
                     }
                 }
-                let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := add(withdrawableAmount, outRepaidUnits)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
+                if lt(debt, outRepaidUnits) {
+                    mstore(0, shl(224, 1313373041))
+                    mstore(4, 17)
+                    revert(0, 36)
+                }
+                let newDebtAfterRepay := sub(debt, outRepaidUnits)
                 {
-                    let __compat_value := sub(debt, outRepaidUnits)
+                    let __compat_value := newDebtAfterRepay
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
             }
-            let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+            let selectedCollateralParamOffset := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+            let collateralToken := calldataload(selectedCollateralParamOffset)
+            let payer := sender
+            if iszero(eq(callback, 0)) {
+                payer := callback
+            }
+            let latestLossFactorLoaded := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+            let latestContinuousFeeCreditLoaded := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+            {
+                let __evt_ptr := mload(64)
+                mstore(add(__evt_ptr, 0), 0x4c697175696461746528616464726573732c627974657333322c616464726573)
+                mstore(add(__evt_ptr, 32), 0x732c75696e743235362c75696e743235362c616464726573732c626f6f6c2c61)
+                mstore(add(__evt_ptr, 64), 0x6464726573732c616464726573732c75696e743235362c75696e743235362c75)
+                mstore(add(__evt_ptr, 96), 0x696e743235362900000000000000000000000000000000000000000000000000)
+                let __evt_topic0 := keccak256(__evt_ptr, 103)
+                mstore(add(__evt_ptr, 0), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(__evt_ptr, 32), outSeizedAssets)
+                mstore(add(__evt_ptr, 64), outRepaidUnits)
+                mstore(add(__evt_ptr, 96), iszero(iszero(postMaturityMode)))
+                mstore(add(__evt_ptr, 128), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(__evt_ptr, 160), and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(__evt_ptr, 192), badDebt)
+                mstore(add(__evt_ptr, 224), add(latestLossFactorLoaded, 0))
+                mstore(add(__evt_ptr, 256), add(latestContinuousFeeCreditLoaded, 0))
+                log4(__evt_ptr, 288, __evt_topic0, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
+            }
             {
                 let __st_ptr := mload(64)
                 mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -2655,29 +4356,53 @@ object "Midnight" {
                     }
                 }
             }
-            let payer := sender
             if iszero(eq(callback, 0)) {
-                payer := callback
                 {
-                    let __cb_ptr := mload(64)
-                    mstore(__cb_ptr, shl(224, 0x6861b795))
-                    mstore(add(__cb_ptr, 4), sender)
-                    mstore(add(__cb_ptr, 36), id)
-                    mstore(add(__cb_ptr, 68), collateralIndex)
-                    mstore(add(__cb_ptr, 100), outSeizedAssets)
-                    mstore(add(__cb_ptr, 132), outRepaidUnits)
-                    mstore(add(__cb_ptr, 164), borrower)
-                    mstore(add(__cb_ptr, 196), receiver)
-                    mstore(add(__cb_ptr, 228), badDebt)
-                    mstore(add(__cb_ptr, 260), 288)
-                    mstore(add(__cb_ptr, 292), data_length)
-                    calldatacopy(add(__cb_ptr, 324), data_data_offset, data_length)
-                    mstore(64, add(__cb_ptr, and(add(add(324, and(add(data_length, 31), not(31))), 31), not(31))))
-                    let __cb_success := call(gas(), callback, 0, __cb_ptr, add(324, and(add(data_length, 31), not(31))), 0, 0)
-                    if iszero(__cb_success) {
-                        let __cb_rds := returndatasize()
-                        returndatacopy(0, 0, __cb_rds)
-                        revert(0, __cb_rds)
+                    let __liqcb_ptr := mload(64)
+                    let __liqcb_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                    let __liqcb_collateral_length := calldataload(__liqcb_collateral_offset)
+                    let __liqcb_collateral_bytes := mul(__liqcb_collateral_length, 128)
+                    let __liqcb_market_size := add(224, __liqcb_collateral_bytes)
+                    let __liqcb_padded_market_size := and(add(__liqcb_market_size, 31), not(31))
+                    let __liqcb_padded_data_len := and(add(data_length, 31), not(31))
+                    let __liqcb_market_ptr := add(__liqcb_ptr, 324)
+                    let __liqcb_data_ptr := add(__liqcb_market_ptr, __liqcb_padded_market_size)
+                    let __liqcb_total := add(324, add(__liqcb_padded_market_size, add(32, __liqcb_padded_data_len)))
+                    mstore(__liqcb_ptr, shl(224, 0x6861b795))
+                    mstore(add(__liqcb_ptr, 4), sender)
+                    mstore(add(__liqcb_ptr, 36), id)
+                    mstore(add(__liqcb_ptr, 68), 320)
+                    mstore(add(__liqcb_ptr, 100), collateralIndex)
+                    mstore(add(__liqcb_ptr, 132), outSeizedAssets)
+                    mstore(add(__liqcb_ptr, 164), outRepaidUnits)
+                    mstore(add(__liqcb_ptr, 196), borrower)
+                    mstore(add(__liqcb_ptr, 228), receiver)
+                    mstore(add(__liqcb_ptr, 260), add(320, __liqcb_padded_market_size))
+                    mstore(add(__liqcb_ptr, 292), badDebt)
+                    mstore(__liqcb_market_ptr, calldataload(market_data_offset))
+                    mstore(add(__liqcb_market_ptr, 32), 192)
+                    mstore(add(__liqcb_market_ptr, 64), calldataload(add(market_data_offset, 64)))
+                    mstore(add(__liqcb_market_ptr, 96), calldataload(add(market_data_offset, 96)))
+                    mstore(add(__liqcb_market_ptr, 128), calldataload(add(market_data_offset, 128)))
+                    mstore(add(__liqcb_market_ptr, 160), calldataload(add(market_data_offset, 160)))
+                    mstore(add(__liqcb_market_ptr, 192), __liqcb_collateral_length)
+                    calldatacopy(add(__liqcb_market_ptr, 224), add(__liqcb_collateral_offset, 32), __liqcb_collateral_bytes)
+                    mstore(__liqcb_data_ptr, data_length)
+                    calldatacopy(add(__liqcb_data_ptr, 32), data_data_offset, data_length)
+                    mstore(64, add(__liqcb_ptr, and(add(__liqcb_total, 31), not(31))))
+                    let __liqcb_success := call(gas(), callback, 0, __liqcb_ptr, __liqcb_total, __liqcb_ptr, 32)
+                    if iszero(__liqcb_success) {
+                        let __liqcb_rds := returndatasize()
+                        returndatacopy(0, 0, __liqcb_rds)
+                        revert(0, __liqcb_rds)
+                    }
+                    if lt(returndatasize(), 32) {
+                        mstore(0, shl(224, 0x70b53d4b))
+                        revert(0, 4)
+                    }
+                    if iszero(eq(mload(__liqcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
+                        mstore(0, shl(224, 0x70b53d4b))
+                        revert(0, 4)
                     }
                 }
             }
@@ -2721,66 +4446,37 @@ object "Midnight" {
             leave
         }
         function internal_internal_isHealthy(market_data_offset, id, borrower) -> __ret0 {
-            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
             if eq(debt, 0) {
                 __ret0 := 1
                 leave
             }
-            let collateralValue := internal_internal_collateralAmount(id, borrower, 0)
-            let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), 0)
-            let maxDebt := div(mul(collateralValue, lltv), 1000000000000000000)
+            let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
+            let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
+            let maxDebt := 0
+            for {
+                let __forEach_idx := 0
+                let __forEach_count := collateralCount
+                let i := 0
+            } lt(__forEach_idx, __forEach_count) {
+                __forEach_idx := add(__forEach_idx, 1)
+            } {
+                i := __forEach_idx
+                let mask := shl(i, 1)
+                if gt(and(collateralBitmapValue, mask), 0) {
+                    let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
+                    let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
+                    let price := internal_internal_oraclePrice(oracle)
+                    let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
+                    let collateralValue := div(mul(activeCollateral, price), 1000000000000000000000000000000000000)
+                    maxDebt := add(maxDebt, div(mul(collateralValue, lltv), 1000000000000000000))
+                }
+            }
             __ret0 := iszero(gt(debt, maxDebt))
             leave
         }
         function internal_internal_setCollateralAmount(id, user, index, value) {
-            if eq(index, 0) {
-                sstore(mappingSlot(mappingSlot(12, id), user), value)
-            }
-            if eq(index, 1) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
-            }
-            if eq(index, 2) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
-            }
-            if eq(index, 3) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
-            }
-            if eq(index, 4) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
-            }
-            if eq(index, 5) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
-            }
-            if eq(index, 6) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
-            }
-            if eq(index, 7) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
-            }
-            if eq(index, 8) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
-            }
-            if eq(index, 9) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
-            }
-            if eq(index, 10) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
-            }
-            if eq(index, 11) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
-            }
-            if eq(index, 12) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
-            }
-            if eq(index, 13) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
-            }
-            if eq(index, 14) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
-            }
-            if eq(index, 15) {
-                sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
-            }
+            let _writeOk := internal_internal_writeCollateralAmount(id, user, index, value)
             stop()
         }
         function internal_internal_supplyCollateral(market_data_offset, collateralIndex, assets, onBehalf) {
@@ -2811,7 +4507,7 @@ object "Midnight" {
                     revert(0, add(4, __err_tail))
                 }
             }
-            let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+            let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
             let mask := shl(collateralIndex, 1)
             if eq(oldCollateral, 0) {
                 if gt(assets, 0) {
@@ -2819,9 +4515,9 @@ object "Midnight" {
                     {
                         let __compat_value := newBitmap
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                     }
                     let activeCount := internal_internal_countBits128(newBitmap)
                     if gt(activeCount, 16) {
@@ -2893,7 +4589,7 @@ object "Midnight" {
             let id := internal_internal_toId(market_data_offset)
             let oldCollateral := internal_internal_collateralAmount(id, onBehalf, collateralIndex)
             let newCollateral := sub(oldCollateral, assets)
-            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+            let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
             if gt(debt, 0) {
                 let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                 let requiredCollateral := div(add(mul(debt, 1000000000000000000), sub(lltv, 1)), lltv)
@@ -2911,15 +4607,15 @@ object "Midnight" {
             }
             if eq(newCollateral, 0) {
                 if gt(assets, 0) {
-                    let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                    let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                     let mask := shl(collateralIndex, 1)
                     let newBitmap := and(oldBitmap, not(mask))
                     {
                         let __compat_value := newBitmap
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                     }
                 }
             }
@@ -3016,19 +4712,43 @@ object "Midnight" {
                     }
                 }
             }
+            let sender := caller()
             {
-                let __cb_ptr := mload(64)
-                mstore(__cb_ptr, shl(224, 0xd1f260c3))
-                mstore(add(__cb_ptr, 4), 0)
-                mstore(add(__cb_ptr, 36), 64)
-                mstore(add(__cb_ptr, 68), data_length)
-                calldatacopy(add(__cb_ptr, 100), data_data_offset, data_length)
-                mstore(64, add(__cb_ptr, and(add(add(100, and(add(data_length, 31), not(31))), 31), not(31))))
-                let __cb_success := call(gas(), callback, 0, __cb_ptr, add(100, and(add(data_length, 31), not(31))), 0, 0)
-                if iszero(__cb_success) {
-                    let __cb_rds := returndatasize()
-                    returndatacopy(0, 0, __cb_rds)
-                    revert(0, __cb_rds)
+                let __flcb_ptr := mload(64)
+                let __flcb_tokens_bytes := mul(tokens_length, 32)
+                let __flcb_assets_bytes := mul(assets_length, 32)
+                let __flcb_tokens_seg := add(32, __flcb_tokens_bytes)
+                let __flcb_assets_seg := add(32, __flcb_assets_bytes)
+                let __flcb_data_off := add(128, add(__flcb_tokens_seg, __flcb_assets_seg))
+                let __flcb_tokens_pos := add(__flcb_ptr, 132)
+                let __flcb_assets_pos := add(__flcb_ptr, add(132, __flcb_tokens_seg))
+                let __flcb_data_pos := add(__flcb_ptr, add(4, __flcb_data_off))
+                let __flcb_padded_data_len := and(add(data_length, 31), not(31))
+                let __flcb_total := add(add(__flcb_data_pos, 32), __flcb_padded_data_len)
+                __flcb_total := sub(__flcb_total, __flcb_ptr)
+                mstore(__flcb_ptr, shl(224, 0xd1f260c3))
+                mstore(add(__flcb_ptr, 4), sender)
+                mstore(add(__flcb_ptr, 36), 128)
+                mstore(add(__flcb_ptr, 68), add(128, __flcb_tokens_seg))
+                mstore(add(__flcb_ptr, 100), __flcb_data_off)
+                mstore(__flcb_tokens_pos, tokens_length)
+                calldatacopy(add(__flcb_tokens_pos, 32), tokens_data_offset, __flcb_tokens_bytes)
+                mstore(__flcb_assets_pos, assets_length)
+                calldatacopy(add(__flcb_assets_pos, 32), assets_data_offset, __flcb_assets_bytes)
+                mstore(__flcb_data_pos, data_length)
+                calldatacopy(add(__flcb_data_pos, 32), data_data_offset, data_length)
+                mstore(64, add(__flcb_ptr, and(add(__flcb_total, 31), not(31))))
+                let __flcb_success := call(gas(), callback, 0, __flcb_ptr, __flcb_total, __flcb_ptr, 32)
+                if iszero(__flcb_success) {
+                    let __flcb_rds := returndatasize()
+                    returndatacopy(0, 0, __flcb_rds)
+                    revert(0, __flcb_rds)
+                }
+                if lt(returndatasize(), 32) {
+                    revert(0, 0)
+                }
+                if iszero(eq(mload(__flcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
+                    revert(0, 0)
                 }
             }
             for {
@@ -3083,28 +4803,28 @@ object "Midnight" {
             leave
         }
         function internal_internal_pendingFee(id, user) -> __ret0 {
-            let value := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
+            let value := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_lastAccrual(id, user) -> __ret0 {
-            let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
+            let value := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_lastLossFactor(id, user) -> __ret0 {
-            let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
+            let value := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal_internal_collateralBitmap(id, user) -> __ret0 {
-            let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+            let value := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
             __ret0 := value
             leave
         }
         function internal___modifier_onlyRoleSetter() {
             let sender := caller()
-            let currentRoleSetter := sload(1)
+            let currentRoleSetter := sload(7)
             if iszero(eq(sender, currentRoleSetter)) {
                 {
                     let __err_ptr := mload(64)
@@ -3120,7 +4840,7 @@ object "Midnight" {
         }
         function internal___modifier_onlyFeeSetter() {
             let sender := caller()
-            let currentFeeSetter := sload(2)
+            let currentFeeSetter := sload(8)
             if iszero(eq(sender, currentFeeSetter)) {
                 mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                 mstore(4, 32)
@@ -3132,7 +4852,7 @@ object "Midnight" {
         }
         function internal___modifier_onlyFeeClaimer() {
             let sender := caller()
-            let currentFeeClaimer := sload(3)
+            let currentFeeClaimer := sload(9)
             if iszero(eq(sender, currentFeeClaimer)) {
                 mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                 mstore(4, 32)
@@ -3144,7 +4864,7 @@ object "Midnight" {
         }
         function internal___modifier_onlyTickSpacingSetter() {
             let sender := caller()
-            let currentTickSpacingSetter := sload(4)
+            let currentTickSpacingSetter := sload(10)
             if iszero(eq(sender, currentTickSpacingSetter)) {
                 mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                 mstore(4, 32)
@@ -3156,11 +4876,11 @@ object "Midnight" {
         }
         let cid := chainid()
         let sender := caller()
-        sstore(0, cid)
-        sstore(1, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-        sstore(2, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-        sstore(3, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-        sstore(4, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+        sstore(1024, cid)
+        sstore(7, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+        sstore(8, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+        sstore(9, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+        sstore(10, and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
         datacopy(0, dataoffset("runtime"), datasize("runtime"))
         return(0, datasize("runtime"))
     }
@@ -3402,53 +5122,80 @@ object "Midnight" {
                 let __word_pos := add(__member_data_pos, add(32, mul(inner_index, 32)))
                 word := mload(__word_pos)
             }
+            function internal_internal_multicall(calls_data_offset, calls_length) {
+                {
+                    let __mc_head := calldataload(4)
+                    let __mc_base := add(4, __mc_head)
+                    let __mc_len := calldataload(__mc_base)
+                    let __mc_i := 0
+                    for {
+                    } lt(__mc_i, __mc_len) {
+                        __mc_i := add(__mc_i, 1)
+                    } {
+                        let __mc_elem_head := calldataload(add(add(__mc_base, 32), mul(__mc_i, 32)))
+                        let __mc_elem := add(add(__mc_base, 32), __mc_elem_head)
+                        let __mc_size := calldataload(__mc_elem)
+                        let __mc_data := add(__mc_elem, 32)
+                        let __mc_ptr := mload(64)
+                        calldatacopy(__mc_ptr, __mc_data, __mc_size)
+                        mstore(64, add(__mc_ptr, and(add(__mc_size, 31), not(31))))
+                        let __mc_success := delegatecall(gas(), address(), __mc_ptr, __mc_size, 0, 0)
+                        if iszero(__mc_success) {
+                            let __mc_rds := returndatasize()
+                            returndatacopy(0, 0, __mc_rds)
+                            revert(0, __mc_rds)
+                        }
+                    }
+                }
+                stop()
+            }
             function internal_internal_INITIAL_CHAIN_ID() -> __ret0 {
-                let cid := sload(0)
+                let cid := sload(1024)
                 __ret0 := cid
                 leave
             }
             function internal_internal_roleSetter() -> __ret0 {
-                let value := sload(1)
+                let value := sload(7)
                 __ret0 := value
                 leave
             }
             function internal_internal_feeSetter() -> __ret0 {
-                let value := sload(2)
+                let value := sload(8)
                 __ret0 := value
                 leave
             }
             function internal_internal_feeClaimer() -> __ret0 {
-                let value := sload(3)
+                let value := sload(9)
                 __ret0 := value
                 leave
             }
             function internal_internal_tickSpacingSetter() -> __ret0 {
-                let value := sload(4)
+                let value := sload(10)
                 __ret0 := value
                 leave
             }
             function internal_internal_consumed(user, group) -> __ret0 {
-                let value := sload(mappingSlot(mappingSlot(5, user), group))
+                let value := sload(mappingSlot(mappingSlot(2, user), group))
                 __ret0 := value
                 leave
             }
             function internal_internal_isAuthorized(authorizer, authorized) -> __ret0 {
-                let value := sload(mappingSlot(mappingSlot(6, authorizer), authorized))
+                let value := sload(mappingSlot(mappingSlot(3, authorizer), authorized))
                 __ret0 := iszero(eq(value, 0))
                 leave
             }
             function internal_internal_defaultSettlementFeeCbp(loanToken, index) -> __ret0 {
-                let value := sload(mappingSlot(mappingSlot(7, loanToken), index))
+                let value := sload(mappingSlot(mappingSlot(4, loanToken), index))
                 __ret0 := value
                 leave
             }
             function internal_internal_defaultContinuousFee(loanToken) -> __ret0 {
-                let value := sload(mappingSlot(8, loanToken))
+                let value := sload(mappingSlot(5, loanToken))
                 __ret0 := value
                 leave
             }
             function internal_internal_claimableSettlementFee(token) -> __ret0 {
-                let value := sload(mappingSlot(9, token))
+                let value := sload(mappingSlot(6, token))
                 __ret0 := value
                 leave
             }
@@ -3591,12 +5338,41 @@ object "Midnight" {
                 leave
             }
             function internal_internal_toId(market_data_offset) -> __ret0 {
-                __ret0 := __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2)
+                let initialChainId := sload(1024)
+                let self := address()
+                let id := 0
+                {
+                    let __midnight_id_ptr := mload(64)
+                    mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
+                    mstore(add(__midnight_id_ptr, 11), 32)
+                    let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
+                    mstore(__midnight_id_tuple_ptr, calldataload(market_data_offset))
+                    mstore(add(__midnight_id_tuple_ptr, 32), 192)
+                    mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                    mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                    mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                    mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                    let __midnight_id_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                    let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
+                    let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
+                    mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
+                    calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
+                    let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
+                    let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
+                    let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                    let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
+                    mstore(__midnight_id_outer_ptr, shl(248, 255))
+                    mstore(add(__midnight_id_outer_ptr, 1), shl(96, self))
+                    mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
+                    mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
+                    id := keccak256(__midnight_id_outer_ptr, 85)
+                    mstore(64, add(__midnight_id_outer_ptr, 96))
+                }
+                __ret0 := id
                 leave
             }
             function internal_internal_toMarket(id) {
-                extcodecopy(id, 0, 0, 0)
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -3608,15 +5384,22 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
+                {
+                    let __midnight_market_return_pointer := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
+                    let __midnight_market_return_length := extcodesize(__midnight_market_return_pointer)
+                    let __midnight_market_return_ptr := mload(64)
+                    extcodecopy(__midnight_market_return_pointer, __midnight_market_return_ptr, 0, __midnight_market_return_length)
+                    return(__midnight_market_return_ptr, __midnight_market_return_length)
+                }
                 stop()
             }
             function internal_internal_position(id, user) -> __ret0, __ret1, __ret2, __ret3, __ret4, __ret5 {
-                let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
-                let collateralBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+                let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
+                let collateralBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
                 __ret0 := credit
                 __ret1 := pendingFee
                 __ret2 := lastLossFactor
@@ -3626,19 +5409,19 @@ object "Midnight" {
                 leave
             }
             function internal_internal_marketState(id) -> __ret0, __ret1, __ret2, __ret3, __ret4, __ret5, __ret6, __ret7, __ret8, __ret9, __ret10, __ret11, __ret12 {
-                let totalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-                let lossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-                let withdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                let continuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
-                let continuousFee := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
-                let tickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let totalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                let lossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                let withdrawable := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                let continuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
+                let continuousFee := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+                let tickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 __ret0 := totalUnits
                 __ret1 := lossFactor
                 __ret2 := withdrawable
@@ -3655,11 +5438,11 @@ object "Midnight" {
                 leave
             }
             function internal_internal_updatePositionView(market_data_offset, id, user) -> __ret0, __ret1, __ret2 {
-                let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 let now := timestamp()
                 let postSlashCredit := 0
                 if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -3684,7 +5467,7 @@ object "Midnight" {
             }
             function internal_internal_updatePosition(market_data_offset, user) -> __ret0, __ret1, __ret2 {
                 let id := internal_internal_toId(market_data_offset)
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -3696,11 +5479,11 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 let now := timestamp()
                 let postSlashCredit := 0
                 if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -3720,41 +5503,53 @@ object "Midnight" {
                 }
                 let newCredit := sub(postSlashCredit, accrued)
                 let newPendingFee := sub(postSlashPendingFee, accrued)
+                let creditDecrease := sub(credit, newCredit)
+                let pendingFeeDecrease := sub(pendingFee, newPendingFee)
                 {
                     let __compat_value := newCredit
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), user))
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), user))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), user), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(mappingSlot(0, id), user), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
                     let __compat_value := marketLossFactor
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), user), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), user), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), user), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
                     let __compat_value := newPendingFee
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), user))
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), user))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), user), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(mappingSlot(mappingSlot(0, id), user), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
                 {
                     let __compat_value := now
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), user), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), user), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(mappingSlot(11, id), user), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
-                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := add(currentContinuousFeeCredit, accrued)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                    mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 55)
+                    mstore(add(__evt_ptr, 0), creditDecrease)
+                    mstore(add(__evt_ptr, 32), pendingFeeDecrease)
+                    mstore(add(__evt_ptr, 64), accrued)
+                    log3(__evt_ptr, 96, __evt_topic0, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 __ret0 := newCredit
                 __ret1 := newPendingFee
@@ -3763,7 +5558,7 @@ object "Midnight" {
             }
             function internal_internal_setRoleSetter(newRoleSetter) {
                 let sender := caller()
-                let currentRoleSetter := sload(1)
+                let currentRoleSetter := sload(7)
                 if iszero(eq(sender, currentRoleSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -3775,12 +5570,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(1, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                sstore(7, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
                 stop()
             }
             function internal_internal_setFeeSetter(newFeeSetter) {
                 let sender := caller()
-                let currentRoleSetter := sload(1)
+                let currentRoleSetter := sload(7)
                 if iszero(eq(sender, currentRoleSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -3792,12 +5587,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(2, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                sstore(8, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
                 stop()
             }
             function internal_internal_setFeeClaimer(newFeeClaimer) {
                 let sender := caller()
-                let currentRoleSetter := sload(1)
+                let currentRoleSetter := sload(7)
                 if iszero(eq(sender, currentRoleSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -3809,12 +5604,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(3, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
+                sstore(9, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
                 stop()
             }
             function internal_internal_setTickSpacingSetter(newTickSpacingSetter) {
                 let sender := caller()
-                let currentRoleSetter := sload(1)
+                let currentRoleSetter := sload(7)
                 if iszero(eq(sender, currentRoleSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -3826,12 +5621,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(4, and(newTickSpacingSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                sstore(10, and(newTickSpacingSetter, 0xffffffffffffffffffffffffffffffffffffffff))
                 stop()
             }
             function internal_internal_setIsAuthorized(authorized, newIsAuthorized, onBehalf) {
                 let sender := caller()
-                let currentAuth := sload(mappingSlot(mappingSlot(6, onBehalf), sender))
+                let currentAuth := sload(mappingSlot(mappingSlot(3, onBehalf), sender))
                 if iszero(or(iszero(iszero(eq(sender, onBehalf))), iszero(iszero(iszero(eq(currentAuth, 0)))))) {
                     {
                         let __err_ptr := mload(64)
@@ -3853,12 +5648,12 @@ object "Midnight" {
                         flag := 0
                     }
                 }
-                sstore(mappingSlot(mappingSlot(6, onBehalf), authorized), flag)
+                sstore(mappingSlot(mappingSlot(3, onBehalf), authorized), flag)
                 stop()
             }
             function internal_internal_setConsumed(group, amount, onBehalf) {
                 let sender := caller()
-                let currentAuth := sload(mappingSlot(mappingSlot(6, onBehalf), sender))
+                let currentAuth := sload(mappingSlot(mappingSlot(3, onBehalf), sender))
                 if iszero(or(iszero(iszero(eq(sender, onBehalf))), iszero(iszero(iszero(eq(currentAuth, 0)))))) {
                     {
                         let __err_ptr := mload(64)
@@ -3870,7 +5665,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let current := sload(mappingSlot(mappingSlot(5, onBehalf), group))
+                let current := sload(mappingSlot(mappingSlot(2, onBehalf), group))
                 if lt(amount, current) {
                     {
                         let __err_ptr := mload(64)
@@ -3882,12 +5677,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(mappingSlot(mappingSlot(5, onBehalf), group), amount)
+                sstore(mappingSlot(mappingSlot(2, onBehalf), group), amount)
                 stop()
             }
             function internal_internal_setDefaultSettlementFee(loanToken, index, newSettlementFee) {
                 let sender := caller()
-                let currentFeeSetter := sload(2)
+                let currentFeeSetter := sload(8)
                 if iszero(eq(sender, currentFeeSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -3951,12 +5746,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(mappingSlot(mappingSlot(7, loanToken), index), div(newSettlementFee, 1000000000000))
+                sstore(mappingSlot(mappingSlot(4, loanToken), index), div(newSettlementFee, 1000000000000))
                 stop()
             }
             function internal_internal_setDefaultContinuousFee(loanToken, newContinuousFee) {
                 let sender := caller()
-                let currentFeeSetter := sload(2)
+                let currentFeeSetter := sload(8)
                 if iszero(eq(sender, currentFeeSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -3979,12 +5774,12 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(mappingSlot(8, loanToken), newContinuousFee)
+                sstore(mappingSlot(5, loanToken), newContinuousFee)
                 stop()
             }
             function internal_internal_claimSettlementFee(token, amount, receiver) {
                 let sender := caller()
-                let currentFeeClaimer := sload(3)
+                let currentFeeClaimer := sload(9)
                 if iszero(eq(sender, currentFeeClaimer)) {
                     {
                         let __err_ptr := mload(64)
@@ -3996,7 +5791,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let claimable := sload(mappingSlot(9, token))
+                let claimable := sload(mappingSlot(6, token))
                 if gt(amount, claimable) {
                     {
                         let __err_ptr := mload(64)
@@ -4008,7 +5803,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                sstore(mappingSlot(9, token), sub(claimable, amount))
+                sstore(mappingSlot(6, token), sub(claimable, amount))
                 {
                     let __st_ptr := mload(64)
                     mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -4047,7 +5842,7 @@ object "Midnight" {
             function internal_internal_claimContinuousFee(market_data_offset, amount, receiver) {
                 let id := internal_internal_toId(market_data_offset)
                 let sender := caller()
-                let currentFeeClaimer := sload(3)
+                let currentFeeClaimer := sload(9)
                 if iszero(eq(sender, currentFeeClaimer)) {
                     {
                         let __err_ptr := mload(64)
@@ -4059,7 +5854,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -4071,29 +5866,37 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(currentContinuousFeeCredit, amount)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
-                let currentTotalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let currentTotalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(currentTotalUnits, amount)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(10, id))
+                    let __compat_slot_word := sload(mappingSlot(1, id))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
-                let currentWithdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let currentWithdrawable := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(currentWithdrawable, amount)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x436c61696d436f6e74696e756f757346656528616464726573732c6279746573)
+                    mstore(add(__evt_ptr, 32), 0x33322c75696e743235362c616464726573732900000000000000000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 51)
+                    mstore(add(__evt_ptr, 0), amount)
+                    log4(__evt_ptr, 32, __evt_topic0, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 {
                     let __st_ptr := mload(64)
@@ -4132,7 +5935,7 @@ object "Midnight" {
             }
             function internal_internal_setMarketTickSpacing(id, newTickSpacing) {
                 let sender := caller()
-                let currentTickSpacingSetter := sload(4)
+                let currentTickSpacingSetter := sload(10)
                 if iszero(eq(sender, currentTickSpacingSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -4144,7 +5947,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -4181,15 +5984,15 @@ object "Midnight" {
                 {
                     let __compat_value := newTickSpacing
                     let __compat_packed := and(__compat_value, 255)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                 }
                 stop()
             }
             function internal_internal_setMarketSettlementFee(id, index, newSettlementFee) {
                 let sender := caller()
-                let currentFeeSetter := sload(2)
+                let currentFeeSetter := sload(8)
                 if iszero(eq(sender, currentFeeSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -4253,7 +6056,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -4270,70 +6073,70 @@ object "Midnight" {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
                 }
                 if eq(index, 1) {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                     }
                 }
                 if eq(index, 2) {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                     }
                 }
                 if eq(index, 3) {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                     }
                 }
                 if eq(index, 4) {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                     }
                 }
                 if eq(index, 5) {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                     }
                 }
                 if eq(index, 6) {
                     {
                         let __compat_value := newSettlementFeeCbp
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                     }
                 }
                 stop()
             }
             function internal_internal_setMarketContinuousFee(id, newContinuousFee) {
                 let sender := caller()
-                let currentFeeSetter := sload(2)
+                let currentFeeSetter := sload(8)
                 if iszero(eq(sender, currentFeeSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -4356,7 +6159,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -4371,15 +6174,15 @@ object "Midnight" {
                 {
                     let __compat_value := newContinuousFee
                     let __compat_packed := and(__compat_value, 4294967295)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                    sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                 }
                 stop()
             }
             function internal_internal_touchMarket(market_data_offset) -> __ret0 {
                 let id := internal_internal_toId(market_data_offset)
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if eq(currentTickSpacing, 0) {
                     let now := timestamp()
                     if gt(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2), add(now, 3153600000)) {
@@ -4394,14 +6197,53 @@ object "Midnight" {
                         }
                     }
                     internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
-                    let salt := sload(0)
-                    let _marketPointer := create2(0, 0, 0, salt)
+                    let salt := sload(1024)
+                    let _marketPointer := 0
+                    {
+                        let __midnight_store_ptr := mload(64)
+                        mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                        mstore(add(__midnight_store_ptr, 11), 32)
+                        let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                        mstore(__midnight_store_tuple_ptr, and(mload(market_data_offset), 0xffffffffffffffffffffffffffffffffffffffff))
+                        mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                        mstore(add(__midnight_store_tuple_ptr, 64), mload(add(market_data_offset, 64)))
+                        mstore(add(__midnight_store_tuple_ptr, 96), mload(add(market_data_offset, 96)))
+                        mstore(add(__midnight_store_tuple_ptr, 128), and(mload(add(market_data_offset, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
+                        mstore(add(__midnight_store_tuple_ptr, 160), and(mload(add(market_data_offset, 160)), 0xffffffffffffffffffffffffffffffffffffffff))
+                        let __midnight_store_array_ptr := mload(add(market_data_offset, 32))
+                        let __midnight_store_collateral_length := mload(__midnight_store_array_ptr)
+                        let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                        mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                        let __midnight_store_dst := add(__midnight_store_tuple_ptr, 224)
+                        let __midnight_store_src_ptr := add(__midnight_store_array_ptr, 32)
+                        let __midnight_store_src_end := add(__midnight_store_src_ptr, mul(__midnight_store_collateral_length, 32))
+                        for {
+                        } lt(__midnight_store_src_ptr, __midnight_store_src_end) {
+                            __midnight_store_src_ptr := add(__midnight_store_src_ptr, 32)
+                        } {
+                            let __midnight_store_item_ptr := mload(__midnight_store_src_ptr)
+                            mstore(__midnight_store_dst, and(mload(__midnight_store_item_ptr), 0xffffffffffffffffffffffffffffffffffffffff))
+                            mstore(add(__midnight_store_dst, 32), mload(add(__midnight_store_item_ptr, 32)))
+                            mstore(add(__midnight_store_dst, 64), mload(add(__midnight_store_item_ptr, 64)))
+                            mstore(add(__midnight_store_dst, 96), and(mload(add(__midnight_store_item_ptr, 96)), 0xffffffffffffffffffffffffffffffffffffffff))
+                            __midnight_store_dst := add(__midnight_store_dst, 128)
+                        }
+                        let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                        let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                        _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                        if iszero(_marketPointer) {
+                            mstore(0, shl(224, 0x4e487b71))
+                            mstore(4, 81)
+                            revert(0, 36)
+                        }
+                        mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                    }
                     {
                         let __compat_value := 4
                         let __compat_packed := and(__compat_value, 255)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                     }
                     let settlementFeeCbp0 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0)
                     let settlementFeeCbp1 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1)
@@ -4410,69 +6252,69 @@ object "Midnight" {
                     let settlementFeeCbp4 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 4)
                     let settlementFeeCbp5 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 5)
                     let settlementFeeCbp6 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 6)
-                    let continuous := sload(mappingSlot(8, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)))
+                    let continuous := sload(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)))
                     {
                         let __compat_value := settlementFeeCbp0
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp1
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp2
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp3
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp4
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp5
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp6
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                     }
                     {
                         let __compat_value := continuous
                         let __compat_packed := and(__compat_value, 4294967295)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                     }
                 }
                 __ret0 := id
                 leave
             }
             function internal_internal_settlementFee(id, timeToMaturity) -> __ret0 {
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(gt(currentTickSpacing, 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -4484,13 +6326,13 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
+                let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
                 let start := 15552000
                 let finish := 31104000
                 let feeLower := mul(settlementFeeCbp5, 1000000000000)
@@ -4537,6 +6379,330 @@ object "Midnight" {
                     }
                 }
             }
+            function internal_internal_tickToPrice(tick) -> __ret0 {
+                if gt(tick, 5820) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x5469636b4f75744f6652616e6765282900000000000000000000000000000000)
+                        let __err_hash := keccak256(__err_ptr, 16)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                let price := 0
+                {
+                    let __tp_x := mul(4987541511039073, sub(2910, tick))
+                    let __tp_abs := __tp_x
+                    let __tp_negative := slt(__tp_x, 0)
+                    if __tp_negative {
+                        __tp_abs := sub(0, __tp_x)
+                    }
+                    let __tp_q := div(add(__tp_abs, 322611214989459870), 693147180559945309)
+                    let __tp_r := sub(__tp_abs, mul(__tp_q, 693147180559945309))
+                    let __tp_second := sdiv(mul(__tp_r, __tp_r), 2000000000000000000)
+                    let __tp_third := sdiv(mul(__tp_second, __tp_r), 3000000000000000000)
+                    let __tp_expR := add(1000000000000000000, add(__tp_r, add(__tp_second, __tp_third)))
+                    let __tp_wexp := shl(__tp_q, __tp_expR)
+                    if __tp_negative {
+                        __tp_wexp := div(1000000000000000000000000000000000000, __tp_wexp)
+                    }
+                    let __tp_den := add(1000000000000000000, __tp_wexp)
+                    let __tp_raw := div(add(1000000000000000000000000000000000000, div(sub(__tp_den, 1), 2)), __tp_den)
+                    price := mul(div(add(__tp_raw, div(sub(1000000000000, 1), 2)), 1000000000000), 1000000000000)
+                }
+                __ret0 := price
+                leave
+            }
+            function internal_internal_enterGateCanIncreaseCredit(gate, account) -> __ret0 {
+                let allowed := 0
+                {
+                    let __ecwr_ptr := mload(64)
+                    mstore(__ecwr_ptr, shl(224, 0x58ac9f9e))
+                    mstore(add(__ecwr_ptr, 4), account)
+                    mstore(64, add(__ecwr_ptr, 64))
+                    let __ecwr_success := staticcall(gas(), gate, __ecwr_ptr, 36, __ecwr_ptr, 32)
+                    if iszero(__ecwr_success) {
+                        let __ecwr_rds := returndatasize()
+                        returndatacopy(0, 0, __ecwr_rds)
+                        revert(0, __ecwr_rds)
+                    }
+                    if lt(returndatasize(), 32) {
+                        revert(0, 0)
+                    }
+                    allowed := mload(__ecwr_ptr)
+                }
+                __ret0 := allowed
+                leave
+            }
+            function internal_internal_enterGateCanIncreaseDebt(gate, account) -> __ret0 {
+                let allowed := 0
+                {
+                    let __ecwr_ptr := mload(64)
+                    mstore(__ecwr_ptr, shl(224, 0xfe9bf956))
+                    mstore(add(__ecwr_ptr, 4), account)
+                    mstore(64, add(__ecwr_ptr, 64))
+                    let __ecwr_success := staticcall(gas(), gate, __ecwr_ptr, 36, __ecwr_ptr, 32)
+                    if iszero(__ecwr_success) {
+                        let __ecwr_rds := returndatasize()
+                        returndatacopy(0, 0, __ecwr_rds)
+                        revert(0, __ecwr_rds)
+                    }
+                    if lt(returndatasize(), 32) {
+                        revert(0, 0)
+                    }
+                    allowed := mload(__ecwr_ptr)
+                }
+                __ret0 := allowed
+                leave
+            }
+            function internal_internal_updateBuyerForTake(id, buyer, units, maturity, now) -> __ret0 {
+                let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), buyer), 2))), 340282366920938463463374607431768211455)
+                let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
+                let buyerCreditIncrease := sub(units, buyerDebtDecrease)
+                let continuousFeeValue := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+                let timeToMaturity := 0
+                if gt(maturity, now) {
+                    timeToMaturity := sub(maturity, now)
+                }
+                let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
+                let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), buyer))), 340282366920938463463374607431768211455)
+                let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), buyer))), 340282366920938463463374607431768211455)
+                let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))), 340282366920938463463374607431768211455)
+                let buyerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))), 340282366920938463463374607431768211455)
+                let buyerMarketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                let buyerPostSlashCredit := 0
+                if lt(buyerLastLossFactor, 340282366920938463463374607431768211455) {
+                    buyerPostSlashCredit := div(mul(buyerCredit, sub(340282366920938463463374607431768211455, buyerMarketLossFactor)), sub(340282366920938463463374607431768211455, buyerLastLossFactor))
+                }
+                let buyerPostSlashPendingFee := 0
+                if gt(buyerCredit, 0) {
+                    buyerPostSlashPendingFee := sub(buyerPendingFee, div(add(mul(buyerPendingFee, sub(buyerCredit, buyerPostSlashCredit)), sub(buyerCredit, 1)), buyerCredit))
+                }
+                let buyerAccrualEnd := maturity
+                if iszero(gt(now, maturity)) {
+                    buyerAccrualEnd := now
+                }
+                let buyerAccrued := 0
+                if lt(buyerLastAccrual, maturity) {
+                    buyerAccrued := div(mul(buyerPostSlashPendingFee, sub(buyerAccrualEnd, buyerLastAccrual)), sub(maturity, buyerLastAccrual))
+                }
+                let buyerCreditAfterUpdate := sub(buyerPostSlashCredit, buyerAccrued)
+                let buyerPendingFeeAfterUpdate := sub(buyerPostSlashPendingFee, buyerAccrued)
+                let buyerCreditDecrease := sub(buyerCredit, buyerCreditAfterUpdate)
+                let buyerPendingFeeDecreaseForUpdate := sub(buyerPendingFee, buyerPendingFeeAfterUpdate)
+                if or(iszero(iszero(gt(buyerCredit, 0))), iszero(iszero(gt(buyerCreditIncrease, 0)))) {
+                    {
+                        let __compat_value := buyerCreditAfterUpdate
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                        sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    }
+                    {
+                        let __compat_value := buyerMarketLossFactor
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                        sstore(add(mappingSlot(mappingSlot(0, id), buyer), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    }
+                    {
+                        let __compat_value := buyerPendingFeeAfterUpdate
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                        sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    }
+                    {
+                        let __compat_value := now
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                        sstore(add(mappingSlot(mappingSlot(0, id), buyer), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    }
+                    let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                    {
+                        let __compat_value := add(currentContinuousFeeCredit, buyerAccrued)
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                        sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    }
+                }
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                    mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 55)
+                    mstore(add(__evt_ptr, 0), buyerCreditDecrease)
+                    mstore(add(__evt_ptr, 32), buyerPendingFeeDecreaseForUpdate)
+                    mstore(add(__evt_ptr, 64), buyerAccrued)
+                    log3(__evt_ptr, 96, __evt_topic0, id, and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
+                }
+                {
+                    let __compat_value := sub(buyerDebt, buyerDebtDecrease)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 2))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(add(mappingSlot(mappingSlot(0, id), buyer), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __compat_value := add(buyerPendingFeeAfterUpdate, buyerPendingFeeIncrease)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                {
+                    let __compat_value := add(buyerCreditAfterUpdate, buyerCreditIncrease)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                __ret0 := buyerCreditIncrease
+                leave
+            }
+            function internal_internal_updateSellerForTake(id, seller, units, maturity, now) -> __ret0, __ret1, __ret2 {
+                let sellerCredit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), seller))), 340282366920938463463374607431768211455)
+                let sellerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), seller))), 340282366920938463463374607431768211455)
+                let sellerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), seller), 1))), 340282366920938463463374607431768211455)
+                let sellerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), seller), 1))), 340282366920938463463374607431768211455)
+                let sellerMarketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                let sellerPostSlashCredit := 0
+                if lt(sellerLastLossFactor, 340282366920938463463374607431768211455) {
+                    sellerPostSlashCredit := div(mul(sellerCredit, sub(340282366920938463463374607431768211455, sellerMarketLossFactor)), sub(340282366920938463463374607431768211455, sellerLastLossFactor))
+                }
+                let sellerPostSlashPendingFee := 0
+                if gt(sellerCredit, 0) {
+                    sellerPostSlashPendingFee := sub(sellerPendingFee, div(add(mul(sellerPendingFee, sub(sellerCredit, sellerPostSlashCredit)), sub(sellerCredit, 1)), sellerCredit))
+                }
+                let sellerAccrualEnd := maturity
+                if iszero(gt(now, maturity)) {
+                    sellerAccrualEnd := now
+                }
+                let sellerAccrued := 0
+                if lt(sellerLastAccrual, maturity) {
+                    sellerAccrued := div(mul(sellerPostSlashPendingFee, sub(sellerAccrualEnd, sellerLastAccrual)), sub(maturity, sellerLastAccrual))
+                }
+                let sellerCreditAfterUpdate := sub(sellerPostSlashCredit, sellerAccrued)
+                let sellerPendingFeeAfterUpdate := sub(sellerPostSlashPendingFee, sellerAccrued)
+                let sellerCreditDecreaseForUpdate := sub(sellerCredit, sellerCreditAfterUpdate)
+                let sellerPendingFeeDecreaseForUpdate := sub(sellerPendingFee, sellerPendingFeeAfterUpdate)
+                if gt(sellerCredit, 0) {
+                    {
+                        let __compat_value := sellerCreditAfterUpdate
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                        sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    }
+                    {
+                        let __compat_value := sellerMarketLossFactor
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 1))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                        sstore(add(mappingSlot(mappingSlot(0, id), seller), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    }
+                    {
+                        let __compat_value := sellerPendingFeeAfterUpdate
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                        sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    }
+                    {
+                        let __compat_value := now
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 1))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                        sstore(add(mappingSlot(mappingSlot(0, id), seller), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    }
+                    let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                    {
+                        let __compat_value := add(currentContinuousFeeCredit, sellerAccrued)
+                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
+                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                        sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    }
+                }
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                    mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 55)
+                    mstore(add(__evt_ptr, 0), sellerCreditDecreaseForUpdate)
+                    mstore(add(__evt_ptr, 32), sellerPendingFeeDecreaseForUpdate)
+                    mstore(add(__evt_ptr, 64), sellerAccrued)
+                    log3(__evt_ptr, 96, __evt_topic0, id, and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
+                }
+                let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
+                let sellerDebtIncrease := sub(units, sellerCreditDecrease)
+                let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), seller), 2))), 340282366920938463463374607431768211455)
+                let sellerPendingFeeDecrease := 0
+                if gt(sellerCreditAfterUpdate, 0) {
+                    sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
+                }
+                {
+                    let __compat_value := sub(sellerPendingFeeAfterUpdate, sellerPendingFeeDecrease)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                    sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                {
+                    let __compat_value := sub(sellerCreditAfterUpdate, sellerCreditDecrease)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __compat_value := add(sellerDebt, sellerDebtIncrease)
+                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 2))
+                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                    sstore(add(mappingSlot(mappingSlot(0, id), seller), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                __ret0 := sellerCreditDecrease
+                __ret1 := sellerDebtIncrease
+                __ret2 := sellerPendingFeeDecrease
+                leave
+            }
+            function internal_internal_takeAssetsForPrice(id, units, tick, offerIsBuy, maturity, now, buyerCreditIncrease) -> __ret0, __ret1, __ret2 {
+                let offerPrice := internal_internal_tickToPrice(tick)
+                let timeToMaturityForFee := 0
+                if gt(maturity, now) {
+                    timeToMaturityForFee := sub(maturity, now)
+                }
+                let settlementFeeValue := internal_internal_settlementFee(id, timeToMaturityForFee)
+                let continuousFeeValueForCallback := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+                let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValueForCallback, timeToMaturityForFee)), 1000000000000000000)
+                let sellerPrice := offerPrice
+                if offerIsBuy {
+                    sellerPrice := sub(offerPrice, settlementFeeValue)
+                }
+                let buyerPrice := add(sellerPrice, settlementFeeValue)
+                let buyerAssets := 0
+                let sellerAssets := 0
+                {
+                    let __ite_cond := offerIsBuy
+                    if __ite_cond {
+                        buyerAssets := div(mul(units, buyerPrice), 1000000000000000000)
+                        sellerAssets := div(mul(units, sellerPrice), 1000000000000000000)
+                    }
+                    if iszero(__ite_cond) {
+                        buyerAssets := div(add(mul(units, buyerPrice), sub(1000000000000000000, 1)), 1000000000000000000)
+                        sellerAssets := div(add(mul(units, sellerPrice), sub(1000000000000000000, 1)), 1000000000000000000)
+                    }
+                }
+                __ret0 := buyerAssets
+                __ret1 := sellerAssets
+                __ret2 := buyerPendingFeeIncrease
+                leave
+            }
             function internal_internal_take(offer_data_offset, ratifierData_data_offset, ratifierData_length, units, taker, receiverIfTakerIsSeller, takerCallback, takerCallbackData_data_offset, takerCallbackData_length) -> __ret0, __ret1 {
                 let sender := caller()
                 let authorized := internal_internal_isAuthorized(taker, sender)
@@ -4555,8 +6721,38 @@ object "Midnight" {
                 let marketBase := add(offerBase, calldataload(offerBase))
                 let loanToken := calldataload(marketBase)
                 let maturity := calldataload(add(marketBase, 64))
-                let id := maturity
-                let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let enterGate := calldataload(add(marketBase, 128))
+                let initialChainId := sload(1024)
+                let contractSelf := address()
+                let id := 0
+                {
+                    let __midnight_id_ptr := mload(64)
+                    mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
+                    mstore(add(__midnight_id_ptr, 11), 32)
+                    let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
+                    mstore(__midnight_id_tuple_ptr, calldataload(marketBase))
+                    mstore(add(__midnight_id_tuple_ptr, 32), 192)
+                    mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                    mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                    mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                    mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                    let __midnight_id_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                    let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
+                    let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
+                    mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
+                    calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
+                    let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
+                    let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
+                    let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                    let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
+                    mstore(__midnight_id_outer_ptr, shl(248, 255))
+                    mstore(add(__midnight_id_outer_ptr, 1), shl(96, contractSelf))
+                    mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
+                    mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
+                    id := keccak256(__midnight_id_outer_ptr, 85)
+                    mstore(64, add(__midnight_id_outer_ptr, 96))
+                }
+                let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if eq(currentMarketTickSpacing, 0) {
                     let now := timestamp()
                     if gt(maturity, add(now, 3153600000)) {
@@ -4573,9 +6769,9 @@ object "Midnight" {
                     {
                         let __compat_value := 4
                         let __compat_packed := and(__compat_value, 255)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                     }
                     let settlementFeeCbp0 := internal_internal_defaultSettlementFeeCbp(loanToken, 0)
                     let settlementFeeCbp1 := internal_internal_defaultSettlementFeeCbp(loanToken, 1)
@@ -4584,66 +6780,66 @@ object "Midnight" {
                     let settlementFeeCbp4 := internal_internal_defaultSettlementFeeCbp(loanToken, 4)
                     let settlementFeeCbp5 := internal_internal_defaultSettlementFeeCbp(loanToken, 5)
                     let settlementFeeCbp6 := internal_internal_defaultSettlementFeeCbp(loanToken, 6)
-                    let continuous := sload(mappingSlot(8, loanToken))
+                    let continuous := sload(mappingSlot(5, loanToken))
                     {
                         let __compat_value := settlementFeeCbp0
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp1
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp2
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp3
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp4
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp5
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                     }
                     {
                         let __compat_value := settlementFeeCbp6
                         let __compat_packed := and(__compat_value, 65535)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                     }
                     {
                         let __compat_value := continuous
                         let __compat_packed := and(__compat_value, 4294967295)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                        sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                     }
                 }
-                let lossFactorValue := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-                if iszero(lt(lossFactorValue, 340282366920938463463374607431768211455)) {
+                let lossFactorForGuard := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                if iszero(lt(lossFactorForGuard, 340282366920938463463374607431768211455)) {
                     {
                         let __err_ptr := mload(64)
                         mstore(add(__err_ptr, 0), 0x4d61726b65744c6f7373466163746f724d617865644f75742829000000000000)
@@ -4665,7 +6861,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if iszero(eq(mod(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5), currentTickSpacing), 0)) {
                     {
                         let __err_ptr := mload(64)
@@ -4723,6 +6919,72 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
+                {
+                    let __rat_ptr := mload(64)
+                    let __rat_offer_ptr := add(__rat_ptr, 68)
+                    let __rat_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                    let __rat_collateral_offset := add(__rat_market_offset, calldataload(add(__rat_market_offset, 32)))
+                    let __rat_collateral_length := calldataload(__rat_collateral_offset)
+                    let __rat_collateral_bytes := mul(__rat_collateral_length, 128)
+                    let __rat_market_size := add(224, __rat_collateral_bytes)
+                    let __rat_padded_market_size := and(add(__rat_market_size, 31), not(31))
+                    let __rat_callback_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                    let __rat_callback_data_length := calldataload(__rat_callback_data_offset)
+                    let __rat_padded_callback_data_length := and(add(__rat_callback_data_length, 31), not(31))
+                    let __rat_offer_size := add(448, add(__rat_padded_market_size, add(32, __rat_padded_callback_data_length)))
+                    let __rat_padded_offer_size := and(add(__rat_offer_size, 31), not(31))
+                    let __rat_data_ptr := add(__rat_offer_ptr, __rat_padded_offer_size)
+                    let __rat_padded_data_length := and(add(ratifierData_length, 31), not(31))
+                    let __rat_total := add(68, add(__rat_padded_offer_size, add(32, __rat_padded_data_length)))
+                    mstore(__rat_ptr, shl(224, 0x675ef8d3))
+                    mstore(add(__rat_ptr, 4), 64)
+                    mstore(add(__rat_ptr, 36), add(64, __rat_padded_offer_size))
+                    mstore(__rat_offer_ptr, 448)
+                    for {
+                        let __rat_i := 1
+                    } lt(__rat_i, 8) {
+                        __rat_i := add(__rat_i, 1)
+                    } {
+                        mstore(add(__rat_offer_ptr, mul(__rat_i, 32)), calldataload(add(offer_data_offset, mul(__rat_i, 32))))
+                    }
+                    mstore(add(__rat_offer_ptr, 256), add(448, __rat_padded_market_size))
+                    for {
+                        let __rat_j := 9
+                    } lt(__rat_j, 14) {
+                        __rat_j := add(__rat_j, 1)
+                    } {
+                        mstore(add(__rat_offer_ptr, mul(__rat_j, 32)), calldataload(add(offer_data_offset, mul(__rat_j, 32))))
+                    }
+                    let __rat_market_ptr := add(__rat_offer_ptr, 448)
+                    mstore(__rat_market_ptr, calldataload(__rat_market_offset))
+                    mstore(add(__rat_market_ptr, 32), 192)
+                    for {
+                        let __rat_m := 2
+                    } lt(__rat_m, 6) {
+                        __rat_m := add(__rat_m, 1)
+                    } {
+                        mstore(add(__rat_market_ptr, mul(__rat_m, 32)), calldataload(add(__rat_market_offset, mul(__rat_m, 32))))
+                    }
+                    mstore(add(__rat_market_ptr, 192), __rat_collateral_length)
+                    calldatacopy(add(__rat_market_ptr, 224), add(__rat_collateral_offset, 32), __rat_collateral_bytes)
+                    mstore(add(__rat_offer_ptr, add(448, __rat_padded_market_size)), __rat_callback_data_length)
+                    calldatacopy(add(__rat_offer_ptr, add(480, __rat_padded_market_size)), add(__rat_callback_data_offset, 32), __rat_callback_data_length)
+                    mstore(add(__rat_offer_ptr, add(480, add(__rat_padded_market_size, __rat_callback_data_length))), 0)
+                    mstore(__rat_data_ptr, ratifierData_length)
+                    calldatacopy(add(__rat_data_ptr, 32), ratifierData_data_offset, ratifierData_length)
+                    mstore(add(__rat_data_ptr, add(32, ratifierData_length)), 0)
+                    mstore(64, add(__rat_ptr, and(add(__rat_total, 31), not(31))))
+                    let __rat_success := staticcall(gas(), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 10), __rat_ptr, __rat_total, __rat_ptr, 32)
+                    if iszero(__rat_success) {
+                        let __rat_rds := returndatasize()
+                        returndatacopy(0, 0, __rat_rds)
+                        revert(0, __rat_rds)
+                    }
+                    if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__rat_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                        mstore(0, shl(224, 0x9e8ec676))
+                        revert(0, 4)
+                    }
+                }
                 if gt(units, 340282366920938463463374607431768211455) {
                     {
                         let __err_ptr := mload(64)
@@ -4738,8 +7000,47 @@ object "Midnight" {
                 {
                     let __ite_cond := gt(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13), 0)
                     if __ite_cond {
-                        let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
-                        newConsumed := add(currentConsumed, units)
+                        let offerPriceConsumed := internal_internal_tickToPrice(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5))
+                        let timeToMaturityConsumed := 0
+                        if gt(maturity, now) {
+                            timeToMaturityConsumed := sub(maturity, now)
+                        }
+                        let settlementFeeConsumed := internal_internal_settlementFee(id, timeToMaturityConsumed)
+                        let sellerPriceConsumed := offerPriceConsumed
+                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                            sellerPriceConsumed := sub(offerPriceConsumed, settlementFeeConsumed)
+                        }
+                        let buyerPriceConsumed := add(sellerPriceConsumed, settlementFeeConsumed)
+                        let buyerAssetsConsumed := 0
+                        let sellerAssetsConsumed := 0
+                        {
+                            let __ite_cond_2 := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                            if __ite_cond_2 {
+                                buyerAssetsConsumed := div(mul(units, buyerPriceConsumed), 1000000000000000000)
+                                sellerAssetsConsumed := div(mul(units, sellerPriceConsumed), 1000000000000000000)
+                            }
+                            if iszero(__ite_cond_2) {
+                                buyerAssetsConsumed := div(add(mul(units, buyerPriceConsumed), sub(1000000000000000000, 1)), 1000000000000000000)
+                                sellerAssetsConsumed := div(add(mul(units, sellerPriceConsumed), sub(1000000000000000000, 1)), 1000000000000000000)
+                            }
+                        }
+                        if lt(buyerAssetsConsumed, sellerAssetsConsumed) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x496e636f6e73697374656e74496e707574282900000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 19)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let currentConsumed := sload(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
+                        let consumedIncrease := sellerAssetsConsumed
+                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                            consumedIncrease := buyerAssetsConsumed
+                        }
+                        newConsumed := add(currentConsumed, consumedIncrease)
                         if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13)) {
                             {
                                 let __err_ptr := mload(64)
@@ -4751,10 +7052,10 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
+                        sstore(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                     }
                     if iszero(__ite_cond) {
-                        let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
+                        let currentConsumed := sload(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
                         newConsumed := add(currentConsumed, units)
                         if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 12)) {
                             {
@@ -4767,7 +7068,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
+                        sstore(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                     }
                 }
                 let buyer := taker
@@ -4776,163 +7077,8 @@ object "Midnight" {
                     buyer := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)
                     seller := taker
                 }
-                let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))), 340282366920938463463374607431768211455)
-                let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
-                let buyerCreditIncrease := sub(units, buyerDebtDecrease)
-                let continuousFeeValue := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
-                let timeToMaturity := 0
-                if gt(maturity, now) {
-                    timeToMaturity := sub(maturity, now)
-                }
-                let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
-                let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
-                let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
-                let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
-                let buyerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
-                let buyerPostSlashCredit := 0
-                if lt(buyerLastLossFactor, 340282366920938463463374607431768211455) {
-                    buyerPostSlashCredit := div(mul(buyerCredit, sub(340282366920938463463374607431768211455, lossFactorValue)), sub(340282366920938463463374607431768211455, buyerLastLossFactor))
-                }
-                let buyerPostSlashPendingFee := 0
-                if gt(buyerCredit, 0) {
-                    buyerPostSlashPendingFee := sub(buyerPendingFee, div(add(mul(buyerPendingFee, sub(buyerCredit, buyerPostSlashCredit)), sub(buyerCredit, 1)), buyerCredit))
-                }
-                let buyerAccrualEnd := maturity
-                if iszero(gt(now, maturity)) {
-                    buyerAccrualEnd := now
-                }
-                let buyerAccrued := 0
-                if lt(buyerLastAccrual, maturity) {
-                    buyerAccrued := div(mul(buyerPostSlashPendingFee, sub(buyerAccrualEnd, buyerLastAccrual)), sub(maturity, buyerLastAccrual))
-                }
-                let buyerCreditAfterUpdate := sub(buyerPostSlashCredit, buyerAccrued)
-                let buyerPendingFeeAfterUpdate := sub(buyerPostSlashPendingFee, buyerAccrued)
-                if or(iszero(iszero(gt(buyerCredit, 0))), iszero(iszero(gt(buyerCreditIncrease, 0)))) {
-                    {
-                        let __compat_value := buyerCreditAfterUpdate
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                    }
-                    {
-                        let __compat_value := lossFactorValue
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(add(mappingSlot(mappingSlot(11, id), buyer), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                    }
-                    {
-                        let __compat_value := buyerPendingFeeAfterUpdate
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                    }
-                    {
-                        let __compat_value := now
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(mappingSlot(11, id), buyer), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                    }
-                    let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                    {
-                        let __compat_value := add(currentContinuousFeeCredit, buyerAccrued)
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                    }
-                }
-                {
-                    let __compat_value := sub(buyerDebt, buyerDebtDecrease)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), buyer), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                }
-                {
-                    let __compat_value := add(buyerPendingFeeAfterUpdate, buyerPendingFeeIncrease)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                }
-                {
-                    let __compat_value := add(buyerCreditAfterUpdate, buyerCreditIncrease)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                }
-                let sellerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), seller))), 340282366920938463463374607431768211455)
-                let sellerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), seller))), 340282366920938463463374607431768211455)
-                let sellerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 1))), 340282366920938463463374607431768211455)
-                let sellerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), seller), 1))), 340282366920938463463374607431768211455)
-                let sellerPostSlashCredit := 0
-                if lt(sellerLastLossFactor, 340282366920938463463374607431768211455) {
-                    sellerPostSlashCredit := div(mul(sellerCredit, sub(340282366920938463463374607431768211455, lossFactorValue)), sub(340282366920938463463374607431768211455, sellerLastLossFactor))
-                }
-                let sellerPostSlashPendingFee := 0
-                if gt(sellerCredit, 0) {
-                    sellerPostSlashPendingFee := sub(sellerPendingFee, div(add(mul(sellerPendingFee, sub(sellerCredit, sellerPostSlashCredit)), sub(sellerCredit, 1)), sellerCredit))
-                }
-                let sellerAccrualEnd := maturity
-                if iszero(gt(now, maturity)) {
-                    sellerAccrualEnd := now
-                }
-                let sellerAccrued := 0
-                if lt(sellerLastAccrual, maturity) {
-                    sellerAccrued := div(mul(sellerPostSlashPendingFee, sub(sellerAccrualEnd, sellerLastAccrual)), sub(maturity, sellerLastAccrual))
-                }
-                let sellerCreditAfterUpdate := sub(sellerPostSlashCredit, sellerAccrued)
-                let sellerPendingFeeAfterUpdate := sub(sellerPostSlashPendingFee, sellerAccrued)
-                if gt(sellerCredit, 0) {
-                    {
-                        let __compat_value := sellerCreditAfterUpdate
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                    }
-                    {
-                        let __compat_value := lossFactorValue
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 1))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(add(mappingSlot(mappingSlot(11, id), seller), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                    }
-                    {
-                        let __compat_value := sellerPendingFeeAfterUpdate
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                    }
-                    {
-                        let __compat_value := now
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 1))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(mappingSlot(11, id), seller), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                    }
-                    let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                    {
-                        let __compat_value := add(currentContinuousFeeCredit, sellerAccrued)
-                        let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
-                        let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                    }
-                }
-                let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
-                let sellerDebtIncrease := sub(units, sellerCreditDecrease)
-                let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 2))), 340282366920938463463374607431768211455)
-                let sellerPendingFeeDecrease := 0
-                if gt(sellerCreditAfterUpdate, 0) {
-                    sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
-                }
+                let buyerCreditIncrease := internal_internal_updateBuyerForTake(id, buyer, units, maturity, now)
+                let sellerCreditDecrease, sellerDebtIncrease, sellerPendingFeeDecrease := internal_internal_updateSellerForTake(id, seller, units, maturity, now)
                 if iszero(or(iszero(iszero(iszero(gt(now, maturity)))), iszero(iszero(eq(sellerDebtIncrease, 0))))) {
                     {
                         let __err_ptr := mload(64)
@@ -4967,37 +7113,66 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                {
-                    let __compat_value := sub(sellerPendingFeeAfterUpdate, sellerPendingFeeDecrease)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                let buyerGateAllowed := 1
+                if iszero(eq(enterGate, 0)) {
+                    if gt(buyerCreditIncrease, 0) {
+                        let canIncreaseCredit := internal_internal_enterGateCanIncreaseCredit(enterGate, buyer)
+                        buyerGateAllowed := iszero(eq(canIncreaseCredit, 0))
+                    }
                 }
-                {
-                    let __compat_value := sub(sellerCreditAfterUpdate, sellerCreditDecrease)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                if iszero(buyerGateAllowed) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x4275796572476174656446726f6d496e6372656173696e674372656469742829)
+                        let __err_hash := keccak256(__err_ptr, 32)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
                 }
-                {
-                    let __compat_value := add(sellerDebt, sellerDebtIncrease)
-                    let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 2))
-                    let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), seller), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                let sellerGateAllowed := 1
+                if iszero(eq(enterGate, 0)) {
+                    if gt(sellerDebtIncrease, 0) {
+                        let canIncreaseDebt := internal_internal_enterGateCanIncreaseDebt(enterGate, seller)
+                        sellerGateAllowed := iszero(eq(canIncreaseDebt, 0))
+                    }
                 }
-                let currentTotalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                if iszero(sellerGateAllowed) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x53656c6c6572476174656446726f6d496e6372656173696e6744656274282900)
+                        let __err_hash := keccak256(__err_ptr, 31)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                let currentTotalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 let newTotalUnits := add(currentTotalUnits, buyerCreditIncrease)
                 newTotalUnits := sub(newTotalUnits, sellerCreditDecrease)
                 {
                     let __compat_value := newTotalUnits
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(10, id))
+                    let __compat_slot_word := sload(mappingSlot(1, id))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
+                let buyerAssets, sellerAssets, buyerPendingFeeIncrease := internal_internal_takeAssetsForPrice(id, units, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1), maturity, now, buyerCreditIncrease)
+                if lt(buyerAssets, sellerAssets) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x496e636f6e73697374656e74496e707574282900000000000000000000000000)
+                        let __err_hash := keccak256(__err_ptr, 19)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                let claimableBefore := sload(mappingSlot(6, loanToken))
+                sstore(mappingSlot(6, loanToken), add(claimableBefore, sub(buyerAssets, sellerAssets)))
                 let receiver := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 9)
                 if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
                     receiver := receiverIfTakerIsSeller
@@ -5011,81 +7186,399 @@ object "Midnight" {
                         payer := sender
                     }
                 }
-                let transferAssets := units
+                let buyerCallback := takerCallback
                 if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                    transferAssets := 0
+                    buyerCallback := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7)
+                }
+                let offerIsBuyWord := 0
+                if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                    offerIsBuyWord := 1
+                }
+                let takeEventPtr := mload(64)
+                mstore(takeEventPtr, sender)
+                mstore(add(takeEventPtr, 32), units)
+                mstore(add(takeEventPtr, 64), offerIsBuyWord)
+                mstore(add(takeEventPtr, 96), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6))
+                mstore(add(takeEventPtr, 128), buyerAssets)
+                mstore(add(takeEventPtr, 160), sellerAssets)
+                mstore(64, add(takeEventPtr, 416))
+                mstore(add(takeEventPtr, 192), newConsumed)
+                mstore(add(takeEventPtr, 224), buyerPendingFeeIncrease)
+                mstore(add(takeEventPtr, 256), sellerPendingFeeDecrease)
+                mstore(add(takeEventPtr, 288), buyerCreditIncrease)
+                mstore(add(takeEventPtr, 320), sellerCreditDecrease)
+                mstore(add(takeEventPtr, 352), receiver)
+                mstore(add(takeEventPtr, 384), payer)
+                log4(takeEventPtr, 416, 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3, id, taker, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2))
+                {
+                    let __liq_lock_ptr := mload(64)
+                    mstore(__liq_lock_ptr, id)
+                    mstore(add(__liq_lock_ptr, 32), seller)
+                    mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                    let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                    tstore(__liq_lock_slot, add(tload(__liq_lock_slot), 1))
+                }
+                if iszero(eq(buyerCallback, 0)) {
+                    payer := buyerCallback
+                    {
+                        let __ite_cond := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                        if __ite_cond {
+                            {
+                                let __buycb_ptr := mload(64)
+                                let __buycb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                let __buycb_collateral_offset := add(__buycb_market_offset, calldataload(add(__buycb_market_offset, 32)))
+                                let __buycb_collateral_length := calldataload(__buycb_collateral_offset)
+                                let __buycb_collateral_bytes := mul(__buycb_collateral_length, 128)
+                                let __buycb_market_size := add(224, __buycb_collateral_bytes)
+                                let __buycb_padded_market_size := and(add(__buycb_market_size, 31), not(31))
+                                let __buycb_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                                let __buycb_data_length := calldataload(__buycb_data_offset)
+                                let __buycb_padded_data_len := and(add(__buycb_data_length, 31), not(31))
+                                let __buycb_market_ptr := add(__buycb_ptr, 228)
+                                let __buycb_data_ptr := add(__buycb_market_ptr, __buycb_padded_market_size)
+                                let __buycb_total := add(228, add(__buycb_padded_market_size, add(32, __buycb_padded_data_len)))
+                                mstore(__buycb_ptr, shl(224, 0xf151bd5c))
+                                mstore(add(__buycb_ptr, 4), id)
+                                mstore(add(__buycb_ptr, 36), 224)
+                                mstore(add(__buycb_ptr, 68), buyerAssets)
+                                mstore(add(__buycb_ptr, 100), units)
+                                mstore(add(__buycb_ptr, 132), buyerPendingFeeIncrease)
+                                mstore(add(__buycb_ptr, 164), buyer)
+                                mstore(add(__buycb_ptr, 196), add(224, __buycb_padded_market_size))
+                                mstore(__buycb_market_ptr, calldataload(__buycb_market_offset))
+                                mstore(add(__buycb_market_ptr, 32), 192)
+                                for {
+                                    let __buycb_m := 2
+                                } lt(__buycb_m, 6) {
+                                    __buycb_m := add(__buycb_m, 1)
+                                } {
+                                    mstore(add(__buycb_market_ptr, mul(__buycb_m, 32)), calldataload(add(__buycb_market_offset, mul(__buycb_m, 32))))
+                                }
+                                mstore(add(__buycb_market_ptr, 192), __buycb_collateral_length)
+                                calldatacopy(add(__buycb_market_ptr, 224), add(__buycb_collateral_offset, 32), __buycb_collateral_bytes)
+                                mstore(__buycb_data_ptr, __buycb_data_length)
+                                calldatacopy(add(__buycb_data_ptr, 32), add(__buycb_data_offset, 32), __buycb_data_length)
+                                mstore(add(__buycb_data_ptr, add(32, __buycb_data_length)), 0)
+                                mstore(64, add(__buycb_ptr, and(add(__buycb_total, 31), not(31))))
+                                let __buycb_success := call(gas(), buyerCallback, 0, __buycb_ptr, __buycb_total, __buycb_ptr, 32)
+                                if iszero(__buycb_success) {
+                                    let __buycb_rds := returndatasize()
+                                    returndatacopy(0, 0, __buycb_rds)
+                                    revert(0, __buycb_rds)
+                                }
+                                if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__buycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                    mstore(0, shl(224, 0xa8f3eb44))
+                                    revert(0, 4)
+                                }
+                            }
+                        }
+                        if iszero(__ite_cond) {
+                            {
+                                let __buycb_ptr := mload(64)
+                                let __buycb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                let __buycb_collateral_offset := add(__buycb_market_offset, calldataload(add(__buycb_market_offset, 32)))
+                                let __buycb_collateral_length := calldataload(__buycb_collateral_offset)
+                                let __buycb_collateral_bytes := mul(__buycb_collateral_length, 128)
+                                let __buycb_market_size := add(224, __buycb_collateral_bytes)
+                                let __buycb_padded_market_size := and(add(__buycb_market_size, 31), not(31))
+                                let __buycb_data_offset := sub(takerCallbackData_data_offset, 32)
+                                let __buycb_data_length := calldataload(__buycb_data_offset)
+                                let __buycb_padded_data_len := and(add(__buycb_data_length, 31), not(31))
+                                let __buycb_market_ptr := add(__buycb_ptr, 228)
+                                let __buycb_data_ptr := add(__buycb_market_ptr, __buycb_padded_market_size)
+                                let __buycb_total := add(228, add(__buycb_padded_market_size, add(32, __buycb_padded_data_len)))
+                                mstore(__buycb_ptr, shl(224, 0xf151bd5c))
+                                mstore(add(__buycb_ptr, 4), id)
+                                mstore(add(__buycb_ptr, 36), 224)
+                                mstore(add(__buycb_ptr, 68), buyerAssets)
+                                mstore(add(__buycb_ptr, 100), units)
+                                mstore(add(__buycb_ptr, 132), buyerPendingFeeIncrease)
+                                mstore(add(__buycb_ptr, 164), buyer)
+                                mstore(add(__buycb_ptr, 196), add(224, __buycb_padded_market_size))
+                                mstore(__buycb_market_ptr, calldataload(__buycb_market_offset))
+                                mstore(add(__buycb_market_ptr, 32), 192)
+                                for {
+                                    let __buycb_m := 2
+                                } lt(__buycb_m, 6) {
+                                    __buycb_m := add(__buycb_m, 1)
+                                } {
+                                    mstore(add(__buycb_market_ptr, mul(__buycb_m, 32)), calldataload(add(__buycb_market_offset, mul(__buycb_m, 32))))
+                                }
+                                mstore(add(__buycb_market_ptr, 192), __buycb_collateral_length)
+                                calldatacopy(add(__buycb_market_ptr, 224), add(__buycb_collateral_offset, 32), __buycb_collateral_bytes)
+                                mstore(__buycb_data_ptr, __buycb_data_length)
+                                calldatacopy(add(__buycb_data_ptr, 32), add(__buycb_data_offset, 32), __buycb_data_length)
+                                mstore(add(__buycb_data_ptr, add(32, __buycb_data_length)), 0)
+                                mstore(64, add(__buycb_ptr, and(add(__buycb_total, 31), not(31))))
+                                let __buycb_success := call(gas(), buyerCallback, 0, __buycb_ptr, __buycb_total, __buycb_ptr, 32)
+                                if iszero(__buycb_success) {
+                                    let __buycb_rds := returndatasize()
+                                    returndatacopy(0, 0, __buycb_rds)
+                                    revert(0, __buycb_rds)
+                                }
+                                if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__buycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                    mstore(0, shl(224, 0xa8f3eb44))
+                                    revert(0, 4)
+                                }
+                            }
+                        }
+                    }
+                }
+                let feeAssets := sub(buyerAssets, sellerAssets)
+                if gt(feeAssets, 0) {
+                    let self := address()
+                    {
+                        let __stf_ptr := mload(64)
+                        mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                        mstore(add(__stf_ptr, 4), payer)
+                        mstore(add(__stf_ptr, 36), self)
+                        mstore(add(__stf_ptr, 68), feeAssets)
+                        mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
+                        let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
+                        if iszero(__stf_success) {
+                            let __stf_rds := returndatasize()
+                            returndatacopy(0, 0, __stf_rds)
+                            revert(0, __stf_rds)
+                        }
+                        let __erc20_rds := returndatasize()
+                        if iszero(__erc20_rds) {
+                            if iszero(gt(extcodesize(loanToken), 0)) {
+                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                revert(0, 36)
+                            }
+                        }
+                        if __erc20_rds {
+                            if iszero(eq(__erc20_rds, 32)) {
+                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                revert(0, 36)
+                            }
+                            if iszero(eq(mload(__stf_ptr), 1)) {
+                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                revert(0, 36)
+                            }
+                        }
+                    }
+                }
+                if gt(sellerAssets, 0) {
+                    {
+                        let __stf_ptr := mload(64)
+                        mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                        mstore(add(__stf_ptr, 4), payer)
+                        mstore(add(__stf_ptr, 36), receiver)
+                        mstore(add(__stf_ptr, 68), sellerAssets)
+                        mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
+                        let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
+                        if iszero(__stf_success) {
+                            let __stf_rds := returndatasize()
+                            returndatacopy(0, 0, __stf_rds)
+                            revert(0, __stf_rds)
+                        }
+                        let __erc20_rds := returndatasize()
+                        if iszero(__erc20_rds) {
+                            if iszero(gt(extcodesize(loanToken), 0)) {
+                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                revert(0, 36)
+                            }
+                        }
+                        if __erc20_rds {
+                            if iszero(eq(__erc20_rds, 32)) {
+                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                revert(0, 36)
+                            }
+                            if iszero(eq(mload(__stf_ptr), 1)) {
+                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                revert(0, 36)
+                            }
+                        }
+                    }
+                }
+                let sellerCallback := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7)
+                if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                    sellerCallback := takerCallback
+                }
+                if iszero(eq(sellerCallback, 0)) {
+                    {
+                        let __ite_cond := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                        if __ite_cond {
+                            {
+                                let __sellcb_ptr := mload(64)
+                                let __sellcb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                let __sellcb_collateral_offset := add(__sellcb_market_offset, calldataload(add(__sellcb_market_offset, 32)))
+                                let __sellcb_collateral_length := calldataload(__sellcb_collateral_offset)
+                                let __sellcb_collateral_bytes := mul(__sellcb_collateral_length, 128)
+                                let __sellcb_market_size := add(224, __sellcb_collateral_bytes)
+                                let __sellcb_padded_market_size := and(add(__sellcb_market_size, 31), not(31))
+                                let __sellcb_data_offset := sub(takerCallbackData_data_offset, 32)
+                                let __sellcb_data_length := calldataload(__sellcb_data_offset)
+                                let __sellcb_padded_data_len := and(add(__sellcb_data_length, 31), not(31))
+                                let __sellcb_market_ptr := add(__sellcb_ptr, 260)
+                                let __sellcb_data_ptr := add(__sellcb_market_ptr, __sellcb_padded_market_size)
+                                let __sellcb_total := add(260, add(__sellcb_padded_market_size, add(32, __sellcb_padded_data_len)))
+                                mstore(__sellcb_ptr, shl(224, 0x7f44a13a))
+                                mstore(add(__sellcb_ptr, 4), id)
+                                mstore(add(__sellcb_ptr, 36), 256)
+                                mstore(add(__sellcb_ptr, 68), sellerAssets)
+                                mstore(add(__sellcb_ptr, 100), units)
+                                mstore(add(__sellcb_ptr, 132), sellerPendingFeeDecrease)
+                                mstore(add(__sellcb_ptr, 164), seller)
+                                mstore(add(__sellcb_ptr, 196), receiver)
+                                mstore(add(__sellcb_ptr, 228), add(256, __sellcb_padded_market_size))
+                                mstore(__sellcb_market_ptr, calldataload(__sellcb_market_offset))
+                                mstore(add(__sellcb_market_ptr, 32), 192)
+                                for {
+                                    let __sellcb_m := 2
+                                } lt(__sellcb_m, 6) {
+                                    __sellcb_m := add(__sellcb_m, 1)
+                                } {
+                                    mstore(add(__sellcb_market_ptr, mul(__sellcb_m, 32)), calldataload(add(__sellcb_market_offset, mul(__sellcb_m, 32))))
+                                }
+                                mstore(add(__sellcb_market_ptr, 192), __sellcb_collateral_length)
+                                calldatacopy(add(__sellcb_market_ptr, 224), add(__sellcb_collateral_offset, 32), __sellcb_collateral_bytes)
+                                mstore(__sellcb_data_ptr, __sellcb_data_length)
+                                calldatacopy(add(__sellcb_data_ptr, 32), add(__sellcb_data_offset, 32), __sellcb_data_length)
+                                mstore(add(__sellcb_data_ptr, add(32, __sellcb_data_length)), 0)
+                                mstore(64, add(__sellcb_ptr, and(add(__sellcb_total, 31), not(31))))
+                                let __sellcb_success := call(gas(), sellerCallback, 0, __sellcb_ptr, __sellcb_total, __sellcb_ptr, 32)
+                                if iszero(__sellcb_success) {
+                                    let __sellcb_rds := returndatasize()
+                                    returndatacopy(0, 0, __sellcb_rds)
+                                    revert(0, __sellcb_rds)
+                                }
+                                if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__sellcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                    mstore(0, shl(224, 0xa4fb7883))
+                                    revert(0, 4)
+                                }
+                            }
+                        }
+                        if iszero(__ite_cond) {
+                            {
+                                let __sellcb_ptr := mload(64)
+                                let __sellcb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                let __sellcb_collateral_offset := add(__sellcb_market_offset, calldataload(add(__sellcb_market_offset, 32)))
+                                let __sellcb_collateral_length := calldataload(__sellcb_collateral_offset)
+                                let __sellcb_collateral_bytes := mul(__sellcb_collateral_length, 128)
+                                let __sellcb_market_size := add(224, __sellcb_collateral_bytes)
+                                let __sellcb_padded_market_size := and(add(__sellcb_market_size, 31), not(31))
+                                let __sellcb_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                                let __sellcb_data_length := calldataload(__sellcb_data_offset)
+                                let __sellcb_padded_data_len := and(add(__sellcb_data_length, 31), not(31))
+                                let __sellcb_market_ptr := add(__sellcb_ptr, 260)
+                                let __sellcb_data_ptr := add(__sellcb_market_ptr, __sellcb_padded_market_size)
+                                let __sellcb_total := add(260, add(__sellcb_padded_market_size, add(32, __sellcb_padded_data_len)))
+                                mstore(__sellcb_ptr, shl(224, 0x7f44a13a))
+                                mstore(add(__sellcb_ptr, 4), id)
+                                mstore(add(__sellcb_ptr, 36), 256)
+                                mstore(add(__sellcb_ptr, 68), sellerAssets)
+                                mstore(add(__sellcb_ptr, 100), units)
+                                mstore(add(__sellcb_ptr, 132), sellerPendingFeeDecrease)
+                                mstore(add(__sellcb_ptr, 164), seller)
+                                mstore(add(__sellcb_ptr, 196), receiver)
+                                mstore(add(__sellcb_ptr, 228), add(256, __sellcb_padded_market_size))
+                                mstore(__sellcb_market_ptr, calldataload(__sellcb_market_offset))
+                                mstore(add(__sellcb_market_ptr, 32), 192)
+                                for {
+                                    let __sellcb_m := 2
+                                } lt(__sellcb_m, 6) {
+                                    __sellcb_m := add(__sellcb_m, 1)
+                                } {
+                                    mstore(add(__sellcb_market_ptr, mul(__sellcb_m, 32)), calldataload(add(__sellcb_market_offset, mul(__sellcb_m, 32))))
+                                }
+                                mstore(add(__sellcb_market_ptr, 192), __sellcb_collateral_length)
+                                calldatacopy(add(__sellcb_market_ptr, 224), add(__sellcb_collateral_offset, 32), __sellcb_collateral_bytes)
+                                mstore(__sellcb_data_ptr, __sellcb_data_length)
+                                calldatacopy(add(__sellcb_data_ptr, 32), add(__sellcb_data_offset, 32), __sellcb_data_length)
+                                mstore(add(__sellcb_data_ptr, add(32, __sellcb_data_length)), 0)
+                                mstore(64, add(__sellcb_ptr, and(add(__sellcb_total, 31), not(31))))
+                                let __sellcb_success := call(gas(), sellerCallback, 0, __sellcb_ptr, __sellcb_total, __sellcb_ptr, 32)
+                                if iszero(__sellcb_success) {
+                                    let __sellcb_rds := returndatasize()
+                                    returndatacopy(0, 0, __sellcb_rds)
+                                    revert(0, __sellcb_rds)
+                                }
+                                if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__sellcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                    mstore(0, shl(224, 0xa4fb7883))
+                                    revert(0, 4)
+                                }
+                            }
+                        }
+                    }
+                }
+                let lockedAfterCallbacks := 0
+                {
+                    let __liq_lock_ptr := mload(64)
+                    mstore(__liq_lock_ptr, id)
+                    mstore(add(__liq_lock_ptr, 32), seller)
+                    mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                    let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                    let __liq_lock_depth := tload(__liq_lock_slot)
+                    if gt(__liq_lock_depth, 0) {
+                        __liq_lock_depth := sub(__liq_lock_depth, 1)
+                        tstore(__liq_lock_slot, __liq_lock_depth)
+                    }
+                    lockedAfterCallbacks := __liq_lock_depth
                 }
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), payer)
-                    mstore(add(__stf_ptr, 36), receiver)
-                    mstore(add(__stf_ptr, 68), transferAssets)
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    let __ite_cond := iszero(eq(lockedAfterCallbacks, 0))
+                    if __ite_cond {
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(loanToken), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                    }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    if iszero(__ite_cond) {
+                        let sellerHealthy := internal_internal_isHealthy(add(offer_data_offset, calldataload(offer_data_offset)), id, seller)
+                        if iszero(iszero(eq(sellerHealthy, 0))) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x53656c6c657249734c6971756964617461626c65282900000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 22)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
                         }
                     }
                 }
-                __ret0 := units
-                __ret1 := units
+                __ret0 := buyerAssets
+                __ret1 := sellerAssets
                 leave
             }
             function internal_internal_creditOf(id, user) -> __ret0 {
-                let value := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
+                let value := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_debtOf(id, user) -> __ret0 {
-                let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+                let value := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_totalUnits(id) -> __ret0 {
-                let value := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let value := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_lossFactor(id) -> __ret0 {
-                let value := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let value := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_tickSpacing(id) -> __ret0 {
-                let value := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                let value := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 __ret0 := value
                 leave
             }
             function internal_internal_settlementFeeCbps(id) -> __ret0, __ret1, __ret2, __ret3, __ret4, __ret5, __ret6 {
-                let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-                let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
+                let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+                let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
                 __ret0 := settlementFeeCbp0
                 __ret1 := settlementFeeCbp1
                 __ret2 := settlementFeeCbp2
@@ -5096,17 +7589,17 @@ object "Midnight" {
                 leave
             }
             function internal_internal_withdrawable(id) -> __ret0 {
-                let value := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let value := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_continuousFee(id) -> __ret0 {
-                let value := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
+                let value := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
                 __ret0 := value
                 leave
             }
             function internal_internal_continuousFeeCredit(id) -> __ret0 {
-                let value := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let value := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
@@ -5125,11 +7618,11 @@ object "Midnight" {
                     }
                 }
                 let id := internal_internal_toId(market_data_offset)
-                let creditBeforeUpdate := and(shr(0, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
-                let pendingFeeBeforeUpdate := and(shr(128, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
-                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))), 340282366920938463463374607431768211455)
-                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))), 340282366920938463463374607431768211455)
-                let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let creditBeforeUpdate := and(shr(0, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
+                let pendingFeeBeforeUpdate := and(shr(128, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
+                let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))), 340282366920938463463374607431768211455)
+                let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))), 340282366920938463463374607431768211455)
+                let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 let now := timestamp()
                 let postSlashCredit := 0
                 if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -5152,38 +7645,50 @@ object "Midnight" {
                 {
                     let __compat_value := creditAfterUpdate
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
                     let __compat_value := marketLossFactor
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 {
                     let __compat_value := pendingFeeAfterUpdate
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
                 {
                     let __compat_value := now
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
-                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := add(currentContinuousFeeCredit, accrued)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                }
+                let creditDecrease := sub(creditBeforeUpdate, creditAfterUpdate)
+                let updatePendingFeeDecrease := sub(pendingFeeBeforeUpdate, pendingFeeAfterUpdate)
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                    mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 55)
+                    mstore(add(__evt_ptr, 0), creditDecrease)
+                    mstore(add(__evt_ptr, 32), updatePendingFeeDecrease)
+                    mstore(add(__evt_ptr, 64), accrued)
+                    log3(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 let pendingFeeDecrease := 0
                 if gt(creditAfterUpdate, 0) {
@@ -5192,33 +7697,43 @@ object "Midnight" {
                 {
                     let __compat_value := sub(pendingFeeAfterUpdate, pendingFeeDecrease)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                    sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                    sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
                 }
-                let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
+                let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(credit, units)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                    let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
-                let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(withdrawableAmount, units)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
-                let total := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let total := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(total, units)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(mappingSlot(10, id))
+                    let __compat_slot_word := sload(mappingSlot(1, id))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                }
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x576974686472617728616464726573732c627974657333322c75696e74323536)
+                    mstore(add(__evt_ptr, 32), 0x2c616464726573732c616464726573732c75696e743235362900000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 57)
+                    mstore(add(__evt_ptr, 0), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(add(__evt_ptr, 32), units)
+                    mstore(add(__evt_ptr, 64), pendingFeeDecrease)
+                    log4(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 {
                     let __st_ptr := mload(64)
@@ -5270,40 +7785,69 @@ object "Midnight" {
                     }
                 }
                 let id := internal_internal_toId(market_data_offset)
-                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := sub(debt, units)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
-                let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                 {
                     let __compat_value := add(withdrawableAmount, units)
                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                    let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                    let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                     let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                    sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                    sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                 }
                 let payer := sender
                 if iszero(eq(callback, 0)) {
                     payer := callback
                     {
-                        let __cb_ptr := mload(64)
-                        mstore(__cb_ptr, shl(224, 0xfc56f72e))
-                        mstore(add(__cb_ptr, 4), id)
-                        mstore(add(__cb_ptr, 36), units)
-                        mstore(add(__cb_ptr, 68), onBehalf)
-                        mstore(add(__cb_ptr, 100), 128)
-                        mstore(add(__cb_ptr, 132), data_length)
-                        calldatacopy(add(__cb_ptr, 164), data_data_offset, data_length)
-                        mstore(64, add(__cb_ptr, and(add(add(164, and(add(data_length, 31), not(31))), 31), not(31))))
-                        let __cb_success := call(gas(), callback, 0, __cb_ptr, add(164, and(add(data_length, 31), not(31))), 0, 0)
-                        if iszero(__cb_success) {
-                            let __cb_rds := returndatasize()
-                            returndatacopy(0, 0, __cb_rds)
-                            revert(0, __cb_rds)
+                        let __repaycb_ptr := mload(64)
+                        let __repaycb_market_offset := add(4, calldataload(4))
+                        let __repaycb_collateral_offset := add(__repaycb_market_offset, calldataload(add(__repaycb_market_offset, 32)))
+                        let __repaycb_collateral_length := calldataload(__repaycb_collateral_offset)
+                        let __repaycb_collateral_bytes := mul(__repaycb_collateral_length, 128)
+                        let __repaycb_market_size := add(224, __repaycb_collateral_bytes)
+                        let __repaycb_padded_market_size := and(add(__repaycb_market_size, 31), not(31))
+                        let __repaycb_data_offset := sub(data_data_offset, 32)
+                        let __repaycb_data_length := calldataload(__repaycb_data_offset)
+                        let __repaycb_padded_data_len := and(add(__repaycb_data_length, 31), not(31))
+                        let __repaycb_market_ptr := add(__repaycb_ptr, 164)
+                        let __repaycb_data_ptr := add(__repaycb_market_ptr, __repaycb_padded_market_size)
+                        let __repaycb_total := add(164, add(__repaycb_padded_market_size, add(32, __repaycb_padded_data_len)))
+                        mstore(__repaycb_ptr, shl(224, 0xfc56f72e))
+                        mstore(add(__repaycb_ptr, 4), id)
+                        mstore(add(__repaycb_ptr, 36), 160)
+                        mstore(add(__repaycb_ptr, 68), units)
+                        mstore(add(__repaycb_ptr, 100), onBehalf)
+                        mstore(add(__repaycb_ptr, 132), add(160, __repaycb_padded_market_size))
+                        mstore(__repaycb_market_ptr, calldataload(__repaycb_market_offset))
+                        mstore(add(__repaycb_market_ptr, 32), 192)
+                        for {
+                            let __repaycb_m := 2
+                        } lt(__repaycb_m, 6) {
+                            __repaycb_m := add(__repaycb_m, 1)
+                        } {
+                            mstore(add(__repaycb_market_ptr, mul(__repaycb_m, 32)), calldataload(add(__repaycb_market_offset, mul(__repaycb_m, 32))))
+                        }
+                        mstore(add(__repaycb_market_ptr, 192), __repaycb_collateral_length)
+                        calldatacopy(add(__repaycb_market_ptr, 224), add(__repaycb_collateral_offset, 32), __repaycb_collateral_bytes)
+                        mstore(__repaycb_data_ptr, __repaycb_data_length)
+                        calldatacopy(add(__repaycb_data_ptr, 32), add(__repaycb_data_offset, 32), __repaycb_data_length)
+                        mstore(add(__repaycb_data_ptr, add(32, __repaycb_data_length)), 0)
+                        mstore(64, add(__repaycb_ptr, and(add(__repaycb_total, 31), not(31))))
+                        let __repaycb_success := call(gas(), callback, 0, __repaycb_ptr, __repaycb_total, __repaycb_ptr, 32)
+                        if iszero(__repaycb_success) {
+                            let __repaycb_rds := returndatasize()
+                            returndatacopy(0, 0, __repaycb_rds)
+                            revert(0, __repaycb_rds)
+                        }
+                        if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__repaycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                            mstore(0, shl(224, 0x40a13da2))
+                            revert(0, 4)
                         }
                     }
                 }
@@ -5410,132 +7954,985 @@ object "Midnight" {
                 __ret0 := allowed
                 leave
             }
+            function internal_internal_liquidationLockedValue(id, user) -> __ret0 {
+                let locked := 0
+                {
+                    let __liq_lock_ptr := mload(64)
+                    mstore(__liq_lock_ptr, id)
+                    mstore(add(__liq_lock_ptr, 32), user)
+                    mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                    locked := tload(keccak256(__liq_lock_ptr, 96))
+                }
+                __ret0 := locked
+                leave
+            }
+            function internal_internal_liquidationLockExchange(id, user, value) -> __ret0 {
+                let previous := 0
+                {
+                    let __liq_lock_ptr := mload(64)
+                    mstore(__liq_lock_ptr, id)
+                    mstore(add(__liq_lock_ptr, 32), user)
+                    mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                    let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                    previous := tload(__liq_lock_slot)
+                    tstore(__liq_lock_slot, value)
+                }
+                __ret0 := previous
+                leave
+            }
+            function internal_internal_liquidationLocked(id, user) -> __ret0 {
+                let locked := internal_internal_liquidationLockedValue(id, user)
+                __ret0 := iszero(eq(locked, 0))
+                leave
+            }
             function internal_internal_collateralAmount(id, user, index) -> __ret0 {
                 let value := 0
                 if eq(index, 0) {
-                    let loaded := sload(mappingSlot(mappingSlot(12, id), user))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 3))
                     value := loaded
                 }
                 if eq(index, 1) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 1))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 4))
                     value := loaded
                 }
                 if eq(index, 2) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 2))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 5))
                     value := loaded
                 }
                 if eq(index, 3) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 3))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 6))
                     value := loaded
                 }
                 if eq(index, 4) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 4))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 7))
                     value := loaded
                 }
                 if eq(index, 5) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 5))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 8))
                     value := loaded
                 }
                 if eq(index, 6) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 6))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 9))
                     value := loaded
                 }
                 if eq(index, 7) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 7))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 10))
                     value := loaded
                 }
                 if eq(index, 8) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 8))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 11))
                     value := loaded
                 }
                 if eq(index, 9) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 9))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 12))
                     value := loaded
                 }
                 if eq(index, 10) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 10))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 13))
                     value := loaded
                 }
                 if eq(index, 11) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 11))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 14))
                     value := loaded
                 }
                 if eq(index, 12) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 12))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 15))
                     value := loaded
                 }
                 if eq(index, 13) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 13))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 16))
                     value := loaded
                 }
                 if eq(index, 14) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 14))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 17))
                     value := loaded
                 }
                 if eq(index, 15) {
-                    let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 15))
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 18))
+                    value := loaded
+                }
+                if eq(index, 16) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 19))
+                    value := loaded
+                }
+                if eq(index, 17) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 20))
+                    value := loaded
+                }
+                if eq(index, 18) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 21))
+                    value := loaded
+                }
+                if eq(index, 19) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 22))
+                    value := loaded
+                }
+                if eq(index, 20) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 23))
+                    value := loaded
+                }
+                if eq(index, 21) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 24))
+                    value := loaded
+                }
+                if eq(index, 22) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 25))
+                    value := loaded
+                }
+                if eq(index, 23) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 26))
+                    value := loaded
+                }
+                if eq(index, 24) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 27))
+                    value := loaded
+                }
+                if eq(index, 25) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 28))
+                    value := loaded
+                }
+                if eq(index, 26) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 29))
+                    value := loaded
+                }
+                if eq(index, 27) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 30))
+                    value := loaded
+                }
+                if eq(index, 28) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 31))
+                    value := loaded
+                }
+                if eq(index, 29) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 32))
+                    value := loaded
+                }
+                if eq(index, 30) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 33))
+                    value := loaded
+                }
+                if eq(index, 31) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 34))
+                    value := loaded
+                }
+                if eq(index, 32) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 35))
+                    value := loaded
+                }
+                if eq(index, 33) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 36))
+                    value := loaded
+                }
+                if eq(index, 34) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 37))
+                    value := loaded
+                }
+                if eq(index, 35) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 38))
+                    value := loaded
+                }
+                if eq(index, 36) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 39))
+                    value := loaded
+                }
+                if eq(index, 37) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 40))
+                    value := loaded
+                }
+                if eq(index, 38) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 41))
+                    value := loaded
+                }
+                if eq(index, 39) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 42))
+                    value := loaded
+                }
+                if eq(index, 40) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 43))
+                    value := loaded
+                }
+                if eq(index, 41) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 44))
+                    value := loaded
+                }
+                if eq(index, 42) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 45))
+                    value := loaded
+                }
+                if eq(index, 43) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 46))
+                    value := loaded
+                }
+                if eq(index, 44) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 47))
+                    value := loaded
+                }
+                if eq(index, 45) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 48))
+                    value := loaded
+                }
+                if eq(index, 46) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 49))
+                    value := loaded
+                }
+                if eq(index, 47) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 50))
+                    value := loaded
+                }
+                if eq(index, 48) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 51))
+                    value := loaded
+                }
+                if eq(index, 49) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 52))
+                    value := loaded
+                }
+                if eq(index, 50) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 53))
+                    value := loaded
+                }
+                if eq(index, 51) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 54))
+                    value := loaded
+                }
+                if eq(index, 52) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 55))
+                    value := loaded
+                }
+                if eq(index, 53) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 56))
+                    value := loaded
+                }
+                if eq(index, 54) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 57))
+                    value := loaded
+                }
+                if eq(index, 55) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 58))
+                    value := loaded
+                }
+                if eq(index, 56) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 59))
+                    value := loaded
+                }
+                if eq(index, 57) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 60))
+                    value := loaded
+                }
+                if eq(index, 58) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 61))
+                    value := loaded
+                }
+                if eq(index, 59) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 62))
+                    value := loaded
+                }
+                if eq(index, 60) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 63))
+                    value := loaded
+                }
+                if eq(index, 61) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 64))
+                    value := loaded
+                }
+                if eq(index, 62) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 65))
+                    value := loaded
+                }
+                if eq(index, 63) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 66))
+                    value := loaded
+                }
+                if eq(index, 64) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 67))
+                    value := loaded
+                }
+                if eq(index, 65) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 68))
+                    value := loaded
+                }
+                if eq(index, 66) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 69))
+                    value := loaded
+                }
+                if eq(index, 67) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 70))
+                    value := loaded
+                }
+                if eq(index, 68) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 71))
+                    value := loaded
+                }
+                if eq(index, 69) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 72))
+                    value := loaded
+                }
+                if eq(index, 70) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 73))
+                    value := loaded
+                }
+                if eq(index, 71) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 74))
+                    value := loaded
+                }
+                if eq(index, 72) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 75))
+                    value := loaded
+                }
+                if eq(index, 73) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 76))
+                    value := loaded
+                }
+                if eq(index, 74) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 77))
+                    value := loaded
+                }
+                if eq(index, 75) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 78))
+                    value := loaded
+                }
+                if eq(index, 76) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 79))
+                    value := loaded
+                }
+                if eq(index, 77) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 80))
+                    value := loaded
+                }
+                if eq(index, 78) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 81))
+                    value := loaded
+                }
+                if eq(index, 79) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 82))
+                    value := loaded
+                }
+                if eq(index, 80) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 83))
+                    value := loaded
+                }
+                if eq(index, 81) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 84))
+                    value := loaded
+                }
+                if eq(index, 82) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 85))
+                    value := loaded
+                }
+                if eq(index, 83) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 86))
+                    value := loaded
+                }
+                if eq(index, 84) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 87))
+                    value := loaded
+                }
+                if eq(index, 85) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 88))
+                    value := loaded
+                }
+                if eq(index, 86) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 89))
+                    value := loaded
+                }
+                if eq(index, 87) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 90))
+                    value := loaded
+                }
+                if eq(index, 88) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 91))
+                    value := loaded
+                }
+                if eq(index, 89) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 92))
+                    value := loaded
+                }
+                if eq(index, 90) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 93))
+                    value := loaded
+                }
+                if eq(index, 91) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 94))
+                    value := loaded
+                }
+                if eq(index, 92) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 95))
+                    value := loaded
+                }
+                if eq(index, 93) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 96))
+                    value := loaded
+                }
+                if eq(index, 94) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 97))
+                    value := loaded
+                }
+                if eq(index, 95) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 98))
+                    value := loaded
+                }
+                if eq(index, 96) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 99))
+                    value := loaded
+                }
+                if eq(index, 97) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 100))
+                    value := loaded
+                }
+                if eq(index, 98) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 101))
+                    value := loaded
+                }
+                if eq(index, 99) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 102))
+                    value := loaded
+                }
+                if eq(index, 100) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 103))
+                    value := loaded
+                }
+                if eq(index, 101) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 104))
+                    value := loaded
+                }
+                if eq(index, 102) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 105))
+                    value := loaded
+                }
+                if eq(index, 103) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 106))
+                    value := loaded
+                }
+                if eq(index, 104) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 107))
+                    value := loaded
+                }
+                if eq(index, 105) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 108))
+                    value := loaded
+                }
+                if eq(index, 106) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 109))
+                    value := loaded
+                }
+                if eq(index, 107) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 110))
+                    value := loaded
+                }
+                if eq(index, 108) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 111))
+                    value := loaded
+                }
+                if eq(index, 109) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 112))
+                    value := loaded
+                }
+                if eq(index, 110) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 113))
+                    value := loaded
+                }
+                if eq(index, 111) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 114))
+                    value := loaded
+                }
+                if eq(index, 112) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 115))
+                    value := loaded
+                }
+                if eq(index, 113) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 116))
+                    value := loaded
+                }
+                if eq(index, 114) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 117))
+                    value := loaded
+                }
+                if eq(index, 115) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 118))
+                    value := loaded
+                }
+                if eq(index, 116) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 119))
+                    value := loaded
+                }
+                if eq(index, 117) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 120))
+                    value := loaded
+                }
+                if eq(index, 118) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 121))
+                    value := loaded
+                }
+                if eq(index, 119) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 122))
+                    value := loaded
+                }
+                if eq(index, 120) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 123))
+                    value := loaded
+                }
+                if eq(index, 121) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 124))
+                    value := loaded
+                }
+                if eq(index, 122) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 125))
+                    value := loaded
+                }
+                if eq(index, 123) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 126))
+                    value := loaded
+                }
+                if eq(index, 124) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 127))
+                    value := loaded
+                }
+                if eq(index, 125) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 128))
+                    value := loaded
+                }
+                if eq(index, 126) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 129))
+                    value := loaded
+                }
+                if eq(index, 127) {
+                    let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 130))
                     value := loaded
                 }
                 __ret0 := value
                 leave
             }
-            function internal_internal_writeCollateralAmount(id, user, index, value) {
+            function internal_internal_liquidationDebtSnapshot(id, borrower, collateralCount, collateralBitmapValue, collateralParamsOffset, originalDebt) -> __ret0, __ret1 {
+                let maxDebtValue := 0
+                let badDebt := originalDebt
+                for {
+                    let __forEach_idx := 0
+                    let __forEach_count := collateralCount
+                    let i := 0
+                } lt(__forEach_idx, __forEach_count) {
+                    __forEach_idx := add(__forEach_idx, 1)
+                } {
+                    i := __forEach_idx
+                    let mask := shl(i, 1)
+                    if gt(and(collateralBitmapValue, mask), 0) {
+                        let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
+                        let collateralParamOffset := add(add(collateralParamsOffset, 32), mul(i, 128))
+                        let oracle := calldataload(add(collateralParamOffset, 96))
+                        let price := internal_internal_oraclePrice(oracle)
+                        let lltv := calldataload(add(collateralParamOffset, 32))
+                        let maxLifValue := calldataload(add(collateralParamOffset, 64))
+                        let collateralDebtValue := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
+                        maxDebtValue := add(maxDebtValue, collateralDebtValue)
+                        let repayable := div(add(mul(div(add(mul(activeCollateral, price), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000), 1000000000000000000), sub(maxLifValue, 1)), maxLifValue)
+                        {
+                            let __ite_cond := gt(badDebt, repayable)
+                            if __ite_cond {
+                                badDebt := sub(badDebt, repayable)
+                            }
+                            if iszero(__ite_cond) {
+                                badDebt := 0
+                            }
+                        }
+                    }
+                }
+                __ret0 := maxDebtValue
+                __ret1 := badDebt
+                leave
+            }
+            function internal_internal_writeCollateralAmount(id, user, index, value) -> __ret0 {
                 if eq(index, 0) {
-                    sstore(mappingSlot(mappingSlot(12, id), user), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 3), value)
                 }
                 if eq(index, 1) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 4), value)
                 }
                 if eq(index, 2) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 5), value)
                 }
                 if eq(index, 3) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 6), value)
                 }
                 if eq(index, 4) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 7), value)
                 }
                 if eq(index, 5) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 8), value)
                 }
                 if eq(index, 6) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 9), value)
                 }
                 if eq(index, 7) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 10), value)
                 }
                 if eq(index, 8) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 11), value)
                 }
                 if eq(index, 9) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 12), value)
                 }
                 if eq(index, 10) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 13), value)
                 }
                 if eq(index, 11) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 14), value)
                 }
                 if eq(index, 12) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 15), value)
                 }
                 if eq(index, 13) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 16), value)
                 }
                 if eq(index, 14) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 17), value)
                 }
                 if eq(index, 15) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 18), value)
                 }
-                stop()
+                if eq(index, 16) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 19), value)
+                }
+                if eq(index, 17) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 20), value)
+                }
+                if eq(index, 18) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 21), value)
+                }
+                if eq(index, 19) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 22), value)
+                }
+                if eq(index, 20) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 23), value)
+                }
+                if eq(index, 21) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 24), value)
+                }
+                if eq(index, 22) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 25), value)
+                }
+                if eq(index, 23) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 26), value)
+                }
+                if eq(index, 24) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 27), value)
+                }
+                if eq(index, 25) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 28), value)
+                }
+                if eq(index, 26) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 29), value)
+                }
+                if eq(index, 27) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 30), value)
+                }
+                if eq(index, 28) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 31), value)
+                }
+                if eq(index, 29) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 32), value)
+                }
+                if eq(index, 30) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 33), value)
+                }
+                if eq(index, 31) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 34), value)
+                }
+                if eq(index, 32) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 35), value)
+                }
+                if eq(index, 33) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 36), value)
+                }
+                if eq(index, 34) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 37), value)
+                }
+                if eq(index, 35) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 38), value)
+                }
+                if eq(index, 36) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 39), value)
+                }
+                if eq(index, 37) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 40), value)
+                }
+                if eq(index, 38) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 41), value)
+                }
+                if eq(index, 39) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 42), value)
+                }
+                if eq(index, 40) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 43), value)
+                }
+                if eq(index, 41) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 44), value)
+                }
+                if eq(index, 42) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 45), value)
+                }
+                if eq(index, 43) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 46), value)
+                }
+                if eq(index, 44) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 47), value)
+                }
+                if eq(index, 45) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 48), value)
+                }
+                if eq(index, 46) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 49), value)
+                }
+                if eq(index, 47) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 50), value)
+                }
+                if eq(index, 48) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 51), value)
+                }
+                if eq(index, 49) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 52), value)
+                }
+                if eq(index, 50) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 53), value)
+                }
+                if eq(index, 51) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 54), value)
+                }
+                if eq(index, 52) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 55), value)
+                }
+                if eq(index, 53) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 56), value)
+                }
+                if eq(index, 54) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 57), value)
+                }
+                if eq(index, 55) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 58), value)
+                }
+                if eq(index, 56) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 59), value)
+                }
+                if eq(index, 57) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 60), value)
+                }
+                if eq(index, 58) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 61), value)
+                }
+                if eq(index, 59) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 62), value)
+                }
+                if eq(index, 60) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 63), value)
+                }
+                if eq(index, 61) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 64), value)
+                }
+                if eq(index, 62) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 65), value)
+                }
+                if eq(index, 63) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 66), value)
+                }
+                if eq(index, 64) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 67), value)
+                }
+                if eq(index, 65) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 68), value)
+                }
+                if eq(index, 66) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 69), value)
+                }
+                if eq(index, 67) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 70), value)
+                }
+                if eq(index, 68) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 71), value)
+                }
+                if eq(index, 69) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 72), value)
+                }
+                if eq(index, 70) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 73), value)
+                }
+                if eq(index, 71) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 74), value)
+                }
+                if eq(index, 72) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 75), value)
+                }
+                if eq(index, 73) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 76), value)
+                }
+                if eq(index, 74) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 77), value)
+                }
+                if eq(index, 75) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 78), value)
+                }
+                if eq(index, 76) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 79), value)
+                }
+                if eq(index, 77) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 80), value)
+                }
+                if eq(index, 78) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 81), value)
+                }
+                if eq(index, 79) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 82), value)
+                }
+                if eq(index, 80) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 83), value)
+                }
+                if eq(index, 81) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 84), value)
+                }
+                if eq(index, 82) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 85), value)
+                }
+                if eq(index, 83) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 86), value)
+                }
+                if eq(index, 84) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 87), value)
+                }
+                if eq(index, 85) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 88), value)
+                }
+                if eq(index, 86) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 89), value)
+                }
+                if eq(index, 87) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 90), value)
+                }
+                if eq(index, 88) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 91), value)
+                }
+                if eq(index, 89) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 92), value)
+                }
+                if eq(index, 90) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 93), value)
+                }
+                if eq(index, 91) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 94), value)
+                }
+                if eq(index, 92) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 95), value)
+                }
+                if eq(index, 93) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 96), value)
+                }
+                if eq(index, 94) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 97), value)
+                }
+                if eq(index, 95) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 98), value)
+                }
+                if eq(index, 96) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 99), value)
+                }
+                if eq(index, 97) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 100), value)
+                }
+                if eq(index, 98) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 101), value)
+                }
+                if eq(index, 99) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 102), value)
+                }
+                if eq(index, 100) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 103), value)
+                }
+                if eq(index, 101) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 104), value)
+                }
+                if eq(index, 102) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 105), value)
+                }
+                if eq(index, 103) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 106), value)
+                }
+                if eq(index, 104) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 107), value)
+                }
+                if eq(index, 105) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 108), value)
+                }
+                if eq(index, 106) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 109), value)
+                }
+                if eq(index, 107) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 110), value)
+                }
+                if eq(index, 108) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 111), value)
+                }
+                if eq(index, 109) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 112), value)
+                }
+                if eq(index, 110) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 113), value)
+                }
+                if eq(index, 111) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 114), value)
+                }
+                if eq(index, 112) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 115), value)
+                }
+                if eq(index, 113) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 116), value)
+                }
+                if eq(index, 114) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 117), value)
+                }
+                if eq(index, 115) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 118), value)
+                }
+                if eq(index, 116) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 119), value)
+                }
+                if eq(index, 117) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 120), value)
+                }
+                if eq(index, 118) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 121), value)
+                }
+                if eq(index, 119) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 122), value)
+                }
+                if eq(index, 120) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 123), value)
+                }
+                if eq(index, 121) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 124), value)
+                }
+                if eq(index, 122) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 125), value)
+                }
+                if eq(index, 123) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 126), value)
+                }
+                if eq(index, 124) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 127), value)
+                }
+                if eq(index, 125) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 128), value)
+                }
+                if eq(index, 126) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 129), value)
+                }
+                if eq(index, 127) {
+                    sstore(add(mappingSlot(mappingSlot(0, id), user), 130), value)
+                }
+                __ret0 := 0
+                leave
             }
             function internal_internal_liquidate(market_data_offset, collateralIndex, seizedAssets, repaidUnits, borrower, postMaturityMode, receiver, callback, data_data_offset, data_length) -> __ret0, __ret1 {
                 let sender := caller()
                 let id := internal_internal_toId(market_data_offset)
-                let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                 let debt := debtLoaded
-                let totalUnitsValue := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                let totalUnitsValue := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                 if iszero(or(iszero(iszero(eq(seizedAssets, 0))), iszero(iszero(eq(repaidUnits, 0))))) {
                     {
                         let __err_ptr := mload(64)
@@ -5571,14 +8968,20 @@ object "Midnight" {
                     }
                 }
                 let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
-                if iszero(lt(collateralIndex, collateralCount)) {
-                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-                    mstore(4, 32)
-                    mstore(36, 30)
-                    mstore(68, 0x636f6c6c61746572616c20696e646578206f7574206f6620626f756e64730000)
-                    revert(0, 100)
+                {
+                    let __ite_cond := lt(collateralIndex, collateralCount)
+                    if __ite_cond {
+                    }
+                    if iszero(__ite_cond) {
+                        mstore(0, shl(224, 1313373041))
+                        mstore(4, 50)
+                        revert(0, 36)
+                    }
                 }
-                let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                let _collateralIndexBoundsCheck := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                let marketDataOffset := add(calldataload(4), 4)
+                let collateralParamsOffset := add(marketDataOffset, calldataload(add(marketDataOffset, 32)))
+                let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                 let collateralMask := shl(collateralIndex, 1)
                 if or(iszero(iszero(gt(seizedAssets, 0))), iszero(iszero(gt(repaidUnits, 0)))) {
                     if iszero(gt(and(collateralBitmapValue, collateralMask), 0)) {
@@ -5590,42 +8993,23 @@ object "Midnight" {
                     }
                 }
                 let originalDebt := debt
-                let maxDebtValue := 0
-                let badDebt := originalDebt
-                let liquidatedCollatPrice := 0
-                for {
-                    let __forEach_idx := 0
-                    let __forEach_count := collateralCount
-                    let i := 0
-                } lt(__forEach_idx, __forEach_count) {
-                    __forEach_idx := add(__forEach_idx, 1)
-                } {
-                    i := __forEach_idx
-                    let mask := shl(i, 1)
-                    if gt(and(collateralBitmapValue, mask), 0) {
-                        let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
-                        let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                        let price := internal_internal_oraclePrice(oracle)
-                        let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                        let maxLifValue := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                        if eq(i, collateralIndex) {
-                            liquidatedCollatPrice := price
-                        }
-                        let collateralDebtValue := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
-                        maxDebtValue := add(maxDebtValue, collateralDebtValue)
-                        let repayable := div(add(mul(div(add(mul(activeCollateral, price), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000), 1000000000000000000), sub(maxLifValue, 1)), maxLifValue)
-                        {
-                            let __ite_cond := gt(badDebt, repayable)
-                            if __ite_cond {
-                                badDebt := sub(badDebt, repayable)
-                            }
-                            if iszero(__ite_cond) {
-                                badDebt := 0
-                            }
-                        }
+                let maxDebtValue, badDebt := internal_internal_liquidationDebtSnapshot(id, borrower, collateralCount, collateralBitmapValue, collateralParamsOffset, originalDebt)
+                let selectedCollateralParamOffsetForPrice := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                let selectedOracle := calldataload(add(selectedCollateralParamOffsetForPrice, 96))
+                let liquidatedCollatPrice := internal_internal_oraclePrice(selectedOracle)
+                let now := timestamp()
+                let lockedBeforeLiquidation := internal_internal_liquidationLockedValue(id, borrower)
+                if iszero(eq(lockedBeforeLiquidation, 0)) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x4e6f744c6971756964617461626c652829000000000000000000000000000000)
+                        let __err_hash := keccak256(__err_ptr, 17)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
                     }
                 }
-                let now := timestamp()
                 {
                     let __ite_cond := postMaturityMode
                     if __ite_cond {
@@ -5659,28 +9043,28 @@ object "Midnight" {
                     {
                         let __compat_value := sub(debt, badDebt)
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
                     debt := sub(debt, badDebt)
-                    let oldLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                    let oldLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                     let newLossFactor := sub(340282366920938463463374607431768211455, div(mul(sub(340282366920938463463374607431768211455, oldLossFactor), sub(totalUnitsValue, badDebt)), totalUnitsValue))
                     {
                         let __compat_value := newLossFactor
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(mappingSlot(10, id))
+                        let __compat_slot_word := sload(mappingSlot(1, id))
                         let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(128, __compat_packed)))
                     }
                     {
                         let __compat_value := sub(totalUnitsValue, badDebt)
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(mappingSlot(10, id))
+                        let __compat_slot_word := sload(mappingSlot(1, id))
                         let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
-                    let oldContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                    let oldContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                     let newContinuousFeeCredit := 0
                     if lt(oldLossFactor, 340282366920938463463374607431768211455) {
                         newContinuousFeeCredit := div(mul(oldContinuousFeeCredit, sub(340282366920938463463374607431768211455, newLossFactor)), sub(340282366920938463463374607431768211455, oldLossFactor))
@@ -5688,15 +9072,16 @@ object "Midnight" {
                     {
                         let __compat_value := newContinuousFeeCredit
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                         let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                        sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                     }
                 }
                 let outSeizedAssets := seizedAssets
                 let outRepaidUnits := repaidUnits
                 if or(iszero(iszero(gt(outRepaidUnits, 0))), iszero(iszero(gt(outSeizedAssets, 0)))) {
-                    let maxLifValue := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                    let selectedCollateralParamOffset := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                    let maxLifValue := calldataload(add(selectedCollateralParamOffset, 64))
                     let lif := maxLifValue
                     if postMaturityMode {
                         let elapsed := sub(now, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2))
@@ -5725,7 +9110,7 @@ object "Midnight" {
                         if __ite_cond {
                         }
                         if iszero(__ite_cond) {
-                            let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                            let lltv := calldataload(add(selectedCollateralParamOffset, 32))
                             let maxRepaidValue := 115792089237316195423570985008687907853269984665640564039457584007913129639935
                             if lt(lltv, 1000000000000000000) {
                                 maxRepaidValue := div(add(mul(sub(debt, maxDebtValue), mul(1000000000000000000, 1000000000000000000)), sub(sub(mul(1000000000000000000, 1000000000000000000), mul(lif, lltv)), 1)), sub(mul(1000000000000000000, 1000000000000000000), mul(lif, lltv)))
@@ -5751,39 +9136,75 @@ object "Midnight" {
                         }
                     }
                     let oldCollateral := internal_internal_collateralAmount(id, borrower, collateralIndex)
+                    if lt(oldCollateral, outSeizedAssets) {
+                        mstore(0, shl(224, 1313373041))
+                        mstore(4, 17)
+                        revert(0, 36)
+                    }
                     let newCollateral := sub(oldCollateral, outSeizedAssets)
-                    internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
+                    let _writeOk := internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
                     if eq(newCollateral, 0) {
                         if gt(outSeizedAssets, 0) {
-                            let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                            let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                             let mask := shl(collateralIndex, 1)
                             let newBitmap := and(oldBitmap, not(mask))
                             {
                                 let __compat_value := newBitmap
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                                sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                             }
                         }
                     }
-                    let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                    let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                     {
                         let __compat_value := add(withdrawableAmount, outRepaidUnits)
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                        let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                         let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
+                    if lt(debt, outRepaidUnits) {
+                        mstore(0, shl(224, 1313373041))
+                        mstore(4, 17)
+                        revert(0, 36)
+                    }
+                    let newDebtAfterRepay := sub(debt, outRepaidUnits)
                     {
-                        let __compat_value := sub(debt, outRepaidUnits)
+                        let __compat_value := newDebtAfterRepay
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                         let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                        sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                     }
                 }
-                let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                let selectedCollateralParamOffset := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                let collateralToken := calldataload(selectedCollateralParamOffset)
+                let payer := sender
+                if iszero(eq(callback, 0)) {
+                    payer := callback
+                }
+                let latestLossFactorLoaded := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                let latestContinuousFeeCreditLoaded := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                {
+                    let __evt_ptr := mload(64)
+                    mstore(add(__evt_ptr, 0), 0x4c697175696461746528616464726573732c627974657333322c616464726573)
+                    mstore(add(__evt_ptr, 32), 0x732c75696e743235362c75696e743235362c616464726573732c626f6f6c2c61)
+                    mstore(add(__evt_ptr, 64), 0x6464726573732c616464726573732c75696e743235362c75696e743235362c75)
+                    mstore(add(__evt_ptr, 96), 0x696e743235362900000000000000000000000000000000000000000000000000)
+                    let __evt_topic0 := keccak256(__evt_ptr, 103)
+                    mstore(add(__evt_ptr, 0), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(add(__evt_ptr, 32), outSeizedAssets)
+                    mstore(add(__evt_ptr, 64), outRepaidUnits)
+                    mstore(add(__evt_ptr, 96), iszero(iszero(postMaturityMode)))
+                    mstore(add(__evt_ptr, 128), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(add(__evt_ptr, 160), and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(add(__evt_ptr, 192), badDebt)
+                    mstore(add(__evt_ptr, 224), add(latestLossFactorLoaded, 0))
+                    mstore(add(__evt_ptr, 256), add(latestContinuousFeeCreditLoaded, 0))
+                    log4(__evt_ptr, 288, __evt_topic0, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
+                }
                 {
                     let __st_ptr := mload(64)
                     mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -5817,29 +9238,53 @@ object "Midnight" {
                         }
                     }
                 }
-                let payer := sender
                 if iszero(eq(callback, 0)) {
-                    payer := callback
                     {
-                        let __cb_ptr := mload(64)
-                        mstore(__cb_ptr, shl(224, 0x6861b795))
-                        mstore(add(__cb_ptr, 4), sender)
-                        mstore(add(__cb_ptr, 36), id)
-                        mstore(add(__cb_ptr, 68), collateralIndex)
-                        mstore(add(__cb_ptr, 100), outSeizedAssets)
-                        mstore(add(__cb_ptr, 132), outRepaidUnits)
-                        mstore(add(__cb_ptr, 164), borrower)
-                        mstore(add(__cb_ptr, 196), receiver)
-                        mstore(add(__cb_ptr, 228), badDebt)
-                        mstore(add(__cb_ptr, 260), 288)
-                        mstore(add(__cb_ptr, 292), data_length)
-                        calldatacopy(add(__cb_ptr, 324), data_data_offset, data_length)
-                        mstore(64, add(__cb_ptr, and(add(add(324, and(add(data_length, 31), not(31))), 31), not(31))))
-                        let __cb_success := call(gas(), callback, 0, __cb_ptr, add(324, and(add(data_length, 31), not(31))), 0, 0)
-                        if iszero(__cb_success) {
-                            let __cb_rds := returndatasize()
-                            returndatacopy(0, 0, __cb_rds)
-                            revert(0, __cb_rds)
+                        let __liqcb_ptr := mload(64)
+                        let __liqcb_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                        let __liqcb_collateral_length := calldataload(__liqcb_collateral_offset)
+                        let __liqcb_collateral_bytes := mul(__liqcb_collateral_length, 128)
+                        let __liqcb_market_size := add(224, __liqcb_collateral_bytes)
+                        let __liqcb_padded_market_size := and(add(__liqcb_market_size, 31), not(31))
+                        let __liqcb_padded_data_len := and(add(data_length, 31), not(31))
+                        let __liqcb_market_ptr := add(__liqcb_ptr, 324)
+                        let __liqcb_data_ptr := add(__liqcb_market_ptr, __liqcb_padded_market_size)
+                        let __liqcb_total := add(324, add(__liqcb_padded_market_size, add(32, __liqcb_padded_data_len)))
+                        mstore(__liqcb_ptr, shl(224, 0x6861b795))
+                        mstore(add(__liqcb_ptr, 4), sender)
+                        mstore(add(__liqcb_ptr, 36), id)
+                        mstore(add(__liqcb_ptr, 68), 320)
+                        mstore(add(__liqcb_ptr, 100), collateralIndex)
+                        mstore(add(__liqcb_ptr, 132), outSeizedAssets)
+                        mstore(add(__liqcb_ptr, 164), outRepaidUnits)
+                        mstore(add(__liqcb_ptr, 196), borrower)
+                        mstore(add(__liqcb_ptr, 228), receiver)
+                        mstore(add(__liqcb_ptr, 260), add(320, __liqcb_padded_market_size))
+                        mstore(add(__liqcb_ptr, 292), badDebt)
+                        mstore(__liqcb_market_ptr, calldataload(market_data_offset))
+                        mstore(add(__liqcb_market_ptr, 32), 192)
+                        mstore(add(__liqcb_market_ptr, 64), calldataload(add(market_data_offset, 64)))
+                        mstore(add(__liqcb_market_ptr, 96), calldataload(add(market_data_offset, 96)))
+                        mstore(add(__liqcb_market_ptr, 128), calldataload(add(market_data_offset, 128)))
+                        mstore(add(__liqcb_market_ptr, 160), calldataload(add(market_data_offset, 160)))
+                        mstore(add(__liqcb_market_ptr, 192), __liqcb_collateral_length)
+                        calldatacopy(add(__liqcb_market_ptr, 224), add(__liqcb_collateral_offset, 32), __liqcb_collateral_bytes)
+                        mstore(__liqcb_data_ptr, data_length)
+                        calldatacopy(add(__liqcb_data_ptr, 32), data_data_offset, data_length)
+                        mstore(64, add(__liqcb_ptr, and(add(__liqcb_total, 31), not(31))))
+                        let __liqcb_success := call(gas(), callback, 0, __liqcb_ptr, __liqcb_total, __liqcb_ptr, 32)
+                        if iszero(__liqcb_success) {
+                            let __liqcb_rds := returndatasize()
+                            returndatacopy(0, 0, __liqcb_rds)
+                            revert(0, __liqcb_rds)
+                        }
+                        if lt(returndatasize(), 32) {
+                            mstore(0, shl(224, 0x70b53d4b))
+                            revert(0, 4)
+                        }
+                        if iszero(eq(mload(__liqcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
+                            mstore(0, shl(224, 0x70b53d4b))
+                            revert(0, 4)
                         }
                     }
                 }
@@ -5883,66 +9328,37 @@ object "Midnight" {
                 leave
             }
             function internal_internal_isHealthy(market_data_offset, id, borrower) -> __ret0 {
-                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                 if eq(debt, 0) {
                     __ret0 := 1
                     leave
                 }
-                let collateralValue := internal_internal_collateralAmount(id, borrower, 0)
-                let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), 0)
-                let maxDebt := div(mul(collateralValue, lltv), 1000000000000000000)
+                let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
+                let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
+                let maxDebt := 0
+                for {
+                    let __forEach_idx := 0
+                    let __forEach_count := collateralCount
+                    let i := 0
+                } lt(__forEach_idx, __forEach_count) {
+                    __forEach_idx := add(__forEach_idx, 1)
+                } {
+                    i := __forEach_idx
+                    let mask := shl(i, 1)
+                    if gt(and(collateralBitmapValue, mask), 0) {
+                        let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
+                        let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
+                        let price := internal_internal_oraclePrice(oracle)
+                        let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
+                        let collateralValue := div(mul(activeCollateral, price), 1000000000000000000000000000000000000)
+                        maxDebt := add(maxDebt, div(mul(collateralValue, lltv), 1000000000000000000))
+                    }
+                }
                 __ret0 := iszero(gt(debt, maxDebt))
                 leave
             }
             function internal_internal_setCollateralAmount(id, user, index, value) {
-                if eq(index, 0) {
-                    sstore(mappingSlot(mappingSlot(12, id), user), value)
-                }
-                if eq(index, 1) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
-                }
-                if eq(index, 2) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
-                }
-                if eq(index, 3) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
-                }
-                if eq(index, 4) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
-                }
-                if eq(index, 5) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
-                }
-                if eq(index, 6) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
-                }
-                if eq(index, 7) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
-                }
-                if eq(index, 8) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
-                }
-                if eq(index, 9) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
-                }
-                if eq(index, 10) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
-                }
-                if eq(index, 11) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
-                }
-                if eq(index, 12) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
-                }
-                if eq(index, 13) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
-                }
-                if eq(index, 14) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
-                }
-                if eq(index, 15) {
-                    sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
-                }
+                let _writeOk := internal_internal_writeCollateralAmount(id, user, index, value)
                 stop()
             }
             function internal_internal_supplyCollateral(market_data_offset, collateralIndex, assets, onBehalf) {
@@ -5973,7 +9389,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                 let mask := shl(collateralIndex, 1)
                 if eq(oldCollateral, 0) {
                     if gt(assets, 0) {
@@ -5981,9 +9397,9 @@ object "Midnight" {
                         {
                             let __compat_value := newBitmap
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
                         let activeCount := internal_internal_countBits128(newBitmap)
                         if gt(activeCount, 16) {
@@ -6055,7 +9471,7 @@ object "Midnight" {
                 let id := internal_internal_toId(market_data_offset)
                 let oldCollateral := internal_internal_collateralAmount(id, onBehalf, collateralIndex)
                 let newCollateral := sub(oldCollateral, assets)
-                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                 if gt(debt, 0) {
                     let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                     let requiredCollateral := div(add(mul(debt, 1000000000000000000), sub(lltv, 1)), lltv)
@@ -6073,15 +9489,15 @@ object "Midnight" {
                 }
                 if eq(newCollateral, 0) {
                     if gt(assets, 0) {
-                        let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                        let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                         let mask := shl(collateralIndex, 1)
                         let newBitmap := and(oldBitmap, not(mask))
                         {
                             let __compat_value := newBitmap
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
                     }
                 }
@@ -6178,19 +9594,43 @@ object "Midnight" {
                         }
                     }
                 }
+                let sender := caller()
                 {
-                    let __cb_ptr := mload(64)
-                    mstore(__cb_ptr, shl(224, 0xd1f260c3))
-                    mstore(add(__cb_ptr, 4), 0)
-                    mstore(add(__cb_ptr, 36), 64)
-                    mstore(add(__cb_ptr, 68), data_length)
-                    calldatacopy(add(__cb_ptr, 100), data_data_offset, data_length)
-                    mstore(64, add(__cb_ptr, and(add(add(100, and(add(data_length, 31), not(31))), 31), not(31))))
-                    let __cb_success := call(gas(), callback, 0, __cb_ptr, add(100, and(add(data_length, 31), not(31))), 0, 0)
-                    if iszero(__cb_success) {
-                        let __cb_rds := returndatasize()
-                        returndatacopy(0, 0, __cb_rds)
-                        revert(0, __cb_rds)
+                    let __flcb_ptr := mload(64)
+                    let __flcb_tokens_bytes := mul(tokens_length, 32)
+                    let __flcb_assets_bytes := mul(assets_length, 32)
+                    let __flcb_tokens_seg := add(32, __flcb_tokens_bytes)
+                    let __flcb_assets_seg := add(32, __flcb_assets_bytes)
+                    let __flcb_data_off := add(128, add(__flcb_tokens_seg, __flcb_assets_seg))
+                    let __flcb_tokens_pos := add(__flcb_ptr, 132)
+                    let __flcb_assets_pos := add(__flcb_ptr, add(132, __flcb_tokens_seg))
+                    let __flcb_data_pos := add(__flcb_ptr, add(4, __flcb_data_off))
+                    let __flcb_padded_data_len := and(add(data_length, 31), not(31))
+                    let __flcb_total := add(add(__flcb_data_pos, 32), __flcb_padded_data_len)
+                    __flcb_total := sub(__flcb_total, __flcb_ptr)
+                    mstore(__flcb_ptr, shl(224, 0xd1f260c3))
+                    mstore(add(__flcb_ptr, 4), sender)
+                    mstore(add(__flcb_ptr, 36), 128)
+                    mstore(add(__flcb_ptr, 68), add(128, __flcb_tokens_seg))
+                    mstore(add(__flcb_ptr, 100), __flcb_data_off)
+                    mstore(__flcb_tokens_pos, tokens_length)
+                    calldatacopy(add(__flcb_tokens_pos, 32), tokens_data_offset, __flcb_tokens_bytes)
+                    mstore(__flcb_assets_pos, assets_length)
+                    calldatacopy(add(__flcb_assets_pos, 32), assets_data_offset, __flcb_assets_bytes)
+                    mstore(__flcb_data_pos, data_length)
+                    calldatacopy(add(__flcb_data_pos, 32), data_data_offset, data_length)
+                    mstore(64, add(__flcb_ptr, and(add(__flcb_total, 31), not(31))))
+                    let __flcb_success := call(gas(), callback, 0, __flcb_ptr, __flcb_total, __flcb_ptr, 32)
+                    if iszero(__flcb_success) {
+                        let __flcb_rds := returndatasize()
+                        returndatacopy(0, 0, __flcb_rds)
+                        revert(0, __flcb_rds)
+                    }
+                    if lt(returndatasize(), 32) {
+                        revert(0, 0)
+                    }
+                    if iszero(eq(mload(__flcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
+                        revert(0, 0)
                     }
                 }
                 for {
@@ -6245,28 +9685,28 @@ object "Midnight" {
                 leave
             }
             function internal_internal_pendingFee(id, user) -> __ret0 {
-                let value := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
+                let value := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_lastAccrual(id, user) -> __ret0 {
-                let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
+                let value := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_lastLossFactor(id, user) -> __ret0 {
-                let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
+                let value := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal_internal_collateralBitmap(id, user) -> __ret0 {
-                let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+                let value := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
                 __ret0 := value
                 leave
             }
             function internal___modifier_onlyRoleSetter() {
                 let sender := caller()
-                let currentRoleSetter := sload(1)
+                let currentRoleSetter := sload(7)
                 if iszero(eq(sender, currentRoleSetter)) {
                     {
                         let __err_ptr := mload(64)
@@ -6282,7 +9722,7 @@ object "Midnight" {
             }
             function internal___modifier_onlyFeeSetter() {
                 let sender := caller()
-                let currentFeeSetter := sload(2)
+                let currentFeeSetter := sload(8)
                 if iszero(eq(sender, currentFeeSetter)) {
                     mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                     mstore(4, 32)
@@ -6294,7 +9734,7 @@ object "Midnight" {
             }
             function internal___modifier_onlyFeeClaimer() {
                 let sender := caller()
-                let currentFeeClaimer := sload(3)
+                let currentFeeClaimer := sload(9)
                 if iszero(eq(sender, currentFeeClaimer)) {
                     mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                     mstore(4, 32)
@@ -6306,7 +9746,7 @@ object "Midnight" {
             }
             function internal___modifier_onlyTickSpacingSetter() {
                 let sender := caller()
-                let currentTickSpacingSetter := sload(4)
+                let currentTickSpacingSetter := sload(10)
                 if iszero(eq(sender, currentTickSpacingSetter)) {
                     mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                     mstore(4, 32)
@@ -6324,6 +9764,58 @@ object "Midnight" {
                 }
                 if __has_selector {
                     switch shr(224, calldataload(0))
+                    case 0xac9650d8 {
+                        /* multicall() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 36) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 36) {
+                            revert(0, 0)
+                        }
+                        let calls_offset := calldataload(4)
+                        if lt(calls_offset, 32) {
+                            revert(0, 0)
+                        }
+                        let calls_abs_offset := add(4, calls_offset)
+                        if gt(calls_abs_offset, sub(calldatasize(), 32)) {
+                            revert(0, 0)
+                        }
+                        let calls_length := calldataload(calls_abs_offset)
+                        let calls_tail_head_end := add(calls_abs_offset, 32)
+                        let calls_tail_remaining := sub(calldatasize(), calls_tail_head_end)
+                        if gt(calls_length, div(calls_tail_remaining, 32)) {
+                            revert(0, 0)
+                        }
+                        let calls_data_offset := calls_tail_head_end
+                        {
+                            let __mc_head := calldataload(4)
+                            let __mc_base := add(4, __mc_head)
+                            let __mc_len := calldataload(__mc_base)
+                            let __mc_i := 0
+                            for {
+                            } lt(__mc_i, __mc_len) {
+                                __mc_i := add(__mc_i, 1)
+                            } {
+                                let __mc_elem_head := calldataload(add(add(__mc_base, 32), mul(__mc_i, 32)))
+                                let __mc_elem := add(add(__mc_base, 32), __mc_elem_head)
+                                let __mc_size := calldataload(__mc_elem)
+                                let __mc_data := add(__mc_elem, 32)
+                                let __mc_ptr := mload(64)
+                                calldatacopy(__mc_ptr, __mc_data, __mc_size)
+                                mstore(64, add(__mc_ptr, and(add(__mc_size, 31), not(31))))
+                                let __mc_success := delegatecall(gas(), address(), __mc_ptr, __mc_size, 0, 0)
+                                if iszero(__mc_success) {
+                                    let __mc_rds := returndatasize()
+                                    returndatacopy(0, 0, __mc_rds)
+                                    revert(0, __mc_rds)
+                                }
+                            }
+                        }
+                        stop()
+                    }
                     case 0x54f33522 {
                         /* INITIAL_CHAIN_ID() */
                         if callvalue() {
@@ -6335,7 +9827,7 @@ object "Midnight" {
                         if lt(calldatasize(), 4) {
                             revert(0, 0)
                         }
-                        let cid := sload(0)
+                        let cid := sload(1024)
                         mstore(0, cid)
                         return(0, 32)
                     }
@@ -6350,7 +9842,7 @@ object "Midnight" {
                         if lt(calldatasize(), 4) {
                             revert(0, 0)
                         }
-                        let value := sload(1)
+                        let value := sload(7)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6365,7 +9857,7 @@ object "Midnight" {
                         if lt(calldatasize(), 4) {
                             revert(0, 0)
                         }
-                        let value := sload(2)
+                        let value := sload(8)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6380,7 +9872,7 @@ object "Midnight" {
                         if lt(calldatasize(), 4) {
                             revert(0, 0)
                         }
-                        let value := sload(3)
+                        let value := sload(9)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6395,7 +9887,7 @@ object "Midnight" {
                         if lt(calldatasize(), 4) {
                             revert(0, 0)
                         }
-                        let value := sload(4)
+                        let value := sload(10)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6412,7 +9904,7 @@ object "Midnight" {
                         }
                         let user := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let group := calldataload(36)
-                        let value := sload(mappingSlot(mappingSlot(5, user), group))
+                        let value := sload(mappingSlot(mappingSlot(2, user), group))
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6429,7 +9921,7 @@ object "Midnight" {
                         }
                         let authorizer := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let authorized := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := sload(mappingSlot(mappingSlot(6, authorizer), authorized))
+                        let value := sload(mappingSlot(mappingSlot(3, authorizer), authorized))
                         mstore(0, iszero(eq(value, 0)))
                         return(0, 32)
                     }
@@ -6446,7 +9938,7 @@ object "Midnight" {
                         }
                         let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let index := calldataload(36)
-                        let value := sload(mappingSlot(mappingSlot(7, loanToken), index))
+                        let value := sload(mappingSlot(mappingSlot(4, loanToken), index))
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6462,7 +9954,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := sload(mappingSlot(8, loanToken))
+                        let value := sload(mappingSlot(5, loanToken))
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6478,7 +9970,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let token := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := sload(mappingSlot(9, token))
+                        let value := sload(mappingSlot(6, token))
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -6722,7 +10214,37 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let market_data_offset := market_abs_offset
-                        mstore(0, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2))
+                        let initialChainId := sload(1024)
+                        let self := address()
+                        let id := 0
+                        {
+                            let __midnight_id_ptr := mload(64)
+                            mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
+                            mstore(add(__midnight_id_ptr, 11), 32)
+                            let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
+                            mstore(__midnight_id_tuple_ptr, calldataload(market_data_offset))
+                            mstore(add(__midnight_id_tuple_ptr, 32), 192)
+                            mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                            mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                            mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                            mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                            let __midnight_id_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                            let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
+                            let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
+                            mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
+                            calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
+                            let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
+                            let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
+                            let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                            let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
+                            mstore(__midnight_id_outer_ptr, shl(248, 255))
+                            mstore(add(__midnight_id_outer_ptr, 1), shl(96, self))
+                            mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
+                            mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
+                            id := keccak256(__midnight_id_outer_ptr, 85)
+                            mstore(64, add(__midnight_id_outer_ptr, 96))
+                        }
+                        mstore(0, id)
                         return(0, 32)
                     }
                     case 0xfc20106c {
@@ -6737,8 +10259,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        extcodecopy(id, 0, 0, 0)
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -6749,6 +10270,13 @@ object "Midnight" {
                                 let __err_tail := 0
                                 revert(0, add(4, __err_tail))
                             }
+                        }
+                        {
+                            let __midnight_market_return_pointer := and(id, 0xffffffffffffffffffffffffffffffffffffffff)
+                            let __midnight_market_return_length := extcodesize(__midnight_market_return_pointer)
+                            let __midnight_market_return_ptr := mload(64)
+                            extcodecopy(__midnight_market_return_pointer, __midnight_market_return_ptr, 0, __midnight_market_return_length)
+                            return(__midnight_market_return_ptr, __midnight_market_return_length)
                         }
                         stop()
                     }
@@ -6765,12 +10293,12 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                        let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
-                        let collateralBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                        let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
+                        let collateralBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
                         mstore(0, credit)
                         mstore(32, pendingFee)
                         mstore(64, lastLossFactor)
@@ -6791,19 +10319,19 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let totalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-                        let lossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-                        let withdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                        let continuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                        let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let continuousFee := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
-                        let tickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let totalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                        let lossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                        let withdrawable := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                        let continuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                        let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let continuousFee := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+                        let tickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         mstore(0, totalUnits)
                         mstore(32, lossFactor)
                         mstore(64, withdrawable)
@@ -6841,11 +10369,11 @@ object "Midnight" {
                         let market_data_offset := market_abs_offset
                         let id := calldataload(36)
                         let user := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                        let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                        let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                        let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                        let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         let now := timestamp()
                         let postSlashCredit := 0
                         if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -6890,7 +10418,7 @@ object "Midnight" {
                         let market_data_offset := market_abs_offset
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let id := internal_internal_toId(market_data_offset)
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -6902,11 +10430,11 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                        let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
-                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
-                        let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                        let pendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
+                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
+                        let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         let now := timestamp()
                         let postSlashCredit := 0
                         if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -6926,41 +10454,53 @@ object "Midnight" {
                         }
                         let newCredit := sub(postSlashCredit, accrued)
                         let newPendingFee := sub(postSlashPendingFee, accrued)
+                        let creditDecrease := sub(credit, newCredit)
+                        let pendingFeeDecrease := sub(pendingFee, newPendingFee)
                         {
                             let __compat_value := newCredit
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), user))
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), user))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(mappingSlot(11, id), user), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(mappingSlot(mappingSlot(0, id), user), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         {
                             let __compat_value := marketLossFactor
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), user), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), user), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(mappingSlot(11, id), user), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         {
                             let __compat_value := newPendingFee
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), user))
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), user))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(mappingSlot(mappingSlot(11, id), user), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(mappingSlot(mappingSlot(0, id), user), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
                         {
                             let __compat_value := now
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), user), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), user), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(mappingSlot(11, id), user), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
-                        let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := add(currentContinuousFeeCredit, accrued)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        }
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                            mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 55)
+                            mstore(add(__evt_ptr, 0), creditDecrease)
+                            mstore(add(__evt_ptr, 32), pendingFeeDecrease)
+                            mstore(add(__evt_ptr, 64), accrued)
+                            log3(__evt_ptr, 96, __evt_topic0, id, and(user, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         mstore(0, newCredit)
                         mstore(32, newPendingFee)
@@ -6980,7 +10520,7 @@ object "Midnight" {
                         }
                         let newRoleSetter := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentRoleSetter := sload(1)
+                        let currentRoleSetter := sload(7)
                         if iszero(eq(sender, currentRoleSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -6992,7 +10532,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(1, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        sstore(7, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
                         stop()
                     }
                     case 0xb19805af {
@@ -7008,7 +10548,7 @@ object "Midnight" {
                         }
                         let newFeeSetter := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentRoleSetter := sload(1)
+                        let currentRoleSetter := sload(7)
                         if iszero(eq(sender, currentRoleSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7020,7 +10560,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(2, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        sstore(8, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
                         stop()
                     }
                     case 0xc3accd48 {
@@ -7036,7 +10576,7 @@ object "Midnight" {
                         }
                         let newFeeClaimer := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentRoleSetter := sload(1)
+                        let currentRoleSetter := sload(7)
                         if iszero(eq(sender, currentRoleSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7048,7 +10588,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(3, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
+                        sstore(9, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
                         stop()
                     }
                     case 0xf3ad575e {
@@ -7064,7 +10604,7 @@ object "Midnight" {
                         }
                         let newTickSpacingSetter := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentRoleSetter := sload(1)
+                        let currentRoleSetter := sload(7)
                         if iszero(eq(sender, currentRoleSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7076,7 +10616,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(4, and(newTickSpacingSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        sstore(10, and(newTickSpacingSetter, 0xffffffffffffffffffffffffffffffffffffffff))
                         stop()
                     }
                     case 0xb78212ab {
@@ -7094,7 +10634,7 @@ object "Midnight" {
                         let newIsAuthorized := iszero(iszero(calldataload(36)))
                         let onBehalf := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentAuth := sload(mappingSlot(mappingSlot(6, onBehalf), sender))
+                        let currentAuth := sload(mappingSlot(mappingSlot(3, onBehalf), sender))
                         if iszero(or(iszero(iszero(eq(sender, onBehalf))), iszero(iszero(iszero(eq(currentAuth, 0)))))) {
                             {
                                 let __err_ptr := mload(64)
@@ -7116,7 +10656,7 @@ object "Midnight" {
                                 flag := 0
                             }
                         }
-                        sstore(mappingSlot(mappingSlot(6, onBehalf), authorized), flag)
+                        sstore(mappingSlot(mappingSlot(3, onBehalf), authorized), flag)
                         stop()
                     }
                     case 0xd6359bf4 {
@@ -7134,7 +10674,7 @@ object "Midnight" {
                         let amount := calldataload(36)
                         let onBehalf := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentAuth := sload(mappingSlot(mappingSlot(6, onBehalf), sender))
+                        let currentAuth := sload(mappingSlot(mappingSlot(3, onBehalf), sender))
                         if iszero(or(iszero(iszero(eq(sender, onBehalf))), iszero(iszero(iszero(eq(currentAuth, 0)))))) {
                             {
                                 let __err_ptr := mload(64)
@@ -7146,7 +10686,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let current := sload(mappingSlot(mappingSlot(5, onBehalf), group))
+                        let current := sload(mappingSlot(mappingSlot(2, onBehalf), group))
                         if lt(amount, current) {
                             {
                                 let __err_ptr := mload(64)
@@ -7158,7 +10698,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(mappingSlot(mappingSlot(5, onBehalf), group), amount)
+                        sstore(mappingSlot(mappingSlot(2, onBehalf), group), amount)
                         stop()
                     }
                     case 0x5f59ebd8 {
@@ -7176,7 +10716,7 @@ object "Midnight" {
                         let index := calldataload(36)
                         let newSettlementFee := calldataload(68)
                         let sender := caller()
-                        let currentFeeSetter := sload(2)
+                        let currentFeeSetter := sload(8)
                         if iszero(eq(sender, currentFeeSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7240,7 +10780,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(mappingSlot(mappingSlot(7, loanToken), index), div(newSettlementFee, 1000000000000))
+                        sstore(mappingSlot(mappingSlot(4, loanToken), index), div(newSettlementFee, 1000000000000))
                         stop()
                     }
                     case 0x21559e6b {
@@ -7257,7 +10797,7 @@ object "Midnight" {
                         let loanToken := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let newContinuousFee := calldataload(36)
                         let sender := caller()
-                        let currentFeeSetter := sload(2)
+                        let currentFeeSetter := sload(8)
                         if iszero(eq(sender, currentFeeSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7280,7 +10820,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(mappingSlot(8, loanToken), newContinuousFee)
+                        sstore(mappingSlot(5, loanToken), newContinuousFee)
                         stop()
                     }
                     case 0x2abdc15e {
@@ -7298,7 +10838,7 @@ object "Midnight" {
                         let amount := calldataload(36)
                         let receiver := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
                         let sender := caller()
-                        let currentFeeClaimer := sload(3)
+                        let currentFeeClaimer := sload(9)
                         if iszero(eq(sender, currentFeeClaimer)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7310,7 +10850,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let claimable := sload(mappingSlot(9, token))
+                        let claimable := sload(mappingSlot(6, token))
                         if gt(amount, claimable) {
                             {
                                 let __err_ptr := mload(64)
@@ -7322,7 +10862,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        sstore(mappingSlot(9, token), sub(claimable, amount))
+                        sstore(mappingSlot(6, token), sub(claimable, amount))
                         {
                             let __st_ptr := mload(64)
                             mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -7382,7 +10922,7 @@ object "Midnight" {
                         let receiver := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
                         let id := internal_internal_toId(market_data_offset)
                         let sender := caller()
-                        let currentFeeClaimer := sload(3)
+                        let currentFeeClaimer := sload(9)
                         if iszero(eq(sender, currentFeeClaimer)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7394,7 +10934,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7406,29 +10946,37 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(currentContinuousFeeCredit, amount)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
-                        let currentTotalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let currentTotalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(currentTotalUnits, amount)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(10, id))
+                            let __compat_slot_word := sload(mappingSlot(1, id))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
-                        let currentWithdrawable := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let currentWithdrawable := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(currentWithdrawable, amount)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        }
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x436c61696d436f6e74696e756f757346656528616464726573732c6279746573)
+                            mstore(add(__evt_ptr, 32), 0x33322c75696e743235362c616464726573732900000000000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 51)
+                            mstore(add(__evt_ptr, 0), amount)
+                            log4(__evt_ptr, 32, __evt_topic0, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         {
                             let __st_ptr := mload(64)
@@ -7479,7 +11027,7 @@ object "Midnight" {
                         let id := calldataload(4)
                         let newTickSpacing := calldataload(36)
                         let sender := caller()
-                        let currentTickSpacingSetter := sload(4)
+                        let currentTickSpacingSetter := sload(10)
                         if iszero(eq(sender, currentTickSpacingSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7491,7 +11039,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7528,9 +11076,9 @@ object "Midnight" {
                         {
                             let __compat_value := newTickSpacing
                             let __compat_packed := and(__compat_value, 255)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                             let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                            sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                         }
                         stop()
                     }
@@ -7549,7 +11097,7 @@ object "Midnight" {
                         let index := calldataload(36)
                         let newSettlementFee := calldataload(68)
                         let sender := caller()
-                        let currentFeeSetter := sload(2)
+                        let currentFeeSetter := sload(8)
                         if iszero(eq(sender, currentFeeSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7613,7 +11161,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7630,63 +11178,63 @@ object "Midnight" {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
                         }
                         if eq(index, 1) {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                             }
                         }
                         if eq(index, 2) {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                             }
                         }
                         if eq(index, 3) {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                             }
                         }
                         if eq(index, 4) {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                             }
                         }
                         if eq(index, 5) {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                             }
                         }
                         if eq(index, 6) {
                             {
                                 let __compat_value := newSettlementFeeCbp
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                             }
                         }
                         stop()
@@ -7705,7 +11253,7 @@ object "Midnight" {
                         let id := calldataload(4)
                         let newContinuousFee := calldataload(36)
                         let sender := caller()
-                        let currentFeeSetter := sload(2)
+                        let currentFeeSetter := sload(8)
                         if iszero(eq(sender, currentFeeSetter)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7728,7 +11276,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7743,9 +11291,9 @@ object "Midnight" {
                         {
                             let __compat_value := newContinuousFee
                             let __compat_packed := and(__compat_value, 4294967295)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                             let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                            sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                         }
                         stop()
                     }
@@ -7770,7 +11318,7 @@ object "Midnight" {
                         }
                         let market_data_offset := market_abs_offset
                         let id := internal_internal_toId(market_data_offset)
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if eq(currentTickSpacing, 0) {
                             let now := timestamp()
                             if gt(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2), add(now, 3153600000)) {
@@ -7785,14 +11333,53 @@ object "Midnight" {
                                 }
                             }
                             internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
-                            let salt := sload(0)
-                            let _marketPointer := create2(0, 0, 0, salt)
+                            let salt := sload(1024)
+                            let _marketPointer := 0
+                            {
+                                let __midnight_store_ptr := mload(64)
+                                mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                                mstore(add(__midnight_store_ptr, 11), 32)
+                                let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                                mstore(__midnight_store_tuple_ptr, and(mload(market_data_offset), 0xffffffffffffffffffffffffffffffffffffffff))
+                                mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                                mstore(add(__midnight_store_tuple_ptr, 64), mload(add(market_data_offset, 64)))
+                                mstore(add(__midnight_store_tuple_ptr, 96), mload(add(market_data_offset, 96)))
+                                mstore(add(__midnight_store_tuple_ptr, 128), and(mload(add(market_data_offset, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
+                                mstore(add(__midnight_store_tuple_ptr, 160), and(mload(add(market_data_offset, 160)), 0xffffffffffffffffffffffffffffffffffffffff))
+                                let __midnight_store_array_ptr := mload(add(market_data_offset, 32))
+                                let __midnight_store_collateral_length := mload(__midnight_store_array_ptr)
+                                let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                                mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                                let __midnight_store_dst := add(__midnight_store_tuple_ptr, 224)
+                                let __midnight_store_src_ptr := add(__midnight_store_array_ptr, 32)
+                                let __midnight_store_src_end := add(__midnight_store_src_ptr, mul(__midnight_store_collateral_length, 32))
+                                for {
+                                } lt(__midnight_store_src_ptr, __midnight_store_src_end) {
+                                    __midnight_store_src_ptr := add(__midnight_store_src_ptr, 32)
+                                } {
+                                    let __midnight_store_item_ptr := mload(__midnight_store_src_ptr)
+                                    mstore(__midnight_store_dst, and(mload(__midnight_store_item_ptr), 0xffffffffffffffffffffffffffffffffffffffff))
+                                    mstore(add(__midnight_store_dst, 32), mload(add(__midnight_store_item_ptr, 32)))
+                                    mstore(add(__midnight_store_dst, 64), mload(add(__midnight_store_item_ptr, 64)))
+                                    mstore(add(__midnight_store_dst, 96), and(mload(add(__midnight_store_item_ptr, 96)), 0xffffffffffffffffffffffffffffffffffffffff))
+                                    __midnight_store_dst := add(__midnight_store_dst, 128)
+                                }
+                                let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                                let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                                _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                                if iszero(_marketPointer) {
+                                    mstore(0, shl(224, 0x4e487b71))
+                                    mstore(4, 81)
+                                    revert(0, 36)
+                                }
+                                mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                            }
                             {
                                 let __compat_value := 4
                                 let __compat_packed := and(__compat_value, 255)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                             }
                             let settlementFeeCbp0 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0)
                             let settlementFeeCbp1 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1)
@@ -7801,62 +11388,62 @@ object "Midnight" {
                             let settlementFeeCbp4 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 4)
                             let settlementFeeCbp5 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 5)
                             let settlementFeeCbp6 := internal_internal_defaultSettlementFeeCbp(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 6)
-                            let continuous := sload(mappingSlot(8, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)))
+                            let continuous := sload(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)))
                             {
                                 let __compat_value := settlementFeeCbp0
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp1
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp2
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp3
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp4
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp5
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp6
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                             }
                             {
                                 let __compat_value := continuous
                                 let __compat_packed := and(__compat_value, 4294967295)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                             }
                         }
                         mstore(0, id)
@@ -7875,7 +11462,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let timeToMaturity := calldataload(36)
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(gt(currentTickSpacing, 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -7887,13 +11474,13 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
+                        let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
                         let start := 15552000
                         let finish := 31104000
                         let feeLower := mul(settlementFeeCbp5, 1000000000000)
@@ -7939,6 +11526,412 @@ object "Midnight" {
                                 return(0, 32)
                             }
                         }
+                    }
+                    case 0x2839949b {
+                        /* tickToPrice() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 36) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 36) {
+                            revert(0, 0)
+                        }
+                        let tick := calldataload(4)
+                        if gt(tick, 5820) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x5469636b4f75744f6652616e6765282900000000000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 16)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let price := 0
+                        {
+                            let __tp_x := mul(4987541511039073, sub(2910, tick))
+                            let __tp_abs := __tp_x
+                            let __tp_negative := slt(__tp_x, 0)
+                            if __tp_negative {
+                                __tp_abs := sub(0, __tp_x)
+                            }
+                            let __tp_q := div(add(__tp_abs, 322611214989459870), 693147180559945309)
+                            let __tp_r := sub(__tp_abs, mul(__tp_q, 693147180559945309))
+                            let __tp_second := sdiv(mul(__tp_r, __tp_r), 2000000000000000000)
+                            let __tp_third := sdiv(mul(__tp_second, __tp_r), 3000000000000000000)
+                            let __tp_expR := add(1000000000000000000, add(__tp_r, add(__tp_second, __tp_third)))
+                            let __tp_wexp := shl(__tp_q, __tp_expR)
+                            if __tp_negative {
+                                __tp_wexp := div(1000000000000000000000000000000000000, __tp_wexp)
+                            }
+                            let __tp_den := add(1000000000000000000, __tp_wexp)
+                            let __tp_raw := div(add(1000000000000000000000000000000000000, div(sub(__tp_den, 1), 2)), __tp_den)
+                            price := mul(div(add(__tp_raw, div(sub(1000000000000, 1), 2)), 1000000000000), 1000000000000)
+                        }
+                        mstore(0, price)
+                        return(0, 32)
+                    }
+                    case 0x2e115583 {
+                        /* enterGateCanIncreaseCredit() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        let gate := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let account := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let allowed := 0
+                        {
+                            let __ecwr_ptr := mload(64)
+                            mstore(__ecwr_ptr, shl(224, 0x58ac9f9e))
+                            mstore(add(__ecwr_ptr, 4), account)
+                            mstore(64, add(__ecwr_ptr, 64))
+                            let __ecwr_success := staticcall(gas(), gate, __ecwr_ptr, 36, __ecwr_ptr, 32)
+                            if iszero(__ecwr_success) {
+                                let __ecwr_rds := returndatasize()
+                                returndatacopy(0, 0, __ecwr_rds)
+                                revert(0, __ecwr_rds)
+                            }
+                            if lt(returndatasize(), 32) {
+                                revert(0, 0)
+                            }
+                            allowed := mload(__ecwr_ptr)
+                        }
+                        mstore(0, allowed)
+                        return(0, 32)
+                    }
+                    case 0x8e985fde {
+                        /* enterGateCanIncreaseDebt() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        let gate := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let account := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let allowed := 0
+                        {
+                            let __ecwr_ptr := mload(64)
+                            mstore(__ecwr_ptr, shl(224, 0xfe9bf956))
+                            mstore(add(__ecwr_ptr, 4), account)
+                            mstore(64, add(__ecwr_ptr, 64))
+                            let __ecwr_success := staticcall(gas(), gate, __ecwr_ptr, 36, __ecwr_ptr, 32)
+                            if iszero(__ecwr_success) {
+                                let __ecwr_rds := returndatasize()
+                                returndatacopy(0, 0, __ecwr_rds)
+                                revert(0, __ecwr_rds)
+                            }
+                            if lt(returndatasize(), 32) {
+                                revert(0, 0)
+                            }
+                            allowed := mload(__ecwr_ptr)
+                        }
+                        mstore(0, allowed)
+                        return(0, 32)
+                    }
+                    case 0x22402ddf {
+                        /* updateBuyerForTake() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 164) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 164) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let buyer := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let units := calldataload(68)
+                        let maturity := calldataload(100)
+                        let now := calldataload(132)
+                        let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), buyer), 2))), 340282366920938463463374607431768211455)
+                        let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
+                        let buyerCreditIncrease := sub(units, buyerDebtDecrease)
+                        let continuousFeeValue := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+                        let timeToMaturity := 0
+                        if gt(maturity, now) {
+                            timeToMaturity := sub(maturity, now)
+                        }
+                        let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
+                        let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), buyer))), 340282366920938463463374607431768211455)
+                        let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), buyer))), 340282366920938463463374607431768211455)
+                        let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))), 340282366920938463463374607431768211455)
+                        let buyerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))), 340282366920938463463374607431768211455)
+                        let buyerMarketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                        let buyerPostSlashCredit := 0
+                        if lt(buyerLastLossFactor, 340282366920938463463374607431768211455) {
+                            buyerPostSlashCredit := div(mul(buyerCredit, sub(340282366920938463463374607431768211455, buyerMarketLossFactor)), sub(340282366920938463463374607431768211455, buyerLastLossFactor))
+                        }
+                        let buyerPostSlashPendingFee := 0
+                        if gt(buyerCredit, 0) {
+                            buyerPostSlashPendingFee := sub(buyerPendingFee, div(add(mul(buyerPendingFee, sub(buyerCredit, buyerPostSlashCredit)), sub(buyerCredit, 1)), buyerCredit))
+                        }
+                        let buyerAccrualEnd := maturity
+                        if iszero(gt(now, maturity)) {
+                            buyerAccrualEnd := now
+                        }
+                        let buyerAccrued := 0
+                        if lt(buyerLastAccrual, maturity) {
+                            buyerAccrued := div(mul(buyerPostSlashPendingFee, sub(buyerAccrualEnd, buyerLastAccrual)), sub(maturity, buyerLastAccrual))
+                        }
+                        let buyerCreditAfterUpdate := sub(buyerPostSlashCredit, buyerAccrued)
+                        let buyerPendingFeeAfterUpdate := sub(buyerPostSlashPendingFee, buyerAccrued)
+                        let buyerCreditDecrease := sub(buyerCredit, buyerCreditAfterUpdate)
+                        let buyerPendingFeeDecreaseForUpdate := sub(buyerPendingFee, buyerPendingFeeAfterUpdate)
+                        if or(iszero(iszero(gt(buyerCredit, 0))), iszero(iszero(gt(buyerCreditIncrease, 0)))) {
+                            {
+                                let __compat_value := buyerCreditAfterUpdate
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                                sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            }
+                            {
+                                let __compat_value := buyerMarketLossFactor
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                                sstore(add(mappingSlot(mappingSlot(0, id), buyer), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            }
+                            {
+                                let __compat_value := buyerPendingFeeAfterUpdate
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                                sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            }
+                            {
+                                let __compat_value := now
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 1))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                                sstore(add(mappingSlot(mappingSlot(0, id), buyer), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            }
+                            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                            {
+                                let __compat_value := add(currentContinuousFeeCredit, buyerAccrued)
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            }
+                        }
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                            mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 55)
+                            mstore(add(__evt_ptr, 0), buyerCreditDecrease)
+                            mstore(add(__evt_ptr, 32), buyerPendingFeeDecreaseForUpdate)
+                            mstore(add(__evt_ptr, 64), buyerAccrued)
+                            log3(__evt_ptr, 96, __evt_topic0, id, and(buyer, 0xffffffffffffffffffffffffffffffffffffffff))
+                        }
+                        {
+                            let __compat_value := sub(buyerDebt, buyerDebtDecrease)
+                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), buyer), 2))
+                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                            sstore(add(mappingSlot(mappingSlot(0, id), buyer), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        }
+                        {
+                            let __compat_value := add(buyerPendingFeeAfterUpdate, buyerPendingFeeIncrease)
+                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                            let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                            sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        }
+                        {
+                            let __compat_value := add(buyerCreditAfterUpdate, buyerCreditIncrease)
+                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), buyer))
+                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                            sstore(mappingSlot(mappingSlot(0, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        }
+                        mstore(0, buyerCreditIncrease)
+                        return(0, 32)
+                    }
+                    case 0xa37c87cb {
+                        /* updateSellerForTake() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 164) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 164) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let seller := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let units := calldataload(68)
+                        let maturity := calldataload(100)
+                        let now := calldataload(132)
+                        let sellerCredit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), seller))), 340282366920938463463374607431768211455)
+                        let sellerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(0, id), seller))), 340282366920938463463374607431768211455)
+                        let sellerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), seller), 1))), 340282366920938463463374607431768211455)
+                        let sellerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), seller), 1))), 340282366920938463463374607431768211455)
+                        let sellerMarketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                        let sellerPostSlashCredit := 0
+                        if lt(sellerLastLossFactor, 340282366920938463463374607431768211455) {
+                            sellerPostSlashCredit := div(mul(sellerCredit, sub(340282366920938463463374607431768211455, sellerMarketLossFactor)), sub(340282366920938463463374607431768211455, sellerLastLossFactor))
+                        }
+                        let sellerPostSlashPendingFee := 0
+                        if gt(sellerCredit, 0) {
+                            sellerPostSlashPendingFee := sub(sellerPendingFee, div(add(mul(sellerPendingFee, sub(sellerCredit, sellerPostSlashCredit)), sub(sellerCredit, 1)), sellerCredit))
+                        }
+                        let sellerAccrualEnd := maturity
+                        if iszero(gt(now, maturity)) {
+                            sellerAccrualEnd := now
+                        }
+                        let sellerAccrued := 0
+                        if lt(sellerLastAccrual, maturity) {
+                            sellerAccrued := div(mul(sellerPostSlashPendingFee, sub(sellerAccrualEnd, sellerLastAccrual)), sub(maturity, sellerLastAccrual))
+                        }
+                        let sellerCreditAfterUpdate := sub(sellerPostSlashCredit, sellerAccrued)
+                        let sellerPendingFeeAfterUpdate := sub(sellerPostSlashPendingFee, sellerAccrued)
+                        let sellerCreditDecreaseForUpdate := sub(sellerCredit, sellerCreditAfterUpdate)
+                        let sellerPendingFeeDecreaseForUpdate := sub(sellerPendingFee, sellerPendingFeeAfterUpdate)
+                        if gt(sellerCredit, 0) {
+                            {
+                                let __compat_value := sellerCreditAfterUpdate
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                                sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            }
+                            {
+                                let __compat_value := sellerMarketLossFactor
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 1))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                                sstore(add(mappingSlot(mappingSlot(0, id), seller), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            }
+                            {
+                                let __compat_value := sellerPendingFeeAfterUpdate
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                                sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            }
+                            {
+                                let __compat_value := now
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 1))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                                sstore(add(mappingSlot(mappingSlot(0, id), seller), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            }
+                            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                            {
+                                let __compat_value := add(currentContinuousFeeCredit, sellerAccrued)
+                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
+                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            }
+                        }
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                            mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 55)
+                            mstore(add(__evt_ptr, 0), sellerCreditDecreaseForUpdate)
+                            mstore(add(__evt_ptr, 32), sellerPendingFeeDecreaseForUpdate)
+                            mstore(add(__evt_ptr, 64), sellerAccrued)
+                            log3(__evt_ptr, 96, __evt_topic0, id, and(seller, 0xffffffffffffffffffffffffffffffffffffffff))
+                        }
+                        let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
+                        let sellerDebtIncrease := sub(units, sellerCreditDecrease)
+                        let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), seller), 2))), 340282366920938463463374607431768211455)
+                        let sellerPendingFeeDecrease := 0
+                        if gt(sellerCreditAfterUpdate, 0) {
+                            sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
+                        }
+                        {
+                            let __compat_value := sub(sellerPendingFeeAfterUpdate, sellerPendingFeeDecrease)
+                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                            let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
+                            sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        }
+                        {
+                            let __compat_value := sub(sellerCreditAfterUpdate, sellerCreditDecrease)
+                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), seller))
+                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                            sstore(mappingSlot(mappingSlot(0, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        }
+                        {
+                            let __compat_value := add(sellerDebt, sellerDebtIncrease)
+                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), seller), 2))
+                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
+                            sstore(add(mappingSlot(mappingSlot(0, id), seller), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        }
+                        mstore(0, sellerCreditDecrease)
+                        mstore(32, sellerDebtIncrease)
+                        mstore(64, sellerPendingFeeDecrease)
+                        return(0, 96)
+                    }
+                    case 0x89e05787 {
+                        /* takeAssetsForPrice() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 228) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 228) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let units := calldataload(36)
+                        let tick := calldataload(68)
+                        let offerIsBuy := iszero(iszero(calldataload(100)))
+                        let maturity := calldataload(132)
+                        let now := calldataload(164)
+                        let buyerCreditIncrease := calldataload(196)
+                        let offerPrice := internal_internal_tickToPrice(tick)
+                        let timeToMaturityForFee := 0
+                        if gt(maturity, now) {
+                            timeToMaturityForFee := sub(maturity, now)
+                        }
+                        let settlementFeeValue := internal_internal_settlementFee(id, timeToMaturityForFee)
+                        let continuousFeeValueForCallback := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
+                        let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValueForCallback, timeToMaturityForFee)), 1000000000000000000)
+                        let sellerPrice := offerPrice
+                        if offerIsBuy {
+                            sellerPrice := sub(offerPrice, settlementFeeValue)
+                        }
+                        let buyerPrice := add(sellerPrice, settlementFeeValue)
+                        let buyerAssets := 0
+                        let sellerAssets := 0
+                        {
+                            let __ite_cond := offerIsBuy
+                            if __ite_cond {
+                                buyerAssets := div(mul(units, buyerPrice), 1000000000000000000)
+                                sellerAssets := div(mul(units, sellerPrice), 1000000000000000000)
+                            }
+                            if iszero(__ite_cond) {
+                                buyerAssets := div(add(mul(units, buyerPrice), sub(1000000000000000000, 1)), 1000000000000000000)
+                                sellerAssets := div(add(mul(units, sellerPrice), sub(1000000000000000000, 1)), 1000000000000000000)
+                            }
+                        }
+                        mstore(0, buyerAssets)
+                        mstore(32, sellerAssets)
+                        mstore(64, buyerPendingFeeIncrease)
+                        return(0, 96)
                     }
                     case 0x81a01d33 {
                         /* take() */
@@ -8011,8 +12004,38 @@ object "Midnight" {
                         let marketBase := add(offerBase, calldataload(offerBase))
                         let loanToken := calldataload(marketBase)
                         let maturity := calldataload(add(marketBase, 64))
-                        let id := maturity
-                        let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let enterGate := calldataload(add(marketBase, 128))
+                        let initialChainId := sload(1024)
+                        let contractSelf := address()
+                        let id := 0
+                        {
+                            let __midnight_id_ptr := mload(64)
+                            mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
+                            mstore(add(__midnight_id_ptr, 11), 32)
+                            let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
+                            mstore(__midnight_id_tuple_ptr, calldataload(marketBase))
+                            mstore(add(__midnight_id_tuple_ptr, 32), 192)
+                            mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                            mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                            mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                            mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                            let __midnight_id_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                            let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
+                            let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
+                            mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
+                            calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
+                            let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
+                            let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
+                            let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                            let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
+                            mstore(__midnight_id_outer_ptr, shl(248, 255))
+                            mstore(add(__midnight_id_outer_ptr, 1), shl(96, contractSelf))
+                            mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
+                            mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
+                            id := keccak256(__midnight_id_outer_ptr, 85)
+                            mstore(64, add(__midnight_id_outer_ptr, 96))
+                        }
+                        let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if eq(currentMarketTickSpacing, 0) {
                             let now := timestamp()
                             if gt(maturity, add(now, 3153600000)) {
@@ -8029,9 +12052,9 @@ object "Midnight" {
                             {
                                 let __compat_value := 4
                                 let __compat_packed := and(__compat_value, 255)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(5686690025625308901091608159525332184025006080))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(144, __compat_packed)))
                             }
                             let settlementFeeCbp0 := internal_internal_defaultSettlementFeeCbp(loanToken, 0)
                             let settlementFeeCbp1 := internal_internal_defaultSettlementFeeCbp(loanToken, 1)
@@ -8040,66 +12063,66 @@ object "Midnight" {
                             let settlementFeeCbp4 := internal_internal_defaultSettlementFeeCbp(loanToken, 4)
                             let settlementFeeCbp5 := internal_internal_defaultSettlementFeeCbp(loanToken, 5)
                             let settlementFeeCbp6 := internal_internal_defaultSettlementFeeCbp(loanToken, 6)
-                            let continuous := sload(mappingSlot(8, loanToken))
+                            let continuous := sload(mappingSlot(5, loanToken))
                             {
                                 let __compat_value := settlementFeeCbp0
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(65535))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp1
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(4294901760))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(16, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp2
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(281470681743360))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(32, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp3
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(18446462598732840960))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(48, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp4
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(1208907372870555465154560))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(64, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp5
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(79226953588444722964369244160))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(80, __compat_packed)))
                             }
                             {
                                 let __compat_value := settlementFeeCbp6
                                 let __compat_packed := and(__compat_value, 65535)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(5192217630372313364192902785269760))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(96, __compat_packed)))
                             }
                             {
                                 let __compat_value := continuous
                                 let __compat_packed := and(__compat_value, 4294967295)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(22300745193338326283000890644117865176760320))
-                                sstore(add(mappingSlot(10, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 2), or(__compat_slot_cleared, shl(112, __compat_packed)))
                             }
                         }
-                        let lossFactorValue := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
-                        if iszero(lt(lossFactorValue, 340282366920938463463374607431768211455)) {
+                        let lossFactorForGuard := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                        if iszero(lt(lossFactorForGuard, 340282366920938463463374607431768211455)) {
                             {
                                 let __err_ptr := mload(64)
                                 mstore(add(__err_ptr, 0), 0x4d61726b65744c6f7373466163746f724d617865644f75742829000000000000)
@@ -8121,7 +12144,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let currentTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if iszero(eq(mod(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5), currentTickSpacing), 0)) {
                             {
                                 let __err_ptr := mload(64)
@@ -8179,6 +12202,72 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
+                        {
+                            let __rat_ptr := mload(64)
+                            let __rat_offer_ptr := add(__rat_ptr, 68)
+                            let __rat_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                            let __rat_collateral_offset := add(__rat_market_offset, calldataload(add(__rat_market_offset, 32)))
+                            let __rat_collateral_length := calldataload(__rat_collateral_offset)
+                            let __rat_collateral_bytes := mul(__rat_collateral_length, 128)
+                            let __rat_market_size := add(224, __rat_collateral_bytes)
+                            let __rat_padded_market_size := and(add(__rat_market_size, 31), not(31))
+                            let __rat_callback_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                            let __rat_callback_data_length := calldataload(__rat_callback_data_offset)
+                            let __rat_padded_callback_data_length := and(add(__rat_callback_data_length, 31), not(31))
+                            let __rat_offer_size := add(448, add(__rat_padded_market_size, add(32, __rat_padded_callback_data_length)))
+                            let __rat_padded_offer_size := and(add(__rat_offer_size, 31), not(31))
+                            let __rat_data_ptr := add(__rat_offer_ptr, __rat_padded_offer_size)
+                            let __rat_padded_data_length := and(add(ratifierData_length, 31), not(31))
+                            let __rat_total := add(68, add(__rat_padded_offer_size, add(32, __rat_padded_data_length)))
+                            mstore(__rat_ptr, shl(224, 0x675ef8d3))
+                            mstore(add(__rat_ptr, 4), 64)
+                            mstore(add(__rat_ptr, 36), add(64, __rat_padded_offer_size))
+                            mstore(__rat_offer_ptr, 448)
+                            for {
+                                let __rat_i := 1
+                            } lt(__rat_i, 8) {
+                                __rat_i := add(__rat_i, 1)
+                            } {
+                                mstore(add(__rat_offer_ptr, mul(__rat_i, 32)), calldataload(add(offer_data_offset, mul(__rat_i, 32))))
+                            }
+                            mstore(add(__rat_offer_ptr, 256), add(448, __rat_padded_market_size))
+                            for {
+                                let __rat_j := 9
+                            } lt(__rat_j, 14) {
+                                __rat_j := add(__rat_j, 1)
+                            } {
+                                mstore(add(__rat_offer_ptr, mul(__rat_j, 32)), calldataload(add(offer_data_offset, mul(__rat_j, 32))))
+                            }
+                            let __rat_market_ptr := add(__rat_offer_ptr, 448)
+                            mstore(__rat_market_ptr, calldataload(__rat_market_offset))
+                            mstore(add(__rat_market_ptr, 32), 192)
+                            for {
+                                let __rat_m := 2
+                            } lt(__rat_m, 6) {
+                                __rat_m := add(__rat_m, 1)
+                            } {
+                                mstore(add(__rat_market_ptr, mul(__rat_m, 32)), calldataload(add(__rat_market_offset, mul(__rat_m, 32))))
+                            }
+                            mstore(add(__rat_market_ptr, 192), __rat_collateral_length)
+                            calldatacopy(add(__rat_market_ptr, 224), add(__rat_collateral_offset, 32), __rat_collateral_bytes)
+                            mstore(add(__rat_offer_ptr, add(448, __rat_padded_market_size)), __rat_callback_data_length)
+                            calldatacopy(add(__rat_offer_ptr, add(480, __rat_padded_market_size)), add(__rat_callback_data_offset, 32), __rat_callback_data_length)
+                            mstore(add(__rat_offer_ptr, add(480, add(__rat_padded_market_size, __rat_callback_data_length))), 0)
+                            mstore(__rat_data_ptr, ratifierData_length)
+                            calldatacopy(add(__rat_data_ptr, 32), ratifierData_data_offset, ratifierData_length)
+                            mstore(add(__rat_data_ptr, add(32, ratifierData_length)), 0)
+                            mstore(64, add(__rat_ptr, and(add(__rat_total, 31), not(31))))
+                            let __rat_success := staticcall(gas(), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 10), __rat_ptr, __rat_total, __rat_ptr, 32)
+                            if iszero(__rat_success) {
+                                let __rat_rds := returndatasize()
+                                returndatacopy(0, 0, __rat_rds)
+                                revert(0, __rat_rds)
+                            }
+                            if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__rat_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                mstore(0, shl(224, 0x9e8ec676))
+                                revert(0, 4)
+                            }
+                        }
                         if gt(units, 340282366920938463463374607431768211455) {
                             {
                                 let __err_ptr := mload(64)
@@ -8194,8 +12283,47 @@ object "Midnight" {
                         {
                             let __ite_cond := gt(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13), 0)
                             if __ite_cond {
-                                let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
-                                newConsumed := add(currentConsumed, units)
+                                let offerPriceConsumed := internal_internal_tickToPrice(__verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5))
+                                let timeToMaturityConsumed := 0
+                                if gt(maturity, now) {
+                                    timeToMaturityConsumed := sub(maturity, now)
+                                }
+                                let settlementFeeConsumed := internal_internal_settlementFee(id, timeToMaturityConsumed)
+                                let sellerPriceConsumed := offerPriceConsumed
+                                if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                                    sellerPriceConsumed := sub(offerPriceConsumed, settlementFeeConsumed)
+                                }
+                                let buyerPriceConsumed := add(sellerPriceConsumed, settlementFeeConsumed)
+                                let buyerAssetsConsumed := 0
+                                let sellerAssetsConsumed := 0
+                                {
+                                    let __ite_cond_3 := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                                    if __ite_cond_3 {
+                                        buyerAssetsConsumed := div(mul(units, buyerPriceConsumed), 1000000000000000000)
+                                        sellerAssetsConsumed := div(mul(units, sellerPriceConsumed), 1000000000000000000)
+                                    }
+                                    if iszero(__ite_cond_3) {
+                                        buyerAssetsConsumed := div(add(mul(units, buyerPriceConsumed), sub(1000000000000000000, 1)), 1000000000000000000)
+                                        sellerAssetsConsumed := div(add(mul(units, sellerPriceConsumed), sub(1000000000000000000, 1)), 1000000000000000000)
+                                    }
+                                }
+                                if lt(buyerAssetsConsumed, sellerAssetsConsumed) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x496e636f6e73697374656e74496e707574282900000000000000000000000000)
+                                        let __err_hash := keccak256(__err_ptr, 19)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                let currentConsumed := sload(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
+                                let consumedIncrease := sellerAssetsConsumed
+                                if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                                    consumedIncrease := buyerAssetsConsumed
+                                }
+                                newConsumed := add(currentConsumed, consumedIncrease)
                                 if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 13)) {
                                     {
                                         let __err_ptr := mload(64)
@@ -8207,10 +12335,10 @@ object "Midnight" {
                                         revert(0, add(4, __err_tail))
                                     }
                                 }
-                                sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
+                                sstore(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                             }
                             if iszero(__ite_cond) {
-                                let currentConsumed := sload(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
+                                let currentConsumed := sload(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)))
                                 newConsumed := add(currentConsumed, units)
                                 if gt(newConsumed, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 12)) {
                                     {
@@ -8223,7 +12351,7 @@ object "Midnight" {
                                         revert(0, add(4, __err_tail))
                                     }
                                 }
-                                sstore(mappingSlot(mappingSlot(5, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
+                                sstore(mappingSlot(mappingSlot(2, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6)), newConsumed)
                             }
                         }
                         let buyer := taker
@@ -8232,163 +12360,8 @@ object "Midnight" {
                             buyer := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2)
                             seller := taker
                         }
-                        let buyerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))), 340282366920938463463374607431768211455)
-                        let buyerDebtDecrease := internal_internal_min(units, buyerDebt)
-                        let buyerCreditIncrease := sub(units, buyerDebtDecrease)
-                        let continuousFeeValue := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
-                        let timeToMaturity := 0
-                        if gt(maturity, now) {
-                            timeToMaturity := sub(maturity, now)
-                        }
-                        let buyerPendingFeeIncrease := div(mul(buyerCreditIncrease, mul(continuousFeeValue, timeToMaturity)), 1000000000000000000)
-                        let buyerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
-                        let buyerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), buyer))), 340282366920938463463374607431768211455)
-                        let buyerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
-                        let buyerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))), 340282366920938463463374607431768211455)
-                        let buyerPostSlashCredit := 0
-                        if lt(buyerLastLossFactor, 340282366920938463463374607431768211455) {
-                            buyerPostSlashCredit := div(mul(buyerCredit, sub(340282366920938463463374607431768211455, lossFactorValue)), sub(340282366920938463463374607431768211455, buyerLastLossFactor))
-                        }
-                        let buyerPostSlashPendingFee := 0
-                        if gt(buyerCredit, 0) {
-                            buyerPostSlashPendingFee := sub(buyerPendingFee, div(add(mul(buyerPendingFee, sub(buyerCredit, buyerPostSlashCredit)), sub(buyerCredit, 1)), buyerCredit))
-                        }
-                        let buyerAccrualEnd := maturity
-                        if iszero(gt(now, maturity)) {
-                            buyerAccrualEnd := now
-                        }
-                        let buyerAccrued := 0
-                        if lt(buyerLastAccrual, maturity) {
-                            buyerAccrued := div(mul(buyerPostSlashPendingFee, sub(buyerAccrualEnd, buyerLastAccrual)), sub(maturity, buyerLastAccrual))
-                        }
-                        let buyerCreditAfterUpdate := sub(buyerPostSlashCredit, buyerAccrued)
-                        let buyerPendingFeeAfterUpdate := sub(buyerPostSlashPendingFee, buyerAccrued)
-                        if or(iszero(iszero(gt(buyerCredit, 0))), iszero(iszero(gt(buyerCreditIncrease, 0)))) {
-                            {
-                                let __compat_value := buyerCreditAfterUpdate
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                            }
-                            {
-                                let __compat_value := lossFactorValue
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(add(mappingSlot(mappingSlot(11, id), buyer), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                            }
-                            {
-                                let __compat_value := buyerPendingFeeAfterUpdate
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                            }
-                            {
-                                let __compat_value := now
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 1))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(add(mappingSlot(mappingSlot(11, id), buyer), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                            }
-                            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                            {
-                                let __compat_value := add(currentContinuousFeeCredit, buyerAccrued)
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                            }
-                        }
-                        {
-                            let __compat_value := sub(buyerDebt, buyerDebtDecrease)
-                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), buyer), 2))
-                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(mappingSlot(11, id), buyer), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                        }
-                        {
-                            let __compat_value := add(buyerPendingFeeAfterUpdate, buyerPendingFeeIncrease)
-                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                            let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                        }
-                        {
-                            let __compat_value := add(buyerCreditAfterUpdate, buyerCreditIncrease)
-                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), buyer))
-                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(mappingSlot(11, id), buyer), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                        }
-                        let sellerCredit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), seller))), 340282366920938463463374607431768211455)
-                        let sellerPendingFee := and(shr(128, sload(mappingSlot(mappingSlot(11, id), seller))), 340282366920938463463374607431768211455)
-                        let sellerLastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 1))), 340282366920938463463374607431768211455)
-                        let sellerLastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), seller), 1))), 340282366920938463463374607431768211455)
-                        let sellerPostSlashCredit := 0
-                        if lt(sellerLastLossFactor, 340282366920938463463374607431768211455) {
-                            sellerPostSlashCredit := div(mul(sellerCredit, sub(340282366920938463463374607431768211455, lossFactorValue)), sub(340282366920938463463374607431768211455, sellerLastLossFactor))
-                        }
-                        let sellerPostSlashPendingFee := 0
-                        if gt(sellerCredit, 0) {
-                            sellerPostSlashPendingFee := sub(sellerPendingFee, div(add(mul(sellerPendingFee, sub(sellerCredit, sellerPostSlashCredit)), sub(sellerCredit, 1)), sellerCredit))
-                        }
-                        let sellerAccrualEnd := maturity
-                        if iszero(gt(now, maturity)) {
-                            sellerAccrualEnd := now
-                        }
-                        let sellerAccrued := 0
-                        if lt(sellerLastAccrual, maturity) {
-                            sellerAccrued := div(mul(sellerPostSlashPendingFee, sub(sellerAccrualEnd, sellerLastAccrual)), sub(maturity, sellerLastAccrual))
-                        }
-                        let sellerCreditAfterUpdate := sub(sellerPostSlashCredit, sellerAccrued)
-                        let sellerPendingFeeAfterUpdate := sub(sellerPostSlashPendingFee, sellerAccrued)
-                        if gt(sellerCredit, 0) {
-                            {
-                                let __compat_value := sellerCreditAfterUpdate
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                            }
-                            {
-                                let __compat_value := lossFactorValue
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 1))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(add(mappingSlot(mappingSlot(11, id), seller), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
-                            }
-                            {
-                                let __compat_value := sellerPendingFeeAfterUpdate
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                            }
-                            {
-                                let __compat_value := now
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 1))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(add(mappingSlot(mappingSlot(11, id), seller), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                            }
-                            let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
-                            {
-                                let __compat_value := add(currentContinuousFeeCredit, sellerAccrued)
-                                let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
-                                let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
-                            }
-                        }
-                        let sellerCreditDecrease := internal_internal_min(units, sellerCreditAfterUpdate)
-                        let sellerDebtIncrease := sub(units, sellerCreditDecrease)
-                        let sellerDebt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), seller), 2))), 340282366920938463463374607431768211455)
-                        let sellerPendingFeeDecrease := 0
-                        if gt(sellerCreditAfterUpdate, 0) {
-                            sellerPendingFeeDecrease := div(add(mul(sellerPendingFeeAfterUpdate, sellerCreditDecrease), sub(sellerCreditAfterUpdate, 1)), sellerCreditAfterUpdate)
-                        }
+                        let buyerCreditIncrease := internal_internal_updateBuyerForTake(id, buyer, units, maturity, now)
+                        let sellerCreditDecrease, sellerDebtIncrease, sellerPendingFeeDecrease := internal_internal_updateSellerForTake(id, seller, units, maturity, now)
                         if iszero(or(iszero(iszero(iszero(gt(now, maturity)))), iszero(iszero(eq(sellerDebtIncrease, 0))))) {
                             {
                                 let __err_ptr := mload(64)
@@ -8423,37 +12396,66 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        {
-                            let __compat_value := sub(sellerPendingFeeAfterUpdate, sellerPendingFeeDecrease)
-                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                            let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        let buyerGateAllowed := 1
+                        if iszero(eq(enterGate, 0)) {
+                            if gt(buyerCreditIncrease, 0) {
+                                let canIncreaseCredit := internal_internal_enterGateCanIncreaseCredit(enterGate, buyer)
+                                buyerGateAllowed := iszero(eq(canIncreaseCredit, 0))
+                            }
                         }
-                        {
-                            let __compat_value := sub(sellerCreditAfterUpdate, sellerCreditDecrease)
-                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), seller))
-                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(mappingSlot(11, id), seller), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        if iszero(buyerGateAllowed) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x4275796572476174656446726f6d496e6372656173696e674372656469742829)
+                                let __err_hash := keccak256(__err_ptr, 32)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
                         }
-                        {
-                            let __compat_value := add(sellerDebt, sellerDebtIncrease)
-                            let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), seller), 2))
-                            let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(mappingSlot(11, id), seller), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        let sellerGateAllowed := 1
+                        if iszero(eq(enterGate, 0)) {
+                            if gt(sellerDebtIncrease, 0) {
+                                let canIncreaseDebt := internal_internal_enterGateCanIncreaseDebt(enterGate, seller)
+                                sellerGateAllowed := iszero(eq(canIncreaseDebt, 0))
+                            }
                         }
-                        let currentTotalUnits := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        if iszero(sellerGateAllowed) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x53656c6c6572476174656446726f6d496e6372656173696e6744656274282900)
+                                let __err_hash := keccak256(__err_ptr, 31)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let currentTotalUnits := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         let newTotalUnits := add(currentTotalUnits, buyerCreditIncrease)
                         newTotalUnits := sub(newTotalUnits, sellerCreditDecrease)
                         {
                             let __compat_value := newTotalUnits
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(10, id))
+                            let __compat_slot_word := sload(mappingSlot(1, id))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
+                        let buyerAssets, sellerAssets, buyerPendingFeeIncrease := internal_internal_takeAssetsForPrice(id, units, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 5), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1), maturity, now, buyerCreditIncrease)
+                        if lt(buyerAssets, sellerAssets) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x496e636f6e73697374656e74496e707574282900000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 19)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let claimableBefore := sload(mappingSlot(6, loanToken))
+                        sstore(mappingSlot(6, loanToken), add(claimableBefore, sub(buyerAssets, sellerAssets)))
                         let receiver := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 9)
                         if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
                             receiver := receiverIfTakerIsSeller
@@ -8467,46 +12469,364 @@ object "Midnight" {
                                 payer := sender
                             }
                         }
-                        let transferAssets := units
+                        let buyerCallback := takerCallback
                         if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
-                            transferAssets := 0
+                            buyerCallback := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7)
+                        }
+                        let offerIsBuyWord := 0
+                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                            offerIsBuyWord := 1
+                        }
+                        let takeEventPtr := mload(64)
+                        mstore(takeEventPtr, sender)
+                        mstore(add(takeEventPtr, 32), units)
+                        mstore(add(takeEventPtr, 64), offerIsBuyWord)
+                        mstore(add(takeEventPtr, 96), __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 6))
+                        mstore(add(takeEventPtr, 128), buyerAssets)
+                        mstore(add(takeEventPtr, 160), sellerAssets)
+                        mstore(64, add(takeEventPtr, 416))
+                        mstore(add(takeEventPtr, 192), newConsumed)
+                        mstore(add(takeEventPtr, 224), buyerPendingFeeIncrease)
+                        mstore(add(takeEventPtr, 256), sellerPendingFeeDecrease)
+                        mstore(add(takeEventPtr, 288), buyerCreditIncrease)
+                        mstore(add(takeEventPtr, 320), sellerCreditDecrease)
+                        mstore(add(takeEventPtr, 352), receiver)
+                        mstore(add(takeEventPtr, 384), payer)
+                        log4(takeEventPtr, 416, 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3, id, taker, __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 2))
+                        {
+                            let __liq_lock_ptr := mload(64)
+                            mstore(__liq_lock_ptr, id)
+                            mstore(add(__liq_lock_ptr, 32), seller)
+                            mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                            let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                            tstore(__liq_lock_slot, add(tload(__liq_lock_slot), 1))
+                        }
+                        if iszero(eq(buyerCallback, 0)) {
+                            payer := buyerCallback
+                            {
+                                let __ite_cond := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                                if __ite_cond {
+                                    {
+                                        let __buycb_ptr := mload(64)
+                                        let __buycb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                        let __buycb_collateral_offset := add(__buycb_market_offset, calldataload(add(__buycb_market_offset, 32)))
+                                        let __buycb_collateral_length := calldataload(__buycb_collateral_offset)
+                                        let __buycb_collateral_bytes := mul(__buycb_collateral_length, 128)
+                                        let __buycb_market_size := add(224, __buycb_collateral_bytes)
+                                        let __buycb_padded_market_size := and(add(__buycb_market_size, 31), not(31))
+                                        let __buycb_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                                        let __buycb_data_length := calldataload(__buycb_data_offset)
+                                        let __buycb_padded_data_len := and(add(__buycb_data_length, 31), not(31))
+                                        let __buycb_market_ptr := add(__buycb_ptr, 228)
+                                        let __buycb_data_ptr := add(__buycb_market_ptr, __buycb_padded_market_size)
+                                        let __buycb_total := add(228, add(__buycb_padded_market_size, add(32, __buycb_padded_data_len)))
+                                        mstore(__buycb_ptr, shl(224, 0xf151bd5c))
+                                        mstore(add(__buycb_ptr, 4), id)
+                                        mstore(add(__buycb_ptr, 36), 224)
+                                        mstore(add(__buycb_ptr, 68), buyerAssets)
+                                        mstore(add(__buycb_ptr, 100), units)
+                                        mstore(add(__buycb_ptr, 132), buyerPendingFeeIncrease)
+                                        mstore(add(__buycb_ptr, 164), buyer)
+                                        mstore(add(__buycb_ptr, 196), add(224, __buycb_padded_market_size))
+                                        mstore(__buycb_market_ptr, calldataload(__buycb_market_offset))
+                                        mstore(add(__buycb_market_ptr, 32), 192)
+                                        for {
+                                            let __buycb_m := 2
+                                        } lt(__buycb_m, 6) {
+                                            __buycb_m := add(__buycb_m, 1)
+                                        } {
+                                            mstore(add(__buycb_market_ptr, mul(__buycb_m, 32)), calldataload(add(__buycb_market_offset, mul(__buycb_m, 32))))
+                                        }
+                                        mstore(add(__buycb_market_ptr, 192), __buycb_collateral_length)
+                                        calldatacopy(add(__buycb_market_ptr, 224), add(__buycb_collateral_offset, 32), __buycb_collateral_bytes)
+                                        mstore(__buycb_data_ptr, __buycb_data_length)
+                                        calldatacopy(add(__buycb_data_ptr, 32), add(__buycb_data_offset, 32), __buycb_data_length)
+                                        mstore(add(__buycb_data_ptr, add(32, __buycb_data_length)), 0)
+                                        mstore(64, add(__buycb_ptr, and(add(__buycb_total, 31), not(31))))
+                                        let __buycb_success := call(gas(), buyerCallback, 0, __buycb_ptr, __buycb_total, __buycb_ptr, 32)
+                                        if iszero(__buycb_success) {
+                                            let __buycb_rds := returndatasize()
+                                            returndatacopy(0, 0, __buycb_rds)
+                                            revert(0, __buycb_rds)
+                                        }
+                                        if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__buycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                            mstore(0, shl(224, 0xa8f3eb44))
+                                            revert(0, 4)
+                                        }
+                                    }
+                                }
+                                if iszero(__ite_cond) {
+                                    {
+                                        let __buycb_ptr := mload(64)
+                                        let __buycb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                        let __buycb_collateral_offset := add(__buycb_market_offset, calldataload(add(__buycb_market_offset, 32)))
+                                        let __buycb_collateral_length := calldataload(__buycb_collateral_offset)
+                                        let __buycb_collateral_bytes := mul(__buycb_collateral_length, 128)
+                                        let __buycb_market_size := add(224, __buycb_collateral_bytes)
+                                        let __buycb_padded_market_size := and(add(__buycb_market_size, 31), not(31))
+                                        let __buycb_data_offset := sub(takerCallbackData_data_offset, 32)
+                                        let __buycb_data_length := calldataload(__buycb_data_offset)
+                                        let __buycb_padded_data_len := and(add(__buycb_data_length, 31), not(31))
+                                        let __buycb_market_ptr := add(__buycb_ptr, 228)
+                                        let __buycb_data_ptr := add(__buycb_market_ptr, __buycb_padded_market_size)
+                                        let __buycb_total := add(228, add(__buycb_padded_market_size, add(32, __buycb_padded_data_len)))
+                                        mstore(__buycb_ptr, shl(224, 0xf151bd5c))
+                                        mstore(add(__buycb_ptr, 4), id)
+                                        mstore(add(__buycb_ptr, 36), 224)
+                                        mstore(add(__buycb_ptr, 68), buyerAssets)
+                                        mstore(add(__buycb_ptr, 100), units)
+                                        mstore(add(__buycb_ptr, 132), buyerPendingFeeIncrease)
+                                        mstore(add(__buycb_ptr, 164), buyer)
+                                        mstore(add(__buycb_ptr, 196), add(224, __buycb_padded_market_size))
+                                        mstore(__buycb_market_ptr, calldataload(__buycb_market_offset))
+                                        mstore(add(__buycb_market_ptr, 32), 192)
+                                        for {
+                                            let __buycb_m := 2
+                                        } lt(__buycb_m, 6) {
+                                            __buycb_m := add(__buycb_m, 1)
+                                        } {
+                                            mstore(add(__buycb_market_ptr, mul(__buycb_m, 32)), calldataload(add(__buycb_market_offset, mul(__buycb_m, 32))))
+                                        }
+                                        mstore(add(__buycb_market_ptr, 192), __buycb_collateral_length)
+                                        calldatacopy(add(__buycb_market_ptr, 224), add(__buycb_collateral_offset, 32), __buycb_collateral_bytes)
+                                        mstore(__buycb_data_ptr, __buycb_data_length)
+                                        calldatacopy(add(__buycb_data_ptr, 32), add(__buycb_data_offset, 32), __buycb_data_length)
+                                        mstore(add(__buycb_data_ptr, add(32, __buycb_data_length)), 0)
+                                        mstore(64, add(__buycb_ptr, and(add(__buycb_total, 31), not(31))))
+                                        let __buycb_success := call(gas(), buyerCallback, 0, __buycb_ptr, __buycb_total, __buycb_ptr, 32)
+                                        if iszero(__buycb_success) {
+                                            let __buycb_rds := returndatasize()
+                                            returndatacopy(0, 0, __buycb_rds)
+                                            revert(0, __buycb_rds)
+                                        }
+                                        if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__buycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                            mstore(0, shl(224, 0xa8f3eb44))
+                                            revert(0, 4)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        let feeAssets := sub(buyerAssets, sellerAssets)
+                        if gt(feeAssets, 0) {
+                            let self := address()
+                            {
+                                let __stf_ptr := mload(64)
+                                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                                mstore(add(__stf_ptr, 4), payer)
+                                mstore(add(__stf_ptr, 36), self)
+                                mstore(add(__stf_ptr, 68), feeAssets)
+                                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
+                                let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
+                                if iszero(__stf_success) {
+                                    let __stf_rds := returndatasize()
+                                    returndatacopy(0, 0, __stf_rds)
+                                    revert(0, __stf_rds)
+                                }
+                                let __erc20_rds := returndatasize()
+                                if iszero(__erc20_rds) {
+                                    if iszero(gt(extcodesize(loanToken), 0)) {
+                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                        revert(0, 36)
+                                    }
+                                }
+                                if __erc20_rds {
+                                    if iszero(eq(__erc20_rds, 32)) {
+                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                        revert(0, 36)
+                                    }
+                                    if iszero(eq(mload(__stf_ptr), 1)) {
+                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                        revert(0, 36)
+                                    }
+                                }
+                            }
+                        }
+                        if gt(sellerAssets, 0) {
+                            {
+                                let __stf_ptr := mload(64)
+                                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                                mstore(add(__stf_ptr, 4), payer)
+                                mstore(add(__stf_ptr, 36), receiver)
+                                mstore(add(__stf_ptr, 68), sellerAssets)
+                                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
+                                let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
+                                if iszero(__stf_success) {
+                                    let __stf_rds := returndatasize()
+                                    returndatacopy(0, 0, __stf_rds)
+                                    revert(0, __stf_rds)
+                                }
+                                let __erc20_rds := returndatasize()
+                                if iszero(__erc20_rds) {
+                                    if iszero(gt(extcodesize(loanToken), 0)) {
+                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                        revert(0, 36)
+                                    }
+                                }
+                                if __erc20_rds {
+                                    if iszero(eq(__erc20_rds, 32)) {
+                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                        revert(0, 36)
+                                    }
+                                    if iszero(eq(mload(__stf_ptr), 1)) {
+                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
+                                        revert(0, 36)
+                                    }
+                                }
+                            }
+                        }
+                        let sellerCallback := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 7)
+                        if __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1) {
+                            sellerCallback := takerCallback
+                        }
+                        if iszero(eq(sellerCallback, 0)) {
+                            {
+                                let __ite_cond := __verity_param_dynamic_head_word_calldata_checked(offer_data_offset, 1)
+                                if __ite_cond {
+                                    {
+                                        let __sellcb_ptr := mload(64)
+                                        let __sellcb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                        let __sellcb_collateral_offset := add(__sellcb_market_offset, calldataload(add(__sellcb_market_offset, 32)))
+                                        let __sellcb_collateral_length := calldataload(__sellcb_collateral_offset)
+                                        let __sellcb_collateral_bytes := mul(__sellcb_collateral_length, 128)
+                                        let __sellcb_market_size := add(224, __sellcb_collateral_bytes)
+                                        let __sellcb_padded_market_size := and(add(__sellcb_market_size, 31), not(31))
+                                        let __sellcb_data_offset := sub(takerCallbackData_data_offset, 32)
+                                        let __sellcb_data_length := calldataload(__sellcb_data_offset)
+                                        let __sellcb_padded_data_len := and(add(__sellcb_data_length, 31), not(31))
+                                        let __sellcb_market_ptr := add(__sellcb_ptr, 260)
+                                        let __sellcb_data_ptr := add(__sellcb_market_ptr, __sellcb_padded_market_size)
+                                        let __sellcb_total := add(260, add(__sellcb_padded_market_size, add(32, __sellcb_padded_data_len)))
+                                        mstore(__sellcb_ptr, shl(224, 0x7f44a13a))
+                                        mstore(add(__sellcb_ptr, 4), id)
+                                        mstore(add(__sellcb_ptr, 36), 256)
+                                        mstore(add(__sellcb_ptr, 68), sellerAssets)
+                                        mstore(add(__sellcb_ptr, 100), units)
+                                        mstore(add(__sellcb_ptr, 132), sellerPendingFeeDecrease)
+                                        mstore(add(__sellcb_ptr, 164), seller)
+                                        mstore(add(__sellcb_ptr, 196), receiver)
+                                        mstore(add(__sellcb_ptr, 228), add(256, __sellcb_padded_market_size))
+                                        mstore(__sellcb_market_ptr, calldataload(__sellcb_market_offset))
+                                        mstore(add(__sellcb_market_ptr, 32), 192)
+                                        for {
+                                            let __sellcb_m := 2
+                                        } lt(__sellcb_m, 6) {
+                                            __sellcb_m := add(__sellcb_m, 1)
+                                        } {
+                                            mstore(add(__sellcb_market_ptr, mul(__sellcb_m, 32)), calldataload(add(__sellcb_market_offset, mul(__sellcb_m, 32))))
+                                        }
+                                        mstore(add(__sellcb_market_ptr, 192), __sellcb_collateral_length)
+                                        calldatacopy(add(__sellcb_market_ptr, 224), add(__sellcb_collateral_offset, 32), __sellcb_collateral_bytes)
+                                        mstore(__sellcb_data_ptr, __sellcb_data_length)
+                                        calldatacopy(add(__sellcb_data_ptr, 32), add(__sellcb_data_offset, 32), __sellcb_data_length)
+                                        mstore(add(__sellcb_data_ptr, add(32, __sellcb_data_length)), 0)
+                                        mstore(64, add(__sellcb_ptr, and(add(__sellcb_total, 31), not(31))))
+                                        let __sellcb_success := call(gas(), sellerCallback, 0, __sellcb_ptr, __sellcb_total, __sellcb_ptr, 32)
+                                        if iszero(__sellcb_success) {
+                                            let __sellcb_rds := returndatasize()
+                                            returndatacopy(0, 0, __sellcb_rds)
+                                            revert(0, __sellcb_rds)
+                                        }
+                                        if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__sellcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                            mstore(0, shl(224, 0xa4fb7883))
+                                            revert(0, 4)
+                                        }
+                                    }
+                                }
+                                if iszero(__ite_cond) {
+                                    {
+                                        let __sellcb_ptr := mload(64)
+                                        let __sellcb_market_offset := add(offer_data_offset, calldataload(offer_data_offset))
+                                        let __sellcb_collateral_offset := add(__sellcb_market_offset, calldataload(add(__sellcb_market_offset, 32)))
+                                        let __sellcb_collateral_length := calldataload(__sellcb_collateral_offset)
+                                        let __sellcb_collateral_bytes := mul(__sellcb_collateral_length, 128)
+                                        let __sellcb_market_size := add(224, __sellcb_collateral_bytes)
+                                        let __sellcb_padded_market_size := and(add(__sellcb_market_size, 31), not(31))
+                                        let __sellcb_data_offset := add(offer_data_offset, calldataload(add(offer_data_offset, 256)))
+                                        let __sellcb_data_length := calldataload(__sellcb_data_offset)
+                                        let __sellcb_padded_data_len := and(add(__sellcb_data_length, 31), not(31))
+                                        let __sellcb_market_ptr := add(__sellcb_ptr, 260)
+                                        let __sellcb_data_ptr := add(__sellcb_market_ptr, __sellcb_padded_market_size)
+                                        let __sellcb_total := add(260, add(__sellcb_padded_market_size, add(32, __sellcb_padded_data_len)))
+                                        mstore(__sellcb_ptr, shl(224, 0x7f44a13a))
+                                        mstore(add(__sellcb_ptr, 4), id)
+                                        mstore(add(__sellcb_ptr, 36), 256)
+                                        mstore(add(__sellcb_ptr, 68), sellerAssets)
+                                        mstore(add(__sellcb_ptr, 100), units)
+                                        mstore(add(__sellcb_ptr, 132), sellerPendingFeeDecrease)
+                                        mstore(add(__sellcb_ptr, 164), seller)
+                                        mstore(add(__sellcb_ptr, 196), receiver)
+                                        mstore(add(__sellcb_ptr, 228), add(256, __sellcb_padded_market_size))
+                                        mstore(__sellcb_market_ptr, calldataload(__sellcb_market_offset))
+                                        mstore(add(__sellcb_market_ptr, 32), 192)
+                                        for {
+                                            let __sellcb_m := 2
+                                        } lt(__sellcb_m, 6) {
+                                            __sellcb_m := add(__sellcb_m, 1)
+                                        } {
+                                            mstore(add(__sellcb_market_ptr, mul(__sellcb_m, 32)), calldataload(add(__sellcb_market_offset, mul(__sellcb_m, 32))))
+                                        }
+                                        mstore(add(__sellcb_market_ptr, 192), __sellcb_collateral_length)
+                                        calldatacopy(add(__sellcb_market_ptr, 224), add(__sellcb_collateral_offset, 32), __sellcb_collateral_bytes)
+                                        mstore(__sellcb_data_ptr, __sellcb_data_length)
+                                        calldatacopy(add(__sellcb_data_ptr, 32), add(__sellcb_data_offset, 32), __sellcb_data_length)
+                                        mstore(add(__sellcb_data_ptr, add(32, __sellcb_data_length)), 0)
+                                        mstore(64, add(__sellcb_ptr, and(add(__sellcb_total, 31), not(31))))
+                                        let __sellcb_success := call(gas(), sellerCallback, 0, __sellcb_ptr, __sellcb_total, __sellcb_ptr, 32)
+                                        if iszero(__sellcb_success) {
+                                            let __sellcb_rds := returndatasize()
+                                            returndatacopy(0, 0, __sellcb_rds)
+                                            revert(0, __sellcb_rds)
+                                        }
+                                        if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__sellcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                            mstore(0, shl(224, 0xa4fb7883))
+                                            revert(0, 4)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        let lockedAfterCallbacks := 0
+                        {
+                            let __liq_lock_ptr := mload(64)
+                            mstore(__liq_lock_ptr, id)
+                            mstore(add(__liq_lock_ptr, 32), seller)
+                            mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                            let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                            let __liq_lock_depth := tload(__liq_lock_slot)
+                            if gt(__liq_lock_depth, 0) {
+                                __liq_lock_depth := sub(__liq_lock_depth, 1)
+                                tstore(__liq_lock_slot, __liq_lock_depth)
+                            }
+                            lockedAfterCallbacks := __liq_lock_depth
                         }
                         {
-                            let __stf_ptr := mload(64)
-                            mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__stf_ptr, 4), payer)
-                            mstore(add(__stf_ptr, 36), receiver)
-                            mstore(add(__stf_ptr, 68), transferAssets)
-                            mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                            let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                            if iszero(__stf_success) {
-                                let __stf_rds := returndatasize()
-                                returndatacopy(0, 0, __stf_rds)
-                                revert(0, __stf_rds)
+                            let __ite_cond := iszero(eq(lockedAfterCallbacks, 0))
+                            if __ite_cond {
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(loanToken), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                            }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__stf_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            if iszero(__ite_cond) {
+                                let sellerHealthy := internal_internal_isHealthy(add(offer_data_offset, calldataload(offer_data_offset)), id, seller)
+                                if iszero(iszero(eq(sellerHealthy, 0))) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x53656c6c657249734c6971756964617461626c65282900000000000000000000)
+                                        let __err_hash := keccak256(__err_ptr, 22)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
                                 }
                             }
                         }
-                        mstore(0, units)
-                        mstore(32, units)
+                        mstore(0, buyerAssets)
+                        mstore(32, sellerAssets)
                         return(0, 64)
                     }
                     case 0xb6a37a3b {
@@ -8522,7 +12842,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := and(shr(0, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
+                        let value := and(shr(0, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8539,7 +12859,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+                        let value := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8555,7 +12875,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let value := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let value := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8571,7 +12891,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let value := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let value := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8587,7 +12907,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let value := and(shr(144, sload(add(mappingSlot(10, id), 2))), 255)
+                        let value := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8603,13 +12923,13 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(10, id), 2))), 65535)
-                        let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(10, id), 2))), 65535)
+                        let settlementFeeCbp0 := and(shr(0, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp1 := and(shr(16, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp2 := and(shr(32, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp3 := and(shr(48, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp4 := and(shr(64, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp5 := and(shr(80, sload(add(mappingSlot(1, id), 2))), 65535)
+                        let settlementFeeCbp6 := and(shr(96, sload(add(mappingSlot(1, id), 2))), 65535)
                         mstore(0, settlementFeeCbp0)
                         mstore(32, settlementFeeCbp1)
                         mstore(64, settlementFeeCbp2)
@@ -8631,7 +12951,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let value := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let value := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8647,7 +12967,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let value := and(shr(112, sload(add(mappingSlot(10, id), 2))), 4294967295)
+                        let value := and(shr(112, sload(add(mappingSlot(1, id), 2))), 4294967295)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8663,7 +12983,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let id := calldataload(4)
-                        let value := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let value := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -8704,11 +13024,11 @@ object "Midnight" {
                             }
                         }
                         let id := internal_internal_toId(market_data_offset)
-                        let creditBeforeUpdate := and(shr(0, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
-                        let pendingFeeBeforeUpdate := and(shr(128, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
-                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))), 340282366920938463463374607431768211455)
-                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))), 340282366920938463463374607431768211455)
-                        let marketLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let creditBeforeUpdate := and(shr(0, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
+                        let pendingFeeBeforeUpdate := and(shr(128, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
+                        let lastLossFactor := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))), 340282366920938463463374607431768211455)
+                        let lastAccrual := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))), 340282366920938463463374607431768211455)
+                        let marketLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         let now := timestamp()
                         let postSlashCredit := 0
                         if lt(lastLossFactor, 340282366920938463463374607431768211455) {
@@ -8731,38 +13051,50 @@ object "Midnight" {
                         {
                             let __compat_value := creditAfterUpdate
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         {
                             let __compat_value := marketLossFactor
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         {
                             let __compat_value := pendingFeeAfterUpdate
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
                         {
                             let __compat_value := now
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
-                        let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let currentContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := add(currentContinuousFeeCredit, accrued)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                        }
+                        let creditDecrease := sub(creditBeforeUpdate, creditAfterUpdate)
+                        let updatePendingFeeDecrease := sub(pendingFeeBeforeUpdate, pendingFeeAfterUpdate)
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x557064617465506f736974696f6e28627974657333322c616464726573732c75)
+                            mstore(add(__evt_ptr, 32), 0x696e743235362c75696e743235362c75696e7432353629000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 55)
+                            mstore(add(__evt_ptr, 0), creditDecrease)
+                            mstore(add(__evt_ptr, 32), updatePendingFeeDecrease)
+                            mstore(add(__evt_ptr, 64), accrued)
+                            log3(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         let pendingFeeDecrease := 0
                         if gt(creditAfterUpdate, 0) {
@@ -8771,33 +13103,43 @@ object "Midnight" {
                         {
                             let __compat_value := sub(pendingFeeAfterUpdate, pendingFeeDecrease)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                             let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                            sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                            sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(128, __compat_packed)))
                         }
-                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(11, id), onBehalf))), 340282366920938463463374607431768211455)
+                        let credit := and(shr(0, sload(mappingSlot(mappingSlot(0, id), onBehalf))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(credit, units)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(mappingSlot(11, id), onBehalf))
+                            let __compat_slot_word := sload(mappingSlot(mappingSlot(0, id), onBehalf))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(mappingSlot(11, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(mappingSlot(mappingSlot(0, id), onBehalf), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
-                        let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(withdrawableAmount, units)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
-                        let total := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let total := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(total, units)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(mappingSlot(10, id))
+                            let __compat_slot_word := sload(mappingSlot(1, id))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                        }
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x576974686472617728616464726573732c627974657333322c75696e74323536)
+                            mstore(add(__evt_ptr, 32), 0x2c616464726573732c616464726573732c75696e743235362900000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 57)
+                            mstore(add(__evt_ptr, 0), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                            mstore(add(__evt_ptr, 32), units)
+                            mstore(add(__evt_ptr, 64), pendingFeeDecrease)
+                            log4(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         {
                             let __st_ptr := mload(64)
@@ -8886,40 +13228,69 @@ object "Midnight" {
                             }
                         }
                         let id := internal_internal_toId(market_data_offset)
-                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := sub(debt, units)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                            let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
-                        let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                        let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                         {
                             let __compat_value := add(withdrawableAmount, units)
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                            let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                            let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                             let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                            sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                            sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                         }
                         let payer := sender
                         if iszero(eq(callback, 0)) {
                             payer := callback
                             {
-                                let __cb_ptr := mload(64)
-                                mstore(__cb_ptr, shl(224, 0xfc56f72e))
-                                mstore(add(__cb_ptr, 4), id)
-                                mstore(add(__cb_ptr, 36), units)
-                                mstore(add(__cb_ptr, 68), onBehalf)
-                                mstore(add(__cb_ptr, 100), 128)
-                                mstore(add(__cb_ptr, 132), data_length)
-                                calldatacopy(add(__cb_ptr, 164), data_data_offset, data_length)
-                                mstore(64, add(__cb_ptr, and(add(add(164, and(add(data_length, 31), not(31))), 31), not(31))))
-                                let __cb_success := call(gas(), callback, 0, __cb_ptr, add(164, and(add(data_length, 31), not(31))), 0, 0)
-                                if iszero(__cb_success) {
-                                    let __cb_rds := returndatasize()
-                                    returndatacopy(0, 0, __cb_rds)
-                                    revert(0, __cb_rds)
+                                let __repaycb_ptr := mload(64)
+                                let __repaycb_market_offset := add(4, calldataload(4))
+                                let __repaycb_collateral_offset := add(__repaycb_market_offset, calldataload(add(__repaycb_market_offset, 32)))
+                                let __repaycb_collateral_length := calldataload(__repaycb_collateral_offset)
+                                let __repaycb_collateral_bytes := mul(__repaycb_collateral_length, 128)
+                                let __repaycb_market_size := add(224, __repaycb_collateral_bytes)
+                                let __repaycb_padded_market_size := and(add(__repaycb_market_size, 31), not(31))
+                                let __repaycb_data_offset := sub(data_data_offset, 32)
+                                let __repaycb_data_length := calldataload(__repaycb_data_offset)
+                                let __repaycb_padded_data_len := and(add(__repaycb_data_length, 31), not(31))
+                                let __repaycb_market_ptr := add(__repaycb_ptr, 164)
+                                let __repaycb_data_ptr := add(__repaycb_market_ptr, __repaycb_padded_market_size)
+                                let __repaycb_total := add(164, add(__repaycb_padded_market_size, add(32, __repaycb_padded_data_len)))
+                                mstore(__repaycb_ptr, shl(224, 0xfc56f72e))
+                                mstore(add(__repaycb_ptr, 4), id)
+                                mstore(add(__repaycb_ptr, 36), 160)
+                                mstore(add(__repaycb_ptr, 68), units)
+                                mstore(add(__repaycb_ptr, 100), onBehalf)
+                                mstore(add(__repaycb_ptr, 132), add(160, __repaycb_padded_market_size))
+                                mstore(__repaycb_market_ptr, calldataload(__repaycb_market_offset))
+                                mstore(add(__repaycb_market_ptr, 32), 192)
+                                for {
+                                    let __repaycb_m := 2
+                                } lt(__repaycb_m, 6) {
+                                    __repaycb_m := add(__repaycb_m, 1)
+                                } {
+                                    mstore(add(__repaycb_market_ptr, mul(__repaycb_m, 32)), calldataload(add(__repaycb_market_offset, mul(__repaycb_m, 32))))
+                                }
+                                mstore(add(__repaycb_market_ptr, 192), __repaycb_collateral_length)
+                                calldatacopy(add(__repaycb_market_ptr, 224), add(__repaycb_collateral_offset, 32), __repaycb_collateral_bytes)
+                                mstore(__repaycb_data_ptr, __repaycb_data_length)
+                                calldatacopy(add(__repaycb_data_ptr, 32), add(__repaycb_data_offset, 32), __repaycb_data_length)
+                                mstore(add(__repaycb_data_ptr, add(32, __repaycb_data_length)), 0)
+                                mstore(64, add(__repaycb_ptr, and(add(__repaycb_total, 31), not(31))))
+                                let __repaycb_success := call(gas(), callback, 0, __repaycb_ptr, __repaycb_total, __repaycb_ptr, 32)
+                                if iszero(__repaycb_success) {
+                                    let __repaycb_rds := returndatasize()
+                                    returndatacopy(0, 0, __repaycb_rds)
+                                    revert(0, __repaycb_rds)
+                                }
+                                if iszero(and(iszero(lt(returndatasize(), 32)), eq(mload(__repaycb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2))) {
+                                    mstore(0, shl(224, 0x40a13da2))
+                                    revert(0, 4)
                                 }
                             }
                         }
@@ -9165,6 +13536,74 @@ object "Midnight" {
                         mstore(0, allowed)
                         return(0, 32)
                     }
+                    case 0x610dc3ac {
+                        /* liquidationLockedValue() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let locked := 0
+                        {
+                            let __liq_lock_ptr := mload(64)
+                            mstore(__liq_lock_ptr, id)
+                            mstore(add(__liq_lock_ptr, 32), user)
+                            mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                            locked := tload(keccak256(__liq_lock_ptr, 96))
+                        }
+                        mstore(0, locked)
+                        return(0, 32)
+                    }
+                    case 0xd69a5d2d {
+                        /* liquidationLockExchange() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 100) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 100) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let value := calldataload(68)
+                        let previous := 0
+                        {
+                            let __liq_lock_ptr := mload(64)
+                            mstore(__liq_lock_ptr, id)
+                            mstore(add(__liq_lock_ptr, 32), user)
+                            mstore(add(__liq_lock_ptr, 64), 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4)
+                            let __liq_lock_slot := keccak256(__liq_lock_ptr, 96)
+                            previous := tload(__liq_lock_slot)
+                            tstore(__liq_lock_slot, value)
+                        }
+                        mstore(0, previous)
+                        return(0, 32)
+                    }
+                    case 0x1b14c072 {
+                        /* liquidationLocked() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 68) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let locked := internal_internal_liquidationLockedValue(id, user)
+                        mstore(0, iszero(eq(locked, 0)))
+                        return(0, 32)
+                    }
                     case 0x988fe2e6 {
                         /* collateralAmount() */
                         if callvalue() {
@@ -9181,71 +13620,572 @@ object "Midnight" {
                         let index := calldataload(68)
                         let value := 0
                         if eq(index, 0) {
-                            let loaded := sload(mappingSlot(mappingSlot(12, id), user))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 3))
                             value := loaded
                         }
                         if eq(index, 1) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 1))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 4))
                             value := loaded
                         }
                         if eq(index, 2) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 2))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 5))
                             value := loaded
                         }
                         if eq(index, 3) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 3))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 6))
                             value := loaded
                         }
                         if eq(index, 4) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 4))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 7))
                             value := loaded
                         }
                         if eq(index, 5) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 5))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 8))
                             value := loaded
                         }
                         if eq(index, 6) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 6))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 9))
                             value := loaded
                         }
                         if eq(index, 7) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 7))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 10))
                             value := loaded
                         }
                         if eq(index, 8) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 8))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 11))
                             value := loaded
                         }
                         if eq(index, 9) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 9))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 12))
                             value := loaded
                         }
                         if eq(index, 10) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 10))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 13))
                             value := loaded
                         }
                         if eq(index, 11) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 11))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 14))
                             value := loaded
                         }
                         if eq(index, 12) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 12))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 15))
                             value := loaded
                         }
                         if eq(index, 13) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 13))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 16))
                             value := loaded
                         }
                         if eq(index, 14) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 14))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 17))
                             value := loaded
                         }
                         if eq(index, 15) {
-                            let loaded := sload(add(mappingSlot(mappingSlot(12, id), user), 15))
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 18))
+                            value := loaded
+                        }
+                        if eq(index, 16) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 19))
+                            value := loaded
+                        }
+                        if eq(index, 17) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 20))
+                            value := loaded
+                        }
+                        if eq(index, 18) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 21))
+                            value := loaded
+                        }
+                        if eq(index, 19) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 22))
+                            value := loaded
+                        }
+                        if eq(index, 20) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 23))
+                            value := loaded
+                        }
+                        if eq(index, 21) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 24))
+                            value := loaded
+                        }
+                        if eq(index, 22) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 25))
+                            value := loaded
+                        }
+                        if eq(index, 23) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 26))
+                            value := loaded
+                        }
+                        if eq(index, 24) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 27))
+                            value := loaded
+                        }
+                        if eq(index, 25) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 28))
+                            value := loaded
+                        }
+                        if eq(index, 26) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 29))
+                            value := loaded
+                        }
+                        if eq(index, 27) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 30))
+                            value := loaded
+                        }
+                        if eq(index, 28) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 31))
+                            value := loaded
+                        }
+                        if eq(index, 29) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 32))
+                            value := loaded
+                        }
+                        if eq(index, 30) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 33))
+                            value := loaded
+                        }
+                        if eq(index, 31) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 34))
+                            value := loaded
+                        }
+                        if eq(index, 32) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 35))
+                            value := loaded
+                        }
+                        if eq(index, 33) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 36))
+                            value := loaded
+                        }
+                        if eq(index, 34) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 37))
+                            value := loaded
+                        }
+                        if eq(index, 35) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 38))
+                            value := loaded
+                        }
+                        if eq(index, 36) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 39))
+                            value := loaded
+                        }
+                        if eq(index, 37) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 40))
+                            value := loaded
+                        }
+                        if eq(index, 38) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 41))
+                            value := loaded
+                        }
+                        if eq(index, 39) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 42))
+                            value := loaded
+                        }
+                        if eq(index, 40) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 43))
+                            value := loaded
+                        }
+                        if eq(index, 41) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 44))
+                            value := loaded
+                        }
+                        if eq(index, 42) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 45))
+                            value := loaded
+                        }
+                        if eq(index, 43) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 46))
+                            value := loaded
+                        }
+                        if eq(index, 44) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 47))
+                            value := loaded
+                        }
+                        if eq(index, 45) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 48))
+                            value := loaded
+                        }
+                        if eq(index, 46) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 49))
+                            value := loaded
+                        }
+                        if eq(index, 47) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 50))
+                            value := loaded
+                        }
+                        if eq(index, 48) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 51))
+                            value := loaded
+                        }
+                        if eq(index, 49) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 52))
+                            value := loaded
+                        }
+                        if eq(index, 50) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 53))
+                            value := loaded
+                        }
+                        if eq(index, 51) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 54))
+                            value := loaded
+                        }
+                        if eq(index, 52) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 55))
+                            value := loaded
+                        }
+                        if eq(index, 53) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 56))
+                            value := loaded
+                        }
+                        if eq(index, 54) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 57))
+                            value := loaded
+                        }
+                        if eq(index, 55) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 58))
+                            value := loaded
+                        }
+                        if eq(index, 56) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 59))
+                            value := loaded
+                        }
+                        if eq(index, 57) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 60))
+                            value := loaded
+                        }
+                        if eq(index, 58) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 61))
+                            value := loaded
+                        }
+                        if eq(index, 59) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 62))
+                            value := loaded
+                        }
+                        if eq(index, 60) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 63))
+                            value := loaded
+                        }
+                        if eq(index, 61) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 64))
+                            value := loaded
+                        }
+                        if eq(index, 62) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 65))
+                            value := loaded
+                        }
+                        if eq(index, 63) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 66))
+                            value := loaded
+                        }
+                        if eq(index, 64) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 67))
+                            value := loaded
+                        }
+                        if eq(index, 65) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 68))
+                            value := loaded
+                        }
+                        if eq(index, 66) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 69))
+                            value := loaded
+                        }
+                        if eq(index, 67) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 70))
+                            value := loaded
+                        }
+                        if eq(index, 68) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 71))
+                            value := loaded
+                        }
+                        if eq(index, 69) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 72))
+                            value := loaded
+                        }
+                        if eq(index, 70) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 73))
+                            value := loaded
+                        }
+                        if eq(index, 71) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 74))
+                            value := loaded
+                        }
+                        if eq(index, 72) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 75))
+                            value := loaded
+                        }
+                        if eq(index, 73) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 76))
+                            value := loaded
+                        }
+                        if eq(index, 74) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 77))
+                            value := loaded
+                        }
+                        if eq(index, 75) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 78))
+                            value := loaded
+                        }
+                        if eq(index, 76) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 79))
+                            value := loaded
+                        }
+                        if eq(index, 77) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 80))
+                            value := loaded
+                        }
+                        if eq(index, 78) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 81))
+                            value := loaded
+                        }
+                        if eq(index, 79) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 82))
+                            value := loaded
+                        }
+                        if eq(index, 80) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 83))
+                            value := loaded
+                        }
+                        if eq(index, 81) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 84))
+                            value := loaded
+                        }
+                        if eq(index, 82) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 85))
+                            value := loaded
+                        }
+                        if eq(index, 83) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 86))
+                            value := loaded
+                        }
+                        if eq(index, 84) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 87))
+                            value := loaded
+                        }
+                        if eq(index, 85) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 88))
+                            value := loaded
+                        }
+                        if eq(index, 86) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 89))
+                            value := loaded
+                        }
+                        if eq(index, 87) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 90))
+                            value := loaded
+                        }
+                        if eq(index, 88) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 91))
+                            value := loaded
+                        }
+                        if eq(index, 89) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 92))
+                            value := loaded
+                        }
+                        if eq(index, 90) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 93))
+                            value := loaded
+                        }
+                        if eq(index, 91) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 94))
+                            value := loaded
+                        }
+                        if eq(index, 92) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 95))
+                            value := loaded
+                        }
+                        if eq(index, 93) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 96))
+                            value := loaded
+                        }
+                        if eq(index, 94) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 97))
+                            value := loaded
+                        }
+                        if eq(index, 95) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 98))
+                            value := loaded
+                        }
+                        if eq(index, 96) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 99))
+                            value := loaded
+                        }
+                        if eq(index, 97) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 100))
+                            value := loaded
+                        }
+                        if eq(index, 98) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 101))
+                            value := loaded
+                        }
+                        if eq(index, 99) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 102))
+                            value := loaded
+                        }
+                        if eq(index, 100) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 103))
+                            value := loaded
+                        }
+                        if eq(index, 101) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 104))
+                            value := loaded
+                        }
+                        if eq(index, 102) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 105))
+                            value := loaded
+                        }
+                        if eq(index, 103) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 106))
+                            value := loaded
+                        }
+                        if eq(index, 104) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 107))
+                            value := loaded
+                        }
+                        if eq(index, 105) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 108))
+                            value := loaded
+                        }
+                        if eq(index, 106) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 109))
+                            value := loaded
+                        }
+                        if eq(index, 107) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 110))
+                            value := loaded
+                        }
+                        if eq(index, 108) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 111))
+                            value := loaded
+                        }
+                        if eq(index, 109) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 112))
+                            value := loaded
+                        }
+                        if eq(index, 110) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 113))
+                            value := loaded
+                        }
+                        if eq(index, 111) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 114))
+                            value := loaded
+                        }
+                        if eq(index, 112) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 115))
+                            value := loaded
+                        }
+                        if eq(index, 113) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 116))
+                            value := loaded
+                        }
+                        if eq(index, 114) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 117))
+                            value := loaded
+                        }
+                        if eq(index, 115) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 118))
+                            value := loaded
+                        }
+                        if eq(index, 116) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 119))
+                            value := loaded
+                        }
+                        if eq(index, 117) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 120))
+                            value := loaded
+                        }
+                        if eq(index, 118) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 121))
+                            value := loaded
+                        }
+                        if eq(index, 119) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 122))
+                            value := loaded
+                        }
+                        if eq(index, 120) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 123))
+                            value := loaded
+                        }
+                        if eq(index, 121) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 124))
+                            value := loaded
+                        }
+                        if eq(index, 122) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 125))
+                            value := loaded
+                        }
+                        if eq(index, 123) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 126))
+                            value := loaded
+                        }
+                        if eq(index, 124) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 127))
+                            value := loaded
+                        }
+                        if eq(index, 125) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 128))
+                            value := loaded
+                        }
+                        if eq(index, 126) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 129))
+                            value := loaded
+                        }
+                        if eq(index, 127) {
+                            let loaded := sload(add(mappingSlot(mappingSlot(0, id), user), 130))
                             value := loaded
                         }
                         mstore(0, value)
                         return(0, 32)
+                    }
+                    case 0xd7188aee {
+                        /* liquidationDebtSnapshot() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 196) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 196) {
+                            revert(0, 0)
+                        }
+                        let id := calldataload(4)
+                        let borrower := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
+                        let collateralCount := calldataload(68)
+                        let collateralBitmapValue := calldataload(100)
+                        let collateralParamsOffset := calldataload(132)
+                        let originalDebt := calldataload(164)
+                        let maxDebtValue := 0
+                        let badDebt := originalDebt
+                        for {
+                            let __forEach_idx := 0
+                            let __forEach_count := collateralCount
+                            let i := 0
+                        } lt(__forEach_idx, __forEach_count) {
+                            __forEach_idx := add(__forEach_idx, 1)
+                        } {
+                            i := __forEach_idx
+                            let mask := shl(i, 1)
+                            if gt(and(collateralBitmapValue, mask), 0) {
+                                let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
+                                let collateralParamOffset := add(add(collateralParamsOffset, 32), mul(i, 128))
+                                let oracle := calldataload(add(collateralParamOffset, 96))
+                                let price := internal_internal_oraclePrice(oracle)
+                                let lltv := calldataload(add(collateralParamOffset, 32))
+                                let maxLifValue := calldataload(add(collateralParamOffset, 64))
+                                let collateralDebtValue := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
+                                maxDebtValue := add(maxDebtValue, collateralDebtValue)
+                                let repayable := div(add(mul(div(add(mul(activeCollateral, price), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000), 1000000000000000000), sub(maxLifValue, 1)), maxLifValue)
+                                {
+                                    let __ite_cond := gt(badDebt, repayable)
+                                    if __ite_cond {
+                                        badDebt := sub(badDebt, repayable)
+                                    }
+                                    if iszero(__ite_cond) {
+                                        badDebt := 0
+                                    }
+                                }
+                            }
+                        }
+                        mstore(0, maxDebtValue)
+                        mstore(32, badDebt)
+                        return(0, 64)
                     }
                     case 0x02564eae {
                         /* writeCollateralAmount() */
@@ -9263,54 +14203,391 @@ object "Midnight" {
                         let index := calldataload(68)
                         let value := calldataload(100)
                         if eq(index, 0) {
-                            sstore(mappingSlot(mappingSlot(12, id), user), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 3), value)
                         }
                         if eq(index, 1) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 4), value)
                         }
                         if eq(index, 2) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 5), value)
                         }
                         if eq(index, 3) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 6), value)
                         }
                         if eq(index, 4) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 7), value)
                         }
                         if eq(index, 5) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 8), value)
                         }
                         if eq(index, 6) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 9), value)
                         }
                         if eq(index, 7) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 10), value)
                         }
                         if eq(index, 8) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 11), value)
                         }
                         if eq(index, 9) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 12), value)
                         }
                         if eq(index, 10) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 13), value)
                         }
                         if eq(index, 11) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 14), value)
                         }
                         if eq(index, 12) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 15), value)
                         }
                         if eq(index, 13) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 16), value)
                         }
                         if eq(index, 14) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 17), value)
                         }
                         if eq(index, 15) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 18), value)
                         }
-                        stop()
+                        if eq(index, 16) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 19), value)
+                        }
+                        if eq(index, 17) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 20), value)
+                        }
+                        if eq(index, 18) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 21), value)
+                        }
+                        if eq(index, 19) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 22), value)
+                        }
+                        if eq(index, 20) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 23), value)
+                        }
+                        if eq(index, 21) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 24), value)
+                        }
+                        if eq(index, 22) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 25), value)
+                        }
+                        if eq(index, 23) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 26), value)
+                        }
+                        if eq(index, 24) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 27), value)
+                        }
+                        if eq(index, 25) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 28), value)
+                        }
+                        if eq(index, 26) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 29), value)
+                        }
+                        if eq(index, 27) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 30), value)
+                        }
+                        if eq(index, 28) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 31), value)
+                        }
+                        if eq(index, 29) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 32), value)
+                        }
+                        if eq(index, 30) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 33), value)
+                        }
+                        if eq(index, 31) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 34), value)
+                        }
+                        if eq(index, 32) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 35), value)
+                        }
+                        if eq(index, 33) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 36), value)
+                        }
+                        if eq(index, 34) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 37), value)
+                        }
+                        if eq(index, 35) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 38), value)
+                        }
+                        if eq(index, 36) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 39), value)
+                        }
+                        if eq(index, 37) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 40), value)
+                        }
+                        if eq(index, 38) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 41), value)
+                        }
+                        if eq(index, 39) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 42), value)
+                        }
+                        if eq(index, 40) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 43), value)
+                        }
+                        if eq(index, 41) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 44), value)
+                        }
+                        if eq(index, 42) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 45), value)
+                        }
+                        if eq(index, 43) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 46), value)
+                        }
+                        if eq(index, 44) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 47), value)
+                        }
+                        if eq(index, 45) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 48), value)
+                        }
+                        if eq(index, 46) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 49), value)
+                        }
+                        if eq(index, 47) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 50), value)
+                        }
+                        if eq(index, 48) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 51), value)
+                        }
+                        if eq(index, 49) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 52), value)
+                        }
+                        if eq(index, 50) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 53), value)
+                        }
+                        if eq(index, 51) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 54), value)
+                        }
+                        if eq(index, 52) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 55), value)
+                        }
+                        if eq(index, 53) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 56), value)
+                        }
+                        if eq(index, 54) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 57), value)
+                        }
+                        if eq(index, 55) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 58), value)
+                        }
+                        if eq(index, 56) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 59), value)
+                        }
+                        if eq(index, 57) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 60), value)
+                        }
+                        if eq(index, 58) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 61), value)
+                        }
+                        if eq(index, 59) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 62), value)
+                        }
+                        if eq(index, 60) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 63), value)
+                        }
+                        if eq(index, 61) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 64), value)
+                        }
+                        if eq(index, 62) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 65), value)
+                        }
+                        if eq(index, 63) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 66), value)
+                        }
+                        if eq(index, 64) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 67), value)
+                        }
+                        if eq(index, 65) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 68), value)
+                        }
+                        if eq(index, 66) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 69), value)
+                        }
+                        if eq(index, 67) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 70), value)
+                        }
+                        if eq(index, 68) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 71), value)
+                        }
+                        if eq(index, 69) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 72), value)
+                        }
+                        if eq(index, 70) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 73), value)
+                        }
+                        if eq(index, 71) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 74), value)
+                        }
+                        if eq(index, 72) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 75), value)
+                        }
+                        if eq(index, 73) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 76), value)
+                        }
+                        if eq(index, 74) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 77), value)
+                        }
+                        if eq(index, 75) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 78), value)
+                        }
+                        if eq(index, 76) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 79), value)
+                        }
+                        if eq(index, 77) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 80), value)
+                        }
+                        if eq(index, 78) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 81), value)
+                        }
+                        if eq(index, 79) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 82), value)
+                        }
+                        if eq(index, 80) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 83), value)
+                        }
+                        if eq(index, 81) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 84), value)
+                        }
+                        if eq(index, 82) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 85), value)
+                        }
+                        if eq(index, 83) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 86), value)
+                        }
+                        if eq(index, 84) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 87), value)
+                        }
+                        if eq(index, 85) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 88), value)
+                        }
+                        if eq(index, 86) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 89), value)
+                        }
+                        if eq(index, 87) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 90), value)
+                        }
+                        if eq(index, 88) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 91), value)
+                        }
+                        if eq(index, 89) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 92), value)
+                        }
+                        if eq(index, 90) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 93), value)
+                        }
+                        if eq(index, 91) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 94), value)
+                        }
+                        if eq(index, 92) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 95), value)
+                        }
+                        if eq(index, 93) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 96), value)
+                        }
+                        if eq(index, 94) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 97), value)
+                        }
+                        if eq(index, 95) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 98), value)
+                        }
+                        if eq(index, 96) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 99), value)
+                        }
+                        if eq(index, 97) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 100), value)
+                        }
+                        if eq(index, 98) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 101), value)
+                        }
+                        if eq(index, 99) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 102), value)
+                        }
+                        if eq(index, 100) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 103), value)
+                        }
+                        if eq(index, 101) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 104), value)
+                        }
+                        if eq(index, 102) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 105), value)
+                        }
+                        if eq(index, 103) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 106), value)
+                        }
+                        if eq(index, 104) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 107), value)
+                        }
+                        if eq(index, 105) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 108), value)
+                        }
+                        if eq(index, 106) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 109), value)
+                        }
+                        if eq(index, 107) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 110), value)
+                        }
+                        if eq(index, 108) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 111), value)
+                        }
+                        if eq(index, 109) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 112), value)
+                        }
+                        if eq(index, 110) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 113), value)
+                        }
+                        if eq(index, 111) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 114), value)
+                        }
+                        if eq(index, 112) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 115), value)
+                        }
+                        if eq(index, 113) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 116), value)
+                        }
+                        if eq(index, 114) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 117), value)
+                        }
+                        if eq(index, 115) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 118), value)
+                        }
+                        if eq(index, 116) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 119), value)
+                        }
+                        if eq(index, 117) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 120), value)
+                        }
+                        if eq(index, 118) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 121), value)
+                        }
+                        if eq(index, 119) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 122), value)
+                        }
+                        if eq(index, 120) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 123), value)
+                        }
+                        if eq(index, 121) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 124), value)
+                        }
+                        if eq(index, 122) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 125), value)
+                        }
+                        if eq(index, 123) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 126), value)
+                        }
+                        if eq(index, 124) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 127), value)
+                        }
+                        if eq(index, 125) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 128), value)
+                        }
+                        if eq(index, 126) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 129), value)
+                        }
+                        if eq(index, 127) {
+                            sstore(add(mappingSlot(mappingSlot(0, id), user), 130), value)
+                        }
+                        mstore(0, 0)
+                        return(0, 32)
                     }
                     case 0xa15bdf2f {
                         /* liquidate() */
@@ -9356,9 +14633,9 @@ object "Midnight" {
                         let data_data_offset := data_tail_head_end
                         let sender := caller()
                         let id := internal_internal_toId(market_data_offset)
-                        let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                        let debtLoaded := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                         let debt := debtLoaded
-                        let totalUnitsValue := and(shr(0, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                        let totalUnitsValue := and(shr(0, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                         if iszero(or(iszero(iszero(eq(seizedAssets, 0))), iszero(iszero(eq(repaidUnits, 0))))) {
                             {
                                 let __err_ptr := mload(64)
@@ -9394,14 +14671,20 @@ object "Midnight" {
                             }
                         }
                         let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
-                        if iszero(lt(collateralIndex, collateralCount)) {
-                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-                            mstore(4, 32)
-                            mstore(36, 30)
-                            mstore(68, 0x636f6c6c61746572616c20696e646578206f7574206f6620626f756e64730000)
-                            revert(0, 100)
+                        {
+                            let __ite_cond := lt(collateralIndex, collateralCount)
+                            if __ite_cond {
+                            }
+                            if iszero(__ite_cond) {
+                                mstore(0, shl(224, 1313373041))
+                                mstore(4, 50)
+                                revert(0, 36)
+                            }
                         }
-                        let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                        let _collateralIndexBoundsCheck := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                        let marketDataOffset := add(calldataload(4), 4)
+                        let collateralParamsOffset := add(marketDataOffset, calldataload(add(marketDataOffset, 32)))
+                        let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                         let collateralMask := shl(collateralIndex, 1)
                         if or(iszero(iszero(gt(seizedAssets, 0))), iszero(iszero(gt(repaidUnits, 0)))) {
                             if iszero(gt(and(collateralBitmapValue, collateralMask), 0)) {
@@ -9413,42 +14696,23 @@ object "Midnight" {
                             }
                         }
                         let originalDebt := debt
-                        let maxDebtValue := 0
-                        let badDebt := originalDebt
-                        let liquidatedCollatPrice := 0
-                        for {
-                            let __forEach_idx := 0
-                            let __forEach_count := collateralCount
-                            let i := 0
-                        } lt(__forEach_idx, __forEach_count) {
-                            __forEach_idx := add(__forEach_idx, 1)
-                        } {
-                            i := __forEach_idx
-                            let mask := shl(i, 1)
-                            if gt(and(collateralBitmapValue, mask), 0) {
-                                let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
-                                let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                                let price := internal_internal_oraclePrice(oracle)
-                                let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                                let maxLifValue := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
-                                if eq(i, collateralIndex) {
-                                    liquidatedCollatPrice := price
-                                }
-                                let collateralDebtValue := div(mul(div(mul(activeCollateral, price), 1000000000000000000000000000000000000), lltv), 1000000000000000000)
-                                maxDebtValue := add(maxDebtValue, collateralDebtValue)
-                                let repayable := div(add(mul(div(add(mul(activeCollateral, price), sub(1000000000000000000000000000000000000, 1)), 1000000000000000000000000000000000000), 1000000000000000000), sub(maxLifValue, 1)), maxLifValue)
-                                {
-                                    let __ite_cond := gt(badDebt, repayable)
-                                    if __ite_cond {
-                                        badDebt := sub(badDebt, repayable)
-                                    }
-                                    if iszero(__ite_cond) {
-                                        badDebt := 0
-                                    }
-                                }
+                        let maxDebtValue, badDebt := internal_internal_liquidationDebtSnapshot(id, borrower, collateralCount, collateralBitmapValue, collateralParamsOffset, originalDebt)
+                        let selectedCollateralParamOffsetForPrice := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                        let selectedOracle := calldataload(add(selectedCollateralParamOffsetForPrice, 96))
+                        let liquidatedCollatPrice := internal_internal_oraclePrice(selectedOracle)
+                        let now := timestamp()
+                        let lockedBeforeLiquidation := internal_internal_liquidationLockedValue(id, borrower)
+                        if iszero(eq(lockedBeforeLiquidation, 0)) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x4e6f744c6971756964617461626c652829000000000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 17)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
                             }
                         }
-                        let now := timestamp()
                         {
                             let __ite_cond := postMaturityMode
                             if __ite_cond {
@@ -9482,28 +14746,28 @@ object "Midnight" {
                             {
                                 let __compat_value := sub(debt, badDebt)
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
                             debt := sub(debt, badDebt)
-                            let oldLossFactor := and(shr(128, sload(mappingSlot(10, id))), 340282366920938463463374607431768211455)
+                            let oldLossFactor := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
                             let newLossFactor := sub(340282366920938463463374607431768211455, div(mul(sub(340282366920938463463374607431768211455, oldLossFactor), sub(totalUnitsValue, badDebt)), totalUnitsValue))
                             {
                                 let __compat_value := newLossFactor
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(mappingSlot(10, id))
+                                let __compat_slot_word := sload(mappingSlot(1, id))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                                sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(128, __compat_packed)))
                             }
                             {
                                 let __compat_value := sub(totalUnitsValue, badDebt)
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(mappingSlot(10, id))
+                                let __compat_slot_word := sload(mappingSlot(1, id))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(mappingSlot(10, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(mappingSlot(1, id), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
-                            let oldContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                            let oldContinuousFeeCredit := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                             let newContinuousFeeCredit := 0
                             if lt(oldLossFactor, 340282366920938463463374607431768211455) {
                                 newContinuousFeeCredit := div(mul(oldContinuousFeeCredit, sub(340282366920938463463374607431768211455, newLossFactor)), sub(340282366920938463463374607431768211455, oldLossFactor))
@@ -9511,15 +14775,16 @@ object "Midnight" {
                             {
                                 let __compat_value := newContinuousFeeCredit
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(128, __compat_packed)))
                             }
                         }
                         let outSeizedAssets := seizedAssets
                         let outRepaidUnits := repaidUnits
                         if or(iszero(iszero(gt(outRepaidUnits, 0))), iszero(iszero(gt(outSeizedAssets, 0)))) {
-                            let maxLifValue := internal_internal_collateralMaxLifAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                            let selectedCollateralParamOffset := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                            let maxLifValue := calldataload(add(selectedCollateralParamOffset, 64))
                             let lif := maxLifValue
                             if postMaturityMode {
                                 let elapsed := sub(now, __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 2))
@@ -9548,7 +14813,7 @@ object "Midnight" {
                                 if __ite_cond {
                                 }
                                 if iszero(__ite_cond) {
-                                    let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                                    let lltv := calldataload(add(selectedCollateralParamOffset, 32))
                                     let maxRepaidValue := 115792089237316195423570985008687907853269984665640564039457584007913129639935
                                     if lt(lltv, 1000000000000000000) {
                                         maxRepaidValue := div(add(mul(sub(debt, maxDebtValue), mul(1000000000000000000, 1000000000000000000)), sub(sub(mul(1000000000000000000, 1000000000000000000), mul(lif, lltv)), 1)), sub(mul(1000000000000000000, 1000000000000000000), mul(lif, lltv)))
@@ -9574,39 +14839,75 @@ object "Midnight" {
                                 }
                             }
                             let oldCollateral := internal_internal_collateralAmount(id, borrower, collateralIndex)
+                            if lt(oldCollateral, outSeizedAssets) {
+                                mstore(0, shl(224, 1313373041))
+                                mstore(4, 17)
+                                revert(0, 36)
+                            }
                             let newCollateral := sub(oldCollateral, outSeizedAssets)
-                            internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
+                            let _writeOk := internal_internal_writeCollateralAmount(id, borrower, collateralIndex, newCollateral)
                             if eq(newCollateral, 0) {
                                 if gt(outSeizedAssets, 0) {
-                                    let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                                    let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                                     let mask := shl(collateralIndex, 1)
                                     let newBitmap := and(oldBitmap, not(mask))
                                     {
                                         let __compat_value := newBitmap
                                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                                        let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                                         let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                        sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                                        sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                                     }
                                 }
                             }
-                            let withdrawableAmount := and(shr(0, sload(add(mappingSlot(10, id), 1))), 340282366920938463463374607431768211455)
+                            let withdrawableAmount := and(shr(0, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
                             {
                                 let __compat_value := add(withdrawableAmount, outRepaidUnits)
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(10, id), 1))
+                                let __compat_slot_word := sload(add(mappingSlot(1, id), 1))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(add(mappingSlot(10, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(add(mappingSlot(1, id), 1), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
+                            if lt(debt, outRepaidUnits) {
+                                mstore(0, shl(224, 1313373041))
+                                mstore(4, 17)
+                                revert(0, 36)
+                            }
+                            let newDebtAfterRepay := sub(debt, outRepaidUnits)
                             {
-                                let __compat_value := sub(debt, outRepaidUnits)
+                                let __compat_value := newDebtAfterRepay
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))
+                                let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))
                                 let __compat_slot_cleared := and(__compat_slot_word, not(340282366920938463463374607431768211455))
-                                sstore(add(mappingSlot(mappingSlot(11, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
+                                sstore(add(mappingSlot(mappingSlot(0, id), borrower), 2), or(__compat_slot_cleared, shl(0, __compat_packed)))
                             }
                         }
-                        let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
+                        let selectedCollateralParamOffset := add(add(collateralParamsOffset, 32), mul(collateralIndex, 128))
+                        let collateralToken := calldataload(selectedCollateralParamOffset)
+                        let payer := sender
+                        if iszero(eq(callback, 0)) {
+                            payer := callback
+                        }
+                        let latestLossFactorLoaded := and(shr(128, sload(mappingSlot(1, id))), 340282366920938463463374607431768211455)
+                        let latestContinuousFeeCreditLoaded := and(shr(128, sload(add(mappingSlot(1, id), 1))), 340282366920938463463374607431768211455)
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x4c697175696461746528616464726573732c627974657333322c616464726573)
+                            mstore(add(__evt_ptr, 32), 0x732c75696e743235362c75696e743235362c616464726573732c626f6f6c2c61)
+                            mstore(add(__evt_ptr, 64), 0x6464726573732c616464726573732c75696e743235362c75696e743235362c75)
+                            mstore(add(__evt_ptr, 96), 0x696e743235362900000000000000000000000000000000000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 103)
+                            mstore(add(__evt_ptr, 0), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                            mstore(add(__evt_ptr, 32), outSeizedAssets)
+                            mstore(add(__evt_ptr, 64), outRepaidUnits)
+                            mstore(add(__evt_ptr, 96), iszero(iszero(postMaturityMode)))
+                            mstore(add(__evt_ptr, 128), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
+                            mstore(add(__evt_ptr, 160), and(payer, 0xffffffffffffffffffffffffffffffffffffffff))
+                            mstore(add(__evt_ptr, 192), badDebt)
+                            mstore(add(__evt_ptr, 224), add(latestLossFactorLoaded, 0))
+                            mstore(add(__evt_ptr, 256), add(latestContinuousFeeCreditLoaded, 0))
+                            log4(__evt_ptr, 288, __evt_topic0, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
+                        }
                         {
                             let __st_ptr := mload(64)
                             mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
@@ -9640,29 +14941,53 @@ object "Midnight" {
                                 }
                             }
                         }
-                        let payer := sender
                         if iszero(eq(callback, 0)) {
-                            payer := callback
                             {
-                                let __cb_ptr := mload(64)
-                                mstore(__cb_ptr, shl(224, 0x6861b795))
-                                mstore(add(__cb_ptr, 4), sender)
-                                mstore(add(__cb_ptr, 36), id)
-                                mstore(add(__cb_ptr, 68), collateralIndex)
-                                mstore(add(__cb_ptr, 100), outSeizedAssets)
-                                mstore(add(__cb_ptr, 132), outRepaidUnits)
-                                mstore(add(__cb_ptr, 164), borrower)
-                                mstore(add(__cb_ptr, 196), receiver)
-                                mstore(add(__cb_ptr, 228), badDebt)
-                                mstore(add(__cb_ptr, 260), 288)
-                                mstore(add(__cb_ptr, 292), data_length)
-                                calldatacopy(add(__cb_ptr, 324), data_data_offset, data_length)
-                                mstore(64, add(__cb_ptr, and(add(add(324, and(add(data_length, 31), not(31))), 31), not(31))))
-                                let __cb_success := call(gas(), callback, 0, __cb_ptr, add(324, and(add(data_length, 31), not(31))), 0, 0)
-                                if iszero(__cb_success) {
-                                    let __cb_rds := returndatasize()
-                                    returndatacopy(0, 0, __cb_rds)
-                                    revert(0, __cb_rds)
+                                let __liqcb_ptr := mload(64)
+                                let __liqcb_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                                let __liqcb_collateral_length := calldataload(__liqcb_collateral_offset)
+                                let __liqcb_collateral_bytes := mul(__liqcb_collateral_length, 128)
+                                let __liqcb_market_size := add(224, __liqcb_collateral_bytes)
+                                let __liqcb_padded_market_size := and(add(__liqcb_market_size, 31), not(31))
+                                let __liqcb_padded_data_len := and(add(data_length, 31), not(31))
+                                let __liqcb_market_ptr := add(__liqcb_ptr, 324)
+                                let __liqcb_data_ptr := add(__liqcb_market_ptr, __liqcb_padded_market_size)
+                                let __liqcb_total := add(324, add(__liqcb_padded_market_size, add(32, __liqcb_padded_data_len)))
+                                mstore(__liqcb_ptr, shl(224, 0x6861b795))
+                                mstore(add(__liqcb_ptr, 4), sender)
+                                mstore(add(__liqcb_ptr, 36), id)
+                                mstore(add(__liqcb_ptr, 68), 320)
+                                mstore(add(__liqcb_ptr, 100), collateralIndex)
+                                mstore(add(__liqcb_ptr, 132), outSeizedAssets)
+                                mstore(add(__liqcb_ptr, 164), outRepaidUnits)
+                                mstore(add(__liqcb_ptr, 196), borrower)
+                                mstore(add(__liqcb_ptr, 228), receiver)
+                                mstore(add(__liqcb_ptr, 260), add(320, __liqcb_padded_market_size))
+                                mstore(add(__liqcb_ptr, 292), badDebt)
+                                mstore(__liqcb_market_ptr, calldataload(market_data_offset))
+                                mstore(add(__liqcb_market_ptr, 32), 192)
+                                mstore(add(__liqcb_market_ptr, 64), calldataload(add(market_data_offset, 64)))
+                                mstore(add(__liqcb_market_ptr, 96), calldataload(add(market_data_offset, 96)))
+                                mstore(add(__liqcb_market_ptr, 128), calldataload(add(market_data_offset, 128)))
+                                mstore(add(__liqcb_market_ptr, 160), calldataload(add(market_data_offset, 160)))
+                                mstore(add(__liqcb_market_ptr, 192), __liqcb_collateral_length)
+                                calldatacopy(add(__liqcb_market_ptr, 224), add(__liqcb_collateral_offset, 32), __liqcb_collateral_bytes)
+                                mstore(__liqcb_data_ptr, data_length)
+                                calldatacopy(add(__liqcb_data_ptr, 32), data_data_offset, data_length)
+                                mstore(64, add(__liqcb_ptr, and(add(__liqcb_total, 31), not(31))))
+                                let __liqcb_success := call(gas(), callback, 0, __liqcb_ptr, __liqcb_total, __liqcb_ptr, 32)
+                                if iszero(__liqcb_success) {
+                                    let __liqcb_rds := returndatasize()
+                                    returndatacopy(0, 0, __liqcb_rds)
+                                    revert(0, __liqcb_rds)
+                                }
+                                if lt(returndatasize(), 32) {
+                                    mstore(0, shl(224, 0x70b53d4b))
+                                    revert(0, 4)
+                                }
+                                if iszero(eq(mload(__liqcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
+                                    mstore(0, shl(224, 0x70b53d4b))
+                                    revert(0, 4)
                                 }
                             }
                         }
@@ -9727,14 +15052,32 @@ object "Midnight" {
                         let market_data_offset := market_abs_offset
                         let id := calldataload(36)
                         let borrower := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), borrower), 2))), 340282366920938463463374607431768211455)
+                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
                         if eq(debt, 0) {
                             mstore(0, 1)
                             return(0, 32)
                         }
-                        let collateralValue := internal_internal_collateralAmount(id, borrower, 0)
-                        let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), 0)
-                        let maxDebt := div(mul(collateralValue, lltv), 1000000000000000000)
+                        let collateralCount := __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1)
+                        let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
+                        let maxDebt := 0
+                        for {
+                            let __forEach_idx := 0
+                            let __forEach_count := collateralCount
+                            let i := 0
+                        } lt(__forEach_idx, __forEach_count) {
+                            __forEach_idx := add(__forEach_idx, 1)
+                        } {
+                            i := __forEach_idx
+                            let mask := shl(i, 1)
+                            if gt(and(collateralBitmapValue, mask), 0) {
+                                let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
+                                let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
+                                let price := internal_internal_oraclePrice(oracle)
+                                let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
+                                let collateralValue := div(mul(activeCollateral, price), 1000000000000000000000000000000000000)
+                                maxDebt := add(maxDebt, div(mul(collateralValue, lltv), 1000000000000000000))
+                            }
+                        }
                         mstore(0, iszero(gt(debt, maxDebt)))
                         return(0, 32)
                     }
@@ -9753,54 +15096,7 @@ object "Midnight" {
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let index := calldataload(68)
                         let value := calldataload(100)
-                        if eq(index, 0) {
-                            sstore(mappingSlot(mappingSlot(12, id), user), value)
-                        }
-                        if eq(index, 1) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 1), value)
-                        }
-                        if eq(index, 2) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 2), value)
-                        }
-                        if eq(index, 3) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 3), value)
-                        }
-                        if eq(index, 4) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 4), value)
-                        }
-                        if eq(index, 5) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 5), value)
-                        }
-                        if eq(index, 6) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 6), value)
-                        }
-                        if eq(index, 7) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 7), value)
-                        }
-                        if eq(index, 8) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 8), value)
-                        }
-                        if eq(index, 9) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 9), value)
-                        }
-                        if eq(index, 10) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 10), value)
-                        }
-                        if eq(index, 11) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 11), value)
-                        }
-                        if eq(index, 12) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 12), value)
-                        }
-                        if eq(index, 13) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 13), value)
-                        }
-                        if eq(index, 14) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 14), value)
-                        }
-                        if eq(index, 15) {
-                            sstore(add(mappingSlot(mappingSlot(12, id), user), 15), value)
-                        }
+                        let _writeOk := internal_internal_writeCollateralAmount(id, user, index, value)
                         stop()
                     }
                     case 0xfd1b2036 {
@@ -9853,7 +15149,7 @@ object "Midnight" {
                                 revert(0, add(4, __err_tail))
                             }
                         }
-                        let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                        let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                         let mask := shl(collateralIndex, 1)
                         if eq(oldCollateral, 0) {
                             if gt(assets, 0) {
@@ -9861,9 +15157,9 @@ object "Midnight" {
                                 {
                                     let __compat_value := newBitmap
                                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                    sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                                    sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                                 }
                                 let activeCount := internal_internal_countBits128(newBitmap)
                                 if gt(activeCount, 16) {
@@ -9958,7 +15254,7 @@ object "Midnight" {
                         let id := internal_internal_toId(market_data_offset)
                         let oldCollateral := internal_internal_collateralAmount(id, onBehalf, collateralIndex)
                         let newCollateral := sub(oldCollateral, assets)
-                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                        let debt := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                         if gt(debt, 0) {
                             let lltv := internal_internal_collateralLltvAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                             let requiredCollateral := div(add(mul(debt, 1000000000000000000), sub(lltv, 1)), lltv)
@@ -9976,15 +15272,15 @@ object "Midnight" {
                         }
                         if eq(newCollateral, 0) {
                             if gt(assets, 0) {
-                                let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))), 340282366920938463463374607431768211455)
+                                let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
                                 let mask := shl(collateralIndex, 1)
                                 let newBitmap := and(oldBitmap, not(mask))
                                 {
                                     let __compat_value := newBitmap
                                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
-                                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(11, id), onBehalf), 2))
+                                    let __compat_slot_word := sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))
                                     let __compat_slot_cleared := and(__compat_slot_word, not(115792089237316195423570985008687907852929702298719625575994209400481361428480))
-                                    sstore(add(mappingSlot(mappingSlot(11, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
+                                    sstore(add(mappingSlot(mappingSlot(0, id), onBehalf), 2), or(__compat_slot_cleared, shl(128, __compat_packed)))
                                 }
                             }
                         }
@@ -10137,19 +15433,43 @@ object "Midnight" {
                                 }
                             }
                         }
+                        let sender := caller()
                         {
-                            let __cb_ptr := mload(64)
-                            mstore(__cb_ptr, shl(224, 0xd1f260c3))
-                            mstore(add(__cb_ptr, 4), 0)
-                            mstore(add(__cb_ptr, 36), 64)
-                            mstore(add(__cb_ptr, 68), data_length)
-                            calldatacopy(add(__cb_ptr, 100), data_data_offset, data_length)
-                            mstore(64, add(__cb_ptr, and(add(add(100, and(add(data_length, 31), not(31))), 31), not(31))))
-                            let __cb_success := call(gas(), callback, 0, __cb_ptr, add(100, and(add(data_length, 31), not(31))), 0, 0)
-                            if iszero(__cb_success) {
-                                let __cb_rds := returndatasize()
-                                returndatacopy(0, 0, __cb_rds)
-                                revert(0, __cb_rds)
+                            let __flcb_ptr := mload(64)
+                            let __flcb_tokens_bytes := mul(tokens_length, 32)
+                            let __flcb_assets_bytes := mul(assets_length, 32)
+                            let __flcb_tokens_seg := add(32, __flcb_tokens_bytes)
+                            let __flcb_assets_seg := add(32, __flcb_assets_bytes)
+                            let __flcb_data_off := add(128, add(__flcb_tokens_seg, __flcb_assets_seg))
+                            let __flcb_tokens_pos := add(__flcb_ptr, 132)
+                            let __flcb_assets_pos := add(__flcb_ptr, add(132, __flcb_tokens_seg))
+                            let __flcb_data_pos := add(__flcb_ptr, add(4, __flcb_data_off))
+                            let __flcb_padded_data_len := and(add(data_length, 31), not(31))
+                            let __flcb_total := add(add(__flcb_data_pos, 32), __flcb_padded_data_len)
+                            __flcb_total := sub(__flcb_total, __flcb_ptr)
+                            mstore(__flcb_ptr, shl(224, 0xd1f260c3))
+                            mstore(add(__flcb_ptr, 4), sender)
+                            mstore(add(__flcb_ptr, 36), 128)
+                            mstore(add(__flcb_ptr, 68), add(128, __flcb_tokens_seg))
+                            mstore(add(__flcb_ptr, 100), __flcb_data_off)
+                            mstore(__flcb_tokens_pos, tokens_length)
+                            calldatacopy(add(__flcb_tokens_pos, 32), tokens_data_offset, __flcb_tokens_bytes)
+                            mstore(__flcb_assets_pos, assets_length)
+                            calldatacopy(add(__flcb_assets_pos, 32), assets_data_offset, __flcb_assets_bytes)
+                            mstore(__flcb_data_pos, data_length)
+                            calldatacopy(add(__flcb_data_pos, 32), data_data_offset, data_length)
+                            mstore(64, add(__flcb_ptr, and(add(__flcb_total, 31), not(31))))
+                            let __flcb_success := call(gas(), callback, 0, __flcb_ptr, __flcb_total, __flcb_ptr, 32)
+                            if iszero(__flcb_success) {
+                                let __flcb_rds := returndatasize()
+                                returndatacopy(0, 0, __flcb_rds)
+                                revert(0, __flcb_rds)
+                            }
+                            if lt(returndatasize(), 32) {
+                                revert(0, 0)
+                            }
+                            if iszero(eq(mload(__flcb_ptr), 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2)) {
+                                revert(0, 0)
                             }
                         }
                         for {
@@ -10229,7 +15549,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := and(shr(128, sload(mappingSlot(mappingSlot(11, id), user))), 340282366920938463463374607431768211455)
+                        let value := and(shr(128, sload(mappingSlot(mappingSlot(0, id), user))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -10246,7 +15566,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
+                        let value := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -10263,7 +15583,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := and(shr(0, sload(add(mappingSlot(mappingSlot(11, id), user), 1))), 340282366920938463463374607431768211455)
+                        let value := and(shr(0, sload(add(mappingSlot(mappingSlot(0, id), user), 1))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }
@@ -10280,7 +15600,7 @@ object "Midnight" {
                         }
                         let id := calldataload(4)
                         let user := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let value := and(shr(128, sload(add(mappingSlot(mappingSlot(11, id), user), 2))), 340282366920938463463374607431768211455)
+                        let value := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), user), 2))), 340282366920938463463374607431768211455)
                         mstore(0, value)
                         return(0, 32)
                     }

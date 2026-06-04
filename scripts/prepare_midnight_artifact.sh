@@ -72,7 +72,7 @@ fi
 
 python3 "${UNIQUIFY_YUL_SHADOWS}" --input "${YUL}" --output "${YUL}"
 
-solc --strict-assembly --bin "${YUL}" \
+solc --strict-assembly --evm-version osaka --bin "${YUL}" \
   | awk '/Binary representation:/{getline; print; exit}' \
   > "${BIN}"
 python3 - "${BIN}" "${BIN_RAW}" <<'PY'

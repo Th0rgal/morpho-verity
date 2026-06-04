@@ -65,33 +65,28 @@ operations or explicit guards.
 
 ## Refinement Proof Status
 
-The refinement layer now assembles generated-body steps from
-`morpho-blue-verity/Morpho/Proofs/Disciplines.lean` instead of keeping all entrypoint obligations as
-opaque assumptions:
+The refinement layer assembles generated-body steps from
+`morpho-blue-verity/Morpho/Proofs/Disciplines.lean`, but the current Blue
+entrypoint-to-projection discipline is still a named Lean boundary rather than a
+fully discharged generated-body traversal:
 
-- `supply`, `withdraw`, `supplyCollateral`, and `repay` discharge their monotone
-  field discipline in Lean through storage-framing and packed-field lemmas.
-- `withdrawCollateral` and `borrow` discharge their generated `_isHealthy` guards
-  in Lean, assuming explicit market-id alignment, oracle-price alignment, and the
-  local oracle-price/collateral-fit domain required by `healthFaithful_of_noOverflow`. The `borrow`
-  proof factors the post-accrual commit-and-health-check block and both amount
-  modes as `guardedDiscipline_borrowCommitAndCheck`,
-  `guardedDiscipline_borrowAssetsMode`, and
-  `guardedDiscipline_borrowSharesMode`, then connects the public entrypoint
-  through `guardedDiscipline_borrow`.
-- `liquidate` no longer carries the structural generated-guard boundary:
-  `guardUnhealthy_liquidate` proves that a successful generated body reached
-  `require(!_isHealthy)` after `_accrueInterest` and that the health check
-  returned `false`. The post-accrual/pre-state bridge is also proved in Lean:
-  `liquidate_preStateUnhealthy_of_accrueInterest_identity` uses the explicit
-  contract-side no-accrual discipline `AccrueInterestIdentityFor` to replay the
-  generated guard on the original projected pre-state.
-- Health arithmetic now exposes `LocalNoOverflowFor` with only the oracle-price
-  multiplication bounds explicit: the watched collateral times oracle price, and
-  that quoted collateral times LLTV, must fit in `uint256`. The borrow-side
-  share/asset conversion uses the full-precision `mulDiv512Up` helper, and its
-  quotient-fit proof is derived from the packed `uint128` storage reads at the
-  `healthFaithful_of_noOverflow` call site.
+- `supply`, `withdraw`, `supplyCollateral`, and `repay` expose typed
+  `MonotoneDiscipline` obligations over the real generated entrypoint runs.
+- `withdrawCollateral` and `borrow` expose typed `GuardedDiscipline` obligations
+  over the generated `_isHealthy` guard, assuming explicit market-id alignment,
+  oracle-price alignment, and `LocalNoOverflowFor`.
+- `liquidate` exposes typed obligations for the post-accrual unhealthy guard and
+  the no-accrual bridge back to the projected pre-state.
+- Health arithmetic now exposes `LocalNoOverflowFor` as the exact four-field
+  domain required by `healthFaithful_of_noOverflow`: `totalBorrowAssets + 1`,
+  `totalBorrowShares + 1000000`, watched collateral times oracle price, and
+  quoted collateral times LLTV must fit in `uint256`. `Disciplines.lean` proves
+  `noOverflow_of_localNoOverflow` from that local domain instead of assuming it.
+  The borrow-side share/asset conversion uses the full-precision `mulDiv512Up`
+  helper, and its quotient-fit proof is derived from the packed `uint128`
+  storage reads at the `healthFaithful_of_noOverflow` call site.
+- `StorageFrame.lean` still isolates the keccak/layout slot-injectivity fact as
+  the single direct storage-frame axiom.
 
 ## Current Gates
 

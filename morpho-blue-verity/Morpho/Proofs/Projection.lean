@@ -84,4 +84,18 @@ def HealthFaithful (mp : MarketParams) (id : Bytes32) (account : Address)
       = ContractResult.success v cs' →
     (v = true ↔ healthy (project mp id account price cs))
 
+theorem runWord_structMember2At_eq_of_storage_slot
+    {κ₁ κ₂ : Type} [Contracts.StorageKey κ₁] [Contracts.StorageKey κ₂]
+    (base wo : Nat) (packed : Option (Nat × Nat)) (k1 : κ₁) (k2 : κ₂)
+    (cs cs' : ContractState)
+    (hslot :
+      cs'.storage (Contracts.structSlot2 base (Contracts.StorageKey.toWord k1)
+        (Contracts.StorageKey.toWord k2) wo) =
+      cs.storage (Contracts.structSlot2 base (Contracts.StorageKey.toWord k1)
+        (Contracts.StorageKey.toWord k2) wo)) :
+    runWord (Contracts.structMember2At base wo packed k1 k2 : Contract Uint256) cs' =
+      runWord (Contracts.structMember2At base wo packed k1 k2 : Contract Uint256) cs := by
+  unfold runWord Contracts.structMember2At
+  simp [hslot]
+
 end Morpho.Proofs.Projection

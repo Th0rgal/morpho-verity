@@ -185,6 +185,12 @@ object "MidnightRCF" {
             __ret0 := iszero(eq(callback, 0))
             leave
         }
+        function internal_internal_solidityPanic(code) {
+            mstore(0, shl(224, 1313373041))
+            mstore(4, code)
+            revert(0, 36)
+            stop()
+        }
         function internal_internal_liquidatePayer(callback, msgSender) -> __ret0 {
             {
                 let __ite_cond := iszero(eq(callback, 0))
@@ -794,6 +800,12 @@ object "MidnightRCF" {
             function internal_internal_callbackRequired(callback) -> __ret0 {
                 __ret0 := iszero(eq(callback, 0))
                 leave
+            }
+            function internal_internal_solidityPanic(code) {
+                mstore(0, shl(224, 1313373041))
+                mstore(4, code)
+                revert(0, 36)
+                stop()
             }
             function internal_internal_liquidatePayer(callback, msgSender) -> __ret0 {
                 {
@@ -1691,6 +1703,23 @@ object "MidnightRCF" {
                         let callback := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         mstore(0, iszero(eq(callback, 0)))
                         return(0, 32)
+                    }
+                    case 0xd6a2061e {
+                        /* solidityPanic() */
+                        if callvalue() {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 36) {
+                            revert(0, 0)
+                        }
+                        if lt(calldatasize(), 36) {
+                            revert(0, 0)
+                        }
+                        let code := calldataload(4)
+                        mstore(0, shl(224, 1313373041))
+                        mstore(4, code)
+                        revert(0, 36)
+                        stop()
                     }
                     case 0xf0a99bb8 {
                         /* liquidatePayer() */

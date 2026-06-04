@@ -166,6 +166,14 @@ theorem StoragePreserving.emitEvent (name : String) (args idx : List Uint256) :
     StoragePreserving (Verity.emitEvent name args idx) := by
   intro cs v cs' h; unfold Verity.emitEvent at h; injection h with _ hcs; subst hcs; rfl
 
+theorem StoragePreserving.ecmCall {β : Type} (moduleFactory : β) (_args : List Uint256) :
+    StoragePreserving (ecmCall moduleFactory _args : Contract Uint256) :=
+  StoragePreserving.pure 0
+
+theorem StoragePreserving.ecmDo {β : Type} (module : β) (_args : List Uint256) :
+    StoragePreserving (ecmDo module _args : Contract Unit) :=
+  StoragePreserving.pure ()
+
 /-- `mapM` of state-preserving contracts is state-preserving. -/
 theorem StoragePreserving.listMapM {α β : Type} (f : α → Contract β) (l : List α)
     (hf : ∀ a ∈ l, StoragePreserving (f a)) :

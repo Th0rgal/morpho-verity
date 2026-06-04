@@ -28,63 +28,63 @@ Focused artifact status: present
 
 ## Function Surface
 
-| Interface function | Current coverage | Evidence |
-|--------------------|------------------|----------|
-| `INITIAL_CHAIN_ID()` | Full test-parity getter. | `FOUNDRY_PROFILE=difftest MIDNIGHT_IMPL=verity forge test --match-contract SettersTest --use $(command -v solc) -vvv` |
-| `position()` | Focused storage projection for liquidation/accounting paths. | `Midnight/Proofs/Storage.lean` |
-| `marketState()` | Focused storage projection for liquidation/accounting paths. | `Midnight/Proofs/Storage.lean` |
-| `consumed()` | Full test-parity getter. | `Midnight/Contract.lean` |
-| `isAuthorized()` | Full test-parity getter and setter; focused entry-guard shape in proofs. | `SettersTest`, `AuthorizationTest` authorization helper passes, `liquidatorGateAllows`, `normalModeEntryGuards` |
-| `defaultSettlementFeeCbp()` | Full test-parity getter and setter storage. | `SettersTest` |
-| `defaultContinuousFee()` | Full test-parity getter and setter storage. | `SettersTest` |
-| `claimableSettlementFee()` | Full test-parity getter and claim flow. | `Midnight/Contract.lean` |
-| `roleSetter()` | Full test-parity getter and setter storage. | `SettersTest` |
-| `feeSetter()` | Full test-parity getter and setter storage. | `SettersTest` |
-| `feeClaimer()` | Full test-parity getter and setter storage. | `SettersTest` |
-| `tickSpacingSetter()` | Full test-parity getter and setter storage. | `SettersTest` |
-| `multicall()` | Full test-parity coverage in the executable artifact. | `MulticallTest` passes under `MIDNIGHT_IMPL=verity`. |
-| `setRoleSetter()` | Full test-parity role check and storage write. | `SettersTest` |
-| `setFeeSetter()` | Full test-parity role check and storage write. | `SettersTest` |
-| `setFeeClaimer()` | Full test-parity role check and storage write. | `SettersTest` |
-| `setTickSpacingSetter()` | Full test-parity role check and storage write. | `SettersTest` |
-| `setMarketTickSpacing()` | Full test-parity role, market-created, and uint8-bound checks. | `SettersTest` |
-| `setMarketSettlementFee()` | Full test-parity role, index, fee-bound, CBP-multiple, market-created checks and storage write. | `SettersTest` |
-| `setDefaultSettlementFee()` | Full test-parity role, index, fee-bound, CBP-multiple checks and storage write. | `SettersTest` |
-| `setMarketContinuousFee()` | Full test-parity role, max-fee, market-created checks and storage write. | `SettersTest` |
-| `setDefaultContinuousFee()` | Full test-parity role, max-fee checks and storage write. | `SettersTest` |
-| `claimSettlementFee()` | Full test-parity coverage in the executable artifact. | `SettlementFeeTest` passes under `MIDNIGHT_IMPL=verity`. |
-| `claimContinuousFee()` | Full test-parity coverage in the executable artifact. | `ContinuousFeeTest` passes under `MIDNIGHT_IMPL=verity`. |
-| `take()` | Full test-parity coverage in the executable artifact, including buy/sell pricing, callbacks, ratification, reduce-only, gates, liquidation lock, settlement fees, consumed limits, and health checks. | `TakeTest`, `TakeAmountsTest`, `TickGatingTest`, `GateTest`, `EcrecoverRatifierIntegrationTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
-| `withdraw()` | Full test-parity coverage in the executable artifact. | `AuthorizationTest`, `OtherFunctionsTest`, and `ContinuousFeeTest` pass under `MIDNIGHT_IMPL=verity`. |
-| `repay()` | Full test-parity coverage in the executable artifact, including callback and referral-fee bundle paths. | `AuthorizationTest`, `OtherFunctionsTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
-| `supplyCollateral()` | Full test-parity coverage in the executable artifact, including bitmap activation, collateral count, no-oracle paths, and bundle collateral supplies. | `AuthorizationTest`, `OtherFunctionsTest`, `MaxAmountsTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
-| `withdrawCollateral()` | Full test-parity coverage in the executable artifact, including bitmap clearing, receiver path, no-oracle zero-debt path, and borrowed-collateral health checks. | `AuthorizationTest`, `OtherFunctionsTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
-| `liquidate()` | Full test-parity coverage in the executable artifact; focused proofs cover the RCF and total-units/accounting properties over named projections. | `LiquidationTest` passes 38/38 under `MIDNIGHT_IMPL=verity`; proofs in `Midnight/Proofs/RCF.lean`, `Refinement.lean`, `Storage.lean`, and `UnitsAccounting.lean`. |
-| `setConsumed()` | Full test-parity authorization check, monotonic consumed-amount check, storage write, and getter. | `OtherFunctionsTest` consumed cases; `Midnight/Contract.lean` |
-| `setIsAuthorized()` | Full test-parity authorization setter; focused entry-guard proof shape remains available. | `AuthorizationTest` and `SetIsAuthorizedWithSigTest` pass under `MIDNIGHT_IMPL=verity`; `normalModeEntryGuards`. |
-| `flashLoan()` | Full test-parity coverage in the executable artifact. | `FlashLoanTest` passes under `MIDNIGHT_IMPL=verity`. |
-| `touchMarket()` | Source-level CREATE2/SSTORE2 ECM surface is now emitted directly by Verity; exact market initcode layout and decode remain trust-surface obligations. | `Midnight/Contract.lean`; `python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate`; direct artifact generation without Midnight Yul patch. |
-| `updatePositionView()` | Full test-parity coverage in the executable artifact; focused fee/slash/update returned-credit proofs remain available. | `ContinuousFeeTest` passes under `MIDNIGHT_IMPL=verity`; `updatePositionViewSequence`, `Midnight/Proofs/UnitsAccounting.lean`. |
-| `updatePosition()` | Full test-parity coverage in the executable artifact; focused post-update credit cover proofs remain available. | `ContinuousFeeTest` passes under `MIDNIGHT_IMPL=verity`; `badDebtCoversTwoPostUpdateCredits`, `badDebtCoversTwoStoredCreditsAfterUpdates`. |
-| `lastLossFactor()` | Focused storage projection for lender-credit proofs. | `Midnight/Proofs/Storage.lean` |
-| `collateralBitmap()` | Full test-parity getter/effects in the executable artifact; focused bitmap schedule and clear-step proofs remain available. | `OtherFunctionsTest` bitmap cases pass under `MIDNIGHT_IMPL=verity`; `Midnight/Proofs/BitmapSchedule.lean`. |
-| `collateral()` | Full test-parity getter/effects in the executable artifact; focused selected-collateral projection proofs remain available. | `OtherFunctionsTest`, `LiquidationTest`, and `MaxAmountsTest` pass under `MIDNIGHT_IMPL=verity`; `Midnight/Proofs/CollateralLoop.lean`, `Midnight/Proofs/Storage.lean`. |
-| `toId()` | Verity source still uses the scaffold id; full `IdLib.toId` preimage equivalence remains a documented follow-up after removing the Yul patch. | `docs/MIDNIGHT_VERITY_FAITHFULNESS_REPORT.md`; Midnight Yul gate manifest. |
-| `toMarket()` | Source-level SSTORE2 read ECM is present, but full dynamic `Market` reconstruction remains a documented follow-up. | `Midnight/Contract.lean`; `docs/MIDNIGHT_VERITY_FAITHFULNESS_REPORT.md`. |
-| `creditOf()` | Focused storage projection for lender-credit proofs. | `Midnight/Proofs/Storage.lean` |
-| `debtOf()` | Focused storage projection for liquidation/accounting proofs. | `Midnight/Proofs/Storage.lean` |
-| `totalUnits()` | Focused total-units coverage proofs. | `Midnight/Proofs/UnitsAccounting.lean`, `Midnight/Proofs/MarketLedger.lean` |
-| `lossFactor()` | Focused bad-debt loss-factor update proofs. | `badDebtLocalStep_newLossFactorEqSolidityFormula` |
-| `tickSpacing()` | Full test-parity getter over initialized market state. | `SettersTest` |
-| `withdrawable()` | Focused withdrawable-increase proof in liquidation branch. | `withdrawableAfterRepay`, `normalModeAfterBadDebtStep_withdrawableIncreases` |
-| `settlementFeeCbps()` | Full test-parity getter over the seven stored CBP fee slots. | `SettersTest`; `Midnight/Contract.lean` |
-| `continuousFee()` | Focused continuous-fee update branch only. | `badDebtLocalStep_continuousFeeCreditEqSolidityFormula` |
-| `continuousFeeCredit()` | Focused continuous-fee-credit slash/update proofs. | `continuousFeeCreditAfterBadDebt`, `badDebtLocalStep_continuousFeeCreditEqSolidityFormula` |
-| `pendingFee()` | Focused pending-fee slashing proof. | `postSlashPendingFee` |
-| `lastAccrual()` | Focused `updatePositionView` returned triple model. | `updatePositionViewSequence` |
-| `liquidationLocked()` | Full test-parity coverage in the executable artifact; proof model still treats lock fact as an entry guard. | `TakeTest` liquidation-lock callback cases pass under `MIDNIGHT_IMPL=verity`; `NormalModeCall` in `Midnight/Proofs/Storage.lean`. |
-| `isHealthy()` | Full test-parity coverage in the executable artifact; focused normal-mode health projection remains the proof anchor. | `TakeTest`, `OtherFunctionsTest`, and `LiquidationTest` pass under `MIDNIGHT_IMPL=verity`; `normalModeMaxRepaidHealthyWithin3`, `normalModeLiquidateProjection_storageHealthyWithinOne`. |
-| `settlementFee()` | Full test-parity coverage in the executable artifact. | `SettersTest` and `SettlementFeeTest` pass under `MIDNIGHT_IMPL=verity`. |
+| Interface function | Test parity / proof coverage | Source faithfulness | Evidence |
+|--------------------|------------------------------|---------------------|----------|
+| `INITIAL_CHAIN_ID()` | Full test-parity getter. | Medium: behavior matches tests, but Solidity immutable storage absence is represented by an isolated Verity slot until immutable support lands. | `FOUNDRY_PROFILE=difftest MIDNIGHT_IMPL=verity forge test --match-contract SettersTest --use $(command -v solc) -vvv` |
+| `position()` | Focused storage projection for liquidation/accounting paths. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Proofs/Storage.lean` |
+| `marketState()` | Focused storage projection for liquidation/accounting paths. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Proofs/Storage.lean` |
+| `consumed()` | Full test-parity getter. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `Midnight/Contract.lean` |
+| `isAuthorized()` | Full test-parity getter and setter; focused entry-guard shape in proofs. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest`, `AuthorizationTest` authorization helper passes, `liquidatorGateAllows`, `normalModeEntryGuards` |
+| `defaultSettlementFeeCbp()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `defaultContinuousFee()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `claimableSettlementFee()` | Full test-parity getter and claim flow. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `Midnight/Contract.lean` |
+| `roleSetter()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `feeSetter()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `feeClaimer()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `tickSpacingSetter()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `multicall()` | Full test-parity coverage in the executable artifact. | Low: behavior/artifact path present, but source still relies on scaffold or low-level ECM boundary. | `MulticallTest` passes under `MIDNIGHT_IMPL=verity`. |
+| `setRoleSetter()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setFeeSetter()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setFeeClaimer()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setTickSpacingSetter()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setMarketTickSpacing()` | Full test-parity role, market-created, and uint8-bound checks. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setMarketSettlementFee()` | Full test-parity role, index, fee-bound, CBP-multiple, market-created checks and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setDefaultSettlementFee()` | Full test-parity role, index, fee-bound, CBP-multiple checks and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setMarketContinuousFee()` | Full test-parity role, max-fee, market-created checks and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setDefaultContinuousFee()` | Full test-parity role, max-fee checks and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `claimSettlementFee()` | Full test-parity coverage in the executable artifact. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettlementFeeTest` passes under `MIDNIGHT_IMPL=verity`. |
+| `claimContinuousFee()` | Full test-parity coverage in the executable artifact. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `ContinuousFeeTest` passes under `MIDNIGHT_IMPL=verity`. |
+| `take()` | Full test-parity coverage in the executable artifact, including buy/sell pricing, callbacks, ratification, reduce-only, gates, liquidation lock, settlement fees, consumed limits, and health checks. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `TakeTest`, `TakeAmountsTest`, `TickGatingTest`, `GateTest`, `EcrecoverRatifierIntegrationTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
+| `withdraw()` | Full test-parity coverage in the executable artifact. | Medium: source-shaped path with remaining proof extraction and dynamic ABI/callback trust boundaries. | `AuthorizationTest`, `OtherFunctionsTest`, and `ContinuousFeeTest` pass under `MIDNIGHT_IMPL=verity`. |
+| `repay()` | Full test-parity coverage in the executable artifact, including callback and referral-fee bundle paths. | Medium: source-shaped path with remaining proof extraction and dynamic ABI/callback trust boundaries. | `AuthorizationTest`, `OtherFunctionsTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
+| `supplyCollateral()` | Full test-parity coverage in the executable artifact, including bitmap activation, collateral count, no-oracle paths, and bundle collateral supplies. | Medium: source-shaped path, but collateral storage uses 128 word slots rather than exact uint128 packing until Verity supports packed fixed-array elements. | `AuthorizationTest`, `OtherFunctionsTest`, `MaxAmountsTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
+| `withdrawCollateral()` | Full test-parity coverage in the executable artifact, including bitmap clearing, receiver path, no-oracle zero-debt path, and borrowed-collateral health checks. | Medium: source-shaped path, but collateral storage uses 128 word slots rather than exact uint128 packing until Verity supports packed fixed-array elements. | `AuthorizationTest`, `OtherFunctionsTest`, and `MidnightBundlesTest` pass under `MIDNIGHT_IMPL=verity`. |
+| `liquidate()` | Full test-parity coverage in the executable artifact; focused proofs cover the RCF and total-units/accounting properties over named projections. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `LiquidationTest` passes 38/38 under `MIDNIGHT_IMPL=verity`; proofs in `Midnight/Proofs/RCF.lean`, `Refinement.lean`, `Storage.lean`, and `UnitsAccounting.lean`. |
+| `setConsumed()` | Full test-parity authorization check, monotonic consumed-amount check, storage write, and getter. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `OtherFunctionsTest` consumed cases; `Midnight/Contract.lean` |
+| `setIsAuthorized()` | Full test-parity authorization setter; focused entry-guard proof shape remains available. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `AuthorizationTest` and `SetIsAuthorizedWithSigTest` pass under `MIDNIGHT_IMPL=verity`; `normalModeEntryGuards`. |
+| `flashLoan()` | Full test-parity coverage in the executable artifact. | Medium: source-shaped path with callback ABI ECM boundary. | `FlashLoanTest` passes under `MIDNIGHT_IMPL=verity`. |
+| `touchMarket()` | Source-level CREATE2/SSTORE2 ECM surface is now emitted directly by Verity; exact market initcode layout and decode remain trust-surface obligations. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Contract.lean`; `python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate`; direct artifact generation without Midnight Yul patch. |
+| `updatePositionView()` | Full test-parity coverage in the executable artifact; focused fee/slash/update returned-credit proofs remain available. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `ContinuousFeeTest` passes under `MIDNIGHT_IMPL=verity`; `updatePositionViewSequence`, `Midnight/Proofs/UnitsAccounting.lean`. |
+| `updatePosition()` | Full test-parity coverage in the executable artifact; focused post-update credit cover proofs remain available. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `ContinuousFeeTest` passes under `MIDNIGHT_IMPL=verity`; `badDebtCoversTwoPostUpdateCredits`, `badDebtCoversTwoStoredCreditsAfterUpdates`. |
+| `lastLossFactor()` | Focused storage projection for lender-credit proofs. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Proofs/Storage.lean` |
+| `collateralBitmap()` | Full test-parity getter/effects in the executable artifact; focused bitmap schedule and clear-step proofs remain available. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `OtherFunctionsTest` bitmap cases pass under `MIDNIGHT_IMPL=verity`; `Midnight/Proofs/BitmapSchedule.lean`. |
+| `collateral()` | Full test-parity getter/effects in the executable artifact; focused selected-collateral projection proofs remain available. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `OtherFunctionsTest`, `LiquidationTest`, and `MaxAmountsTest` pass under `MIDNIGHT_IMPL=verity`; `Midnight/Proofs/CollateralLoop.lean`, `Midnight/Proofs/Storage.lean`. |
+| `toId()` | Full test-parity coverage, including hardfork-stability and injectivity paths. | Medium: source-level ECM computes the Solidity `IdLib.toId` CREATE2/SSTORE2 preimage; the remaining boundary is proving the low-level ABI/initcode byte layout, not a scaffolded id. | `OtherFunctionsTest.testToId`, `OtherFunctionsTest.testToIdStableAcrossHardfork`; `midnightMarketId` in `Midnight/Contract.lean`. |
+| `toMarket()` | Full test-parity coverage, including revert-if-not-created and SSTORE2 roundtrip. | Medium: source-level ECM returns the exact SSTORE2 runtime payload from code; dynamic `Market` return typing remains a low-level Verity ECM boundary, with no Midnight-specific Yul patch. | `OtherFunctionsTest.testToMarket`, `OtherFunctionsTest.testToMarketRevertsIfNotCreated`; `midnightMarketReturnFromCode` in `Midnight/Contract.lean`. |
+| `creditOf()` | Focused storage projection for lender-credit proofs. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Proofs/Storage.lean` |
+| `debtOf()` | Focused storage projection for liquidation/accounting proofs. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Proofs/Storage.lean` |
+| `totalUnits()` | Focused total-units coverage proofs. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `Midnight/Proofs/UnitsAccounting.lean`, `Midnight/Proofs/MarketLedger.lean` |
+| `lossFactor()` | Focused bad-debt loss-factor update proofs. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `badDebtLocalStep_newLossFactorEqSolidityFormula` |
+| `tickSpacing()` | Full test-parity getter over initialized market state. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `withdrawable()` | Focused withdrawable-increase proof in liquidation branch. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `withdrawableAfterRepay`, `normalModeAfterBadDebtStep_withdrawableIncreases` |
+| `settlementFeeCbps()` | Full test-parity getter over the seven stored CBP fee slots. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest`; `Midnight/Contract.lean` |
+| `continuousFee()` | Focused continuous-fee update branch only. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `badDebtLocalStep_continuousFeeCreditEqSolidityFormula` |
+| `continuousFeeCredit()` | Focused continuous-fee-credit slash/update proofs. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `continuousFeeCreditAfterBadDebt`, `badDebtLocalStep_continuousFeeCreditEqSolidityFormula` |
+| `pendingFee()` | Focused pending-fee slashing proof. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `postSlashPendingFee` |
+| `lastAccrual()` | Focused `updatePositionView` returned triple model. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `updatePositionViewSequence` |
+| `liquidationLocked()` | Full test-parity coverage in the executable artifact; proof model still treats lock fact as an entry guard. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `TakeTest` liquidation-lock callback cases pass under `MIDNIGHT_IMPL=verity`; `NormalModeCall` in `Midnight/Proofs/Storage.lean`. |
+| `isHealthy()` | Full test-parity coverage in the executable artifact; focused normal-mode health projection remains the proof anchor. | Medium: Solidity-shaped control flow/projection, with remaining ABI/storage/proof extraction boundary. | `TakeTest`, `OtherFunctionsTest`, and `LiquidationTest` pass under `MIDNIGHT_IMPL=verity`; `normalModeMaxRepaidHealthyWithin3`, `normalModeLiquidateProjection_storageHealthyWithinOne`. |
+| `settlementFee()` | Full test-parity coverage in the executable artifact. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` and `SettlementFeeTest` pass under `MIDNIGHT_IMPL=verity`. |
 
 ## Requested Proof Anchors
 

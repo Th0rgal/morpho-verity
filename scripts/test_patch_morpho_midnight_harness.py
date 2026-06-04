@@ -43,6 +43,106 @@ evm_version = "osaka"
 fs_permissions = [{ access = "read", path = "test/ticks_exact.json" }]
 """
 
+BASE_TEST_WITH_LEGACY_VERITY_SLOT = """// fake BaseTest
+contract BaseTest {
+    Midnight internal midnight;
+
+    function _deployMidnight() internal returns (Midnight) {
+        string memory impl = vm.envOr("MIDNIGHT_IMPL", string("solidity"));
+        bytes32 implHash = keccak256(bytes(impl));
+
+        if (implHash == keccak256(bytes("solidity"))) {
+            return new Midnight();
+        }
+        if (implHash == keccak256(bytes("verity"))) {
+            bytes memory initCode = vm.readFileBinary("../artifacts/midnight/Midnight.bin.raw");
+            address deployed;
+            assembly {
+                deployed := create(0, add(initCode, 0x20), mload(initCode))
+                if iszero(deployed) {
+                    returndatacopy(0, 0, returndatasize())
+                    revert(0, returndatasize())
+                }
+            }
+            vm.label(deployed, "Midnight");
+            return Midnight(deployed);
+        }
+
+        revert(string(abi.encodePacked("Unsupported MIDNIGHT_IMPL: ", impl)));
+    }
+
+    function setUp() public virtual {
+        midnight = _deployMidnight();
+    }
+
+    function _seedVerityMarketState(bytes32 id) private {
+        bytes32 packedSlot = bytes32(uint256(keccak256(abi.encode(id, uint256(10)))) + 2);
+        vm.store(address(midnight), packedSlot, bytes32(uint256(4)));
+    }
+}
+"""
+
+BASE_TEST_WITH_SCAFFOLD_TO_ID = """// fake BaseTest
+contract BaseTest {
+    Midnight internal midnight;
+
+    function _deployMidnight() internal returns (Midnight) {
+        string memory impl = vm.envOr("MIDNIGHT_IMPL", string("solidity"));
+        bytes32 implHash = keccak256(bytes(impl));
+
+        if (implHash == keccak256(bytes("solidity"))) {
+            return new Midnight();
+        }
+        if (implHash == keccak256(bytes("verity"))) {
+            bytes memory initCode = vm.readFileBinary("../artifacts/midnight/Midnight.bin.raw");
+            address deployed;
+            assembly {
+                deployed := create(0, add(initCode, 0x20), mload(initCode))
+                if iszero(deployed) {
+                    returndatacopy(0, 0, returndatasize())
+                    revert(0, returndatasize())
+                }
+            }
+            vm.label(deployed, "Midnight");
+            return Midnight(deployed);
+        }
+
+        revert(string(abi.encodePacked("Unsupported MIDNIGHT_IMPL: ", impl)));
+    }
+
+    function setUp() public virtual {
+        midnight = _deployMidnight();
+    }
+
+    function toId(Market memory market) internal view returns (bytes32) {
+        if (_verityImpl() && (market.enterGate != address(0) || market.liquidatorGate != address(0))) {
+            return IdLib.toId(market, block.chainid, address(midnight));
+        }
+        if (_verityImpl()) return bytes32(market.maturity);
+        return IdLib.toId(market, block.chainid, address(midnight));
+    }
+}
+"""
+
+LIQUIDATION_TEST_WITH_LEGACY_VERITY_SLOT = """// fake LiquidationTest
+contract LiquidationTest {
+    function writeDebt(bytes32 id, address borrower) external {
+        uint256 mappingSlot = _verityImpl() ? 11 : 0;
+        bytes32 intermediateSlot = keccak256(abi.encode(id, mappingSlot));
+        bytes32 borrowerSlot = keccak256(abi.encode(borrower, intermediateSlot));
+    }
+}
+"""
+
+SETTLEMENT_FEE_TEST_WITH_DIRECT_TOUCH = """// fake SettlementFeeTest
+contract SettlementFeeTest is BaseTest {
+    function testDirectTouch() external {
+        midnight.touchMarket(market);
+        id = midnight.touchMarket(market);
+    }
+}
+"""
+
 
 class PatchMorphoMidnightHarnessTests(unittest.TestCase):
     def test_patch_repo_updates_harness(self) -> None:
@@ -83,6 +183,67 @@ class PatchMorphoMidnightHarnessTests(unittest.TestCase):
 
             self.assertTrue(patch_repo(root))
             self.assertEqual(patch_repo(root), [])
+
+    def test_patch_repo_updates_legacy_verity_storage_slots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(tmpdir)
+            base_test = root / "morpho-midnight" / "test" / "BaseTest.sol"
+            liquidation_test = root / "morpho-midnight" / "test" / "LiquidationTest.sol"
+            foundry_toml = root / "morpho-midnight" / "foundry.toml"
+            base_test.parent.mkdir(parents=True)
+            base_test.write_text(BASE_TEST_WITH_LEGACY_VERITY_SLOT, encoding="utf-8")
+            liquidation_test.write_text(LIQUIDATION_TEST_WITH_LEGACY_VERITY_SLOT, encoding="utf-8")
+            foundry_toml.write_text(FOUNDRY_TOML, encoding="utf-8")
+
+            changes = patch_repo(root)
+
+            self.assertIn("morpho-midnight/test/BaseTest.sol", changes)
+            self.assertIn("morpho-midnight/test/LiquidationTest.sol", changes)
+            self.assertIn(
+                "keccak256(abi.encode(id, uint256(1)))",
+                base_test.read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                "uint256 mappingSlot = 0;",
+                liquidation_test.read_text(encoding="utf-8"),
+            )
+            self.assertEqual(validate_repo(root), [])
+
+    def test_patch_repo_removes_legacy_scaffold_to_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(tmpdir)
+            base_test = root / "morpho-midnight" / "test" / "BaseTest.sol"
+            foundry_toml = root / "morpho-midnight" / "foundry.toml"
+            base_test.parent.mkdir(parents=True)
+            base_test.write_text(BASE_TEST_WITH_SCAFFOLD_TO_ID, encoding="utf-8")
+            foundry_toml.write_text(FOUNDRY_TOML, encoding="utf-8")
+
+            changes = patch_repo(root)
+
+            self.assertIn("morpho-midnight/test/BaseTest.sol", changes)
+            patched = base_test.read_text(encoding="utf-8")
+            self.assertNotIn("bytes32(market.maturity)", patched)
+            self.assertIn("return IdLib.toId(market, block.chainid, address(midnight));", patched)
+            self.assertEqual(validate_repo(root), [])
+
+    def test_patch_repo_routes_direct_touch_market_through_harness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = pathlib.Path(tmpdir)
+            base_test = root / "morpho-midnight" / "test" / "BaseTest.sol"
+            settlement_test = root / "morpho-midnight" / "test" / "SettlementFeeTest.sol"
+            foundry_toml = root / "morpho-midnight" / "foundry.toml"
+            base_test.parent.mkdir(parents=True)
+            base_test.write_text(BASE_TEST, encoding="utf-8")
+            settlement_test.write_text(SETTLEMENT_FEE_TEST_WITH_DIRECT_TOUCH, encoding="utf-8")
+            foundry_toml.write_text(FOUNDRY_TOML, encoding="utf-8")
+
+            changes = patch_repo(root)
+
+            self.assertIn("morpho-midnight/test/SettlementFeeTest.sol", changes)
+            patched = settlement_test.read_text(encoding="utf-8")
+            self.assertNotIn("midnight.touchMarket(market)", patched)
+            self.assertIn("touchMarket(market)", patched)
+            self.assertEqual(validate_repo(root), [])
 
     def test_validate_repo_reports_unpatched_constructor_drift(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

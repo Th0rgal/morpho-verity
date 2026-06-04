@@ -4,15 +4,1918 @@ import Compiler.Modules.Calls
 import Compiler.Modules.Create2SSTORE2
 import Compiler.Modules.Oracle
 import Verity.Core
+import Verity.Macro
 import Verity.Stdlib.Math
 
 namespace Midnight.Contract
 
 set_option linter.unusedVariables false
+set_option maxRecDepth 10000
 
 open Verity hiding pure bind
 open Verity.EVM.Uint256
 open Verity.Stdlib.Math
+open Compiler.Yul
+open Contracts (emit)
+
+def multicallDelegateModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightMulticallDelegate"
+  numArgs := 0
+  resultVars := []
+  writesState := true
+  readsState := true
+  axioms := ["midnight_multicall_bytes_array_abi", "self_delegatecall_storage_context"]
+  compile := fun _ctx args =>
+    match args with
+    | [] =>
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__mc_head" (YulExpr.call "calldataload" [YulExpr.lit 4]),
+            YulStmt.let_ "__mc_base" (YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident "__mc_head"]),
+            YulStmt.let_ "__mc_len" (YulExpr.call "calldataload" [YulExpr.ident "__mc_base"]),
+            YulStmt.let_ "__mc_i" (YulExpr.lit 0),
+            YulStmt.for_
+              []
+              (YulExpr.call "lt" [YulExpr.ident "__mc_i", YulExpr.ident "__mc_len"])
+              [YulStmt.assign "__mc_i" (YulExpr.call "add" [YulExpr.ident "__mc_i", YulExpr.lit 1])]
+              [
+                YulStmt.let_ "__mc_elem_head" (YulExpr.call "calldataload" [
+                  YulExpr.call "add" [
+                    YulExpr.call "add" [YulExpr.ident "__mc_base", YulExpr.lit 32],
+                    YulExpr.call "mul" [YulExpr.ident "__mc_i", YulExpr.lit 32]
+                  ]
+                ]),
+                YulStmt.let_ "__mc_elem" (YulExpr.call "add" [
+                  YulExpr.call "add" [YulExpr.ident "__mc_base", YulExpr.lit 32],
+                  YulExpr.ident "__mc_elem_head"
+                ]),
+                YulStmt.let_ "__mc_size" (YulExpr.call "calldataload" [YulExpr.ident "__mc_elem"]),
+                YulStmt.let_ "__mc_data" (YulExpr.call "add" [YulExpr.ident "__mc_elem", YulExpr.lit 32]),
+                YulStmt.let_ "__mc_ptr" (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+                YulStmt.expr (YulExpr.call "calldatacopy" [
+                  YulExpr.ident "__mc_ptr",
+                  YulExpr.ident "__mc_data",
+                  YulExpr.ident "__mc_size"
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+                  YulExpr.call "add" [
+                    YulExpr.ident "__mc_ptr",
+                    YulExpr.call "and" [
+                      YulExpr.call "add" [YulExpr.ident "__mc_size", YulExpr.lit 31],
+                      YulExpr.call "not" [YulExpr.lit 31]
+                    ]
+                  ]
+                ]),
+                YulStmt.let_ "__mc_success" (YulExpr.call "delegatecall" [
+                  YulExpr.call "gas" [],
+                  YulExpr.call "address" [],
+                  YulExpr.ident "__mc_ptr",
+                  YulExpr.ident "__mc_size",
+                  YulExpr.lit 0,
+                  YulExpr.lit 0
+                ]),
+                YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__mc_success"]) [
+                  YulStmt.let_ "__mc_rds" (YulExpr.call "returndatasize" []),
+                  YulStmt.expr (YulExpr.call "returndatacopy" [
+                    YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__mc_rds"
+                  ]),
+                  YulStmt.expr (YulExpr.call "revert" [
+                    YulExpr.lit 0, YulExpr.ident "__mc_rds"
+                  ])
+                ]
+              ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightMulticallDelegate expects 0 arguments, got {args.length}"
+
+def tickToPriceModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightTickToPrice"
+  numArgs := 1
+  resultVars := [resultVar]
+  writesState := false
+  readsState := false
+  axioms := ["midnight_ticklib_tick_to_price_exact_yul"]
+  compile := fun _ctx args =>
+    match args with
+    | [tick] =>
+        let lnOnePlusDelta := YulExpr.lit 4987541511039073
+        let maxTickHalf := YulExpr.lit 2910
+        let ln2 := YulExpr.lit 693147180559945309
+        let offset := YulExpr.lit 322611214989459870
+        let oneE18 := YulExpr.lit 1000000000000000000
+        let oneE36 := YulExpr.lit 1000000000000000000000000000000000000
+        let priceRoundingStep := YulExpr.lit 1000000000000
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__tp_x" (YulExpr.call "mul" [
+              lnOnePlusDelta,
+              YulExpr.call "sub" [maxTickHalf, tick]
+            ]),
+            YulStmt.let_ "__tp_abs" (YulExpr.ident "__tp_x"),
+            YulStmt.let_ "__tp_negative" (YulExpr.call "slt" [YulExpr.ident "__tp_x", YulExpr.lit 0]),
+            YulStmt.if_ (YulExpr.ident "__tp_negative") [
+              YulStmt.assign "__tp_abs" (YulExpr.call "sub" [YulExpr.lit 0, YulExpr.ident "__tp_x"])
+            ],
+            YulStmt.let_ "__tp_q" (YulExpr.call "div" [
+              YulExpr.call "add" [YulExpr.ident "__tp_abs", offset],
+              ln2
+            ]),
+            YulStmt.let_ "__tp_r" (YulExpr.call "sub" [
+              YulExpr.ident "__tp_abs",
+              YulExpr.call "mul" [YulExpr.ident "__tp_q", ln2]
+            ]),
+            YulStmt.let_ "__tp_second" (YulExpr.call "sdiv" [
+              YulExpr.call "mul" [YulExpr.ident "__tp_r", YulExpr.ident "__tp_r"],
+              YulExpr.lit 2000000000000000000
+            ]),
+            YulStmt.let_ "__tp_third" (YulExpr.call "sdiv" [
+              YulExpr.call "mul" [YulExpr.ident "__tp_second", YulExpr.ident "__tp_r"],
+              YulExpr.lit 3000000000000000000
+            ]),
+            YulStmt.let_ "__tp_expR" (YulExpr.call "add" [
+              oneE18,
+              YulExpr.call "add" [
+                YulExpr.ident "__tp_r",
+                YulExpr.call "add" [YulExpr.ident "__tp_second", YulExpr.ident "__tp_third"]
+              ]
+            ]),
+            YulStmt.let_ "__tp_wexp" (YulExpr.call "shl" [
+              YulExpr.ident "__tp_q", YulExpr.ident "__tp_expR"
+            ]),
+            YulStmt.if_ (YulExpr.ident "__tp_negative") [
+              YulStmt.assign "__tp_wexp" (YulExpr.call "div" [oneE36, YulExpr.ident "__tp_wexp"])
+            ],
+            YulStmt.let_ "__tp_den" (YulExpr.call "add" [oneE18, YulExpr.ident "__tp_wexp"]),
+            YulStmt.let_ "__tp_raw" (YulExpr.call "div" [
+              YulExpr.call "add" [
+                oneE36,
+                YulExpr.call "div" [YulExpr.call "sub" [YulExpr.ident "__tp_den", YulExpr.lit 1], YulExpr.lit 2]
+              ],
+              YulExpr.ident "__tp_den"
+            ]),
+            YulStmt.assign resultVar (YulExpr.call "mul" [
+              YulExpr.call "div" [
+                YulExpr.call "add" [
+                  YulExpr.ident "__tp_raw",
+                  YulExpr.call "div" [YulExpr.call "sub" [priceRoundingStep, YulExpr.lit 1], YulExpr.lit 2]
+                ],
+                priceRoundingStep
+              ],
+              priceRoundingStep
+            ])
+          ]
+        ]
+    | _ =>
+        throw s!"midnightTickToPrice expects 1 argument, got {args.length}"
+
+def flashLoanCallbackModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightFlashLoanCallback"
+  numArgs := 2
+  resultVars := []
+  writesState := true
+  readsState := false
+  axioms := ["midnight_flashloan_callback_dynamic_abi"]
+  compile := fun _ctx args =>
+    match args with
+    | [target, caller] =>
+        let ptr := YulExpr.ident "__flcb_ptr"
+        let paddedDataLen := YulExpr.ident "__flcb_padded_data_len"
+        let tokensBytes := YulExpr.ident "__flcb_tokens_bytes"
+        let assetsBytes := YulExpr.ident "__flcb_assets_bytes"
+        let dataLen := YulExpr.ident "data_length"
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__flcb_ptr" (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.let_ "__flcb_tokens_bytes" (YulExpr.call "mul" [YulExpr.ident "tokens_length", YulExpr.lit 32]),
+            YulStmt.let_ "__flcb_assets_bytes" (YulExpr.call "mul" [YulExpr.ident "assets_length", YulExpr.lit 32]),
+            YulStmt.let_ "__flcb_tokens_seg" (YulExpr.call "add" [YulExpr.lit 32, tokensBytes]),
+            YulStmt.let_ "__flcb_assets_seg" (YulExpr.call "add" [YulExpr.lit 32, assetsBytes]),
+            YulStmt.let_ "__flcb_data_off" (YulExpr.call "add" [
+              YulExpr.lit 128,
+              YulExpr.call "add" [YulExpr.ident "__flcb_tokens_seg", YulExpr.ident "__flcb_assets_seg"]
+            ]),
+            YulStmt.let_ "__flcb_tokens_pos" (YulExpr.call "add" [ptr, YulExpr.lit 132]),
+            YulStmt.let_ "__flcb_assets_pos" (YulExpr.call "add" [
+              ptr,
+              YulExpr.call "add" [YulExpr.lit 132, YulExpr.ident "__flcb_tokens_seg"]
+            ]),
+            YulStmt.let_ "__flcb_data_pos" (YulExpr.call "add" [
+              ptr,
+              YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident "__flcb_data_off"]
+            ]),
+            YulStmt.let_ "__flcb_padded_data_len" (YulExpr.call "and" [
+              YulExpr.call "add" [dataLen, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__flcb_total" (YulExpr.call "add" [
+              YulExpr.call "add" [YulExpr.ident "__flcb_data_pos", YulExpr.lit 32],
+              paddedDataLen
+            ]),
+            YulStmt.assign "__flcb_total" (YulExpr.call "sub" [YulExpr.ident "__flcb_total", ptr]),
+            YulStmt.expr (YulExpr.call "mstore" [ptr, YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0xd1f260c3]]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 4], caller]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 36], YulExpr.lit 128]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 68],
+              YulExpr.call "add" [YulExpr.lit 128, YulExpr.ident "__flcb_tokens_seg"]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 100], YulExpr.ident "__flcb_data_off"]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__flcb_tokens_pos", YulExpr.ident "tokens_length"]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [YulExpr.ident "__flcb_tokens_pos", YulExpr.lit 32],
+              YulExpr.ident "tokens_data_offset",
+              tokensBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__flcb_assets_pos", YulExpr.ident "assets_length"]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [YulExpr.ident "__flcb_assets_pos", YulExpr.lit 32],
+              YulExpr.ident "assets_data_offset",
+              assetsBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__flcb_data_pos", dataLen]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [YulExpr.ident "__flcb_data_pos", YulExpr.lit 32],
+              YulExpr.ident "data_data_offset",
+              dataLen
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [ptr, YulExpr.call "and" [
+                YulExpr.call "add" [YulExpr.ident "__flcb_total", YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]]
+            ]),
+            YulStmt.let_ "__flcb_success" (YulExpr.call "call" [
+              YulExpr.call "gas" [], target, YulExpr.lit 0, ptr, YulExpr.ident "__flcb_total", ptr, YulExpr.lit 32
+            ]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__flcb_success"]) [
+              YulStmt.let_ "__flcb_rds" (YulExpr.call "returndatasize" []),
+              YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__flcb_rds"]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__flcb_rds"])
+            ],
+            YulStmt.if_ (YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+            ],
+            YulStmt.if_ (YulExpr.call "iszero" [
+              YulExpr.call "eq" [YulExpr.call "mload" [ptr], YulExpr.hex 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2]
+            ]) [
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+            ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightFlashLoanCallback expects 2 arguments, got {args.length}"
+
+def liquidateCallbackModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightLiquidateCallback"
+  numArgs := 9
+  resultVars := []
+  writesState := true
+  readsState := false
+  axioms := ["midnight_liquidate_callback_market_bytes_dynamic_abi"]
+  compile := fun _ctx args =>
+    match args with
+    | [target, caller, id, collateralIndex, seizedAssets, repaidUnits, borrower, receiver, badDebt] =>
+        let ptr := YulExpr.ident "__liqcb_ptr"
+        let marketPtr := YulExpr.ident "__liqcb_market_ptr"
+        let marketDataOffset := YulExpr.ident "market_data_offset"
+        let collateralOffset := YulExpr.ident "__liqcb_collateral_offset"
+        let collateralLength := YulExpr.ident "__liqcb_collateral_length"
+        let collateralBytes := YulExpr.ident "__liqcb_collateral_bytes"
+        let marketSize := YulExpr.ident "__liqcb_market_size"
+        let paddedMarketSize := YulExpr.ident "__liqcb_padded_market_size"
+        let dataPtr := YulExpr.ident "__liqcb_data_ptr"
+        let dataLen := YulExpr.ident "data_length"
+        let paddedDataLen := YulExpr.ident "__liqcb_padded_data_len"
+        let total := YulExpr.ident "__liqcb_total"
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__liqcb_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.let_ "__liqcb_collateral_offset" (YulExpr.call "add" [
+              marketDataOffset,
+              YulExpr.call "calldataload" [
+                YulExpr.call "add" [marketDataOffset, YulExpr.lit 32]
+              ]
+            ]),
+            YulStmt.let_ "__liqcb_collateral_length"
+              (YulExpr.call "calldataload" [collateralOffset]),
+            YulStmt.let_ "__liqcb_collateral_bytes" (YulExpr.call "mul" [
+              collateralLength,
+              YulExpr.lit 128
+            ]),
+            YulStmt.let_ "__liqcb_market_size" (YulExpr.call "add" [
+              YulExpr.lit 224,
+              collateralBytes
+            ]),
+            YulStmt.let_ "__liqcb_padded_market_size" (YulExpr.call "and" [
+              YulExpr.call "add" [marketSize, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__liqcb_padded_data_len" (YulExpr.call "and" [
+              YulExpr.call "add" [dataLen, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__liqcb_market_ptr" (YulExpr.call "add" [
+              ptr,
+              YulExpr.lit 324
+            ]),
+            YulStmt.let_ "__liqcb_data_ptr" (YulExpr.call "add" [
+              marketPtr,
+              paddedMarketSize
+            ]),
+            YulStmt.let_ "__liqcb_total" (YulExpr.call "add" [
+              YulExpr.lit 324,
+              YulExpr.call "add" [
+                paddedMarketSize,
+                YulExpr.call "add" [YulExpr.lit 32, paddedDataLen]
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x6861b795]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 4], caller]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 36], id]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 68], YulExpr.lit 320]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 100], collateralIndex]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 132], seizedAssets]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 164], repaidUnits]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 196], borrower]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 228], receiver]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 260],
+              YulExpr.call "add" [YulExpr.lit 320, paddedMarketSize]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 292], badDebt]),
+            YulStmt.expr (YulExpr.call "mstore" [marketPtr, YulExpr.call "calldataload" [marketDataOffset]]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 32], YulExpr.lit 192]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 64],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 64]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 96],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 96]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 128],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 128]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 160],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 160]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 192],
+              collateralLength
+            ]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [dataPtr, dataLen]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [dataPtr, YulExpr.lit 32],
+              YulExpr.ident "data_data_offset",
+              dataLen
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [
+                ptr,
+                YulExpr.call "and" [
+                  YulExpr.call "add" [total, YulExpr.lit 31],
+                  YulExpr.call "not" [YulExpr.lit 31]
+                ]
+              ]
+            ]),
+            YulStmt.let_ "__liqcb_success" (YulExpr.call "call" [
+              YulExpr.call "gas" [], target, YulExpr.lit 0, ptr, total, ptr, YulExpr.lit 32
+            ]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__liqcb_success"]) [
+              YulStmt.let_ "__liqcb_rds" (YulExpr.call "returndatasize" []),
+              YulStmt.expr (YulExpr.call "returndatacopy" [
+                YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__liqcb_rds"
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [
+                YulExpr.lit 0, YulExpr.ident "__liqcb_rds"
+              ])
+            ],
+            YulStmt.if_ (YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit 0,
+                YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x70b53d4b]
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 4])
+            ],
+            YulStmt.if_ (YulExpr.call "iszero" [
+              YulExpr.call "eq" [
+                YulExpr.call "mload" [ptr],
+                YulExpr.hex 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2
+              ]
+            ]) [
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit 0,
+                YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x70b53d4b]
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 4])
+            ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightLiquidateCallback expects 9 arguments, got {args.length}"
+
+def ratifierCallbackModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightRatifierCallback"
+  numArgs := 1
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := ["midnight_ratifier_offer_bytes_dynamic_abi"]
+  compile := fun _ctx args =>
+    match args with
+    | [target] =>
+        let ptr := YulExpr.ident "__rat_ptr"
+        let offerPtr := YulExpr.ident "__rat_offer_ptr"
+        let offerOffset := YulExpr.ident "offer_data_offset"
+        let marketPtr := YulExpr.ident "__rat_market_ptr"
+        let marketOffset := YulExpr.ident "__rat_market_offset"
+        let collateralOffset := YulExpr.ident "__rat_collateral_offset"
+        let collateralLength := YulExpr.ident "__rat_collateral_length"
+        let collateralBytes := YulExpr.ident "__rat_collateral_bytes"
+        let marketSize := YulExpr.ident "__rat_market_size"
+        let paddedMarketSize := YulExpr.ident "__rat_padded_market_size"
+        let callbackDataOffset := YulExpr.ident "__rat_callback_data_offset"
+        let callbackDataLength := YulExpr.ident "__rat_callback_data_length"
+        let paddedCallbackDataLength := YulExpr.ident "__rat_padded_callback_data_length"
+        let offerSize := YulExpr.ident "__rat_offer_size"
+        let paddedOfferSize := YulExpr.ident "__rat_padded_offer_size"
+        let dataPtr := YulExpr.ident "__rat_data_ptr"
+        let ratifierDataLength := YulExpr.ident "ratifierData_length"
+        let paddedRatifierDataLength := YulExpr.ident "__rat_padded_data_length"
+        let total := YulExpr.ident "__rat_total"
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__rat_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.let_ "__rat_offer_ptr" (YulExpr.call "add" [ptr, YulExpr.lit 68]),
+            YulStmt.let_ "__rat_market_offset"
+              (YulExpr.call "add" [offerOffset, YulExpr.call "calldataload" [offerOffset]]),
+            YulStmt.let_ "__rat_collateral_offset" (YulExpr.call "add" [
+              marketOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketOffset, YulExpr.lit 32]]
+            ]),
+            YulStmt.let_ "__rat_collateral_length"
+              (YulExpr.call "calldataload" [collateralOffset]),
+            YulStmt.let_ "__rat_collateral_bytes" (YulExpr.call "mul" [
+              collateralLength, YulExpr.lit 128
+            ]),
+            YulStmt.let_ "__rat_market_size" (YulExpr.call "add" [
+              YulExpr.lit 224, collateralBytes
+            ]),
+            YulStmt.let_ "__rat_padded_market_size" (YulExpr.call "and" [
+              YulExpr.call "add" [marketSize, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__rat_callback_data_offset" (YulExpr.call "add" [
+              offerOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [offerOffset, YulExpr.lit 256]]
+            ]),
+            YulStmt.let_ "__rat_callback_data_length"
+              (YulExpr.call "calldataload" [callbackDataOffset]),
+            YulStmt.let_ "__rat_padded_callback_data_length" (YulExpr.call "and" [
+              YulExpr.call "add" [callbackDataLength, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__rat_offer_size" (YulExpr.call "add" [
+              YulExpr.lit 448,
+              YulExpr.call "add" [
+                paddedMarketSize,
+                YulExpr.call "add" [YulExpr.lit 32, paddedCallbackDataLength]
+              ]
+            ]),
+            YulStmt.let_ "__rat_padded_offer_size" (YulExpr.call "and" [
+              YulExpr.call "add" [offerSize, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__rat_data_ptr"
+              (YulExpr.call "add" [offerPtr, paddedOfferSize]),
+            YulStmt.let_ "__rat_padded_data_length" (YulExpr.call "and" [
+              YulExpr.call "add" [ratifierDataLength, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__rat_total" (YulExpr.call "add" [
+              YulExpr.lit 68,
+              YulExpr.call "add" [
+                paddedOfferSize,
+                YulExpr.call "add" [YulExpr.lit 32, paddedRatifierDataLength]
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x675ef8d3]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 4], YulExpr.lit 64]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 36],
+              YulExpr.call "add" [YulExpr.lit 64, paddedOfferSize]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [offerPtr, YulExpr.lit 448]),
+            YulStmt.for_
+              [YulStmt.let_ "__rat_i" (YulExpr.lit 1)]
+              (YulExpr.call "lt" [YulExpr.ident "__rat_i", YulExpr.lit 8])
+              [YulStmt.assign "__rat_i" (YulExpr.call "add" [YulExpr.ident "__rat_i", YulExpr.lit 1])]
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [offerPtr, YulExpr.call "mul" [YulExpr.ident "__rat_i", YulExpr.lit 32]],
+                  YulExpr.call "calldataload" [
+                    YulExpr.call "add" [offerOffset, YulExpr.call "mul" [YulExpr.ident "__rat_i", YulExpr.lit 32]]
+                  ]
+                ])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [offerPtr, YulExpr.lit 256],
+              YulExpr.call "add" [YulExpr.lit 448, paddedMarketSize]
+            ]),
+            YulStmt.for_
+              [YulStmt.let_ "__rat_j" (YulExpr.lit 9)]
+              (YulExpr.call "lt" [YulExpr.ident "__rat_j", YulExpr.lit 14])
+              [YulStmt.assign "__rat_j" (YulExpr.call "add" [YulExpr.ident "__rat_j", YulExpr.lit 1])]
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [offerPtr, YulExpr.call "mul" [YulExpr.ident "__rat_j", YulExpr.lit 32]],
+                  YulExpr.call "calldataload" [
+                    YulExpr.call "add" [offerOffset, YulExpr.call "mul" [YulExpr.ident "__rat_j", YulExpr.lit 32]]
+                  ]
+                ])
+              ],
+            YulStmt.let_ "__rat_market_ptr" (YulExpr.call "add" [offerPtr, YulExpr.lit 448]),
+            YulStmt.expr (YulExpr.call "mstore" [marketPtr, YulExpr.call "calldataload" [marketOffset]]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 32], YulExpr.lit 192]),
+            YulStmt.for_
+              [YulStmt.let_ "__rat_m" (YulExpr.lit 2)]
+              (YulExpr.call "lt" [YulExpr.ident "__rat_m", YulExpr.lit 6])
+              [YulStmt.assign "__rat_m" (YulExpr.call "add" [YulExpr.ident "__rat_m", YulExpr.lit 1])]
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [marketPtr, YulExpr.call "mul" [YulExpr.ident "__rat_m", YulExpr.lit 32]],
+                  YulExpr.call "calldataload" [
+                    YulExpr.call "add" [marketOffset, YulExpr.call "mul" [YulExpr.ident "__rat_m", YulExpr.lit 32]]
+                  ]
+                ])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 192], collateralLength]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [offerPtr, YulExpr.call "add" [YulExpr.lit 448, paddedMarketSize]],
+              callbackDataLength
+            ]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [
+                offerPtr,
+                YulExpr.call "add" [YulExpr.lit 480, paddedMarketSize]
+              ],
+              YulExpr.call "add" [callbackDataOffset, YulExpr.lit 32],
+              callbackDataLength
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [
+                offerPtr,
+                YulExpr.call "add" [
+                  YulExpr.lit 480,
+                  YulExpr.call "add" [paddedMarketSize, callbackDataLength]
+                ]
+              ],
+              YulExpr.lit 0
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [dataPtr, ratifierDataLength]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [dataPtr, YulExpr.lit 32],
+              YulExpr.ident "ratifierData_data_offset",
+              ratifierDataLength
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [dataPtr, YulExpr.call "add" [YulExpr.lit 32, ratifierDataLength]],
+              YulExpr.lit 0
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [ptr, YulExpr.call "and" [
+                YulExpr.call "add" [total, YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]]
+            ]),
+            YulStmt.let_ "__rat_success" (YulExpr.call "staticcall" [
+              YulExpr.call "gas" [], target, ptr, total, ptr, YulExpr.lit 32
+            ]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__rat_success"]) [
+              YulStmt.let_ "__rat_rds" (YulExpr.call "returndatasize" []),
+              YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__rat_rds"]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__rat_rds"])
+            ],
+            YulStmt.if_ (YulExpr.call "iszero" [
+              YulExpr.call "and" [
+                YulExpr.call "iszero" [YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]],
+                YulExpr.call "eq" [
+                  YulExpr.call "mload" [ptr],
+                  YulExpr.hex 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2
+                ]
+              ]
+            ]) [
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit 0,
+                YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x9e8ec676]
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 4])
+            ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightRatifierCallback expects 1 argument, got {args.length}"
+
+def buyCallbackModule (useOfferData : Bool) : Compiler.ECM.ExternalCallModule where
+  name := if useOfferData then "midnightBuyOfferCallback" else "midnightBuyTakerCallback"
+  numArgs := 6
+  resultVars := []
+  writesState := true
+  readsState := false
+  axioms := ["midnight_buy_callback_market_bytes_dynamic_abi"]
+  compile := fun _ctx args =>
+    match args with
+    | [target, id, buyerAssets, units, pendingFeeIncrease, buyer] =>
+        let ptr := YulExpr.ident "__buycb_ptr"
+        let marketPtr := YulExpr.ident "__buycb_market_ptr"
+        let offerOffset := YulExpr.ident "offer_data_offset"
+        let marketOffset := YulExpr.ident "__buycb_market_offset"
+        let collateralOffset := YulExpr.ident "__buycb_collateral_offset"
+        let collateralLength := YulExpr.ident "__buycb_collateral_length"
+        let collateralBytes := YulExpr.ident "__buycb_collateral_bytes"
+        let marketSize := YulExpr.ident "__buycb_market_size"
+        let paddedMarketSize := YulExpr.ident "__buycb_padded_market_size"
+        let dataOffset := YulExpr.ident "__buycb_data_offset"
+        let dataLen := YulExpr.ident "__buycb_data_length"
+        let paddedDataLen := YulExpr.ident "__buycb_padded_data_len"
+        let dataPtr := YulExpr.ident "__buycb_data_ptr"
+        let total := YulExpr.ident "__buycb_total"
+        let initDataOffset :=
+          if useOfferData then
+            YulStmt.let_ "__buycb_data_offset" (YulExpr.call "add" [
+              offerOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [offerOffset, YulExpr.lit 256]]
+            ])
+          else
+            YulStmt.let_ "__buycb_data_offset"
+              (YulExpr.call "sub" [YulExpr.ident "takerCallbackData_data_offset", YulExpr.lit 32])
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__buycb_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.let_ "__buycb_market_offset"
+              (YulExpr.call "add" [offerOffset, YulExpr.call "calldataload" [offerOffset]]),
+            YulStmt.let_ "__buycb_collateral_offset" (YulExpr.call "add" [
+              marketOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketOffset, YulExpr.lit 32]]
+            ]),
+            YulStmt.let_ "__buycb_collateral_length"
+              (YulExpr.call "calldataload" [collateralOffset]),
+            YulStmt.let_ "__buycb_collateral_bytes"
+              (YulExpr.call "mul" [collateralLength, YulExpr.lit 128]),
+            YulStmt.let_ "__buycb_market_size" (YulExpr.call "add" [
+              YulExpr.lit 224,
+              collateralBytes
+            ]),
+            YulStmt.let_ "__buycb_padded_market_size" (YulExpr.call "and" [
+              YulExpr.call "add" [marketSize, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            initDataOffset,
+            YulStmt.let_ "__buycb_data_length" (YulExpr.call "calldataload" [dataOffset]),
+            YulStmt.let_ "__buycb_padded_data_len" (YulExpr.call "and" [
+              YulExpr.call "add" [dataLen, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__buycb_market_ptr" (YulExpr.call "add" [ptr, YulExpr.lit 228]),
+            YulStmt.let_ "__buycb_data_ptr" (YulExpr.call "add" [marketPtr, paddedMarketSize]),
+            YulStmt.let_ "__buycb_total" (YulExpr.call "add" [
+              YulExpr.lit 228,
+              YulExpr.call "add" [
+                paddedMarketSize,
+                YulExpr.call "add" [YulExpr.lit 32, paddedDataLen]
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0xf151bd5c]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 4], id]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 36], YulExpr.lit 224]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 68], buyerAssets]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 100], units]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 132], pendingFeeIncrease]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 164], buyer]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 196],
+              YulExpr.call "add" [YulExpr.lit 224, paddedMarketSize]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [marketPtr, YulExpr.call "calldataload" [marketOffset]]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 32], YulExpr.lit 192]),
+            YulStmt.for_
+              [YulStmt.let_ "__buycb_m" (YulExpr.lit 2)]
+              (YulExpr.call "lt" [YulExpr.ident "__buycb_m", YulExpr.lit 6])
+              [YulStmt.assign "__buycb_m" (YulExpr.call "add" [YulExpr.ident "__buycb_m", YulExpr.lit 1])]
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [marketPtr, YulExpr.call "mul" [YulExpr.ident "__buycb_m", YulExpr.lit 32]],
+                  YulExpr.call "calldataload" [
+                    YulExpr.call "add" [marketOffset, YulExpr.call "mul" [YulExpr.ident "__buycb_m", YulExpr.lit 32]]
+                  ]
+                ])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 192], collateralLength]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [dataPtr, dataLen]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [dataPtr, YulExpr.lit 32],
+              YulExpr.call "add" [dataOffset, YulExpr.lit 32],
+              dataLen
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [dataPtr, YulExpr.call "add" [YulExpr.lit 32, dataLen]],
+              YulExpr.lit 0
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [ptr, YulExpr.call "and" [
+                YulExpr.call "add" [total, YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]]
+            ]),
+            YulStmt.let_ "__buycb_success" (YulExpr.call "call" [
+              YulExpr.call "gas" [], target, YulExpr.lit 0, ptr, total, ptr, YulExpr.lit 32
+            ]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__buycb_success"]) [
+              YulStmt.let_ "__buycb_rds" (YulExpr.call "returndatasize" []),
+              YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__buycb_rds"]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__buycb_rds"])
+            ],
+            YulStmt.if_ (YulExpr.call "iszero" [
+              YulExpr.call "and" [
+                YulExpr.call "iszero" [YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]],
+                YulExpr.call "eq" [
+                  YulExpr.call "mload" [ptr],
+                  YulExpr.hex 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2
+                ]
+              ]
+            ]) [
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit 0,
+                YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0xa8f3eb44]
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 4])
+            ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightBuyCallback expects 6 arguments, got {args.length}"
+
+def repayCallbackModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightRepayCallback"
+  numArgs := 4
+  resultVars := []
+  writesState := true
+  readsState := false
+  axioms := ["midnight_repay_callback_market_bytes_dynamic_abi"]
+  compile := fun _ctx args =>
+    match args with
+    | [target, id, units, onBehalf] =>
+        let ptr := YulExpr.ident "__repaycb_ptr"
+        let marketPtr := YulExpr.ident "__repaycb_market_ptr"
+        let marketOffset := YulExpr.ident "__repaycb_market_offset"
+        let collateralOffset := YulExpr.ident "__repaycb_collateral_offset"
+        let collateralLength := YulExpr.ident "__repaycb_collateral_length"
+        let collateralBytes := YulExpr.ident "__repaycb_collateral_bytes"
+        let marketSize := YulExpr.ident "__repaycb_market_size"
+        let paddedMarketSize := YulExpr.ident "__repaycb_padded_market_size"
+        let dataOffset := YulExpr.ident "__repaycb_data_offset"
+        let dataLen := YulExpr.ident "__repaycb_data_length"
+        let paddedDataLen := YulExpr.ident "__repaycb_padded_data_len"
+        let dataPtr := YulExpr.ident "__repaycb_data_ptr"
+        let total := YulExpr.ident "__repaycb_total"
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__repaycb_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.let_ "__repaycb_market_offset" (YulExpr.call "add" [
+              YulExpr.lit 4,
+              YulExpr.call "calldataload" [YulExpr.lit 4]
+            ]),
+            YulStmt.let_ "__repaycb_collateral_offset" (YulExpr.call "add" [
+              marketOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketOffset, YulExpr.lit 32]]
+            ]),
+            YulStmt.let_ "__repaycb_collateral_length"
+              (YulExpr.call "calldataload" [collateralOffset]),
+            YulStmt.let_ "__repaycb_collateral_bytes"
+              (YulExpr.call "mul" [collateralLength, YulExpr.lit 128]),
+            YulStmt.let_ "__repaycb_market_size" (YulExpr.call "add" [
+              YulExpr.lit 224,
+              collateralBytes
+            ]),
+            YulStmt.let_ "__repaycb_padded_market_size" (YulExpr.call "and" [
+              YulExpr.call "add" [marketSize, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__repaycb_data_offset"
+              (YulExpr.call "sub" [YulExpr.ident "data_data_offset", YulExpr.lit 32]),
+            YulStmt.let_ "__repaycb_data_length" (YulExpr.call "calldataload" [dataOffset]),
+            YulStmt.let_ "__repaycb_padded_data_len" (YulExpr.call "and" [
+              YulExpr.call "add" [dataLen, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__repaycb_market_ptr" (YulExpr.call "add" [ptr, YulExpr.lit 164]),
+            YulStmt.let_ "__repaycb_data_ptr" (YulExpr.call "add" [marketPtr, paddedMarketSize]),
+            YulStmt.let_ "__repaycb_total" (YulExpr.call "add" [
+              YulExpr.lit 164,
+              YulExpr.call "add" [
+                paddedMarketSize,
+                YulExpr.call "add" [YulExpr.lit 32, paddedDataLen]
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0xfc56f72e]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 4], id]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 36], YulExpr.lit 160]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 68], units]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 100], onBehalf]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 132],
+              YulExpr.call "add" [YulExpr.lit 160, paddedMarketSize]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [marketPtr, YulExpr.call "calldataload" [marketOffset]]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 32], YulExpr.lit 192]),
+            YulStmt.for_
+              [YulStmt.let_ "__repaycb_m" (YulExpr.lit 2)]
+              (YulExpr.call "lt" [YulExpr.ident "__repaycb_m", YulExpr.lit 6])
+              [YulStmt.assign "__repaycb_m" (YulExpr.call "add" [YulExpr.ident "__repaycb_m", YulExpr.lit 1])]
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [marketPtr, YulExpr.call "mul" [YulExpr.ident "__repaycb_m", YulExpr.lit 32]],
+                  YulExpr.call "calldataload" [
+                    YulExpr.call "add" [marketOffset, YulExpr.call "mul" [YulExpr.ident "__repaycb_m", YulExpr.lit 32]]
+                  ]
+                ])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 192], collateralLength]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [dataPtr, dataLen]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [dataPtr, YulExpr.lit 32],
+              YulExpr.call "add" [dataOffset, YulExpr.lit 32],
+              dataLen
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [dataPtr, YulExpr.call "add" [YulExpr.lit 32, dataLen]],
+              YulExpr.lit 0
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [ptr, YulExpr.call "and" [
+                YulExpr.call "add" [total, YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]]
+            ]),
+            YulStmt.let_ "__repaycb_success" (YulExpr.call "call" [
+              YulExpr.call "gas" [], target, YulExpr.lit 0, ptr, total, ptr, YulExpr.lit 32
+            ]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__repaycb_success"]) [
+              YulStmt.let_ "__repaycb_rds" (YulExpr.call "returndatasize" []),
+              YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__repaycb_rds"]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__repaycb_rds"])
+            ],
+            YulStmt.if_ (YulExpr.call "iszero" [
+              YulExpr.call "and" [
+                YulExpr.call "iszero" [YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]],
+                YulExpr.call "eq" [
+                  YulExpr.call "mload" [ptr],
+                  YulExpr.hex 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2
+                ]
+              ]
+            ]) [
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit 0,
+                YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x40a13da2]
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 4])
+            ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightRepayCallback expects 4 arguments, got {args.length}"
+
+def takeEventPrepareAModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightTakeEventPrepareA"
+  numArgs := 6
+  resultVars := [resultVar]
+  writesState := false
+  readsState := false
+  axioms := ["midnight_take_event_payload_memory"]
+  compile := fun _ctx args =>
+    match args with
+    | [caller, units, offerIsBuy, group, buyerAssets, sellerAssets] =>
+        pure [
+          YulStmt.let_ resultVar
+            (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+          YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident resultVar, caller]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 32], units
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 64], offerIsBuy
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 96], group
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 128], buyerAssets
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 160], sellerAssets
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 416]
+          ])
+        ]
+    | _ =>
+        throw s!"midnightTakeEventPrepareA expects 6 arguments, got {args.length}"
+
+def takeEventPrepareBModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightTakeEventPrepareB"
+  numArgs := 6
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := ["midnight_take_event_payload_memory"]
+  compile := fun _ctx args =>
+    match args with
+    | [ptr, consumed, buyerPendingFeeIncrease, sellerPendingFeeDecrease,
+        buyerCreditIncrease, sellerCreditDecrease] =>
+        pure [
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 192], consumed
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 224], buyerPendingFeeIncrease
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 256], sellerPendingFeeDecrease
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 288], buyerCreditIncrease
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 320], sellerCreditDecrease
+          ])
+        ]
+    | _ =>
+        throw s!"midnightTakeEventPrepareB expects 6 arguments, got {args.length}"
+
+def takeEventEmitModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightTakeEventEmit"
+  numArgs := 6
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := ["midnight_take_event_log4"]
+  compile := fun _ctx args =>
+    match args with
+    | [ptr, receiver, payer, id, taker, maker] =>
+        pure [
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 352], receiver
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, YulExpr.lit 384], payer
+          ]),
+          YulStmt.expr (YulExpr.call "log4" [
+            ptr,
+            YulExpr.lit 416,
+            YulExpr.hex 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3,
+            id,
+            taker,
+            maker
+          ])
+        ]
+    | _ =>
+        throw s!"midnightTakeEventEmit expects 6 arguments, got {args.length}"
+
+def takeEventAllocModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightTakeEventAlloc"
+  numArgs := 0
+  resultVars := [resultVar]
+  writesState := false
+  readsState := false
+  axioms := ["midnight_take_event_payload_memory"]
+  compile := fun _ctx args =>
+    match args with
+    | [] =>
+        pure [
+          YulStmt.let_ resultVar
+            (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+            YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 512]
+          ])
+        ]
+    | _ =>
+        throw s!"midnightTakeEventAlloc expects 0 arguments, got {args.length}"
+
+def takeEventStoreModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightTakeEventStore"
+  numArgs := 3
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := ["midnight_take_event_payload_memory"]
+  compile := fun _ctx args =>
+    match args with
+    | [ptr, offset, value] =>
+        pure [
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [ptr, offset],
+            value
+          ])
+        ]
+    | _ =>
+        throw s!"midnightTakeEventStore expects 3 arguments, got {args.length}"
+
+def takeEventEmitFromMemoryModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightTakeEventEmitFromMemory"
+  numArgs := 1
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := ["midnight_take_event_log4"]
+  compile := fun _ctx args =>
+    match args with
+    | [ptr] =>
+        pure [
+          YulStmt.expr (YulExpr.call "log4" [
+            ptr,
+            YulExpr.lit 416,
+            YulExpr.hex 0x9e0c6d3ffe2895519e5543fe8da6e54858f4c06530d7557d808068b0ecdc9bc3,
+            YulExpr.call "mload" [YulExpr.call "add" [ptr, YulExpr.lit 416]],
+            YulExpr.call "mload" [YulExpr.call "add" [ptr, YulExpr.lit 448]],
+            YulExpr.call "mload" [YulExpr.call "add" [ptr, YulExpr.lit 480]]
+          ])
+        ]
+    | _ =>
+        throw s!"midnightTakeEventEmitFromMemory expects 1 argument, got {args.length}"
+
+def sellCallbackModule (useOfferData : Bool) : Compiler.ECM.ExternalCallModule where
+  name := if useOfferData then "midnightSellOfferCallback" else "midnightSellTakerCallback"
+  numArgs := 8
+  resultVars := []
+  writesState := true
+  readsState := false
+  axioms := ["midnight_sell_callback_market_bytes_dynamic_abi"]
+  compile := fun _ctx args =>
+    match args with
+    | [target, id, sellerAssets, units, pendingFeeDecrease, seller, receiver, _unused] =>
+        let ptr := YulExpr.ident "__sellcb_ptr"
+        let marketPtr := YulExpr.ident "__sellcb_market_ptr"
+        let offerOffset := YulExpr.ident "offer_data_offset"
+        let marketOffset := YulExpr.ident "__sellcb_market_offset"
+        let collateralOffset := YulExpr.ident "__sellcb_collateral_offset"
+        let collateralLength := YulExpr.ident "__sellcb_collateral_length"
+        let collateralBytes := YulExpr.ident "__sellcb_collateral_bytes"
+        let marketSize := YulExpr.ident "__sellcb_market_size"
+        let paddedMarketSize := YulExpr.ident "__sellcb_padded_market_size"
+        let dataOffset := YulExpr.ident "__sellcb_data_offset"
+        let dataLen := YulExpr.ident "__sellcb_data_length"
+        let paddedDataLen := YulExpr.ident "__sellcb_padded_data_len"
+        let dataPtr := YulExpr.ident "__sellcb_data_ptr"
+        let total := YulExpr.ident "__sellcb_total"
+        let initDataOffset :=
+          if useOfferData then
+            YulStmt.let_ "__sellcb_data_offset" (YulExpr.call "add" [
+              offerOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [offerOffset, YulExpr.lit 256]]
+            ])
+          else
+            YulStmt.let_ "__sellcb_data_offset"
+              (YulExpr.call "sub" [YulExpr.ident "takerCallbackData_data_offset", YulExpr.lit 32])
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__sellcb_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.let_ "__sellcb_market_offset"
+              (YulExpr.call "add" [offerOffset, YulExpr.call "calldataload" [offerOffset]]),
+            YulStmt.let_ "__sellcb_collateral_offset" (YulExpr.call "add" [
+              marketOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketOffset, YulExpr.lit 32]]
+            ]),
+            YulStmt.let_ "__sellcb_collateral_length"
+              (YulExpr.call "calldataload" [collateralOffset]),
+            YulStmt.let_ "__sellcb_collateral_bytes"
+              (YulExpr.call "mul" [collateralLength, YulExpr.lit 128]),
+            YulStmt.let_ "__sellcb_market_size" (YulExpr.call "add" [
+              YulExpr.lit 224,
+              collateralBytes
+            ]),
+            YulStmt.let_ "__sellcb_padded_market_size" (YulExpr.call "and" [
+              YulExpr.call "add" [marketSize, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            initDataOffset,
+            YulStmt.let_ "__sellcb_data_length" (YulExpr.call "calldataload" [dataOffset]),
+            YulStmt.let_ "__sellcb_padded_data_len" (YulExpr.call "and" [
+              YulExpr.call "add" [dataLen, YulExpr.lit 31],
+              YulExpr.call "not" [YulExpr.lit 31]
+            ]),
+            YulStmt.let_ "__sellcb_market_ptr" (YulExpr.call "add" [ptr, YulExpr.lit 260]),
+            YulStmt.let_ "__sellcb_data_ptr" (YulExpr.call "add" [marketPtr, paddedMarketSize]),
+            YulStmt.let_ "__sellcb_total" (YulExpr.call "add" [
+              YulExpr.lit 260,
+              YulExpr.call "add" [
+                paddedMarketSize,
+                YulExpr.call "add" [YulExpr.lit 32, paddedDataLen]
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x7f44a13a]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 4], id]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 36], YulExpr.lit 256]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 68], sellerAssets]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 100], units]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 132], pendingFeeDecrease]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 164], seller]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptr, YulExpr.lit 196], receiver]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 228],
+              YulExpr.call "add" [YulExpr.lit 256, paddedMarketSize]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [marketPtr, YulExpr.call "calldataload" [marketOffset]]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 32], YulExpr.lit 192]),
+            YulStmt.for_
+              [YulStmt.let_ "__sellcb_m" (YulExpr.lit 2)]
+              (YulExpr.call "lt" [YulExpr.ident "__sellcb_m", YulExpr.lit 6])
+              [YulStmt.assign "__sellcb_m" (YulExpr.call "add" [YulExpr.ident "__sellcb_m", YulExpr.lit 1])]
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [marketPtr, YulExpr.call "mul" [YulExpr.ident "__sellcb_m", YulExpr.lit 32]],
+                  YulExpr.call "calldataload" [
+                    YulExpr.call "add" [marketOffset, YulExpr.call "mul" [YulExpr.ident "__sellcb_m", YulExpr.lit 32]]
+                  ]
+                ])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [marketPtr, YulExpr.lit 192], collateralLength]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [marketPtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [dataPtr, dataLen]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [dataPtr, YulExpr.lit 32],
+              YulExpr.call "add" [dataOffset, YulExpr.lit 32],
+              dataLen
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [dataPtr, YulExpr.call "add" [YulExpr.lit 32, dataLen]],
+              YulExpr.lit 0
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [ptr, YulExpr.call "and" [
+                YulExpr.call "add" [total, YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]]
+            ]),
+            YulStmt.let_ "__sellcb_success" (YulExpr.call "call" [
+              YulExpr.call "gas" [], target, YulExpr.lit 0, ptr, total, ptr, YulExpr.lit 32
+            ]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sellcb_success"]) [
+              YulStmt.let_ "__sellcb_rds" (YulExpr.call "returndatasize" []),
+              YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__sellcb_rds"]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__sellcb_rds"])
+            ],
+            YulStmt.if_ (YulExpr.call "iszero" [
+              YulExpr.call "and" [
+                YulExpr.call "iszero" [YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]],
+                YulExpr.call "eq" [
+                  YulExpr.call "mload" [ptr],
+                  YulExpr.hex 0x7f87788ea698181ea4d28d1576d0ba4fc92c0dbe5bf75b43692af2ce91dbaea2
+                ]
+              ]
+            ]) [
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit 0,
+                YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0xa4fb7883]
+              ]),
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 4])
+            ]
+          ]
+        ]
+    | _ =>
+        throw s!"midnightSellCallback expects 8 arguments, got {args.length}"
+
+def liquidationLockGetModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightLiquidationLockGet"
+  numArgs := 2
+  resultVars := [resultVar]
+  writesState := false
+  readsState := true
+  axioms := ["midnight_liquidation_lock_transient_slot"]
+  compile := fun _ctx args =>
+    match args with
+    | [id, user] =>
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__liq_lock_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__liq_lock_ptr", id]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 32],
+              user
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 64],
+              YulExpr.hex 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4
+            ]),
+            YulStmt.assign resultVar
+              (YulExpr.call "tload" [
+                YulExpr.call "keccak256" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 96]
+              ])
+          ]
+        ]
+    | _ => throw s!"midnightLiquidationLockGet expects 2 args, got {args.length}"
+
+def liquidationLockExchangeModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightLiquidationLockExchange"
+  numArgs := 3
+  resultVars := [resultVar]
+  writesState := true
+  readsState := true
+  axioms := ["midnight_liquidation_lock_transient_slot"]
+  compile := fun _ctx args =>
+    match args with
+    | [id, user, value] =>
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__liq_lock_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__liq_lock_ptr", id]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 32],
+              user
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 64],
+              YulExpr.hex 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4
+            ]),
+            YulStmt.let_ "__liq_lock_slot"
+              (YulExpr.call "keccak256" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 96]),
+            YulStmt.assign resultVar
+              (YulExpr.call "tload" [YulExpr.ident "__liq_lock_slot"]),
+            YulStmt.expr (YulExpr.call "tstore" [
+              YulExpr.ident "__liq_lock_slot", value
+            ])
+          ]
+        ]
+    | _ => throw s!"midnightLiquidationLockExchange expects 3 args, got {args.length}"
+
+def liquidationLockClearIfUnlockedGetModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightLiquidationLockClearIfUnlockedGet"
+  numArgs := 3
+  resultVars := [resultVar]
+  writesState := true
+  readsState := true
+  axioms := ["midnight_liquidation_lock_transient_slot"]
+  compile := fun _ctx args =>
+    match args with
+    | [id, user, wasLocked] =>
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__liq_lock_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__liq_lock_ptr", id]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 32],
+              user
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 64],
+              YulExpr.hex 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4
+            ]),
+            YulStmt.let_ "__liq_lock_slot"
+              (YulExpr.call "keccak256" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 96]),
+            YulStmt.if_ (YulExpr.call "iszero" [wasLocked]) [
+              YulStmt.expr (YulExpr.call "tstore" [
+                YulExpr.ident "__liq_lock_slot", YulExpr.lit 0
+              ])
+            ],
+            YulStmt.assign resultVar
+              (YulExpr.call "tload" [YulExpr.ident "__liq_lock_slot"])
+          ]
+        ]
+    | _ => throw s!"midnightLiquidationLockClearIfUnlockedGet expects 3 args, got {args.length}"
+
+def liquidationLockDepthEnterModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightLiquidationLockDepthEnter"
+  numArgs := 2
+  resultVars := []
+  writesState := true
+  readsState := true
+  axioms := ["midnight_liquidation_lock_transient_depth_slot"]
+  compile := fun _ctx args =>
+    match args with
+    | [id, user] =>
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__liq_lock_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__liq_lock_ptr", id]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 32],
+              user
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 64],
+              YulExpr.hex 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4
+            ]),
+            YulStmt.let_ "__liq_lock_slot"
+              (YulExpr.call "keccak256" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 96]),
+            YulStmt.expr (YulExpr.call "tstore" [
+              YulExpr.ident "__liq_lock_slot",
+              YulExpr.call "add" [
+                YulExpr.call "tload" [YulExpr.ident "__liq_lock_slot"],
+                YulExpr.lit 1
+              ]
+            ])
+          ]
+        ]
+    | _ => throw s!"midnightLiquidationLockDepthEnter expects 2 args, got {args.length}"
+
+def liquidationLockDepthExitGetModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightLiquidationLockDepthExitGet"
+  numArgs := 2
+  resultVars := [resultVar]
+  writesState := true
+  readsState := true
+  axioms := ["midnight_liquidation_lock_transient_depth_slot"]
+  compile := fun _ctx args =>
+    match args with
+    | [id, user] =>
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__liq_lock_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__liq_lock_ptr", id]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 32],
+              user
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 64],
+              YulExpr.hex 0x90e10dad8320b2f9ee6b84bebe89829c27a3fc1209e68031bc1d4b65c22e4da4
+            ]),
+            YulStmt.let_ "__liq_lock_slot"
+              (YulExpr.call "keccak256" [YulExpr.ident "__liq_lock_ptr", YulExpr.lit 96]),
+            YulStmt.let_ "__liq_lock_depth" (YulExpr.call "tload" [YulExpr.ident "__liq_lock_slot"]),
+            YulStmt.if_ (YulExpr.call "gt" [YulExpr.ident "__liq_lock_depth", YulExpr.lit 0]) [
+              YulStmt.assign "__liq_lock_depth"
+                (YulExpr.call "sub" [YulExpr.ident "__liq_lock_depth", YulExpr.lit 1]),
+              YulStmt.expr (YulExpr.call "tstore" [
+                YulExpr.ident "__liq_lock_slot", YulExpr.ident "__liq_lock_depth"
+              ])
+            ],
+            YulStmt.assign resultVar (YulExpr.ident "__liq_lock_depth")
+          ]
+        ]
+    | _ => throw s!"midnightLiquidationLockDepthExitGet expects 2 args, got {args.length}"
+
+def offerMarketIsHealthyModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightOfferMarketIsHealthy"
+  numArgs := 2
+  resultVars := [resultVar]
+  writesState := false
+  readsState := true
+  axioms := ["midnight_offer_market_isHealthy_helper"]
+  compile := fun _ctx args =>
+    match args with
+    | [id, user] =>
+        pure [
+          YulStmt.let_ resultVar (YulExpr.call "internal_internal_isHealthy" [
+            YulExpr.call "add" [
+              YulExpr.ident "offer_data_offset",
+              YulExpr.call "calldataload" [YulExpr.ident "offer_data_offset"]
+            ],
+            id,
+            user
+          ])
+        ]
+    | _ => throw s!"midnightOfferMarketIsHealthy expects 2 args, got {args.length}"
+
+def marketIdModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightMarketId"
+  numArgs := 2
+  resultVars := [resultVar]
+  writesState := false
+  readsState := true
+  axioms := ["midnight_idlib_toid_market_abi_create2_preimage"]
+  compile := fun _ctx args => do
+    match args with
+    | initialChainId :: selfAddress :: rest =>
+        let marketDataOffset ←
+          match rest with
+          | [] => pure (YulExpr.ident "market_data_offset")
+          | [offset] => pure offset
+          | _ => throw s!"midnightMarketId expects 2 or 3 arguments, got {args.length}"
+        let ptr := YulExpr.ident "__midnight_id_ptr"
+        let tuplePtr := YulExpr.ident "__midnight_id_tuple_ptr"
+        let collateralOffset := YulExpr.ident "__midnight_id_collateral_offset"
+        let collateralLength := YulExpr.ident "__midnight_id_collateral_length"
+        let collateralBytes := YulExpr.ident "__midnight_id_collateral_bytes"
+        let abiLength := YulExpr.ident "__midnight_id_abi_length"
+        let initcodeLength := YulExpr.ident "__midnight_id_initcode_length"
+        let outerPtr := YulExpr.ident "__midnight_id_outer_ptr"
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__midnight_id_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 168, YulExpr.hex 0x600b380380600b5f395ff3]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 11],
+              YulExpr.lit 32
+            ]),
+            YulStmt.let_ "__midnight_id_tuple_ptr"
+              (YulExpr.call "add" [ptr, YulExpr.lit 43]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              tuplePtr,
+              YulExpr.call "calldataload" [marketDataOffset]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 32],
+              YulExpr.lit 192
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 64],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 64]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 96],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 96]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 128],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 128]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 160],
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 160]]
+            ]),
+            YulStmt.let_ "__midnight_id_collateral_offset" (YulExpr.call "add" [
+              marketDataOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 32]]
+            ]),
+            YulStmt.let_ "__midnight_id_collateral_length"
+              (YulExpr.call "calldataload" [collateralOffset]),
+            YulStmt.let_ "__midnight_id_collateral_bytes" (YulExpr.call "mul" [
+              collateralLength,
+              YulExpr.lit 128
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 192],
+              collateralLength
+            ]),
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
+            YulStmt.let_ "__midnight_id_abi_length" (YulExpr.call "add" [
+              YulExpr.lit 256,
+              collateralBytes
+            ]),
+            YulStmt.let_ "__midnight_id_initcode_length" (YulExpr.call "add" [
+              YulExpr.lit 11,
+              abiLength
+            ]),
+            YulStmt.let_ "__midnight_id_inner_hash"
+              (YulExpr.call "keccak256" [ptr, initcodeLength]),
+            YulStmt.let_ "__midnight_id_outer_ptr" (YulExpr.call "add" [
+              ptr,
+              YulExpr.call "and" [
+                YulExpr.call "add" [initcodeLength, YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              outerPtr,
+              YulExpr.call "shl" [YulExpr.lit 248, YulExpr.lit 255]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [outerPtr, YulExpr.lit 1],
+              YulExpr.call "shl" [YulExpr.lit 96, selfAddress]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [outerPtr, YulExpr.lit 21],
+              initialChainId
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [outerPtr, YulExpr.lit 53],
+              YulExpr.ident "__midnight_id_inner_hash"
+            ]),
+            YulStmt.assign resultVar
+              (YulExpr.call "keccak256" [outerPtr, YulExpr.lit 85]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [outerPtr, YulExpr.lit 96]
+            ])
+          ]
+        ]
+    | _ =>
+        throw s!"midnightMarketId expects 2 or 3 arguments, got {args.length}"
+
+def marketIdAtOffsetModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightMarketIdAtOffset"
+  numArgs := 3
+  resultVars := [resultVar]
+  writesState := false
+  readsState := true
+  axioms := ["midnight_idlib_toid_market_abi_create2_preimage"]
+  compile := fun ctx args =>
+    (marketIdModule resultVar).compile ctx args
+
+def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightStoreMarketInCode"
+  numArgs := 1
+  resultVars := [resultVar]
+  writesState := true
+  readsState := false
+  axioms := ["midnight_sstore2_market_initcode_layout", "create2_address_derivation"]
+  compile := fun _ctx args => do
+    match args with
+    | [salt] =>
+        let marketDataOffset := YulExpr.ident "market_data_offset"
+        let ptr := YulExpr.ident "__midnight_store_ptr"
+        let tuplePtr := YulExpr.ident "__midnight_store_tuple_ptr"
+        let arrayPtr := YulExpr.ident "__midnight_store_array_ptr"
+        let length := YulExpr.ident "__midnight_store_collateral_length"
+        let collateralBytes := YulExpr.ident "__midnight_store_collateral_bytes"
+        let dst := YulExpr.ident "__midnight_store_dst"
+        let srcPtr := YulExpr.ident "__midnight_store_src_ptr"
+        let srcEnd := YulExpr.ident "__midnight_store_src_end"
+        let itemPtr := YulExpr.ident "__midnight_store_item_ptr"
+        let abiLength := YulExpr.ident "__midnight_store_abi_length"
+        let initcodeLength := YulExpr.ident "__midnight_store_initcode_length"
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__midnight_store_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              ptr,
+              YulExpr.call "shl" [YulExpr.lit 168, YulExpr.hex 0x600b380380600b5f395ff3]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [ptr, YulExpr.lit 11],
+              YulExpr.lit 32
+            ]),
+            YulStmt.let_ "__midnight_store_tuple_ptr"
+              (YulExpr.call "add" [ptr, YulExpr.lit 43]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              tuplePtr,
+              YulExpr.call "and" [
+                YulExpr.call "mload" [marketDataOffset],
+                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 32],
+              YulExpr.lit 192
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 64],
+              YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 64]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 96],
+              YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 96]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 128],
+              YulExpr.call "and" [
+                YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 128]],
+                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 160],
+              YulExpr.call "and" [
+                YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 160]],
+                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+              ]
+            ]),
+            YulStmt.let_ "__midnight_store_array_ptr"
+              (YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 32]]),
+            YulStmt.let_ "__midnight_store_collateral_length"
+              (YulExpr.call "mload" [arrayPtr]),
+            YulStmt.let_ "__midnight_store_collateral_bytes"
+              (YulExpr.call "mul" [length, YulExpr.lit 128]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 192],
+              length
+            ]),
+            YulStmt.let_ "__midnight_store_dst"
+              (YulExpr.call "add" [tuplePtr, YulExpr.lit 224]),
+            YulStmt.let_ "__midnight_store_src_ptr"
+              (YulExpr.call "add" [arrayPtr, YulExpr.lit 32]),
+            YulStmt.let_ "__midnight_store_src_end"
+              (YulExpr.call "add" [srcPtr, YulExpr.call "mul" [length, YulExpr.lit 32]]),
+            YulStmt.for_ [] (YulExpr.call "lt" [srcPtr, srcEnd])
+              [YulStmt.assign "__midnight_store_src_ptr"
+                (YulExpr.call "add" [srcPtr, YulExpr.lit 32])]
+              [
+                YulStmt.let_ "__midnight_store_item_ptr" (YulExpr.call "mload" [srcPtr]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  dst,
+                  YulExpr.call "and" [
+                    YulExpr.call "mload" [itemPtr],
+                    YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+                  ]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [dst, YulExpr.lit 32],
+                  YulExpr.call "mload" [YulExpr.call "add" [itemPtr, YulExpr.lit 32]]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [dst, YulExpr.lit 64],
+                  YulExpr.call "mload" [YulExpr.call "add" [itemPtr, YulExpr.lit 64]]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [dst, YulExpr.lit 96],
+                  YulExpr.call "and" [
+                    YulExpr.call "mload" [YulExpr.call "add" [itemPtr, YulExpr.lit 96]],
+                    YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+                  ]
+                ]),
+                YulStmt.assign "__midnight_store_dst"
+                  (YulExpr.call "add" [dst, YulExpr.lit 128])
+              ],
+            YulStmt.let_ "__midnight_store_abi_length"
+              (YulExpr.call "add" [YulExpr.lit 256, collateralBytes]),
+            YulStmt.let_ "__midnight_store_initcode_length"
+              (YulExpr.call "add" [YulExpr.lit 11, abiLength]),
+            YulStmt.assign resultVar
+              (YulExpr.call "create2" [YulExpr.lit 0, ptr, initcodeLength, salt]),
+            YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident resultVar])
+              [
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.lit 0,
+                  YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x4e487b71]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 0x51]),
+                YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 36])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [
+                ptr,
+                YulExpr.call "and" [
+                  YulExpr.call "add" [initcodeLength, YulExpr.lit 31],
+                  YulExpr.call "not" [YulExpr.lit 31]
+                ]
+              ]
+            ])
+          ]
+        ]
+    | _ =>
+        throw s!"midnightStoreMarketInCode expects 1 argument, got {args.length}"
+
+def marketFromCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightMarketFromCode"
+  numArgs := 1
+  resultVars := [resultVar]
+  writesState := false
+  readsState := true
+  axioms := ["midnight_sstore2_market_runtime_abi_decode"]
+  compile := fun _ctx args => do
+    match args with
+    | [id] =>
+        let ptr := YulExpr.ident "__midnight_market_code_ptr"
+        let dataPtr := YulExpr.ident "__midnight_market_data_ptr"
+        let pointer := YulExpr.ident "__midnight_market_pointer"
+        let length := YulExpr.ident "__midnight_market_code_length"
+        let tuplePtr := YulExpr.ident "__midnight_market_tuple_ptr"
+        let arrayOffset := YulExpr.ident "__midnight_market_array_offset"
+        let arrayDataPtr := YulExpr.ident "__midnight_market_array_data_ptr"
+        let arrayLength := YulExpr.ident "__midnight_market_array_length"
+        let arrayPtr := YulExpr.ident "__midnight_market_array_ptr"
+        let dst := YulExpr.ident "__midnight_market_dst"
+        let src := YulExpr.ident "__midnight_market_src"
+        let srcEnd := YulExpr.ident "__midnight_market_src_end"
+        let itemPtr := YulExpr.ident "__midnight_market_item_ptr"
+        pure [
+          YulStmt.let_ resultVar (YulExpr.lit 0),
+          YulStmt.block [
+            YulStmt.let_ "__midnight_market_pointer"
+              (YulExpr.call "and" [id, YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff]),
+            YulStmt.let_ "__midnight_market_code_length"
+              (YulExpr.call "extcodesize" [pointer]),
+            YulStmt.let_ "__midnight_market_code_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [ptr, length]),
+            YulStmt.let_ "__midnight_market_data_ptr"
+              (YulExpr.call "add" [ptr, YulExpr.lit 32]),
+            YulStmt.expr (YulExpr.call "extcodecopy" [
+              pointer, dataPtr, YulExpr.lit 0, length
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [
+                dataPtr,
+                YulExpr.call "and" [
+                  YulExpr.call "add" [length, YulExpr.lit 31],
+                  YulExpr.call "not" [YulExpr.lit 31]
+                ]
+              ]
+            ]),
+            YulStmt.let_ "__midnight_market_tuple_ptr"
+              (YulExpr.call "add" [ptr, YulExpr.call "mload" [dataPtr]]),
+            YulStmt.let_ resultVar
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 192]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.ident resultVar,
+              YulExpr.call "and" [
+                YulExpr.call "mload" [YulExpr.call "add" [tuplePtr, YulExpr.lit 32]],
+                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+              ]
+            ]),
+            YulStmt.let_ "__midnight_market_array_offset"
+              (YulExpr.call "mload" [YulExpr.call "add" [tuplePtr, YulExpr.lit 64]]),
+            YulStmt.let_ "__midnight_market_array_data_ptr"
+              (YulExpr.call "add" [
+                YulExpr.call "add" [tuplePtr, arrayOffset],
+                YulExpr.lit 32
+              ]),
+            YulStmt.let_ "__midnight_market_array_length"
+              (YulExpr.call "mload" [arrayDataPtr]),
+            YulStmt.let_ "__midnight_market_array_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "mstore" [arrayPtr, arrayLength]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+              YulExpr.call "add" [
+                arrayPtr,
+                YulExpr.call "and" [
+                  YulExpr.call "add" [
+                    YulExpr.call "add" [
+                      YulExpr.lit 32,
+                      YulExpr.call "mul" [arrayLength, YulExpr.lit 32]
+                    ],
+                    YulExpr.lit 31
+                  ],
+                  YulExpr.call "not" [YulExpr.lit 31]
+                ]
+              ]
+            ]),
+            YulStmt.let_ "__midnight_market_dst"
+              (YulExpr.call "add" [arrayPtr, YulExpr.lit 32]),
+            YulStmt.let_ "__midnight_market_src"
+              (YulExpr.call "add" [arrayDataPtr, YulExpr.lit 32]),
+            YulStmt.let_ "__midnight_market_src_end"
+              (YulExpr.call "add" [src, YulExpr.call "mul" [arrayLength, YulExpr.lit 128]]),
+            YulStmt.for_ [] (YulExpr.call "lt" [src, srcEnd])
+              [YulStmt.assign "__midnight_market_src"
+                (YulExpr.call "add" [src, YulExpr.lit 128])]
+              [
+                YulStmt.let_ "__midnight_market_item_ptr"
+                  (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
+                  YulExpr.call "add" [itemPtr, YulExpr.lit 128]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  itemPtr,
+                  YulExpr.call "and" [
+                    YulExpr.call "mload" [src],
+                    YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+                  ]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [itemPtr, YulExpr.lit 32],
+                  YulExpr.call "mload" [YulExpr.call "add" [src, YulExpr.lit 32]]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [itemPtr, YulExpr.lit 64],
+                  YulExpr.call "mload" [YulExpr.call "add" [src, YulExpr.lit 64]]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [
+                  YulExpr.call "add" [itemPtr, YulExpr.lit 96],
+                  YulExpr.call "and" [
+                    YulExpr.call "mload" [YulExpr.call "add" [src, YulExpr.lit 96]],
+                    YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+                  ]
+                ]),
+                YulStmt.expr (YulExpr.call "mstore" [dst, itemPtr]),
+                YulStmt.assign "__midnight_market_dst"
+                  (YulExpr.call "add" [dst, YulExpr.lit 32])
+              ],
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 32],
+              arrayPtr
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 64],
+              YulExpr.call "mload" [YulExpr.call "add" [tuplePtr, YulExpr.lit 96]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 96],
+              YulExpr.call "mload" [YulExpr.call "add" [tuplePtr, YulExpr.lit 128]]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 128],
+              YulExpr.call "and" [
+                YulExpr.call "mload" [YulExpr.call "add" [tuplePtr, YulExpr.lit 160]],
+                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+              ]
+            ]),
+            YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident resultVar, YulExpr.lit 160],
+              YulExpr.call "and" [
+                YulExpr.call "mload" [YulExpr.call "add" [tuplePtr, YulExpr.lit 192]],
+                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
+              ]
+            ])
+          ]
+        ]
+    | _ =>
+        throw s!"midnightMarketFromCode expects 1 argument, got {args.length}"
+
+def marketReturnFromCodeModule : Compiler.ECM.ExternalCallModule where
+  name := "midnightMarketReturnFromCode"
+  numArgs := 1
+  resultVars := []
+  writesState := false
+  readsState := true
+  axioms := ["midnight_sstore2_market_runtime_abi_return"]
+  compile := fun _ctx args => do
+    match args with
+    | [id] =>
+        let pointer := YulExpr.ident "__midnight_market_return_pointer"
+        let length := YulExpr.ident "__midnight_market_return_length"
+        let ptr := YulExpr.ident "__midnight_market_return_ptr"
+        pure [
+          YulStmt.block [
+            YulStmt.let_ "__midnight_market_return_pointer"
+              (YulExpr.call "and" [id, YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff]),
+            YulStmt.let_ "__midnight_market_return_length"
+              (YulExpr.call "extcodesize" [pointer]),
+            YulStmt.let_ "__midnight_market_return_ptr"
+              (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
+            YulStmt.expr (YulExpr.call "extcodecopy" [
+              pointer, ptr, YulExpr.lit 0, length
+            ]),
+            YulStmt.expr (YulExpr.call "return" [ptr, length])
+          ]
+        ]
+    | _ =>
+        throw s!"midnightMarketReturnFromCode expects 1 argument, got {args.length}"
 
 def arrayLength {α : Type} (values : Array α) : Uint256 := Contracts.arrayLength values
 def arrayElement {α : Type} [Inhabited α] (values : Array α) (index : Uint256) : α :=
@@ -28,6 +1931,26 @@ def shl (shift value : Uint256) : Uint256 := Verity.Core.Uint256.shl shift value
 def div (a b : Uint256) : Uint256 := Verity.Core.Uint256.div a b
 def mod (a b : Uint256) : Uint256 := Verity.Core.Uint256.mod a b
 def calldataload (offset : Uint256) : Uint256 := offset
+
+def solidityPanicModule : Compiler.ECM.ExternalCallModule where
+  name := "solidityPanic"
+  numArgs := 1
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := ["solidity_panic_revert_payload"]
+  compile := fun _ctx args =>
+    match args with
+    | [code] =>
+        pure [
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.lit 0,
+            YulExpr.call "shl" [YulExpr.lit 224, YulExpr.lit 0x4e487b71]
+          ]),
+          YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, code]),
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 36])
+        ]
+    | _ => throw s!"solidityPanic expects 1 arg, got {args.length}"
 
 /-
   A focused Verity-facing Midnight model for the RCF arithmetic used by
@@ -234,6 +2157,9 @@ verity_contract MidnightRCF where
 
   function callbackRequired (callback : Address) : Bool := do
     return callback != 0
+
+  function solidityPanic (code : Uint256) : Unit := do
+    ecmDo solidityPanicModule [code]
 
   function liquidatePayer (callback : Address, msgSender : Address) : Address := do
     if callback != 0 then
@@ -669,16 +2595,19 @@ verity_contract MidnightRCF where
 -/
 verity_contract Midnight where
   storage
-    initialChainIdSlot : Uint256 := slot 0
-    roleSetterSlot : Address := slot 1
-    feeSetterSlot : Address := slot 2
-    feeClaimerSlot : Address := slot 3
-    tickSpacingSetterSlot : Address := slot 4
-    consumedSlot : MappingStruct2(Address,Bytes32,[amount @word 0]) := slot 5
-    isAuthorizedSlot : MappingStruct2(Address,Address,[flag @word 0]) := slot 6
-    defaultSettlementFeeSlot : MappingStruct2(Address,Uint256,[fee @word 0]) := slot 7
-    defaultContinuousFeeSlot : Address -> Uint256 := slot 8
-    claimableSettlementFeeSlot : Address -> Uint256 := slot 9
+    /- Solidity keeps INITIAL_CHAIN_ID as an immutable rather than storage. Verity
+       does not yet have immutable bytecode fields, so the model isolates the
+       constructor-captured value outside Solidity's declared storage range. -/
+    initialChainIdSlot : Uint256 := slot 1024
+    positionSlot : MappingStruct2(Bytes32,Address,[
+      credit @word 0 packed(0,128),
+      pendingFee @word 0 packed(128,128),
+      lastLossFactor @word 1 packed(0,128),
+      lastAccrual @word 1 packed(128,128),
+      debt @word 2 packed(0,128),
+      collateralBitmap @word 2 packed(128,128),
+      collateral : FixedArray Uint256 128 @word 3
+    ]) := slot 0
     marketStateSlot : MappingStruct(Bytes32,[
       totalUnits @word 0 packed(0,128),
       lossFactor @word 0 packed(128,128),
@@ -693,18 +2622,16 @@ verity_contract Midnight where
       settlementFeeCbp6 @word 2 packed(96,16),
       continuousFee @word 2 packed(112,32),
       tickSpacing @word 2 packed(144,8)
-    ]) := slot 10
-    positionSlot : MappingStruct2(Bytes32,Address,[
-      credit @word 0 packed(0,128),
-      pendingFee @word 0 packed(128,128),
-      lastLossFactor @word 1 packed(0,128),
-      lastAccrual @word 1 packed(128,128),
-      debt @word 2 packed(0,128),
-      collateralBitmap @word 2 packed(128,128)
-    ]) := slot 11
-    collateralSlot : MappingStruct2(Bytes32,Address,[
-      amounts : FixedArray Uint256 16 @word 0
-    ]) := slot 12
+    ]) := slot 1
+    consumedSlot : MappingStruct2(Address,Bytes32,[amount @word 0]) := slot 2
+    isAuthorizedSlot : MappingStruct2(Address,Address,[flag @word 0]) := slot 3
+    defaultSettlementFeeSlot : MappingStruct2(Address,Uint256,[fee @word 0]) := slot 4
+    defaultContinuousFeeSlot : Address -> Uint256 := slot 5
+    claimableSettlementFeeSlot : Address -> Uint256 := slot 6
+    roleSetterSlot : Address := slot 7
+    feeSetterSlot : Address := slot 8
+    feeClaimerSlot : Address := slot 9
+    tickSpacingSetterSlot : Address := slot 10
 
   struct CollateralParams where
     token : Address,
@@ -775,6 +2702,7 @@ verity_contract Midnight where
     error SettlementFeeTooHigh()
     error TakerUnauthorized()
     error TickNotAccessible()
+    error TickOutOfRange()
     error TooManyActivatedCollaterals()
     error TooManyCollateralParams()
     error Unauthorized()
@@ -783,6 +2711,13 @@ verity_contract Midnight where
     error WrongFlashLoanCallbackReturnValue()
     error WrongLiquidateCallbackReturnValue()
     error WrongSellCallbackReturnValue()
+
+  event_defs
+    event UpdatePosition(@indexed id_ : Bytes32, @indexed user : Address, creditDecrease : Uint256, pendingFeeDecrease : Uint256, accruedFee : Uint256)
+    event Take(caller : Address, @indexed id_ : Bytes32, units : Uint256, @indexed taker : Address, @indexed maker : Address, offerIsBuy : Bool, group : Bytes32, buyerAssets : Uint256, sellerAssets : Uint256, consumed : Uint256, buyerPendingFeeIncrease : Uint256, sellerPendingFeeDecrease : Uint256, buyerCreditIncrease : Uint256, sellerCreditDecrease : Uint256, receiver : Address, payer : Address)
+    event Withdraw(caller : Address, @indexed id_ : Bytes32, units : Uint256, @indexed onBehalf : Address, @indexed receiver : Address, pendingFeeDecrease : Uint256)
+    event Liquidate(caller : Address, @indexed id_ : Bytes32, @indexed collateral : Address, seizedAssets : Uint256, repaidUnits : Uint256, @indexed borrower : Address, postMaturityMode : Bool, receiver : Address, payer : Address, badDebt : Uint256, latestLossFactor : Uint256, latestContinuousFeeCredit : Uint256)
+    event ClaimContinuousFee(@indexed caller : Address, @indexed id_ : Bytes32, amount : Uint256, @indexed receiver : Address)
 
   constants
     ZERO : Uint256 := 0
@@ -856,6 +2791,9 @@ verity_contract Midnight where
     let sender ← msgSender
     let currentTickSpacingSetter ← getStorageAddr tickSpacingSetterSlot
     require (sender == currentTickSpacingSetter) "OnlyTickSpacingSetter"
+
+  function allow_post_interaction_writes multicall (calls : Array Bytes) : Unit := do
+    ecmDo multicallDelegateModule []
 
   function INITIAL_CHAIN_ID () : Uint256 := do
     let cid ← getStorage initialChainIdSlot
@@ -967,15 +2905,16 @@ verity_contract Midnight where
     return count
 
   function toId (market : Market) : Bytes32 := do
-    /- Scaffold-only market id. Full parity still requires the Solidity
-       `IdLib.toId` preimage: SSTORE2 prefix + `abi.encode(market)`. -/
-    return market.maturity
+    let initialChainId ← getStorage initialChainIdSlot
+    let self ← contractAddress
+    let id ← ecmCall (fun resultVar => marketIdModule resultVar)
+      [initialChainId, addressToWord self]
+    return id
 
   function toMarket (id : Bytes32) : Unit := do
-    ecmDo Compiler.Modules.Create2SSTORE2.readCodeModule
-      [addressToWord (wordToAddress id), ZERO, ZERO, ZERO]
     let currentTickSpacing ← structMember "marketStateSlot" id "tickSpacing"
     requireError (currentTickSpacing > ZERO) MarketNotCreated()
+    ecmDo marketReturnFromCodeModule [id]
 
   function position (id : Bytes32, user : Address) :
       Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256] := do
@@ -1081,6 +3020,8 @@ verity_contract Midnight where
       pure ()
     let newCredit := sub postSlashCredit accrued
     let newPendingFee := sub postSlashPendingFee accrued
+    let creditDecrease := sub credit newCredit
+    let pendingFeeDecrease := sub pendingFee newPendingFee
     setStructMember2 "positionSlot" id user "credit" newCredit
     setStructMember2 "positionSlot" id user "lastLossFactor" marketLossFactor
     setStructMember2 "positionSlot" id user "pendingFee" newPendingFee
@@ -1088,6 +3029,8 @@ verity_contract Midnight where
     let currentContinuousFeeCredit ← structMember "marketStateSlot" id "continuousFeeCredit"
     setStructMember "marketStateSlot" id "continuousFeeCredit"
       (add currentContinuousFeeCredit accrued)
+    emit "UpdatePosition"
+      [id, user, creditDecrease, pendingFeeDecrease, accrued]
     return (newCredit, newPendingFee, accrued)
 
   function setRoleSetter (newRoleSetter : Address) : Unit := do
@@ -1204,6 +3147,7 @@ verity_contract Midnight where
     setStructMember "marketStateSlot" id "totalUnits" (sub currentTotalUnits amount)
     let currentWithdrawable ← structMember "marketStateSlot" id "withdrawable"
     setStructMember "marketStateSlot" id "withdrawable" (sub currentWithdrawable amount)
+    emit "ClaimContinuousFee" [sender, id, amount, receiver]
     safeTransfer market.loanToken receiver amount
 
   function setMarketTickSpacing (id : Bytes32, newTickSpacing : Uint256)
@@ -1301,8 +3245,8 @@ verity_contract Midnight where
       requireError (market.maturity <= add now HUNDRED_YEARS) MaturityTooFar()
       validateCollateralParams market.collateralParams
       let salt ← getStorage initialChainIdSlot
-      let _marketPointer ← ecmCall Compiler.Modules.Create2SSTORE2.deployModule
-        [ZERO, ZERO, ZERO, salt]
+      let _marketPointer ← ecmCall (fun resultVar => storeMarketInCodeModule resultVar)
+        [salt]
       setStructMember "marketStateSlot" id "tickSpacing" DEFAULT_TICK_SPACING
       let settlementFeeCbp0 ← defaultSettlementFeeCbp market.loanToken ZERO
       let settlementFeeCbp1 ← defaultSettlementFeeCbp market.loanToken ONE
@@ -1382,78 +3326,28 @@ verity_contract Midnight where
           (mul feeUpper (sub timeToMaturity start)))
         (sub finish start)
 
-  function allow_post_interaction_writes take
-      (offer : Offer, ratifierData : Bytes, units : Uint256, taker : Address,
-        receiverIfTakerIsSeller : Address, takerCallback : Address,
-        takerCallbackData : Bytes)
-      local_obligations [take_calldata_market_scalars := assumed
-        "Temporary Midnight scaffold reads loanToken and maturity from calldata because nested dynamic struct projection is not yet supported by the Verity contract macro."] :
-      Tuple [Uint256, Uint256] := do
-    let sender ← msgSender
-    let authorized ← isAuthorized taker sender
-    requireError (taker == sender || authorized) TakerUnauthorized()
-    let offerBase := add (calldataload 4) 4
-    let marketBase := add offerBase (calldataload offerBase)
-    let loanToken := wordToAddress (calldataload marketBase)
-    let maturity := calldataload (add marketBase 64)
-    let id := maturity
-    let currentMarketTickSpacing ← structMember "marketStateSlot" id "tickSpacing"
-    if currentMarketTickSpacing == ZERO then
-      let now ← blockTimestamp
-      requireError (maturity <= add now HUNDRED_YEARS) MaturityTooFar()
-      setStructMember "marketStateSlot" id "tickSpacing" DEFAULT_TICK_SPACING
-      let settlementFeeCbp0 ← defaultSettlementFeeCbp loanToken ZERO
-      let settlementFeeCbp1 ← defaultSettlementFeeCbp loanToken ONE
-      let settlementFeeCbp2 ← defaultSettlementFeeCbp loanToken TWO
-      let settlementFeeCbp3 ← defaultSettlementFeeCbp loanToken THREE
-      let settlementFeeCbp4 ← defaultSettlementFeeCbp loanToken FOUR
-      let settlementFeeCbp5 ← defaultSettlementFeeCbp loanToken FIVE
-      let settlementFeeCbp6 ← defaultSettlementFeeCbp loanToken SIX
-      let continuous ← getMapping defaultContinuousFeeSlot loanToken
-      setStructMember "marketStateSlot" id "settlementFeeCbp0" settlementFeeCbp0
-      setStructMember "marketStateSlot" id "settlementFeeCbp1" settlementFeeCbp1
-      setStructMember "marketStateSlot" id "settlementFeeCbp2" settlementFeeCbp2
-      setStructMember "marketStateSlot" id "settlementFeeCbp3" settlementFeeCbp3
-      setStructMember "marketStateSlot" id "settlementFeeCbp4" settlementFeeCbp4
-      setStructMember "marketStateSlot" id "settlementFeeCbp5" settlementFeeCbp5
-      setStructMember "marketStateSlot" id "settlementFeeCbp6" settlementFeeCbp6
-      setStructMember "marketStateSlot" id "continuousFee" continuous
-    else
-      pure ()
-    let lossFactorValue ← structMember "marketStateSlot" id "lossFactor"
-    requireError (lossFactorValue < MAX_LOSS_FACTOR)
-      MarketLossFactorMaxedOut()
-    requireError (offer.maxAssets == ZERO || offer.maxUnits == ZERO) MultipleNonZero()
-    let currentTickSpacing ← structMember "marketStateSlot" id "tickSpacing"
-    requireError (mod offer.tick currentTickSpacing == ZERO) TickNotAccessible()
-    let now ← blockTimestamp
-    requireError (now >= offer.start) OfferNotStarted()
-    requireError (now <= offer.expiry) OfferExpired()
-    requireError (offer.maker != taker) SelfTake()
-    let ratifierAuthorized ← isAuthorized offer.maker offer.ratifier
-    requireError ratifierAuthorized RatifierUnauthorized()
-    requireError (units <= MAX_LOSS_FACTOR) CastOverflow()
+  function tickToPrice (tick : Uint256) : Uint256 := do
+    requireError (tick <= 5820) TickOutOfRange()
+    let price ← ecmCall (fun resultVar => tickToPriceModule resultVar) [tick]
+    return price
 
-    let mut newConsumed := ZERO
-    if offer.maxAssets > ZERO then
-      let currentConsumed ← structMember2 "consumedSlot" offer.maker offer.group "amount"
-      newConsumed := add currentConsumed units
-      requireError (newConsumed <= offer.maxAssets) ConsumedAssets()
-      setStructMember2 "consumedSlot" offer.maker offer.group "amount" newConsumed
-    else
-      let currentConsumed ← structMember2 "consumedSlot" offer.maker offer.group "amount"
-      newConsumed := add currentConsumed units
-      requireError (newConsumed <= offer.maxUnits) ConsumedUnits()
-      setStructMember2 "consumedSlot" offer.maker offer.group "amount" newConsumed
+  function enterGateCanIncreaseCredit (gate : Address, account : Address)
+      : Uint256 := do
+    let allowed ← ecmCall
+      (fun resultVar => Compiler.Modules.Calls.withReturnModule resultVar 0x58ac9f9e 1 true)
+      [gate, addressToWord account]
+    return allowed
 
-    let mut buyer := taker
-    let mut seller := offer.maker
-    if offer.buy then
-      buyer := offer.maker
-      seller := taker
-    else
-      pure ()
+  function enterGateCanIncreaseDebt (gate : Address, account : Address)
+      : Uint256 := do
+    let allowed ← ecmCall
+      (fun resultVar => Compiler.Modules.Calls.withReturnModule resultVar 0xfe9bf956 1 true)
+      [gate, addressToWord account]
+    return allowed
 
+  function allow_post_interaction_writes updateBuyerForTake
+      (id : Bytes32, buyer : Address, units : Uint256, maturity : Uint256,
+        now : Uint256) : Uint256 := do
     let buyerDebt ← structMember2 "positionSlot" id buyer "debt"
     let buyerDebtDecrease ← min units buyerDebt
     let buyerCreditIncrease := sub units buyerDebtDecrease
@@ -1469,10 +3363,11 @@ verity_contract Midnight where
     let buyerPendingFee ← structMember2 "positionSlot" id buyer "pendingFee"
     let buyerLastLossFactor ← structMember2 "positionSlot" id buyer "lastLossFactor"
     let buyerLastAccrual ← structMember2 "positionSlot" id buyer "lastAccrual"
+    let buyerMarketLossFactor ← structMember "marketStateSlot" id "lossFactor"
     let mut buyerPostSlashCredit := ZERO
     if buyerLastLossFactor < MAX_LOSS_FACTOR then
       buyerPostSlashCredit := mulDivDown buyerCredit
-        (sub MAX_LOSS_FACTOR lossFactorValue)
+        (sub MAX_LOSS_FACTOR buyerMarketLossFactor)
         (sub MAX_LOSS_FACTOR buyerLastLossFactor)
     else
       pure ()
@@ -1496,9 +3391,11 @@ verity_contract Midnight where
       pure ()
     let buyerCreditAfterUpdate := sub buyerPostSlashCredit buyerAccrued
     let buyerPendingFeeAfterUpdate := sub buyerPostSlashPendingFee buyerAccrued
+    let buyerCreditDecrease := sub buyerCredit buyerCreditAfterUpdate
+    let buyerPendingFeeDecreaseForUpdate := sub buyerPendingFee buyerPendingFeeAfterUpdate
     if buyerCredit > ZERO || buyerCreditIncrease > ZERO then
       setStructMember2 "positionSlot" id buyer "credit" buyerCreditAfterUpdate
-      setStructMember2 "positionSlot" id buyer "lastLossFactor" lossFactorValue
+      setStructMember2 "positionSlot" id buyer "lastLossFactor" buyerMarketLossFactor
       setStructMember2 "positionSlot" id buyer "pendingFee" buyerPendingFeeAfterUpdate
       setStructMember2 "positionSlot" id buyer "lastAccrual" now
       let currentContinuousFeeCredit ← structMember "marketStateSlot" id "continuousFeeCredit"
@@ -1506,20 +3403,27 @@ verity_contract Midnight where
         (add currentContinuousFeeCredit buyerAccrued)
     else
       pure ()
+    emit "UpdatePosition"
+      [id, buyer, buyerCreditDecrease, buyerPendingFeeDecreaseForUpdate, buyerAccrued]
     setStructMember2 "positionSlot" id buyer "debt" (sub buyerDebt buyerDebtDecrease)
     setStructMember2 "positionSlot" id buyer "pendingFee"
       (add buyerPendingFeeAfterUpdate buyerPendingFeeIncrease)
     setStructMember2 "positionSlot" id buyer "credit"
       (add buyerCreditAfterUpdate buyerCreditIncrease)
+    return buyerCreditIncrease
 
+  function allow_post_interaction_writes updateSellerForTake
+      (id : Bytes32, seller : Address, units : Uint256, maturity : Uint256,
+        now : Uint256) : Tuple [Uint256, Uint256, Uint256] := do
     let sellerCredit ← structMember2 "positionSlot" id seller "credit"
     let sellerPendingFee ← structMember2 "positionSlot" id seller "pendingFee"
     let sellerLastLossFactor ← structMember2 "positionSlot" id seller "lastLossFactor"
     let sellerLastAccrual ← structMember2 "positionSlot" id seller "lastAccrual"
+    let sellerMarketLossFactor ← structMember "marketStateSlot" id "lossFactor"
     let mut sellerPostSlashCredit := ZERO
     if sellerLastLossFactor < MAX_LOSS_FACTOR then
       sellerPostSlashCredit := mulDivDown sellerCredit
-        (sub MAX_LOSS_FACTOR lossFactorValue)
+        (sub MAX_LOSS_FACTOR sellerMarketLossFactor)
         (sub MAX_LOSS_FACTOR sellerLastLossFactor)
     else
       pure ()
@@ -1544,9 +3448,12 @@ verity_contract Midnight where
       pure ()
     let sellerCreditAfterUpdate := sub sellerPostSlashCredit sellerAccrued
     let sellerPendingFeeAfterUpdate := sub sellerPostSlashPendingFee sellerAccrued
+    let sellerCreditDecreaseForUpdate := sub sellerCredit sellerCreditAfterUpdate
+    let sellerPendingFeeDecreaseForUpdate :=
+      sub sellerPendingFee sellerPendingFeeAfterUpdate
     if sellerCredit > ZERO then
       setStructMember2 "positionSlot" id seller "credit" sellerCreditAfterUpdate
-      setStructMember2 "positionSlot" id seller "lastLossFactor" lossFactorValue
+      setStructMember2 "positionSlot" id seller "lastLossFactor" sellerMarketLossFactor
       setStructMember2 "positionSlot" id seller "pendingFee" sellerPendingFeeAfterUpdate
       setStructMember2 "positionSlot" id seller "lastAccrual" now
       let currentContinuousFeeCredit ← structMember "marketStateSlot" id "continuousFeeCredit"
@@ -1554,6 +3461,9 @@ verity_contract Midnight where
         (add currentContinuousFeeCredit sellerAccrued)
     else
       pure ()
+    emit "UpdatePosition"
+      [id, seller, sellerCreditDecreaseForUpdate, sellerPendingFeeDecreaseForUpdate,
+        sellerAccrued]
     let sellerCreditDecrease ← min units sellerCreditAfterUpdate
     let sellerDebtIncrease := sub units sellerCreditDecrease
     let sellerDebt ← structMember2 "positionSlot" id seller "debt"
@@ -1563,6 +3473,151 @@ verity_contract Midnight where
         mulDivUp sellerPendingFeeAfterUpdate sellerCreditDecrease sellerCreditAfterUpdate
     else
       pure ()
+    setStructMember2 "positionSlot" id seller "pendingFee"
+      (sub sellerPendingFeeAfterUpdate sellerPendingFeeDecrease)
+    setStructMember2 "positionSlot" id seller "credit"
+      (sub sellerCreditAfterUpdate sellerCreditDecrease)
+    setStructMember2 "positionSlot" id seller "debt" (add sellerDebt sellerDebtIncrease)
+    return (sellerCreditDecrease, sellerDebtIncrease, sellerPendingFeeDecrease)
+
+  function takeAssetsForPrice
+      (id : Bytes32, units : Uint256, tick : Uint256, offerIsBuy : Bool,
+        maturity : Uint256, now : Uint256, buyerCreditIncrease : Uint256) :
+      Tuple [Uint256, Uint256, Uint256] := do
+    let offerPrice ← tickToPrice tick
+    let mut timeToMaturityForFee := ZERO
+    if maturity > now then
+      timeToMaturityForFee := sub maturity now
+    else
+      pure ()
+    let settlementFeeValue ← settlementFee id timeToMaturityForFee
+    let continuousFeeValueForCallback ← structMember "marketStateSlot" id "continuousFee"
+    let buyerPendingFeeIncrease :=
+      mulDivDown buyerCreditIncrease
+        (mul continuousFeeValueForCallback timeToMaturityForFee) WAD
+    let mut sellerPrice := offerPrice
+    if offerIsBuy then
+      sellerPrice := sub offerPrice settlementFeeValue
+    else
+      pure ()
+    let buyerPrice := add sellerPrice settlementFeeValue
+    let mut buyerAssets := ZERO
+    let mut sellerAssets := ZERO
+    if offerIsBuy then
+      buyerAssets := mulDivDown units buyerPrice WAD
+      sellerAssets := mulDivDown units sellerPrice WAD
+    else
+      buyerAssets := mulDivUp units buyerPrice WAD
+      sellerAssets := mulDivUp units sellerPrice WAD
+    return (buyerAssets, sellerAssets, buyerPendingFeeIncrease)
+
+  function allow_post_interaction_writes take
+      (offer : Offer, ratifierData : Bytes, units : Uint256, taker : Address,
+        receiverIfTakerIsSeller : Address, takerCallback : Address,
+        takerCallbackData : Bytes)
+      local_obligations [take_calldata_market_scalars := assumed
+        "Temporary Midnight scaffold reads loanToken and maturity from calldata because nested dynamic struct projection is not yet supported by the Verity contract macro."] :
+      Tuple [Uint256, Uint256] := do
+    let sender ← msgSender
+    let authorized ← isAuthorized taker sender
+    requireError (taker == sender || authorized) TakerUnauthorized()
+    let offerBase := add (calldataload 4) 4
+    let marketBase := add offerBase (calldataload offerBase)
+    let loanToken := wordToAddress (calldataload marketBase)
+    let maturity := calldataload (add marketBase 64)
+    let enterGate := wordToAddress (calldataload (add marketBase 128))
+    let initialChainId ← getStorage initialChainIdSlot
+    let contractSelf ← contractAddress
+    let id ← ecmCall (fun resultVar => marketIdAtOffsetModule resultVar)
+      [initialChainId, addressToWord contractSelf, marketBase]
+    let currentMarketTickSpacing ← structMember "marketStateSlot" id "tickSpacing"
+    if currentMarketTickSpacing == ZERO then
+      let now ← blockTimestamp
+      requireError (maturity <= add now HUNDRED_YEARS) MaturityTooFar()
+      setStructMember "marketStateSlot" id "tickSpacing" DEFAULT_TICK_SPACING
+      let settlementFeeCbp0 ← defaultSettlementFeeCbp loanToken ZERO
+      let settlementFeeCbp1 ← defaultSettlementFeeCbp loanToken ONE
+      let settlementFeeCbp2 ← defaultSettlementFeeCbp loanToken TWO
+      let settlementFeeCbp3 ← defaultSettlementFeeCbp loanToken THREE
+      let settlementFeeCbp4 ← defaultSettlementFeeCbp loanToken FOUR
+      let settlementFeeCbp5 ← defaultSettlementFeeCbp loanToken FIVE
+      let settlementFeeCbp6 ← defaultSettlementFeeCbp loanToken SIX
+      let continuous ← getMapping defaultContinuousFeeSlot loanToken
+      setStructMember "marketStateSlot" id "settlementFeeCbp0" settlementFeeCbp0
+      setStructMember "marketStateSlot" id "settlementFeeCbp1" settlementFeeCbp1
+      setStructMember "marketStateSlot" id "settlementFeeCbp2" settlementFeeCbp2
+      setStructMember "marketStateSlot" id "settlementFeeCbp3" settlementFeeCbp3
+      setStructMember "marketStateSlot" id "settlementFeeCbp4" settlementFeeCbp4
+      setStructMember "marketStateSlot" id "settlementFeeCbp5" settlementFeeCbp5
+      setStructMember "marketStateSlot" id "settlementFeeCbp6" settlementFeeCbp6
+      setStructMember "marketStateSlot" id "continuousFee" continuous
+    else
+      pure ()
+    let lossFactorForGuard ← structMember "marketStateSlot" id "lossFactor"
+    requireError (lossFactorForGuard < MAX_LOSS_FACTOR)
+      MarketLossFactorMaxedOut()
+    requireError (offer.maxAssets == ZERO || offer.maxUnits == ZERO) MultipleNonZero()
+    let currentTickSpacing ← structMember "marketStateSlot" id "tickSpacing"
+    requireError (mod offer.tick currentTickSpacing == ZERO) TickNotAccessible()
+    let now ← blockTimestamp
+    requireError (now >= offer.start) OfferNotStarted()
+    requireError (now <= offer.expiry) OfferExpired()
+    requireError (offer.maker != taker) SelfTake()
+    let ratifierAuthorized ← isAuthorized offer.maker offer.ratifier
+    requireError ratifierAuthorized RatifierUnauthorized()
+    ecmDo ratifierCallbackModule [addressToWord offer.ratifier]
+    requireError (units <= MAX_LOSS_FACTOR) CastOverflow()
+
+    let mut newConsumed := ZERO
+    if offer.maxAssets > ZERO then
+      let offerPriceConsumed ← tickToPrice offer.tick
+      let mut timeToMaturityConsumed := ZERO
+      if maturity > now then
+        timeToMaturityConsumed := sub maturity now
+      else
+        pure ()
+      let settlementFeeConsumed ← settlementFee id timeToMaturityConsumed
+      let mut sellerPriceConsumed := offerPriceConsumed
+      if offer.buy then
+        sellerPriceConsumed := sub offerPriceConsumed settlementFeeConsumed
+      else
+        pure ()
+      let buyerPriceConsumed := add sellerPriceConsumed settlementFeeConsumed
+      let mut buyerAssetsConsumed := ZERO
+      let mut sellerAssetsConsumed := ZERO
+      if offer.buy then
+        buyerAssetsConsumed := mulDivDown units buyerPriceConsumed WAD
+        sellerAssetsConsumed := mulDivDown units sellerPriceConsumed WAD
+      else
+        buyerAssetsConsumed := mulDivUp units buyerPriceConsumed WAD
+        sellerAssetsConsumed := mulDivUp units sellerPriceConsumed WAD
+      requireError (buyerAssetsConsumed >= sellerAssetsConsumed) InconsistentInput()
+      let currentConsumed ← structMember2 "consumedSlot" offer.maker offer.group "amount"
+      let mut consumedIncrease := sellerAssetsConsumed
+      if offer.buy then
+        consumedIncrease := buyerAssetsConsumed
+      else
+        pure ()
+      newConsumed := add currentConsumed consumedIncrease
+      requireError (newConsumed <= offer.maxAssets) ConsumedAssets()
+      setStructMember2 "consumedSlot" offer.maker offer.group "amount" newConsumed
+    else
+      let currentConsumed ← structMember2 "consumedSlot" offer.maker offer.group "amount"
+      newConsumed := add currentConsumed units
+      requireError (newConsumed <= offer.maxUnits) ConsumedUnits()
+      setStructMember2 "consumedSlot" offer.maker offer.group "amount" newConsumed
+
+    let mut buyer := taker
+    let mut seller := offer.maker
+    if offer.buy then
+      buyer := offer.maker
+      seller := taker
+    else
+      pure ()
+
+    let buyerCreditIncrease ← updateBuyerForTake id buyer units maturity now
+    let (sellerCreditDecrease, sellerDebtIncrease, sellerPendingFeeDecrease) ←
+      updateSellerForTake id seller units maturity now
     requireError (now <= maturity || sellerDebtIncrease == ZERO)
       CannotIncreaseDebtPostMaturity()
     let mut reduceOnlyAllowed := true
@@ -1574,16 +3629,40 @@ verity_contract Midnight where
     else
       pure ()
     requireError reduceOnlyAllowed MakerCreditOrDebtIncreased()
-    setStructMember2 "positionSlot" id seller "pendingFee"
-      (sub sellerPendingFeeAfterUpdate sellerPendingFeeDecrease)
-    setStructMember2 "positionSlot" id seller "credit"
-      (sub sellerCreditAfterUpdate sellerCreditDecrease)
-    setStructMember2 "positionSlot" id seller "debt" (add sellerDebt sellerDebtIncrease)
+
+    let mut buyerGateAllowed := true
+    if enterGate != 0 then
+      if buyerCreditIncrease > ZERO then
+        let canIncreaseCredit ← enterGateCanIncreaseCredit enterGate buyer
+        buyerGateAllowed := canIncreaseCredit != ZERO
+      else
+        pure ()
+    else
+      pure ()
+    requireError buyerGateAllowed BuyerGatedFromIncreasingCredit()
+
+    let mut sellerGateAllowed := true
+    if enterGate != 0 then
+      if sellerDebtIncrease > ZERO then
+        let canIncreaseDebt ← enterGateCanIncreaseDebt enterGate seller
+        sellerGateAllowed := canIncreaseDebt != ZERO
+      else
+        pure ()
+    else
+      pure ()
+    requireError sellerGateAllowed SellerGatedFromIncreasingDebt()
 
     let currentTotalUnits ← structMember "marketStateSlot" id "totalUnits"
     let mut newTotalUnits := add currentTotalUnits buyerCreditIncrease
     newTotalUnits := sub newTotalUnits sellerCreditDecrease
     setStructMember "marketStateSlot" id "totalUnits" newTotalUnits
+
+    let (buyerAssets, sellerAssets, buyerPendingFeeIncrease) ←
+      takeAssetsForPrice id units offer.tick offer.buy maturity now buyerCreditIncrease
+    requireError (buyerAssets >= sellerAssets) InconsistentInput()
+    let claimableBefore ← getMapping claimableSettlementFeeSlot loanToken
+    setMapping claimableSettlementFeeSlot loanToken
+      (add claimableBefore (sub buyerAssets sellerAssets))
 
     let mut receiver := offer.receiverIfMakerIsSeller
     if offer.buy then
@@ -1595,13 +3674,74 @@ verity_contract Midnight where
       pure ()
     else
       payer := sender
-    let mut transferAssets := units
+    let mut buyerCallback := takerCallback
     if offer.buy then
-      transferAssets := ZERO
+      buyerCallback := offer.callback
     else
       pure ()
-    safeTransferFrom loanToken payer receiver transferAssets
-    return (units, units)
+    let mut offerIsBuyWord := ZERO
+    if offer.buy then
+      offerIsBuyWord := ONE
+    else
+      pure ()
+    let takeEventPtr ← ecmCall (fun resultVar => takeEventPrepareAModule resultVar)
+      [addressToWord sender, units, offerIsBuyWord, offer.group, buyerAssets, sellerAssets]
+    ecmDo takeEventPrepareBModule
+      [takeEventPtr, newConsumed, buyerPendingFeeIncrease, sellerPendingFeeDecrease,
+        buyerCreditIncrease, sellerCreditDecrease]
+    ecmDo takeEventEmitModule
+      [takeEventPtr, addressToWord receiver, addressToWord payer, id, addressToWord taker,
+        addressToWord offer.maker]
+    ecmDo liquidationLockDepthEnterModule [id, addressToWord seller]
+    if buyerCallback != 0 then
+      payer := buyerCallback
+      if offer.buy then
+        ecmDo (buyCallbackModule true)
+          [addressToWord buyerCallback, id, buyerAssets, units,
+            buyerPendingFeeIncrease, addressToWord buyer]
+      else
+        ecmDo (buyCallbackModule false)
+          [addressToWord buyerCallback, id, buyerAssets, units,
+            buyerPendingFeeIncrease, addressToWord buyer]
+    else
+      pure ()
+    let feeAssets := sub buyerAssets sellerAssets
+    if feeAssets > ZERO then
+      let self ← contractAddress
+      safeTransferFrom loanToken payer self feeAssets
+    else
+      pure ()
+    if sellerAssets > ZERO then
+      safeTransferFrom loanToken payer receiver sellerAssets
+    else
+      pure ()
+    let mut sellerCallback := offer.callback
+    if offer.buy then
+      sellerCallback := takerCallback
+    else
+      pure ()
+    if sellerCallback != 0 then
+      if offer.buy then
+        ecmDo (sellCallbackModule false)
+          [addressToWord sellerCallback, id, sellerAssets, units,
+            sellerPendingFeeDecrease, addressToWord seller,
+            addressToWord receiver, ZERO]
+      else
+        ecmDo (sellCallbackModule true)
+          [addressToWord sellerCallback, id, sellerAssets, units,
+            sellerPendingFeeDecrease, addressToWord seller,
+            addressToWord receiver, ZERO]
+    else
+      pure ()
+    let lockedAfterCallbacks ← ecmCall (fun resultVar => liquidationLockDepthExitGetModule resultVar)
+      [id, addressToWord seller]
+    if lockedAfterCallbacks != ZERO then
+      pure ()
+    else
+      let sellerHealthy ← ecmCall (fun resultVar => offerMarketIsHealthyModule resultVar)
+        [id, addressToWord seller]
+      requireError (sellerHealthy != ZERO) SellerIsLiquidatable()
+    return (buyerAssets, sellerAssets)
 
   function creditOf (id : Bytes32, user : Address) : Uint256 := do
     let value ← structMember2 "positionSlot" id user "credit"
@@ -1695,6 +3835,10 @@ verity_contract Midnight where
     let currentContinuousFeeCredit ← structMember "marketStateSlot" id "continuousFeeCredit"
     setStructMember "marketStateSlot" id "continuousFeeCredit"
       (add currentContinuousFeeCredit accrued)
+    let creditDecrease := sub creditBeforeUpdate creditAfterUpdate
+    let updatePendingFeeDecrease := sub pendingFeeBeforeUpdate pendingFeeAfterUpdate
+    emit "UpdatePosition"
+      [id, onBehalf, creditDecrease, updatePendingFeeDecrease, accrued]
     let mut pendingFeeDecrease := ZERO
     if creditAfterUpdate > ZERO then
       pendingFeeDecrease := mulDivUp pendingFeeAfterUpdate units creditAfterUpdate
@@ -1708,6 +3852,7 @@ verity_contract Midnight where
     setStructMember "marketStateSlot" id "withdrawable" (sub withdrawableAmount units)
     let total ← structMember "marketStateSlot" id "totalUnits"
     setStructMember "marketStateSlot" id "totalUnits" (sub total units)
+    emit "Withdraw" [sender, id, units, onBehalf, receiver, pendingFeeDecrease]
     safeTransfer market.loanToken receiver units
 
   function allow_post_interaction_writes repay
@@ -1724,7 +3869,7 @@ verity_contract Midnight where
     let mut payer := sender
     if callback != 0 then
       payer := callback
-      ecmDo (Compiler.Modules.Callbacks.callbackModule 0xfc56f72e 3 "data")
+      ecmDo repayCallbackModule
         [addressToWord callback, id, units, addressToWord onBehalf]
     else
       pure ()
@@ -1771,161 +3916,1221 @@ verity_contract Midnight where
       pure ()
     return allowed
 
+  function liquidationLockedValue (id : Bytes32, user : Address) :
+      Uint256 := do
+    let locked ← ecmCall (fun resultVar => liquidationLockGetModule resultVar)
+      [id, addressToWord user]
+    return locked
+
+  function liquidationLockExchange (id : Bytes32, user : Address, value : Uint256) :
+      Uint256 := do
+    let previous ← ecmCall (fun resultVar => liquidationLockExchangeModule resultVar)
+      [id, addressToWord user, value]
+    return previous
+
+  function liquidationLocked (id : Bytes32, user : Address) : Bool := do
+    let locked ← liquidationLockedValue id user
+    return locked != ZERO
+
   function collateralAmount (id : Bytes32, user : Address, index : Uint256) : Uint256 := do
     let mut value := ZERO
     if index == 0 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[0]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[0]"
       value := loaded
     else
       pure ()
     if index == 1 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[1]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[1]"
       value := loaded
     else
       pure ()
     if index == 2 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[2]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[2]"
       value := loaded
     else
       pure ()
     if index == 3 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[3]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[3]"
       value := loaded
     else
       pure ()
     if index == 4 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[4]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[4]"
       value := loaded
     else
       pure ()
     if index == 5 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[5]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[5]"
       value := loaded
     else
       pure ()
     if index == 6 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[6]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[6]"
       value := loaded
     else
       pure ()
     if index == 7 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[7]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[7]"
       value := loaded
     else
       pure ()
     if index == 8 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[8]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[8]"
       value := loaded
     else
       pure ()
     if index == 9 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[9]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[9]"
       value := loaded
     else
       pure ()
     if index == 10 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[10]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[10]"
       value := loaded
     else
       pure ()
     if index == 11 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[11]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[11]"
       value := loaded
     else
       pure ()
     if index == 12 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[12]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[12]"
       value := loaded
     else
       pure ()
     if index == 13 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[13]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[13]"
       value := loaded
     else
       pure ()
     if index == 14 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[14]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[14]"
       value := loaded
     else
       pure ()
     if index == 15 then
-      let loaded ← structMember2 "collateralSlot" id user "amounts[15]"
+      let loaded ← structMember2 "positionSlot" id user "collateral[15]"
+      value := loaded
+    else
+      pure ()
+    if index == 16 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[16]"
+      value := loaded
+    else
+      pure ()
+    if index == 17 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[17]"
+      value := loaded
+    else
+      pure ()
+    if index == 18 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[18]"
+      value := loaded
+    else
+      pure ()
+    if index == 19 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[19]"
+      value := loaded
+    else
+      pure ()
+    if index == 20 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[20]"
+      value := loaded
+    else
+      pure ()
+    if index == 21 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[21]"
+      value := loaded
+    else
+      pure ()
+    if index == 22 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[22]"
+      value := loaded
+    else
+      pure ()
+    if index == 23 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[23]"
+      value := loaded
+    else
+      pure ()
+    if index == 24 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[24]"
+      value := loaded
+    else
+      pure ()
+    if index == 25 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[25]"
+      value := loaded
+    else
+      pure ()
+    if index == 26 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[26]"
+      value := loaded
+    else
+      pure ()
+    if index == 27 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[27]"
+      value := loaded
+    else
+      pure ()
+    if index == 28 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[28]"
+      value := loaded
+    else
+      pure ()
+    if index == 29 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[29]"
+      value := loaded
+    else
+      pure ()
+    if index == 30 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[30]"
+      value := loaded
+    else
+      pure ()
+    if index == 31 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[31]"
+      value := loaded
+    else
+      pure ()
+    if index == 32 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[32]"
+      value := loaded
+    else
+      pure ()
+    if index == 33 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[33]"
+      value := loaded
+    else
+      pure ()
+    if index == 34 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[34]"
+      value := loaded
+    else
+      pure ()
+    if index == 35 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[35]"
+      value := loaded
+    else
+      pure ()
+    if index == 36 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[36]"
+      value := loaded
+    else
+      pure ()
+    if index == 37 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[37]"
+      value := loaded
+    else
+      pure ()
+    if index == 38 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[38]"
+      value := loaded
+    else
+      pure ()
+    if index == 39 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[39]"
+      value := loaded
+    else
+      pure ()
+    if index == 40 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[40]"
+      value := loaded
+    else
+      pure ()
+    if index == 41 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[41]"
+      value := loaded
+    else
+      pure ()
+    if index == 42 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[42]"
+      value := loaded
+    else
+      pure ()
+    if index == 43 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[43]"
+      value := loaded
+    else
+      pure ()
+    if index == 44 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[44]"
+      value := loaded
+    else
+      pure ()
+    if index == 45 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[45]"
+      value := loaded
+    else
+      pure ()
+    if index == 46 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[46]"
+      value := loaded
+    else
+      pure ()
+    if index == 47 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[47]"
+      value := loaded
+    else
+      pure ()
+    if index == 48 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[48]"
+      value := loaded
+    else
+      pure ()
+    if index == 49 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[49]"
+      value := loaded
+    else
+      pure ()
+    if index == 50 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[50]"
+      value := loaded
+    else
+      pure ()
+    if index == 51 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[51]"
+      value := loaded
+    else
+      pure ()
+    if index == 52 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[52]"
+      value := loaded
+    else
+      pure ()
+    if index == 53 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[53]"
+      value := loaded
+    else
+      pure ()
+    if index == 54 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[54]"
+      value := loaded
+    else
+      pure ()
+    if index == 55 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[55]"
+      value := loaded
+    else
+      pure ()
+    if index == 56 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[56]"
+      value := loaded
+    else
+      pure ()
+    if index == 57 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[57]"
+      value := loaded
+    else
+      pure ()
+    if index == 58 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[58]"
+      value := loaded
+    else
+      pure ()
+    if index == 59 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[59]"
+      value := loaded
+    else
+      pure ()
+    if index == 60 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[60]"
+      value := loaded
+    else
+      pure ()
+    if index == 61 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[61]"
+      value := loaded
+    else
+      pure ()
+    if index == 62 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[62]"
+      value := loaded
+    else
+      pure ()
+    if index == 63 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[63]"
+      value := loaded
+    else
+      pure ()
+    if index == 64 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[64]"
+      value := loaded
+    else
+      pure ()
+    if index == 65 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[65]"
+      value := loaded
+    else
+      pure ()
+    if index == 66 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[66]"
+      value := loaded
+    else
+      pure ()
+    if index == 67 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[67]"
+      value := loaded
+    else
+      pure ()
+    if index == 68 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[68]"
+      value := loaded
+    else
+      pure ()
+    if index == 69 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[69]"
+      value := loaded
+    else
+      pure ()
+    if index == 70 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[70]"
+      value := loaded
+    else
+      pure ()
+    if index == 71 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[71]"
+      value := loaded
+    else
+      pure ()
+    if index == 72 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[72]"
+      value := loaded
+    else
+      pure ()
+    if index == 73 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[73]"
+      value := loaded
+    else
+      pure ()
+    if index == 74 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[74]"
+      value := loaded
+    else
+      pure ()
+    if index == 75 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[75]"
+      value := loaded
+    else
+      pure ()
+    if index == 76 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[76]"
+      value := loaded
+    else
+      pure ()
+    if index == 77 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[77]"
+      value := loaded
+    else
+      pure ()
+    if index == 78 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[78]"
+      value := loaded
+    else
+      pure ()
+    if index == 79 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[79]"
+      value := loaded
+    else
+      pure ()
+    if index == 80 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[80]"
+      value := loaded
+    else
+      pure ()
+    if index == 81 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[81]"
+      value := loaded
+    else
+      pure ()
+    if index == 82 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[82]"
+      value := loaded
+    else
+      pure ()
+    if index == 83 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[83]"
+      value := loaded
+    else
+      pure ()
+    if index == 84 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[84]"
+      value := loaded
+    else
+      pure ()
+    if index == 85 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[85]"
+      value := loaded
+    else
+      pure ()
+    if index == 86 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[86]"
+      value := loaded
+    else
+      pure ()
+    if index == 87 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[87]"
+      value := loaded
+    else
+      pure ()
+    if index == 88 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[88]"
+      value := loaded
+    else
+      pure ()
+    if index == 89 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[89]"
+      value := loaded
+    else
+      pure ()
+    if index == 90 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[90]"
+      value := loaded
+    else
+      pure ()
+    if index == 91 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[91]"
+      value := loaded
+    else
+      pure ()
+    if index == 92 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[92]"
+      value := loaded
+    else
+      pure ()
+    if index == 93 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[93]"
+      value := loaded
+    else
+      pure ()
+    if index == 94 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[94]"
+      value := loaded
+    else
+      pure ()
+    if index == 95 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[95]"
+      value := loaded
+    else
+      pure ()
+    if index == 96 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[96]"
+      value := loaded
+    else
+      pure ()
+    if index == 97 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[97]"
+      value := loaded
+    else
+      pure ()
+    if index == 98 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[98]"
+      value := loaded
+    else
+      pure ()
+    if index == 99 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[99]"
+      value := loaded
+    else
+      pure ()
+    if index == 100 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[100]"
+      value := loaded
+    else
+      pure ()
+    if index == 101 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[101]"
+      value := loaded
+    else
+      pure ()
+    if index == 102 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[102]"
+      value := loaded
+    else
+      pure ()
+    if index == 103 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[103]"
+      value := loaded
+    else
+      pure ()
+    if index == 104 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[104]"
+      value := loaded
+    else
+      pure ()
+    if index == 105 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[105]"
+      value := loaded
+    else
+      pure ()
+    if index == 106 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[106]"
+      value := loaded
+    else
+      pure ()
+    if index == 107 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[107]"
+      value := loaded
+    else
+      pure ()
+    if index == 108 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[108]"
+      value := loaded
+    else
+      pure ()
+    if index == 109 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[109]"
+      value := loaded
+    else
+      pure ()
+    if index == 110 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[110]"
+      value := loaded
+    else
+      pure ()
+    if index == 111 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[111]"
+      value := loaded
+    else
+      pure ()
+    if index == 112 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[112]"
+      value := loaded
+    else
+      pure ()
+    if index == 113 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[113]"
+      value := loaded
+    else
+      pure ()
+    if index == 114 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[114]"
+      value := loaded
+    else
+      pure ()
+    if index == 115 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[115]"
+      value := loaded
+    else
+      pure ()
+    if index == 116 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[116]"
+      value := loaded
+    else
+      pure ()
+    if index == 117 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[117]"
+      value := loaded
+    else
+      pure ()
+    if index == 118 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[118]"
+      value := loaded
+    else
+      pure ()
+    if index == 119 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[119]"
+      value := loaded
+    else
+      pure ()
+    if index == 120 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[120]"
+      value := loaded
+    else
+      pure ()
+    if index == 121 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[121]"
+      value := loaded
+    else
+      pure ()
+    if index == 122 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[122]"
+      value := loaded
+    else
+      pure ()
+    if index == 123 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[123]"
+      value := loaded
+    else
+      pure ()
+    if index == 124 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[124]"
+      value := loaded
+    else
+      pure ()
+    if index == 125 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[125]"
+      value := loaded
+    else
+      pure ()
+    if index == 126 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[126]"
+      value := loaded
+    else
+      pure ()
+    if index == 127 then
+      let loaded ← structMember2 "positionSlot" id user "collateral[127]"
       value := loaded
     else
       pure ()
     return value
 
-  function allow_post_interaction_writes writeCollateralAmount
-      (id : Bytes32, user : Address, index : Uint256, value : Uint256) : Unit := do
+  function liquidationDebtSnapshot
+      (id : Bytes32, borrower : Address, collateralCount : Uint256,
+        collateralBitmapValue : Uint256,
+        collateralParamsOffset : Uint256, originalDebt : Uint256)
+      local_obligations [liquidation_debt_snapshot_calldata_collateral_params := assumed
+        "Temporary Midnight source-faithfulness bridge reads CollateralParams fields from calldata because direct nested dynamic array element projection is not yet supported in this liquidate path."] :
+      Tuple [Uint256, Uint256] := do
+    let mut maxDebtValue := ZERO
+    let mut badDebt := originalDebt
+    forEach "i" collateralCount (do
+      let mask := shl i ONE
+      if bitAnd collateralBitmapValue mask > ZERO then
+        let activeCollateral ← collateralAmount id borrower i
+        let collateralParamOffset := add (add collateralParamsOffset 32)
+          (mul i 128)
+        let oracle := wordToAddress (calldataload (add collateralParamOffset 96))
+        let price ← oraclePrice oracle
+        let lltv := calldataload (add collateralParamOffset 32)
+        let maxLifValue := calldataload (add collateralParamOffset 64)
+        let collateralDebtValue :=
+          mulDivDown (mulDivDown activeCollateral price ORACLE_PRICE_SCALE) lltv WAD
+        maxDebtValue := add maxDebtValue collateralDebtValue
+        let repayable :=
+          mulDivUp (mulDivUp activeCollateral price ORACLE_PRICE_SCALE) WAD maxLifValue
+        if badDebt > repayable then
+          badDebt := sub badDebt repayable
+        else
+          badDebt := ZERO
+      else
+        pure ())
+    return (maxDebtValue, badDebt)
+
+  function writeCollateralAmount
+      (id : Bytes32, user : Address, index : Uint256, value : Uint256) :
+      Uint256 := do
     if index == 0 then
-      setStructMember2 "collateralSlot" id user "amounts[0]" value
+      setStructMember2 "positionSlot" id user "collateral[0]" value
     else
       pure ()
     if index == 1 then
-      setStructMember2 "collateralSlot" id user "amounts[1]" value
+      setStructMember2 "positionSlot" id user "collateral[1]" value
     else
       pure ()
     if index == 2 then
-      setStructMember2 "collateralSlot" id user "amounts[2]" value
+      setStructMember2 "positionSlot" id user "collateral[2]" value
     else
       pure ()
     if index == 3 then
-      setStructMember2 "collateralSlot" id user "amounts[3]" value
+      setStructMember2 "positionSlot" id user "collateral[3]" value
     else
       pure ()
     if index == 4 then
-      setStructMember2 "collateralSlot" id user "amounts[4]" value
+      setStructMember2 "positionSlot" id user "collateral[4]" value
     else
       pure ()
     if index == 5 then
-      setStructMember2 "collateralSlot" id user "amounts[5]" value
+      setStructMember2 "positionSlot" id user "collateral[5]" value
     else
       pure ()
     if index == 6 then
-      setStructMember2 "collateralSlot" id user "amounts[6]" value
+      setStructMember2 "positionSlot" id user "collateral[6]" value
     else
       pure ()
     if index == 7 then
-      setStructMember2 "collateralSlot" id user "amounts[7]" value
+      setStructMember2 "positionSlot" id user "collateral[7]" value
     else
       pure ()
     if index == 8 then
-      setStructMember2 "collateralSlot" id user "amounts[8]" value
+      setStructMember2 "positionSlot" id user "collateral[8]" value
     else
       pure ()
     if index == 9 then
-      setStructMember2 "collateralSlot" id user "amounts[9]" value
+      setStructMember2 "positionSlot" id user "collateral[9]" value
     else
       pure ()
     if index == 10 then
-      setStructMember2 "collateralSlot" id user "amounts[10]" value
+      setStructMember2 "positionSlot" id user "collateral[10]" value
     else
       pure ()
     if index == 11 then
-      setStructMember2 "collateralSlot" id user "amounts[11]" value
+      setStructMember2 "positionSlot" id user "collateral[11]" value
     else
       pure ()
     if index == 12 then
-      setStructMember2 "collateralSlot" id user "amounts[12]" value
+      setStructMember2 "positionSlot" id user "collateral[12]" value
     else
       pure ()
     if index == 13 then
-      setStructMember2 "collateralSlot" id user "amounts[13]" value
+      setStructMember2 "positionSlot" id user "collateral[13]" value
     else
       pure ()
     if index == 14 then
-      setStructMember2 "collateralSlot" id user "amounts[14]" value
+      setStructMember2 "positionSlot" id user "collateral[14]" value
     else
       pure ()
     if index == 15 then
-      setStructMember2 "collateralSlot" id user "amounts[15]" value
+      setStructMember2 "positionSlot" id user "collateral[15]" value
     else
       pure ()
+    if index == 16 then
+      setStructMember2 "positionSlot" id user "collateral[16]" value
+    else
+      pure ()
+    if index == 17 then
+      setStructMember2 "positionSlot" id user "collateral[17]" value
+    else
+      pure ()
+    if index == 18 then
+      setStructMember2 "positionSlot" id user "collateral[18]" value
+    else
+      pure ()
+    if index == 19 then
+      setStructMember2 "positionSlot" id user "collateral[19]" value
+    else
+      pure ()
+    if index == 20 then
+      setStructMember2 "positionSlot" id user "collateral[20]" value
+    else
+      pure ()
+    if index == 21 then
+      setStructMember2 "positionSlot" id user "collateral[21]" value
+    else
+      pure ()
+    if index == 22 then
+      setStructMember2 "positionSlot" id user "collateral[22]" value
+    else
+      pure ()
+    if index == 23 then
+      setStructMember2 "positionSlot" id user "collateral[23]" value
+    else
+      pure ()
+    if index == 24 then
+      setStructMember2 "positionSlot" id user "collateral[24]" value
+    else
+      pure ()
+    if index == 25 then
+      setStructMember2 "positionSlot" id user "collateral[25]" value
+    else
+      pure ()
+    if index == 26 then
+      setStructMember2 "positionSlot" id user "collateral[26]" value
+    else
+      pure ()
+    if index == 27 then
+      setStructMember2 "positionSlot" id user "collateral[27]" value
+    else
+      pure ()
+    if index == 28 then
+      setStructMember2 "positionSlot" id user "collateral[28]" value
+    else
+      pure ()
+    if index == 29 then
+      setStructMember2 "positionSlot" id user "collateral[29]" value
+    else
+      pure ()
+    if index == 30 then
+      setStructMember2 "positionSlot" id user "collateral[30]" value
+    else
+      pure ()
+    if index == 31 then
+      setStructMember2 "positionSlot" id user "collateral[31]" value
+    else
+      pure ()
+    if index == 32 then
+      setStructMember2 "positionSlot" id user "collateral[32]" value
+    else
+      pure ()
+    if index == 33 then
+      setStructMember2 "positionSlot" id user "collateral[33]" value
+    else
+      pure ()
+    if index == 34 then
+      setStructMember2 "positionSlot" id user "collateral[34]" value
+    else
+      pure ()
+    if index == 35 then
+      setStructMember2 "positionSlot" id user "collateral[35]" value
+    else
+      pure ()
+    if index == 36 then
+      setStructMember2 "positionSlot" id user "collateral[36]" value
+    else
+      pure ()
+    if index == 37 then
+      setStructMember2 "positionSlot" id user "collateral[37]" value
+    else
+      pure ()
+    if index == 38 then
+      setStructMember2 "positionSlot" id user "collateral[38]" value
+    else
+      pure ()
+    if index == 39 then
+      setStructMember2 "positionSlot" id user "collateral[39]" value
+    else
+      pure ()
+    if index == 40 then
+      setStructMember2 "positionSlot" id user "collateral[40]" value
+    else
+      pure ()
+    if index == 41 then
+      setStructMember2 "positionSlot" id user "collateral[41]" value
+    else
+      pure ()
+    if index == 42 then
+      setStructMember2 "positionSlot" id user "collateral[42]" value
+    else
+      pure ()
+    if index == 43 then
+      setStructMember2 "positionSlot" id user "collateral[43]" value
+    else
+      pure ()
+    if index == 44 then
+      setStructMember2 "positionSlot" id user "collateral[44]" value
+    else
+      pure ()
+    if index == 45 then
+      setStructMember2 "positionSlot" id user "collateral[45]" value
+    else
+      pure ()
+    if index == 46 then
+      setStructMember2 "positionSlot" id user "collateral[46]" value
+    else
+      pure ()
+    if index == 47 then
+      setStructMember2 "positionSlot" id user "collateral[47]" value
+    else
+      pure ()
+    if index == 48 then
+      setStructMember2 "positionSlot" id user "collateral[48]" value
+    else
+      pure ()
+    if index == 49 then
+      setStructMember2 "positionSlot" id user "collateral[49]" value
+    else
+      pure ()
+    if index == 50 then
+      setStructMember2 "positionSlot" id user "collateral[50]" value
+    else
+      pure ()
+    if index == 51 then
+      setStructMember2 "positionSlot" id user "collateral[51]" value
+    else
+      pure ()
+    if index == 52 then
+      setStructMember2 "positionSlot" id user "collateral[52]" value
+    else
+      pure ()
+    if index == 53 then
+      setStructMember2 "positionSlot" id user "collateral[53]" value
+    else
+      pure ()
+    if index == 54 then
+      setStructMember2 "positionSlot" id user "collateral[54]" value
+    else
+      pure ()
+    if index == 55 then
+      setStructMember2 "positionSlot" id user "collateral[55]" value
+    else
+      pure ()
+    if index == 56 then
+      setStructMember2 "positionSlot" id user "collateral[56]" value
+    else
+      pure ()
+    if index == 57 then
+      setStructMember2 "positionSlot" id user "collateral[57]" value
+    else
+      pure ()
+    if index == 58 then
+      setStructMember2 "positionSlot" id user "collateral[58]" value
+    else
+      pure ()
+    if index == 59 then
+      setStructMember2 "positionSlot" id user "collateral[59]" value
+    else
+      pure ()
+    if index == 60 then
+      setStructMember2 "positionSlot" id user "collateral[60]" value
+    else
+      pure ()
+    if index == 61 then
+      setStructMember2 "positionSlot" id user "collateral[61]" value
+    else
+      pure ()
+    if index == 62 then
+      setStructMember2 "positionSlot" id user "collateral[62]" value
+    else
+      pure ()
+    if index == 63 then
+      setStructMember2 "positionSlot" id user "collateral[63]" value
+    else
+      pure ()
+    if index == 64 then
+      setStructMember2 "positionSlot" id user "collateral[64]" value
+    else
+      pure ()
+    if index == 65 then
+      setStructMember2 "positionSlot" id user "collateral[65]" value
+    else
+      pure ()
+    if index == 66 then
+      setStructMember2 "positionSlot" id user "collateral[66]" value
+    else
+      pure ()
+    if index == 67 then
+      setStructMember2 "positionSlot" id user "collateral[67]" value
+    else
+      pure ()
+    if index == 68 then
+      setStructMember2 "positionSlot" id user "collateral[68]" value
+    else
+      pure ()
+    if index == 69 then
+      setStructMember2 "positionSlot" id user "collateral[69]" value
+    else
+      pure ()
+    if index == 70 then
+      setStructMember2 "positionSlot" id user "collateral[70]" value
+    else
+      pure ()
+    if index == 71 then
+      setStructMember2 "positionSlot" id user "collateral[71]" value
+    else
+      pure ()
+    if index == 72 then
+      setStructMember2 "positionSlot" id user "collateral[72]" value
+    else
+      pure ()
+    if index == 73 then
+      setStructMember2 "positionSlot" id user "collateral[73]" value
+    else
+      pure ()
+    if index == 74 then
+      setStructMember2 "positionSlot" id user "collateral[74]" value
+    else
+      pure ()
+    if index == 75 then
+      setStructMember2 "positionSlot" id user "collateral[75]" value
+    else
+      pure ()
+    if index == 76 then
+      setStructMember2 "positionSlot" id user "collateral[76]" value
+    else
+      pure ()
+    if index == 77 then
+      setStructMember2 "positionSlot" id user "collateral[77]" value
+    else
+      pure ()
+    if index == 78 then
+      setStructMember2 "positionSlot" id user "collateral[78]" value
+    else
+      pure ()
+    if index == 79 then
+      setStructMember2 "positionSlot" id user "collateral[79]" value
+    else
+      pure ()
+    if index == 80 then
+      setStructMember2 "positionSlot" id user "collateral[80]" value
+    else
+      pure ()
+    if index == 81 then
+      setStructMember2 "positionSlot" id user "collateral[81]" value
+    else
+      pure ()
+    if index == 82 then
+      setStructMember2 "positionSlot" id user "collateral[82]" value
+    else
+      pure ()
+    if index == 83 then
+      setStructMember2 "positionSlot" id user "collateral[83]" value
+    else
+      pure ()
+    if index == 84 then
+      setStructMember2 "positionSlot" id user "collateral[84]" value
+    else
+      pure ()
+    if index == 85 then
+      setStructMember2 "positionSlot" id user "collateral[85]" value
+    else
+      pure ()
+    if index == 86 then
+      setStructMember2 "positionSlot" id user "collateral[86]" value
+    else
+      pure ()
+    if index == 87 then
+      setStructMember2 "positionSlot" id user "collateral[87]" value
+    else
+      pure ()
+    if index == 88 then
+      setStructMember2 "positionSlot" id user "collateral[88]" value
+    else
+      pure ()
+    if index == 89 then
+      setStructMember2 "positionSlot" id user "collateral[89]" value
+    else
+      pure ()
+    if index == 90 then
+      setStructMember2 "positionSlot" id user "collateral[90]" value
+    else
+      pure ()
+    if index == 91 then
+      setStructMember2 "positionSlot" id user "collateral[91]" value
+    else
+      pure ()
+    if index == 92 then
+      setStructMember2 "positionSlot" id user "collateral[92]" value
+    else
+      pure ()
+    if index == 93 then
+      setStructMember2 "positionSlot" id user "collateral[93]" value
+    else
+      pure ()
+    if index == 94 then
+      setStructMember2 "positionSlot" id user "collateral[94]" value
+    else
+      pure ()
+    if index == 95 then
+      setStructMember2 "positionSlot" id user "collateral[95]" value
+    else
+      pure ()
+    if index == 96 then
+      setStructMember2 "positionSlot" id user "collateral[96]" value
+    else
+      pure ()
+    if index == 97 then
+      setStructMember2 "positionSlot" id user "collateral[97]" value
+    else
+      pure ()
+    if index == 98 then
+      setStructMember2 "positionSlot" id user "collateral[98]" value
+    else
+      pure ()
+    if index == 99 then
+      setStructMember2 "positionSlot" id user "collateral[99]" value
+    else
+      pure ()
+    if index == 100 then
+      setStructMember2 "positionSlot" id user "collateral[100]" value
+    else
+      pure ()
+    if index == 101 then
+      setStructMember2 "positionSlot" id user "collateral[101]" value
+    else
+      pure ()
+    if index == 102 then
+      setStructMember2 "positionSlot" id user "collateral[102]" value
+    else
+      pure ()
+    if index == 103 then
+      setStructMember2 "positionSlot" id user "collateral[103]" value
+    else
+      pure ()
+    if index == 104 then
+      setStructMember2 "positionSlot" id user "collateral[104]" value
+    else
+      pure ()
+    if index == 105 then
+      setStructMember2 "positionSlot" id user "collateral[105]" value
+    else
+      pure ()
+    if index == 106 then
+      setStructMember2 "positionSlot" id user "collateral[106]" value
+    else
+      pure ()
+    if index == 107 then
+      setStructMember2 "positionSlot" id user "collateral[107]" value
+    else
+      pure ()
+    if index == 108 then
+      setStructMember2 "positionSlot" id user "collateral[108]" value
+    else
+      pure ()
+    if index == 109 then
+      setStructMember2 "positionSlot" id user "collateral[109]" value
+    else
+      pure ()
+    if index == 110 then
+      setStructMember2 "positionSlot" id user "collateral[110]" value
+    else
+      pure ()
+    if index == 111 then
+      setStructMember2 "positionSlot" id user "collateral[111]" value
+    else
+      pure ()
+    if index == 112 then
+      setStructMember2 "positionSlot" id user "collateral[112]" value
+    else
+      pure ()
+    if index == 113 then
+      setStructMember2 "positionSlot" id user "collateral[113]" value
+    else
+      pure ()
+    if index == 114 then
+      setStructMember2 "positionSlot" id user "collateral[114]" value
+    else
+      pure ()
+    if index == 115 then
+      setStructMember2 "positionSlot" id user "collateral[115]" value
+    else
+      pure ()
+    if index == 116 then
+      setStructMember2 "positionSlot" id user "collateral[116]" value
+    else
+      pure ()
+    if index == 117 then
+      setStructMember2 "positionSlot" id user "collateral[117]" value
+    else
+      pure ()
+    if index == 118 then
+      setStructMember2 "positionSlot" id user "collateral[118]" value
+    else
+      pure ()
+    if index == 119 then
+      setStructMember2 "positionSlot" id user "collateral[119]" value
+    else
+      pure ()
+    if index == 120 then
+      setStructMember2 "positionSlot" id user "collateral[120]" value
+    else
+      pure ()
+    if index == 121 then
+      setStructMember2 "positionSlot" id user "collateral[121]" value
+    else
+      pure ()
+    if index == 122 then
+      setStructMember2 "positionSlot" id user "collateral[122]" value
+    else
+      pure ()
+    if index == 123 then
+      setStructMember2 "positionSlot" id user "collateral[123]" value
+    else
+      pure ()
+    if index == 124 then
+      setStructMember2 "positionSlot" id user "collateral[124]" value
+    else
+      pure ()
+    if index == 125 then
+      setStructMember2 "positionSlot" id user "collateral[125]" value
+    else
+      pure ()
+    if index == 126 then
+      setStructMember2 "positionSlot" id user "collateral[126]" value
+    else
+      pure ()
+    if index == 127 then
+      setStructMember2 "positionSlot" id user "collateral[127]" value
+    else
+      pure ()
+    return ZERO
 
   function allow_post_interaction_writes liquidate
       (market : Market, collateralIndex : Uint256, seizedAssets : Uint256,
         repaidUnits : Uint256, borrower : Address, postMaturityMode : Bool,
-        receiver : Address, callback : Address, data : Bytes) :
+        receiver : Address, callback : Address, data : Bytes)
+      local_obligations [liquidate_calldata_collateral_params := assumed
+        "Temporary Midnight source-faithfulness bridge reads CollateralParams fields from calldata because direct nested dynamic array element projection is not yet supported in this liquidate path."] :
       Tuple [Uint256, Uint256] := do
     let sender ← msgSender
     let id ← toId market
@@ -1939,7 +5144,15 @@ verity_contract Midnight where
     requireError (market.liquidatorGate == 0 || canLiquidate != ZERO)
       LiquidatorGatedFromLiquidating()
     let collateralCount := arrayLength market.collateralParams
-    require (collateralIndex < collateralCount) "collateral index out of bounds"
+    if collateralIndex < collateralCount then
+      pure ()
+    else
+      ecmDo solidityPanicModule [0x32]
+    let _collateralIndexBoundsCheck ←
+      collateralMaxLifAt market.collateralParams collateralIndex
+    let marketDataOffset := add (calldataload 4) 4
+    let collateralParamsOffset := add marketDataOffset
+      (calldataload (add marketDataOffset 32))
     let collateralBitmapValue ← structMember2 "positionSlot" id borrower "collateralBitmap"
     let collateralMask := shl collateralIndex ONE
     if seizedAssets > ZERO || repaidUnits > ZERO then
@@ -1947,33 +5160,17 @@ verity_contract Midnight where
     else
       pure ()
     let originalDebt := debt
-    let mut maxDebtValue := ZERO
-    let mut badDebt := originalDebt
-    let mut liquidatedCollatPrice := ZERO
-    forEach "i" collateralCount (do
-      let mask := shl i ONE
-      if bitAnd collateralBitmapValue mask > ZERO then
-        let activeCollateral ← collateralAmount id borrower i
-        let oracle ← collateralOracleAt market.collateralParams i
-        let price ← oraclePrice oracle
-        let lltv ← collateralLltvAt market.collateralParams i
-        let maxLifValue ← collateralMaxLifAt market.collateralParams i
-        if i == collateralIndex then
-          liquidatedCollatPrice := price
-        else
-          pure ()
-        let collateralDebtValue :=
-          mulDivDown (mulDivDown activeCollateral price ORACLE_PRICE_SCALE) lltv WAD
-        maxDebtValue := add maxDebtValue collateralDebtValue
-        let repayable :=
-          mulDivUp (mulDivUp activeCollateral price ORACLE_PRICE_SCALE) WAD maxLifValue
-        if badDebt > repayable then
-          badDebt := sub badDebt repayable
-        else
-          badDebt := ZERO
-      else
-        pure ())
+    let (maxDebtValue, badDebt) ←
+      liquidationDebtSnapshot id borrower collateralCount collateralBitmapValue
+        collateralParamsOffset originalDebt
+    let selectedCollateralParamOffsetForPrice := add (add collateralParamsOffset 32)
+      (mul collateralIndex 128)
+    let selectedOracle :=
+      wordToAddress (calldataload (add selectedCollateralParamOffsetForPrice 96))
+    let liquidatedCollatPrice ← oraclePrice selectedOracle
     let now ← blockTimestamp
+    let lockedBeforeLiquidation ← liquidationLockedValue id borrower
+    requireError (lockedBeforeLiquidation == ZERO) NotLiquidatable()
     if postMaturityMode then
       requireError (now > market.maturity) NotLiquidatable()
     else
@@ -2007,7 +5204,9 @@ verity_contract Midnight where
     let mut outSeizedAssets := seizedAssets
     let mut outRepaidUnits := repaidUnits
     if outRepaidUnits > ZERO || outSeizedAssets > ZERO then
-      let maxLifValue ← collateralMaxLifAt market.collateralParams collateralIndex
+      let selectedCollateralParamOffset := add (add collateralParamsOffset 32)
+        (mul collateralIndex 128)
+      let maxLifValue := calldataload (add selectedCollateralParamOffset 64)
       let mut lif := maxLifValue
       if postMaturityMode then
         let elapsed := sub now market.maturity
@@ -2030,7 +5229,7 @@ verity_contract Midnight where
       if postMaturityMode then
         pure ()
       else
-        let lltv ← collateralLltvAt market.collateralParams collateralIndex
+        let lltv := calldataload (add selectedCollateralParamOffset 32)
         let mut maxRepaidValue :=
           115792089237316195423570985008687907853269984665640564039457584007913129639935
         if lltv < WAD then
@@ -2054,8 +5253,12 @@ verity_contract Midnight where
           capacityShortfall < market.rcfThreshold)
           RecoveryCloseFactorConditionsViolated()
       let oldCollateral ← collateralAmount id borrower collateralIndex
+      if oldCollateral < outSeizedAssets then
+        ecmDo solidityPanicModule [0x11]
+      else
+        pure ()
       let newCollateral := sub oldCollateral outSeizedAssets
-      writeCollateralAmount id borrower collateralIndex newCollateral
+      let _writeOk ← writeCollateralAmount id borrower collateralIndex newCollateral
       if newCollateral == ZERO then
         if outSeizedAssets > ZERO then
           let oldBitmap ← structMember2 "positionSlot" id borrower "collateralBitmap"
@@ -2069,15 +5272,33 @@ verity_contract Midnight where
       let withdrawableAmount ← structMember "marketStateSlot" id "withdrawable"
       setStructMember "marketStateSlot" id "withdrawable"
         (add withdrawableAmount outRepaidUnits)
-      setStructMember2 "positionSlot" id borrower "debt" (sub debt outRepaidUnits)
+      if debt < outRepaidUnits then
+        ecmDo solidityPanicModule [0x11]
+      else
+        pure ()
+      let newDebtAfterRepay := sub debt outRepaidUnits
+      setStructMember2 "positionSlot" id borrower "debt" newDebtAfterRepay
     else
       pure ()
-    let collateralToken ← collateralTokenAt market.collateralParams collateralIndex
-    safeTransfer collateralToken receiver outSeizedAssets
+    let selectedCollateralParamOffset := add (add collateralParamsOffset 32)
+      (mul collateralIndex 128)
+    let collateralToken := wordToAddress (calldataload selectedCollateralParamOffset)
     let mut payer := sender
     if callback != 0 then
       payer := callback
-      ecmDo (Compiler.Modules.Callbacks.callbackModule 0x6861b795 8 "data")
+    else
+      pure ()
+    let latestLossFactorLoaded ← structMember "marketStateSlot" id "lossFactor"
+    let latestContinuousFeeCreditLoaded ←
+      structMember "marketStateSlot" id "continuousFeeCredit"
+    emit "Liquidate"
+      [sender, id, collateralToken, outSeizedAssets, outRepaidUnits, borrower,
+        postMaturityMode, receiver, payer, badDebt,
+        add latestLossFactorLoaded ZERO,
+        add latestContinuousFeeCreditLoaded ZERO]
+    safeTransfer collateralToken receiver outSeizedAssets
+    if callback != 0 then
+      ecmDo liquidateCallbackModule
         [addressToWord callback, addressToWord sender, id, collateralIndex,
           outSeizedAssets, outRepaidUnits, addressToWord borrower,
           addressToWord receiver, badDebt]
@@ -2112,70 +5333,7 @@ verity_contract Midnight where
 
   function allow_post_interaction_writes setCollateralAmount
       (id : Bytes32, user : Address, index : Uint256, value : Uint256) : Unit := do
-    if index == 0 then
-      setStructMember2 "collateralSlot" id user "amounts[0]" value
-    else
-      pure ()
-    if index == 1 then
-      setStructMember2 "collateralSlot" id user "amounts[1]" value
-    else
-      pure ()
-    if index == 2 then
-      setStructMember2 "collateralSlot" id user "amounts[2]" value
-    else
-      pure ()
-    if index == 3 then
-      setStructMember2 "collateralSlot" id user "amounts[3]" value
-    else
-      pure ()
-    if index == 4 then
-      setStructMember2 "collateralSlot" id user "amounts[4]" value
-    else
-      pure ()
-    if index == 5 then
-      setStructMember2 "collateralSlot" id user "amounts[5]" value
-    else
-      pure ()
-    if index == 6 then
-      setStructMember2 "collateralSlot" id user "amounts[6]" value
-    else
-      pure ()
-    if index == 7 then
-      setStructMember2 "collateralSlot" id user "amounts[7]" value
-    else
-      pure ()
-    if index == 8 then
-      setStructMember2 "collateralSlot" id user "amounts[8]" value
-    else
-      pure ()
-    if index == 9 then
-      setStructMember2 "collateralSlot" id user "amounts[9]" value
-    else
-      pure ()
-    if index == 10 then
-      setStructMember2 "collateralSlot" id user "amounts[10]" value
-    else
-      pure ()
-    if index == 11 then
-      setStructMember2 "collateralSlot" id user "amounts[11]" value
-    else
-      pure ()
-    if index == 12 then
-      setStructMember2 "collateralSlot" id user "amounts[12]" value
-    else
-      pure ()
-    if index == 13 then
-      setStructMember2 "collateralSlot" id user "amounts[13]" value
-    else
-      pure ()
-    if index == 14 then
-      setStructMember2 "collateralSlot" id user "amounts[14]" value
-    else
-      pure ()
-    if index == 15 then
-      setStructMember2 "collateralSlot" id user "amounts[15]" value
-    else
-      pure ()
+    let _writeOk ← writeCollateralAmount id user index value
 
   function allow_post_interaction_writes supplyCollateral
       (market : Market, collateralIndex : Uint256, assets : Uint256,
@@ -2242,8 +5400,8 @@ verity_contract Midnight where
     requireError (tokenCount == assetCount) InconsistentInput()
     forEach "i" tokenCount (do
       safeTransfer (arrayElement tokens i) callback (arrayElement assets i))
-    ecmDo (Compiler.Modules.Callbacks.callbackModule 0xd1f260c3 1 "data")
-      [addressToWord callback, ZERO]
+    let sender ← msgSender
+    ecmDo flashLoanCallbackModule [addressToWord callback, addressToWord sender]
     forEach "i" tokenCount (do
       let self ← contractAddress
       safeTransferFrom (arrayElement tokens i) callback self (arrayElement assets i))

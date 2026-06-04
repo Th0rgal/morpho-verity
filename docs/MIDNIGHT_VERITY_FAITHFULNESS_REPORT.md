@@ -1,12 +1,10 @@
 # Midnight Verity Faithfulness Report
 
-Status date: 2026-06-03
+Status date: 2026-06-04
 
-Reviewed Morpho state: `morpho-verity` commit `fccecaa` (`Add executable Morpho Midnight Verity artifact`).
+Reviewed Morpho state: PR branch `repo-structure-morpho-separation` after the Midnight source-faithfulness follow-up.
 
-Reviewed Verity source: `lfglabs-dev/verity` / `Th0rgal/verity` `main` at
-`e405b21f78c6a8376d7fa5d0959e51e7dc07bcaf` (`Model keccak256 opcode,
-unaligned calldata, and SHA-256 engine in executable semantics`).
+Reviewed Verity source: `lfglabs-dev/verity` `main` after PR #1945 was merged.
 
 ## Executive Summary
 
@@ -28,8 +26,7 @@ The weak point is structural fidelity. The Verity source still relies on:
   differ materially from Solidity;
 - source-level ECM assumptions for CREATE2/SSTORE2 and callback ABI mechanics
   whose protocol-specific memory/layout obligations are not fully discharged;
-- a Yul drift gate with `75` functions only in Solidity and `240` functions
-  only in Verity;
+- a Yul drift gate that is still manifest-based rather than strict Yul equivalence (`75` Solidity-only functions and `214` Verity-only functions after the storage-layout and helper-surface follow-up);
 - proofs attached to named projections rather than fully discharged from the
   generated full-contract body/Yul/bytecode.
 
@@ -113,76 +110,75 @@ Solidity storage order in `Midnight.sol`:
 - role addresses after that;
 - `INITIAL_CHAIN_ID` is immutable, not ordinary storage.
 
-Current Verity storage:
+Current Verity storage after the follow-up:
 
-- `initialChainIdSlot` is stored at slot 0;
-- roles are stored at slots 1-4;
-- `consumedSlot` starts at slot 5;
-- `marketStateSlot` is slot 10;
-- `positionSlot` is slot 11;
-- collateral values are split into `collateral0Slot` through
-  `collateral15Slot`, slots 12-27.
+- `position`, `marketState`, `consumed`, `isAuthorized`, default fees,
+  claimable fees, and role addresses now use the same top-level slots as
+  `Midnight.sol`;
+- collateral values are represented inside `positionSlot` as
+  `collateral[0]` through `collateral[127]` beginning at word 3;
+- `INITIAL_CHAIN_ID` is still represented by an isolated Verity storage slot
+  because Verity does not yet expose Solidity-style immutable bytecode fields.
 
-That is functionally usable for a standalone replacement, but it is not the same
-storage effect as Solidity. It also prevents a direct storage-layout audit
-against `Midnight.sol`.
+That is closer to Solidity and removes the previous separate 16-entry
+collateral mapping, but it is still not exact byte-for-byte Solidity layout:
+Solidity stores `uint128[128] collateral` packed two values per storage word,
+while the current Verity surface expands fixed-array members as word-sized
+elements.
 
 Needed:
 
-- Verity storage declarations that can mirror Solidity layout exactly;
 - immutable handling that compiles as constructor-immediate/bytecode data, not a
   normal storage slot unless Solidity does the same;
-- mapping-to-struct layouts with nested fixed arrays inside the struct;
-- exact `Position.collateral[128]` storage indexing inside
-  `position[id][user]`, not 16 separate top-level mappings.
+- packed fixed-array elements inside mapping struct values, especially
+  `uint128[128]`;
+- dynamic indexed access to mapping-struct fixed-array members, so the source
+  does not need 128 statically expanded branches;
+- a storage-layout diff against `solc --storage-layout` for every Midnight
+  field.
 
-### 3. Collateral Storage Is Capped To 16 Explicit Slots
+### 3. Collateral Storage Is Wider But Not Packed Exactly
 
 Solidity supports:
 
 - up to 128 market collaterals;
 - a borrower can activate up to 16 at a time;
-- `position[id][user].collateral[index]` is a `uint128[128]` fixed array inside
-  `Position`.
+- `position[id][user].collateral[index]` is a packed `uint128[128]` fixed array
+  inside `Position`.
 
-Current Verity source implements only `collateral0Slot` through
-`collateral15Slot`. That tracks the borrower active-collateral cap, but it does
-not preserve the actual `uint128[128]` fixed-array storage layout or allow a
-clean source-level port of all index behavior.
+Current Verity source now exposes all 128 logical indices under `positionSlot`,
+but each entry is a full `Uint256` storage word. This is source-closer than the
+old 16-entry side mapping and supports every Solidity index, but it is still not
+Solidity's packed `uint128` storage effect.
 
 Needed:
 
-- fixed-size storage arrays inside mapping struct values;
 - generated packed `uint128` read/write paths for
   `position[id][user].collateral[index]`;
-- proof lemmas for array slot calculation and packed subword preservation.
+- dynamic member paths such as `structMember2AtIndex field key1 key2 member i`;
+- proof lemmas for array slot calculation, packed subword preservation, and
+  non-interference with neighboring packed entries.
 
-### 4. Multi-Collateral Health Is Simplified In Source
+### 4. Multi-Collateral Health Is Now Source-Shaped, But Not MSB-Exact
 
 Solidity `isHealthy` loops over the borrower collateral bitmap, uses `msb`, reads
 each active collateral, reads each oracle price, and accumulates max debt.
 
-Current Verity `isHealthy` reads only collateral index `0`:
-
-```lean
-let collateralValue <- collateralAmount id borrower ZERO
-let lltv <- collateralLltvAt market.collateralParams ZERO
-let maxDebt := mulDivDown collateralValue lltv WAD
-return debt <= maxDebt
-```
-
-That is not equivalent to the Solidity loop. It may be sufficient for focused
-proof projections or tests that do not expose the gap, but it is not a
-line-by-line translation.
+Current Verity `isHealthy` now scans `market.collateralParams`, checks the
+borrower bitmap for each index, reads every active collateral amount and oracle
+price, and accumulates max debt. This fixes the earlier index-0-only bug. The
+remaining difference is loop shape: Solidity iterates by repeatedly selecting
+`msb(_collateralBitmap)` and clearing that bit, while the Verity body scans the
+collateral parameter range and masks each index.
 
 Needed:
 
-- source-level bitmap loop matching Solidity:
-  `while (_collateralBitmap != 0) { i = msb(_collateralBitmap); ...; clearBit(i); }`;
+- source-level `while` loops or an MSB/clear-bit iterator matching Solidity's
+  block structure;
 - CLZ/MSB support either as a proved primitive or a documented intrinsic with a
   local proof;
-- array-of-struct access into `market.collateralParams[i]`;
-- oracle call semantics for every active collateral.
+- proof that scan-by-index over the bounded collateral range is equivalent to
+  Solidity's MSB-driven bitmap loop.
 
 ### 5. `take` Uses Manual Calldata Introspection
 
@@ -209,7 +205,7 @@ Needed:
 - source semantics for any remaining low-level calldata operation that matches
   generated Yul semantics.
 
-### 6. Callback And External Call Behavior Is Mostly Yul-Patched
+### 6. Callback And External Call Behavior Is ECM-Based
 
 Solidity has callback interfaces for:
 
@@ -219,11 +215,7 @@ Solidity has callback interfaces for:
 - `onLiquidate`
 - `onFlashLoan`
 
-The patch script injects helper functions for those calls and their return-value
-checks, including revert bubbling and callback-success selectors. The Verity
-source has higher-level calls such as `safeTransfer` and `safeTransferFrom`,
-plus `ecmCall` wrappers for oracles/gates, but the exact dynamic ABI call frames
-for Midnight callbacks are not expressed as ordinary Verity source.
+The current Verity source uses ECM modules for callback/external-call mechanics, including revert bubbling. This removed the old Midnight-specific Yul patch path, but the exact dynamic ABI call frames for every Midnight callback are still surfaced as ECM trust assumptions rather than ordinary verified source.
 
 Needed:
 
@@ -279,10 +271,7 @@ Midnight relies on:
 - `SafeTransferLib`: optional-return ERC-20 transfers;
 - `EventsLib`: all event declarations.
 
-Current Verity inlines or reimplements many formulas, and the patch script adds
-Yul helpers such as `__midnight_wexp`, `__midnight_tick_to_price`,
-`__midnight_mul_div_up`, and callback helpers. That may be adequate for tests,
-but it is not a reviewable line-by-line port of the library calls.
+Current Verity inlines or reimplements many formulas and relies on generated/compiler helper functions rather than a one-to-one set of Verity library modules. That may be adequate for tests, but it is not yet a reviewable line-by-line port of the library calls.
 
 Needed:
 
@@ -338,7 +327,7 @@ There is no strict Yul equivalence today.
 
 - `allowedHashMismatchKeys`: `0`
 - `allowedOnlyInSolidityKeys`: `75`
-- `allowedOnlyInVerityKeys`: `240`
+- `allowedOnlyInVerityKeys`: `214`
 
 Interpretation:
 
@@ -440,8 +429,8 @@ Required capabilities:
 Why Midnight needs it:
 
 - `Position` contains six packed scalar fields plus `uint128[128] collateral`;
-- the current Verity port splits collateral into 16 separate mappings;
-- `INITIAL_CHAIN_ID` is immutable in Solidity but storage in Verity.
+- the current Verity port represents all 128 collateral indices under `positionSlot`, but not as packed `uint128` elements;
+- `INITIAL_CHAIN_ID` is immutable in Solidity but still modeled through an isolated Verity storage slot.
 
 Implementation sketch:
 
@@ -601,7 +590,7 @@ Tasks:
 
 - move `position`, `marketState`, and all mappings to Solidity slots;
 - model `INITIAL_CHAIN_ID` as immutable;
-- replace collateral split mappings with `Position.collateral[128]`;
+- replace the current word-sized `Position.collateral[128]` model with packed `uint128[128]`;
 - add a storage-layout diff against solc.
 
 Exit criteria:
@@ -617,8 +606,8 @@ line-by-line review.
 
 Tasks:
 
-- replace `toId`, `toMarket`, `isHealthy`, `take`, `liquidate`, and
-  `multicall` with Solidity-shaped bodies;
+- replace `toId`, `toMarket`, `take`, `liquidate`, and
+  `multicall` with stricter Solidity-shaped bodies, and make `isHealthy` MSB-loop exact;
 - use library calls that mirror `UtilsLib`, `TickLib`, `IdLib`, and
   `SafeTransferLib`;
 - emit all events at Solidity-equivalent program points.
@@ -670,7 +659,7 @@ Exit criteria:
 For Midnight, "extremely faithful" should mean all of the following:
 
 1. Every `IMidnight` function has a Verity function with the same ABI.
-2. Storage layout matches Solidity, including immutables and nested arrays.
+2. Storage layout matches Solidity, including immutables and packed nested arrays.
 3. Public/view getters are not hand-simulated; they read the same storage words.
 4. `toId` and `toMarket` implement the real `IdLib`/SSTORE2 algorithm in source.
 5. Control flow for `take`, `liquidate`, `isHealthy`, `updatePosition`,
@@ -682,10 +671,12 @@ For Midnight, "extremely faithful" should mean all of the following:
 9. Yul drift is exact or justified by proved rewrites.
 10. RCF and `totalUnits` proofs are discharged from the full executable model.
 
-The current repo satisfies item 1 at the artifact/harness level and now
-satisfies item 8 for the artifact build path. It partially satisfies items 6-7
-through source-level ECMs and remaining assumptions, and does not yet satisfy
-items 2, 4, 9, or 10.
+The current repo satisfies item 1 at the artifact/harness level, item 4 through
+source-level `IdLib`/SSTORE2 ECMs, and item 8 for the artifact build path. It
+partially satisfies items 2, 5, 6, and 7 through slot alignment, 128-entry
+collateral coverage, source-level ECMs, and remaining assumptions, and does not
+yet satisfy items 9 or 10. Item 4 still carries an explicit proof boundary for
+the byte-level ABI/initcode/runtime-code layout.
 
 ## Recommended Next Work Items
 
@@ -693,10 +684,11 @@ items 2, 4, 9, or 10.
    from `test-parity`.
 2. Keep CI failing if `prepare_midnight_artifact.sh` uses a protocol-specific
    Yul patch in presentation mode.
-3. Implement exact Solidity storage layout for `Position` and `MarketState`.
-4. Discharge the remaining SSTORE2/CREATE2 market initcode and decode
-   assumptions.
-5. Replace `isHealthy` with the real bitmap/MSB/oracle loop.
+3. Add Verity packed fixed-array storage so `Position.collateral[128]` is
+   byte-for-byte `uint128[128]`.
+4. Discharge the remaining SSTORE2/CREATE2 market initcode, runtime-code return,
+   and byte-layout assumptions.
+5. Make `isHealthy` MSB-loop exact or prove the bounded scan equivalent.
 6. Replace `take` calldata offset introspection with typed nested struct
    projections.
 7. Generate callback modules from `ICallbacks.sol`.

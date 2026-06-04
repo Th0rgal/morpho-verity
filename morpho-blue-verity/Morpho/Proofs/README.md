@@ -29,7 +29,7 @@ Both properties are the ones the Morpho team raised in
 | `Property1.lean` | Health preservation. |
 | `Operations.lean` | Concrete Solidity-mirroring transitions; collateral and supply ops preserve health with no assumptions. |
 | `Property2.lean` | Sharp liquidation guarantee for both input modes, plus the partial-phrasing counterexample. |
-| `Refinement.lean` | Per-entrypoint obligations bridging model and contract, discharged at the model-step level. |
+| `Refinement.lean` | Per-entrypoint assembly from generated-body step obligations; some step disciplines remain named boundaries in `Disciplines.lean`. |
 
 The model-to-bytecode link is covered empirically by the differential parity
 suite, not yet by a Lean extraction layer. See
