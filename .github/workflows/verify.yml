@@ -62,6 +62,9 @@ jobs:
       - name: Build Verity contract
         run: env -u CI ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build Verity contract" -- lake build
 
+      - name: Build Midnight Verity contract
+        run: env -u CI ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build Midnight Verity contract" -- lake build Midnight
+
       - name: Upload built Lean workspace
         uses: actions/upload-artifact@v4
         with:
