@@ -2093,9 +2093,21 @@ verity_contract Midnight where
       return true
     else
       pure ()
-    let collateralValue ← collateralAmount id borrower ZERO
-    let lltv ← collateralLltvAt market.collateralParams ZERO
-    let maxDebt := mulDivDown collateralValue lltv WAD
+    let collateralCount := arrayLength market.collateralParams
+    let collateralBitmapValue ← structMember2 "positionSlot" id borrower "collateralBitmap"
+    let mut maxDebt := ZERO
+    forEach "i" collateralCount (do
+      let mask := shl i ONE
+      if bitAnd collateralBitmapValue mask > ZERO then
+        let activeCollateral ← collateralAmount id borrower i
+        let oracle ← collateralOracleAt market.collateralParams i
+        let price ← oraclePrice oracle
+        let lltv ← collateralLltvAt market.collateralParams i
+        let collateralValue :=
+          mulDivDown activeCollateral price ORACLE_PRICE_SCALE
+        maxDebt := add maxDebt (mulDivDown collateralValue lltv WAD)
+      else
+        pure ())
     return debt <= maxDebt
 
   function allow_post_interaction_writes setCollateralAmount

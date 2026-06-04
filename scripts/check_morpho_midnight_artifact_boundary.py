@@ -7,6 +7,11 @@ import hashlib
 import pathlib
 import sys
 
+from focused_midnight_digest import (
+    FOCUSED_INPUTS,
+    compute_focused_input_digest as compute_canonical_focused_input_digest,
+)
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FOCUSED_DIR = ROOT / "artifacts" / "midnight-focused"
@@ -49,26 +54,10 @@ def read_text(path: pathlib.Path) -> str:
 
 
 def compute_focused_input_digest() -> str:
-    files = [
-        ROOT / "lean-toolchain",
-        ROOT / "lake-manifest.json",
-        ROOT / "lakefile.lean",
-        ROOT / "morpho-midnight-verity" / "Midnight.lean",
-        ROOT / "morpho-midnight-verity" / "Midnight" / "Contract.lean",
-        ROOT / "morpho-midnight-verity" / "Midnight" / "Compiler" / "ArtifactConfig.lean",
-        ROOT / "morpho-midnight-verity" / "Midnight" / "Compiler" / "Main.lean",
-        ROOT / "morpho-midnight-verity" / "MidnightCompiler.lean",
-        ROOT / "scripts" / "prepare_focused_midnight_artifact.sh",
-        ROOT / "scripts" / "uniquify_yul_shadows.py",
-    ]
-    h = hashlib.sha256()
-    for path in files:
+    for rel in FOCUSED_INPUTS:
+        path = ROOT / rel
         require_nonempty(path, "focused artifact input")
-        h.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("utf-8"))
-        h.update(b"  ")
-        h.update(str(path.relative_to(ROOT)).encode("utf-8"))
-        h.update(b"\n")
-    return h.hexdigest()
+    return compute_canonical_focused_input_digest(ROOT)
 
 
 def parse_manifest(text: str) -> dict[str, str]:

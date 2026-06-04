@@ -37,17 +37,26 @@ structure Position where
   account : Address
   price   : Uint256
 
-def marketIdRead (mp : MarketParams) (cs : ContractState) : Bytes32 :=
-  0
+def marketIdRead (mp : MarketParams) : Contract Bytes32 := do
+  ecmCall
+    (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+    [addressToWord mp.loanToken, addressToWord mp.collateralToken,
+      addressToWord mp.oracle, addressToWord mp.irm, mp.lltv]
 
-def oraclePriceRead (mp : MarketParams) (cs : ContractState) : Uint256 :=
-  0
+def oraclePriceRead (mp : MarketParams) : Contract Uint256 := do
+  ecmCall
+    (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar 0xa035b1fe 0)
+    [addressToWord mp.oracle]
 
 def MarketIdAligned (P : Position) : Prop :=
-  True
+  ∀ cs id cs',
+    (marketIdRead P.mp).run cs = ContractResult.success id cs' →
+      id = P.id
 
 def OraclePriceAligned (P : Position) : Prop :=
-  True
+  ∀ cs price cs',
+    (oraclePriceRead P.mp).run cs = ContractResult.success price cs' →
+      price = P.price
 
 def OraclePriceNoOverflow (P : Position) (cs : ContractState) : Prop :=
   let s := project P.mp P.id P.account P.price cs

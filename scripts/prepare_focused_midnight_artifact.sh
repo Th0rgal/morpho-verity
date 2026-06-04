@@ -11,28 +11,7 @@ MANIFEST="${OUT_DIR}/MidnightRCF.artifact-manifest.env"
 UNIQUIFY_YUL_SHADOWS="${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
 
 compute_input_digest() {
-  local -a files=(
-    "${ROOT_DIR}/lean-toolchain"
-    "${ROOT_DIR}/lake-manifest.json"
-    "${ROOT_DIR}/lakefile.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Contract.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/ArtifactConfig.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/Main.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/MidnightCompiler.lean"
-    "${ROOT_DIR}/scripts/prepare_focused_midnight_artifact.sh"
-    "${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
-  )
-
-  {
-    for path in "${files[@]}"; do
-      if [[ ! -f "${path}" ]]; then
-        echo "ERROR: missing focused Midnight artifact input: ${path}" >&2
-        return 2
-      fi
-      printf '%s  %s\n' "$(sha256sum "${path}" | awk '{print $1}')" "${path#${ROOT_DIR}/}"
-    done
-  } | sha256sum | awk '{print $1}'
+  python3 "${ROOT_DIR}/scripts/focused_midnight_digest.py" "${ROOT_DIR}"
 }
 
 if ! command -v lake >/dev/null 2>&1; then
@@ -45,10 +24,6 @@ if ! command -v solc >/dev/null 2>&1; then
 fi
 if ! command -v awk >/dev/null 2>&1; then
   echo "ERROR: awk is required to extract solc binary output."
-  exit 2
-fi
-if ! command -v sha256sum >/dev/null 2>&1; then
-  echo "ERROR: sha256sum is required to write the focused artifact manifest."
   exit 2
 fi
 if ! command -v python3 >/dev/null 2>&1; then
