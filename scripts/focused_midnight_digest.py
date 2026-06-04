@@ -36,8 +36,7 @@ def compute_focused_input_digest(root: pathlib.Path = ROOT) -> str:
     return hashlib.sha256(digest_input.encode("utf-8")).hexdigest()
 
 
-def main() -> int:
-    root = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT
+def main_with_root(root: pathlib.Path) -> int:
     for rel in FOCUSED_INPUTS:
         path = root / rel
         if not path.is_file():
@@ -45,6 +44,11 @@ def main() -> int:
             return 2
     print(compute_focused_input_digest(root))
     return 0
+
+
+def main() -> int:
+    root = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT
+    return main_with_root(root)
 
 
 if __name__ == "__main__":
