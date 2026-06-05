@@ -1590,13 +1590,9 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
         let marketDataOffset := YulExpr.ident "market_data_offset"
         let ptr := YulExpr.ident "__midnight_store_ptr"
         let tuplePtr := YulExpr.ident "__midnight_store_tuple_ptr"
-        let arrayPtr := YulExpr.ident "__midnight_store_array_ptr"
+        let collateralOffset := YulExpr.ident "__midnight_store_collateral_offset"
         let length := YulExpr.ident "__midnight_store_collateral_length"
         let collateralBytes := YulExpr.ident "__midnight_store_collateral_bytes"
-        let dst := YulExpr.ident "__midnight_store_dst"
-        let srcPtr := YulExpr.ident "__midnight_store_src_ptr"
-        let srcEnd := YulExpr.ident "__midnight_store_src_end"
-        let itemPtr := YulExpr.ident "__midnight_store_item_ptr"
         let abiLength := YulExpr.ident "__midnight_store_abi_length"
         let initcodeLength := YulExpr.ident "__midnight_store_initcode_length"
         pure [
@@ -1616,10 +1612,7 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
               (YulExpr.call "add" [ptr, YulExpr.lit 43]),
             YulStmt.expr (YulExpr.call "mstore" [
               tuplePtr,
-              YulExpr.call "and" [
-                YulExpr.call "mload" [marketDataOffset],
-                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
-              ]
+              YulExpr.call "calldataload" [marketDataOffset]
             ]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [tuplePtr, YulExpr.lit 32],
@@ -1627,72 +1620,37 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
             ]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [tuplePtr, YulExpr.lit 64],
-              YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 64]]
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 64]]
             ]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [tuplePtr, YulExpr.lit 96],
-              YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 96]]
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 96]]
             ]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [tuplePtr, YulExpr.lit 128],
-              YulExpr.call "and" [
-                YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 128]],
-                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
-              ]
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 128]]
             ]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [tuplePtr, YulExpr.lit 160],
-              YulExpr.call "and" [
-                YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 160]],
-                YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
-              ]
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 160]]
             ]),
-            YulStmt.let_ "__midnight_store_array_ptr"
-              (YulExpr.call "mload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 32]]),
+            YulStmt.let_ "__midnight_store_collateral_offset" (YulExpr.call "add" [
+              marketDataOffset,
+              YulExpr.call "calldataload" [YulExpr.call "add" [marketDataOffset, YulExpr.lit 32]]
+            ]),
             YulStmt.let_ "__midnight_store_collateral_length"
-              (YulExpr.call "mload" [arrayPtr]),
+              (YulExpr.call "calldataload" [collateralOffset]),
             YulStmt.let_ "__midnight_store_collateral_bytes"
               (YulExpr.call "mul" [length, YulExpr.lit 128]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [tuplePtr, YulExpr.lit 192],
               length
             ]),
-            YulStmt.let_ "__midnight_store_dst"
-              (YulExpr.call "add" [tuplePtr, YulExpr.lit 224]),
-            YulStmt.let_ "__midnight_store_src_ptr"
-              (YulExpr.call "add" [arrayPtr, YulExpr.lit 32]),
-            YulStmt.let_ "__midnight_store_src_end"
-              (YulExpr.call "add" [srcPtr, YulExpr.call "mul" [length, YulExpr.lit 32]]),
-            YulStmt.for_ [] (YulExpr.call "lt" [srcPtr, srcEnd])
-              [YulStmt.assign "__midnight_store_src_ptr"
-                (YulExpr.call "add" [srcPtr, YulExpr.lit 32])]
-              [
-                YulStmt.let_ "__midnight_store_item_ptr" (YulExpr.call "mload" [srcPtr]),
-                YulStmt.expr (YulExpr.call "mstore" [
-                  dst,
-                  YulExpr.call "and" [
-                    YulExpr.call "mload" [itemPtr],
-                    YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
-                  ]
-                ]),
-                YulStmt.expr (YulExpr.call "mstore" [
-                  YulExpr.call "add" [dst, YulExpr.lit 32],
-                  YulExpr.call "mload" [YulExpr.call "add" [itemPtr, YulExpr.lit 32]]
-                ]),
-                YulStmt.expr (YulExpr.call "mstore" [
-                  YulExpr.call "add" [dst, YulExpr.lit 64],
-                  YulExpr.call "mload" [YulExpr.call "add" [itemPtr, YulExpr.lit 64]]
-                ]),
-                YulStmt.expr (YulExpr.call "mstore" [
-                  YulExpr.call "add" [dst, YulExpr.lit 96],
-                  YulExpr.call "and" [
-                    YulExpr.call "mload" [YulExpr.call "add" [itemPtr, YulExpr.lit 96]],
-                    YulExpr.hex 0xffffffffffffffffffffffffffffffffffffffff
-                  ]
-                ]),
-                YulStmt.assign "__midnight_store_dst"
-                  (YulExpr.call "add" [dst, YulExpr.lit 128])
-              ],
+            YulStmt.expr (YulExpr.call "calldatacopy" [
+              YulExpr.call "add" [tuplePtr, YulExpr.lit 224],
+              YulExpr.call "add" [collateralOffset, YulExpr.lit 32],
+              collateralBytes
+            ]),
             YulStmt.let_ "__midnight_store_abi_length"
               (YulExpr.call "add" [YulExpr.lit 256, collateralBytes]),
             YulStmt.let_ "__midnight_store_initcode_length"
@@ -2877,7 +2835,7 @@ verity_contract Midnight where
     else
       return b
 
-  function validateCollateralParams (collateralParams : Array CollateralParams) : Unit := do
+  function validateCollateralParams (collateralParams : Array CollateralParams) : Bool := do
     let collateralCount := arrayLength collateralParams
     requireError (collateralCount > ZERO) NoCollateralParams()
     requireError (collateralCount <= MAX_COLLATERALS) TooManyCollateralParams()
@@ -2893,6 +2851,7 @@ verity_contract Midnight where
       let lif := (arrayElement collateralParams i).maxLif
       requireError (lif == lowMaxLif || lif == highMaxLif) InvalidMaxLif()
       previousCollateralToken := collateralToken)
+    return true
 
   function countBits128 (bitmap : Uint256) : Uint256 := do
     let mut count := ZERO
@@ -3243,7 +3202,7 @@ verity_contract Midnight where
     if currentTickSpacing == ZERO then
       let now ← blockTimestamp
       requireError (market.maturity <= add now HUNDRED_YEARS) MaturityTooFar()
-      validateCollateralParams market.collateralParams
+      let _collateralParamsValid ← validateCollateralParams market.collateralParams
       let salt ← getStorage initialChainIdSlot
       let _marketPointer ← ecmCall (fun resultVar => storeMarketInCodeModule resultVar)
         [salt]

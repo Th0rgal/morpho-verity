@@ -361,7 +361,7 @@ object "Midnight" {
                 }
             }
         }
-        function internal_internal_validateCollateralParams(collateralParams_data_offset, collateralParams_length) {
+        function internal_internal_validateCollateralParams(collateralParams_data_offset, collateralParams_length) -> __ret0 {
             let collateralCount := collateralParams_length
             if iszero(gt(collateralCount, 0)) {
                 {
@@ -435,7 +435,8 @@ object "Midnight" {
                 }
                 previousCollateralToken := collateralToken
             }
-            stop()
+            __ret0 := 1
+            leave
         }
         function internal_internal_countBits128(bitmap) -> __ret0 {
             let count := 0
@@ -1314,7 +1315,7 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
-                internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
+                let _collateralParamsValid := internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
                 let salt := sload(1024)
                 let _marketPointer := 0
                 {
@@ -1322,30 +1323,17 @@ object "Midnight" {
                     mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
                     mstore(add(__midnight_store_ptr, 11), 32)
                     let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
-                    mstore(__midnight_store_tuple_ptr, and(mload(market_data_offset), 0xffffffffffffffffffffffffffffffffffffffff))
+                    mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
                     mstore(add(__midnight_store_tuple_ptr, 32), 192)
-                    mstore(add(__midnight_store_tuple_ptr, 64), mload(add(market_data_offset, 64)))
-                    mstore(add(__midnight_store_tuple_ptr, 96), mload(add(market_data_offset, 96)))
-                    mstore(add(__midnight_store_tuple_ptr, 128), and(mload(add(market_data_offset, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
-                    mstore(add(__midnight_store_tuple_ptr, 160), and(mload(add(market_data_offset, 160)), 0xffffffffffffffffffffffffffffffffffffffff))
-                    let __midnight_store_array_ptr := mload(add(market_data_offset, 32))
-                    let __midnight_store_collateral_length := mload(__midnight_store_array_ptr)
+                    mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                    mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                    mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                    mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                    let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                    let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
                     let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
                     mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
-                    let __midnight_store_dst := add(__midnight_store_tuple_ptr, 224)
-                    let __midnight_store_src_ptr := add(__midnight_store_array_ptr, 32)
-                    let __midnight_store_src_end := add(__midnight_store_src_ptr, mul(__midnight_store_collateral_length, 32))
-                    for {
-                    } lt(__midnight_store_src_ptr, __midnight_store_src_end) {
-                        __midnight_store_src_ptr := add(__midnight_store_src_ptr, 32)
-                    } {
-                        let __midnight_store_item_ptr := mload(__midnight_store_src_ptr)
-                        mstore(__midnight_store_dst, and(mload(__midnight_store_item_ptr), 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(__midnight_store_dst, 32), mload(add(__midnight_store_item_ptr, 32)))
-                        mstore(add(__midnight_store_dst, 64), mload(add(__midnight_store_item_ptr, 64)))
-                        mstore(add(__midnight_store_dst, 96), and(mload(add(__midnight_store_item_ptr, 96)), 0xffffffffffffffffffffffffffffffffffffffff))
-                        __midnight_store_dst := add(__midnight_store_dst, 128)
-                    }
+                    calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                     let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                     let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
                     _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
@@ -5243,7 +5231,7 @@ object "Midnight" {
                     }
                 }
             }
-            function internal_internal_validateCollateralParams(collateralParams_data_offset, collateralParams_length) {
+            function internal_internal_validateCollateralParams(collateralParams_data_offset, collateralParams_length) -> __ret0 {
                 let collateralCount := collateralParams_length
                 if iszero(gt(collateralCount, 0)) {
                     {
@@ -5317,7 +5305,8 @@ object "Midnight" {
                     }
                     previousCollateralToken := collateralToken
                 }
-                stop()
+                __ret0 := 1
+                leave
             }
             function internal_internal_countBits128(bitmap) -> __ret0 {
                 let count := 0
@@ -6196,7 +6185,7 @@ object "Midnight" {
                             revert(0, add(4, __err_tail))
                         }
                     }
-                    internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
+                    let _collateralParamsValid := internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
                     let salt := sload(1024)
                     let _marketPointer := 0
                     {
@@ -6204,30 +6193,17 @@ object "Midnight" {
                         mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
                         mstore(add(__midnight_store_ptr, 11), 32)
                         let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
-                        mstore(__midnight_store_tuple_ptr, and(mload(market_data_offset), 0xffffffffffffffffffffffffffffffffffffffff))
+                        mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
                         mstore(add(__midnight_store_tuple_ptr, 32), 192)
-                        mstore(add(__midnight_store_tuple_ptr, 64), mload(add(market_data_offset, 64)))
-                        mstore(add(__midnight_store_tuple_ptr, 96), mload(add(market_data_offset, 96)))
-                        mstore(add(__midnight_store_tuple_ptr, 128), and(mload(add(market_data_offset, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
-                        mstore(add(__midnight_store_tuple_ptr, 160), and(mload(add(market_data_offset, 160)), 0xffffffffffffffffffffffffffffffffffffffff))
-                        let __midnight_store_array_ptr := mload(add(market_data_offset, 32))
-                        let __midnight_store_collateral_length := mload(__midnight_store_array_ptr)
+                        mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                        mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                        mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                        mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                        let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                        let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
                         let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
                         mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
-                        let __midnight_store_dst := add(__midnight_store_tuple_ptr, 224)
-                        let __midnight_store_src_ptr := add(__midnight_store_array_ptr, 32)
-                        let __midnight_store_src_end := add(__midnight_store_src_ptr, mul(__midnight_store_collateral_length, 32))
-                        for {
-                        } lt(__midnight_store_src_ptr, __midnight_store_src_end) {
-                            __midnight_store_src_ptr := add(__midnight_store_src_ptr, 32)
-                        } {
-                            let __midnight_store_item_ptr := mload(__midnight_store_src_ptr)
-                            mstore(__midnight_store_dst, and(mload(__midnight_store_item_ptr), 0xffffffffffffffffffffffffffffffffffffffff))
-                            mstore(add(__midnight_store_dst, 32), mload(add(__midnight_store_item_ptr, 32)))
-                            mstore(add(__midnight_store_dst, 64), mload(add(__midnight_store_item_ptr, 64)))
-                            mstore(add(__midnight_store_dst, 96), and(mload(add(__midnight_store_item_ptr, 96)), 0xffffffffffffffffffffffffffffffffffffffff))
-                            __midnight_store_dst := add(__midnight_store_dst, 128)
-                        }
+                        calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                         let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                         let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
                         _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
@@ -10163,7 +10139,8 @@ object "Midnight" {
                             }
                             previousCollateralToken := collateralToken
                         }
-                        stop()
+                        mstore(0, 1)
+                        return(0, 32)
                     }
                     case 0x2d91f55a {
                         /* countBits128() */
@@ -11332,7 +11309,7 @@ object "Midnight" {
                                     revert(0, add(4, __err_tail))
                                 }
                             }
-                            internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
+                            let _collateralParamsValid := internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
                             let salt := sload(1024)
                             let _marketPointer := 0
                             {
@@ -11340,30 +11317,17 @@ object "Midnight" {
                                 mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
                                 mstore(add(__midnight_store_ptr, 11), 32)
                                 let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
-                                mstore(__midnight_store_tuple_ptr, and(mload(market_data_offset), 0xffffffffffffffffffffffffffffffffffffffff))
+                                mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
                                 mstore(add(__midnight_store_tuple_ptr, 32), 192)
-                                mstore(add(__midnight_store_tuple_ptr, 64), mload(add(market_data_offset, 64)))
-                                mstore(add(__midnight_store_tuple_ptr, 96), mload(add(market_data_offset, 96)))
-                                mstore(add(__midnight_store_tuple_ptr, 128), and(mload(add(market_data_offset, 128)), 0xffffffffffffffffffffffffffffffffffffffff))
-                                mstore(add(__midnight_store_tuple_ptr, 160), and(mload(add(market_data_offset, 160)), 0xffffffffffffffffffffffffffffffffffffffff))
-                                let __midnight_store_array_ptr := mload(add(market_data_offset, 32))
-                                let __midnight_store_collateral_length := mload(__midnight_store_array_ptr)
+                                mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                                mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                                mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                                mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                                let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                                let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
                                 let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
                                 mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
-                                let __midnight_store_dst := add(__midnight_store_tuple_ptr, 224)
-                                let __midnight_store_src_ptr := add(__midnight_store_array_ptr, 32)
-                                let __midnight_store_src_end := add(__midnight_store_src_ptr, mul(__midnight_store_collateral_length, 32))
-                                for {
-                                } lt(__midnight_store_src_ptr, __midnight_store_src_end) {
-                                    __midnight_store_src_ptr := add(__midnight_store_src_ptr, 32)
-                                } {
-                                    let __midnight_store_item_ptr := mload(__midnight_store_src_ptr)
-                                    mstore(__midnight_store_dst, and(mload(__midnight_store_item_ptr), 0xffffffffffffffffffffffffffffffffffffffff))
-                                    mstore(add(__midnight_store_dst, 32), mload(add(__midnight_store_item_ptr, 32)))
-                                    mstore(add(__midnight_store_dst, 64), mload(add(__midnight_store_item_ptr, 64)))
-                                    mstore(add(__midnight_store_dst, 96), and(mload(add(__midnight_store_item_ptr, 96)), 0xffffffffffffffffffffffffffffffffffffffff))
-                                    __midnight_store_dst := add(__midnight_store_dst, 128)
-                                }
+                                calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                                 let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                                 let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
                                 _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)

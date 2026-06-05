@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch the Morpho Midnight test harness to honor MIDNIGHT_IMPL."""
+"""Patch the Morpho Midnight deployment harness to honor MIDNIGHT_IMPL."""
 
 from __future__ import annotations
 
@@ -38,34 +38,6 @@ BASE_TEST_HELPER = """    function _deployMidnight() internal returns (Midnight)
 
 """
 BASE_TEST_DEPLOY_STILL_HARDCODED = "midnight = new Midnight();"
-BASE_TEST_OLD_VERITY_MARKET_STATE_SLOT = (
-    "        bytes32 packedSlot = bytes32(uint256(keccak256(abi.encode(id, uint256(10)))) + 2);\n"
-)
-BASE_TEST_NEW_VERITY_MARKET_STATE_SLOT = (
-    "        bytes32 packedSlot = bytes32(uint256(keccak256(abi.encode(id, uint256(1)))) + 2);\n"
-)
-BASE_TEST_SCAFFOLD_TO_ID = """    function toId(Market memory market) internal view returns (bytes32) {
-        if (_verityImpl() && (market.enterGate != address(0) || market.liquidatorGate != address(0))) {
-            return IdLib.toId(market, block.chainid, address(midnight));
-        }
-        if (_verityImpl()) return bytes32(market.maturity);
-        return IdLib.toId(market, block.chainid, address(midnight));
-    }
-"""
-BASE_TEST_EXACT_TO_ID = """    function toId(Market memory market) internal view returns (bytes32) {
-        return IdLib.toId(market, block.chainid, address(midnight));
-    }
-"""
-LIQUIDATION_OLD_VERITY_POSITION_SLOT = "        uint256 mappingSlot = _verityImpl() ? 11 : 0;\n"
-LIQUIDATION_NEW_VERITY_POSITION_SLOT = "        uint256 mappingSlot = 0;\n"
-DIRECT_TOUCH_MARKET_REPLACEMENTS = (
-    ("test/SettlementFeeTest.sol", "midnight.touchMarket(market)", "touchMarket(market)"),
-    ("test/TakeAmountsTest.sol", "midnight.touchMarket(market)", "touchMarket(market)"),
-    ("test/TakeTest.sol", "midnight.touchMarket(market)", "touchMarket(market)"),
-    ("test/MidnightBundlesTest.sol", "midnight.touchMarket(market)", "touchMarket(market)"),
-    ("test/LiquidationTest.sol", "midnight.touchMarket(market)", "touchMarket(market)"),
-    ("test/TickGatingTest.sol", "midnight.touchMarket(market)", "touchMarket(market)"),
-)
 FOUNDRY_PROFILE = """[profile.difftest]
 fs_permissions = [
   { access = "read", path = "test/ticks_exact.json" },
@@ -95,18 +67,6 @@ def _patch_base_test(text: str) -> tuple[str, bool]:
         updated = updated.replace(legacy_console, "", 1)
         changed = True
 
-    if BASE_TEST_OLD_VERITY_MARKET_STATE_SLOT in updated:
-        updated = updated.replace(
-            BASE_TEST_OLD_VERITY_MARKET_STATE_SLOT,
-            BASE_TEST_NEW_VERITY_MARKET_STATE_SLOT,
-            1,
-        )
-        changed = True
-
-    if BASE_TEST_SCAFFOLD_TO_ID in updated:
-        updated = updated.replace(BASE_TEST_SCAFFOLD_TO_ID, BASE_TEST_EXACT_TO_ID, 1)
-        changed = True
-
     while updated.count(BASE_TEST_HELPER) > 1:
         first = updated.find(BASE_TEST_HELPER)
         second = updated.find(BASE_TEST_HELPER, first + len(BASE_TEST_HELPER))
@@ -114,22 +74,6 @@ def _patch_base_test(text: str) -> tuple[str, bool]:
         changed = True
 
     return updated, changed
-
-
-def _patch_liquidation_test(text: str) -> tuple[str, bool]:
-    if LIQUIDATION_OLD_VERITY_POSITION_SLOT not in text:
-        return text, False
-    return text.replace(
-        LIQUIDATION_OLD_VERITY_POSITION_SLOT,
-        LIQUIDATION_NEW_VERITY_POSITION_SLOT,
-        1,
-    ), True
-
-
-def _patch_direct_touch_market(text: str, old: str, new: str) -> tuple[str, bool]:
-    if old not in text:
-        return text, False
-    return text.replace(old, new), True
 
 
 def _patch_foundry_toml(text: str) -> tuple[str, bool]:
@@ -156,17 +100,6 @@ def _base_test_errors(text: str) -> list[str]:
         errors.append("BaseTest.sol does not route setUp() through _deployMidnight().")
     if BASE_TEST_DEPLOY_STILL_HARDCODED in text:
         errors.append("BaseTest.sol still hardcodes Midnight deployment in setUp().")
-    if BASE_TEST_OLD_VERITY_MARKET_STATE_SLOT in text:
-        errors.append("BaseTest.sol still seeds Verity marketState at the legacy slot 10.")
-    if BASE_TEST_SCAFFOLD_TO_ID in text:
-        errors.append("BaseTest.sol still returns the legacy Verity scaffold market id.")
-    return errors
-
-
-def _liquidation_test_errors(text: str) -> list[str]:
-    errors: list[str] = []
-    if LIQUIDATION_OLD_VERITY_POSITION_SLOT in text:
-        errors.append("LiquidationTest.sol still writes Verity position debt at the legacy slot 11.")
     return errors
 
 
@@ -190,15 +123,6 @@ def validate_repo(root: pathlib.Path) -> list[str]:
     else:
         errors.extend(_base_test_errors(base_test.read_text(encoding="utf-8")))
 
-    liquidation_test = root / "morpho-midnight" / "test" / "LiquidationTest.sol"
-    if liquidation_test.is_file():
-        errors.extend(_liquidation_test_errors(liquidation_test.read_text(encoding="utf-8")))
-
-    for rel_path, old, _new in DIRECT_TOUCH_MARKET_REPLACEMENTS:
-        test_file = root / "morpho-midnight" / rel_path
-        if test_file.is_file() and old in test_file.read_text(encoding="utf-8"):
-            errors.append(f"{rel_path} still calls midnight.touchMarket directly instead of the harness helper.")
-
     foundry_toml = root / "morpho-midnight" / "foundry.toml"
     if not foundry_toml.is_file():
         errors.append(f"Missing Foundry config: {foundry_toml.relative_to(root)}")
@@ -214,18 +138,6 @@ def patch_repo(root: pathlib.Path) -> list[str]:
     base_test = root / "morpho-midnight" / "test" / "BaseTest.sol"
     if base_test.is_file() and _patch_file(base_test, _patch_base_test):
         changes.append(str(base_test.relative_to(root)))
-
-    liquidation_test = root / "morpho-midnight" / "test" / "LiquidationTest.sol"
-    if liquidation_test.is_file() and _patch_file(liquidation_test, _patch_liquidation_test):
-        changes.append(str(liquidation_test.relative_to(root)))
-
-    for rel_path, old, new in DIRECT_TOUCH_MARKET_REPLACEMENTS:
-        test_file = root / "morpho-midnight" / rel_path
-        if test_file.is_file() and _patch_file(
-            test_file,
-            lambda text, old=old, new=new: _patch_direct_touch_market(text, old, new),
-        ):
-            changes.append(str(test_file.relative_to(root)))
 
     foundry_toml = root / "morpho-midnight" / "foundry.toml"
     if foundry_toml.is_file() and _patch_file(foundry_toml, _patch_foundry_toml):
@@ -243,7 +155,7 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 2
     if changes:
-        print("Patched Morpho Midnight harness for MIDNIGHT_IMPL parity:")
+        print("Patched Morpho Midnight deployment harness for MIDNIGHT_IMPL parity:")
         for path in changes:
             print(f"- {path}")
     else:
