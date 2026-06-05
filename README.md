@@ -45,7 +45,7 @@ The parity target is pinned in `config/parity-target.json`. The target tuple is
 checked against `morpho-blue/foundry.toml`. The latest local parity evidence in
 this workspace is green: both `out/parity/morpho_blue_solidity.log` and
 `out/parity/morpho_blue_verity.log` report 145 passing tests, 0 failures, and 0
-skipped on 2026-06-02 10:10 UTC. The mechanical review manifest is
+skipped on 2026-06-05 17:54 Europe/Berlin. The mechanical review manifest is
 `MORPH_BLUE_MAPPING.md`.
 
 ## Verify Morpho Midnight

@@ -1,7 +1,8 @@
 # Morpho Blue Mapping
 
 Mechanical manifest for the active Morpho Blue parity target. The test status
-below refers to the local parity run in `out/parity/` on 2026-06-02 10:10 UTC:
+below refers to the local parity run in `out/parity/` on
+2026-06-05 17:54 Europe/Berlin:
 `morpho_blue_solidity.log` and `morpho_blue_verity.log` both report 145 passing
 tests, 0 failures, 0 skipped.
 

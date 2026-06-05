@@ -1,10 +1,13 @@
 # Midnight Verity Faithfulness Report
 
-Status date: 2026-06-04
+Status date: 2026-06-05
 
-Reviewed Morpho state: PR branch `repo-structure-morpho-separation` after the Midnight source-faithfulness follow-up.
+Reviewed Morpho state: PR branch `repo-structure-morpho-separation` after the Midnight source-faithfulness follow-up and Blue trust-boundary cleanup.
 
-Reviewed Verity source: `lfglabs-dev/verity` `main` after PR #1945 was merged.
+Reviewed Verity source: pinned dependency `https://github.com/Th0rgal/verity.git`
+at `c02c2c15c2ba536a71c993b7a086fee6a5a8e7e6`, which contains the
+PR #1949 internal-helper and typed-interface surfaces, plus the ABI-frame,
+linked-external, and code-as-data surfaces used by this repository.
 
 ## Executive Summary
 
@@ -77,17 +80,27 @@ Solidity:
 
 Current Verity source:
 
-- `toId` returns `market.maturity`.
-- `touchMarket` and `toMarket` now use source-level CREATE2/SSTORE2 ECMs, but
-  the exact `SSTORE2_PREFIX ++ abi.encode(market)` initcode layout and return
-  decoding are still ECM trust-surface obligations.
-- `toMarket` still checks `marketState[id].tickSpacing > 0` and returns `Unit`;
-  it does not reconstruct the full `Market` value in source.
+- `toId` calls `marketIdModule`, which reconstructs the Solidity
+  `IdLib.toId(market, INITIAL_CHAIN_ID, address(this))` preimage over calldata
+  market fields, the SSTORE2 initcode prefix, chain id, and contract address.
+- `touchMarket` calls `storeMarketInCodeModule`, which emits the CREATE2/SSTORE2
+  market payload directly from Verity-generated Yul rather than a
+  Midnight-specific artifact patch.
+- `toMarket` checks `marketState[id].tickSpacing > 0` and then returns the
+  code-backed payload through `marketReturnFromCodeModule`; dynamic `Market`
+  return typing is still represented by a low-level return ECM instead of an
+  ordinary source-level `return market`.
 
-This is the single clearest sign that the source is not yet faithful. A reviewer
-reading `Midnight/Contract.lean` now sees the low-level CREATE2/SSTORE2
-boundaries, but does not yet see the full `IdLib` preimage construction or
-dynamic market return decoder as ordinary Verity source.
+The boundary is therefore narrower than the earlier scaffold, but still real:
+the exact `SSTORE2_PREFIX ++ abi.encode(market)` initcode layout, CREATE2
+address derivation, runtime payload decoding, and dynamic return payload remain
+ECM trust-surface obligations.
+
+This is still one of the clearest remaining source-faithfulness gaps. A
+reviewer reading `Midnight/Contract.lean` now sees the real low-level
+CREATE2/SSTORE2 algorithm at the call boundary, but does not yet see the full
+`IdLib` preimage construction or dynamic market return decoder as ordinary
+typed Verity source.
 
 Needed:
 
@@ -458,9 +471,12 @@ Why Midnight needs it:
 
 Implementation sketch:
 
-1. Add low-level primitives for `create2`, `extcodecopy`, and `mstore8`.
-2. Extend the standard SSTORE2 module from source-level mechanics to typed
-   market initcode/decode helpers.
+1. Extend `Compiler.Modules.CodeData` from a typed lowering primitive into a
+   source-level `CodeData.store[Market]` / `CodeData.read[Market]` surface that
+   can express the current Midnight market payload without protocol-specific ECM
+   Yul.
+2. Add typed support for the dynamic `Market.collateralParams` array in
+   `abi.encode(market)`.
 3. Keep Midnight artifact generation free of protocol-specific Yul patches.
 4. Prove the generated helper matches the SSTORE2 prefix and address formula.
 

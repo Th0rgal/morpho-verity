@@ -19,6 +19,20 @@ dependency set explicit. That dependency set is empty: `keccakMarketParams`,
 through Verity ECM modules. CI enforces this boundary through
 `scripts/check_morpho_artifact_boundary.py`.
 
+## Verity Dependency Pin
+
+The Morpho packages are pinned through `lakefile.lean` and
+`lake-manifest.json` to:
+
+- repository: `https://github.com/Th0rgal/verity.git`
+- revision: `c02c2c15c2ba536a71c993b7a086fee6a5a8e7e6`
+
+That revision includes the source-faithfulness features this branch relies on:
+source-level internal functions, typed interface calls, ABI-frame lowering,
+typed linked-external declarations, standard ERC-20/callback ECMs, and
+CREATE2/SSTORE2 code-as-data modules. `scripts/check_verity_pin_sync.py` fails
+closed if the Lake manifest and lakefile disagree about this pin.
+
 ## Local Obligations
 
 The macro contract names local obligations at usage sites where Morpho still
@@ -26,11 +40,23 @@ crosses a low-level or external boundary:
 
 | Local obligation | Usage |
 |------------------|-------|
-| `set_authorization_event` | `SetAuthorization` raw-log memory encoding in `setAuthorization`. |
 | `authorization_post_ecrecover_write` | Intentional nonce increment before signature recovery and authorization write after ecrecover, matching Solidity ordering. |
 | `create_market_irm_init` | Post-create IRM initialization call in `createMarket`. |
 | `supply_callback`, `repay_callback`, `supply_collateral_callback`, `liquidate_callback` | Morpho callback ordering plus token transfer mechanics around the callback boundary. |
 | `flash_loan_transfers` | Flash-loan token transfer and callback mechanics. |
+
+## Retained Morpho Blue ECMs
+
+The Blue contract keeps ECMs only where the current source-level surface would
+either change Morpho v1 behavior or hide lower-level Solidity mechanics:
+
+| ECM axiom | Solidity construct represented | Why it remains an ECM |
+|-----------|--------------------------------|------------------------|
+| `morpho_safe_transfer_interface` | `SafeTransferLib.safeTransfer` in `morpho-blue/src/libraries/SafeTransferLib.sol`. | Morpho requires `code.length > 0` and exact revert strings (`"no code"`, `"transfer reverted"`, `"transfer returned false"`). The standard Verity Solmate helper intentionally accepts empty returndata without the Morpho code-length guard and uses different failure payloads. |
+| `morpho_safe_transfer_from_interface` | `SafeTransferLib.safeTransferFrom`. | Same reason as `safeTransfer`, with Morpho's `transferFrom`-specific revert strings. |
+| `optional_callback_target_interface` | `IMorphoSupplyCallback`, `IMorphoRepayCallback`, `IMorphoSupplyCollateralCallback`, and `IMorphoLiquidateCallback` guarded by `data.length > 0`. | The call mechanics are source-ordered and selector-specific, but callback target behavior and dynamic `bytes` forwarding remain an external ABI boundary. |
+| `oracle_read_uint256_interface` | `IIrm.borrowRate(...)` / `borrowRateView(...)`-shaped single-word reads. | `IOracle.price()` is now expressed as a typed Verity interface call. IRM calls still use the current Verity helper because the exact Morpho Blue struct ABI selector and mock behavior need a dedicated source-level interface path. |
+| Hashing ECM assumptions from `Compiler.Modules.Hashing` | `keccak256(abi.encode(...))` for EIP-712 and `MarketParamsLib.id`. | Static ABI Keccak is source-shaped in the contract but remains a compiler/EVM trust-report boundary until the proof stack models memory-slice Keccak completely. |
 
 ## Still Assumed At The Current Pin
 

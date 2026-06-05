@@ -947,7 +947,11 @@ theorem storagePreserving_isHealthy
   intro borrowShares_
   by_cases hborrow : borrowShares_ > ZERO
   · simp [hborrow]
-    exact storagePreserving_isHealthyWithPrice mp id borrower 0
+    apply StoragePreserving.bind
+    · unfold _oraclePrice
+      exact StoragePreserving.pure _
+    · intro collateralPrice
+      exact storagePreserving_isHealthyWithPrice mp id borrower collateralPrice
   · simp [hborrow]
     exact StoragePreserving.pure _
 

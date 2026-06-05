@@ -7,7 +7,7 @@ namespace Morpho.Compiler.ArtifactConfig
 open Compiler.CompilationModel
 
 private def internalHelperExternalNames : List String :=
-  ["_accrueInterest", "_isSenderAuthorized", "_isHealthy", "_isHealthyWithPrice"]
+  ["_marketParamsId", "_accrueInterest", "_isSenderAuthorized", "_isHealthy", "_isHealthyWithPrice"]
 
 /--
 Artifact packaging for the canonical Morpho contract.

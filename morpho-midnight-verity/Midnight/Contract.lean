@@ -19,6 +19,9 @@ open Compiler.Yul
 open Contracts (emit)
 
 def multicallDelegateModule : Compiler.ECM.ExternalCallModule where
+  -- Midnight.sol `multicall(bytes[])`: retained as an ECM for calldata
+  -- bytes-array traversal, self-delegatecall storage context, and revert-data
+  -- bubbling until those low-level mechanics have a typed source surface.
   name := "midnightMulticallDelegate"
   numArgs := 0
   resultVars := []
@@ -91,6 +94,8 @@ def multicallDelegateModule : Compiler.ECM.ExternalCallModule where
         throw s!"midnightMulticallDelegate expects 0 arguments, got {args.length}"
 
 def tickToPriceModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  -- TickLib.tickToPrice exact arithmetic Yul. This stays localized until the
+  -- fixed-point approximation is ported as an ordinary Verity library.
   name := "midnightTickToPrice"
   numArgs := 1
   resultVars := [resultVar]
@@ -172,6 +177,9 @@ def tickToPriceModule (resultVar : String) : Compiler.ECM.ExternalCallModule whe
         throw s!"midnightTickToPrice expects 1 argument, got {args.length}"
 
 def flashLoanCallbackModule : Compiler.ECM.ExternalCallModule where
+  -- onMorphoFlashLoan callback ABI for dynamic token/amount arrays and bytes.
+  -- The source call order is explicit; nested dynamic payload encoding is the
+  -- retained trust boundary.
   name := "midnightFlashLoanCallback"
   numArgs := 2
   resultVars := []
@@ -270,6 +278,8 @@ def flashLoanCallbackModule : Compiler.ECM.ExternalCallModule where
         throw s!"midnightFlashLoanCallback expects 2 arguments, got {args.length}"
 
 def liquidateCallbackModule : Compiler.ECM.ExternalCallModule where
+  -- onMorphoLiquidate callback ABI with Market and bytes payload forwarding.
+  -- Kept as an ECM until nested dynamic Market calldata can be typed end to end.
   name := "midnightLiquidateCallback"
   numArgs := 9
   resultVars := []
@@ -431,6 +441,8 @@ def liquidateCallbackModule : Compiler.ECM.ExternalCallModule where
         throw s!"midnightLiquidateCallback expects 9 arguments, got {args.length}"
 
 def ratifierCallbackModule : Compiler.ECM.ExternalCallModule where
+  -- Ratifier call over Offer plus ratifierData bytes. The call site preserves
+  -- source ordering; dynamic Offer/bytes ABI layout remains byte-level ECM work.
   name := "midnightRatifierCallback"
   numArgs := 1
   resultVars := []
@@ -643,6 +655,8 @@ def ratifierCallbackModule : Compiler.ECM.ExternalCallModule where
         throw s!"midnightRatifierCallback expects 1 argument, got {args.length}"
 
 def buyCallbackModule (useOfferData : Bool) : Compiler.ECM.ExternalCallModule where
+  -- Buy-side callback ABI. `useOfferData` selects the same offer/taker callback
+  -- data branch as Solidity; dynamic Market/bytes layout remains an ECM.
   name := if useOfferData then "midnightBuyOfferCallback" else "midnightBuyTakerCallback"
   numArgs := 6
   resultVars := []
@@ -792,6 +806,8 @@ def buyCallbackModule (useOfferData : Bool) : Compiler.ECM.ExternalCallModule wh
         throw s!"midnightBuyCallback expects 6 arguments, got {args.length}"
 
 def repayCallbackModule : Compiler.ECM.ExternalCallModule where
+  -- Repay callback ABI with Market and bytes forwarding; retained until the
+  -- callback interface can be generated from typed nested ABI declarations.
   name := "midnightRepayCallback"
   numArgs := 4
   resultVars := []
@@ -1092,6 +1108,8 @@ def takeEventEmitFromMemoryModule : Compiler.ECM.ExternalCallModule where
         throw s!"midnightTakeEventEmitFromMemory expects 1 argument, got {args.length}"
 
 def sellCallbackModule (useOfferData : Bool) : Compiler.ECM.ExternalCallModule where
+  -- Sell-side callback ABI. `useOfferData` mirrors Solidity's offer/taker data
+  -- branch; dynamic Market/bytes layout remains an ECM boundary.
   name := if useOfferData then "midnightSellOfferCallback" else "midnightSellTakerCallback"
   numArgs := 8
   resultVars := []
@@ -1443,6 +1461,9 @@ def offerMarketIsHealthyModule (resultVar : String) : Compiler.ECM.ExternalCallM
     | _ => throw s!"midnightOfferMarketIsHealthy expects 2 args, got {args.length}"
 
 def marketIdModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  -- IdLib.toId over `SSTORE2_PREFIX ++ abi.encode(market)`. This implements the
+  -- real preimage, but remains an ECM until CodeData/ABI frames can express the
+  -- dynamic Market payload as typed source.
   name := "midnightMarketId"
   numArgs := 2
   resultVars := [resultVar]
@@ -1578,6 +1599,9 @@ def marketIdAtOffsetModule (resultVar : String) : Compiler.ECM.ExternalCallModul
     (marketIdModule resultVar).compile ctx args
 
 def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  -- IdLib.storeInCode / touchMarket CREATE2-SSTORE2 storage. The emitted Yul is
+  -- the source algorithm; typed `CodeData.store[Market]` is the intended
+  -- replacement when dynamic Market payload frames are available.
   name := "midnightStoreMarketInCode"
   numArgs := 1
   resultVars := [resultVar]
@@ -1682,6 +1706,8 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
         throw s!"midnightStoreMarketInCode expects 1 argument, got {args.length}"
 
 def marketFromCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  -- SSTORE2 runtime-code decode for Market payloads. Kept separate from source
+  -- getters until dynamic Market decoding can return typed values directly.
   name := "midnightMarketFromCode"
   numArgs := 1
   resultVars := [resultVar]
@@ -1846,6 +1872,9 @@ def marketFromCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModule 
         throw s!"midnightMarketFromCode expects 1 argument, got {args.length}"
 
 def marketReturnFromCodeModule : Compiler.ECM.ExternalCallModule where
+  -- toMarket(id) dynamic return payload. Verity currently returns the exact
+  -- runtime code bytes directly; a typed `CodeData.read[Market]` return is the
+  -- future source-level replacement.
   name := "midnightMarketReturnFromCode"
   numArgs := 1
   resultVars := []

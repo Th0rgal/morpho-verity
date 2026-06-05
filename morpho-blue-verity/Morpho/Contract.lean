@@ -84,6 +84,8 @@ private def requireOptionalBool (returnPtr : YulExpr) (onFalse : List YulStmt) :
 ]
 
 def safeTransferModule : ExternalCallModule where
+  -- Morpho Blue's `SafeTransferLib.safeTransfer`: exact code-length guard and
+  -- revert strings are not the same as Verity's standard Solmate helper.
   name := "morphoSafeTransfer"
   numArgs := 3
   writesState := true
@@ -115,6 +117,8 @@ def safeTransferModule : ExternalCallModule where
       ] ++ requireOptionalBool (YulExpr.ident "__mst_ptr") revertTransferReturnedFalse)]
 
 def safeTransferFromModule : ExternalCallModule where
+  -- Morpho Blue's `SafeTransferLib.safeTransferFrom`: retained as a
+  -- source-faithful ECM for exact optional-return and revert-string behavior.
   name := "morphoSafeTransferFrom"
   numArgs := 4
   writesState := true
@@ -154,6 +158,8 @@ open Compiler.Yul
 open Compiler.ECM
 
 def optionalCallbackModule (selector : Nat) (numStaticArgs : Nat) (bytesParam : String) : ExternalCallModule where
+  -- Morpho callback interfaces dispatch only when the source `bytes data`
+  -- parameter is non-empty; the ABI call itself remains an ECM boundary.
   name := "optionalCallback"
   numArgs := 1 + numStaticArgs
   writesState := true
@@ -277,6 +283,11 @@ verity_contract Morpho where
 
   constants
     ZERO : Uint256 := 0
+
+  interfaces
+    interface IOracle where
+      function price() view returns (Uint256)
+    end
 
   constructor (initialOwner : Address) := do
     require (initialOwner != 0) "zero address"
@@ -467,17 +478,18 @@ verity_contract Morpho where
     setMapping2 isAuthorizedSlot authorizer authorized isAuthorizedWord
     emit "SetAuthorization" [sender, authorizer, authorized, newIsAuthorized]
 
-  function allow_post_interaction_writes createMarket (marketParams : MarketParams) local_obligations [create_market_irm_init := assumed "Morpho.sol initializes stateful IRMs with a post-create borrowRate call; caller must verify the IRM call ABI and returned rate boundary."] : Unit := do
-    let _ignoredMarketParams := marketParams
+  function _marketParamsId (marketParams : MarketParams) : Bytes32 := do
+    -- Internal helper mirroring `MarketParamsLib.id(marketParams)`.
+    -- The static ABI Keccak lowering remains a Verity trust-report boundary.
     let id ← ecmCall
       (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [
-        addressToWord marketParams.loanToken,
-        addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle,
-        addressToWord marketParams.irm,
-        marketParams.lltv
-      ]
+      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
+        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    return id
+
+  function allow_post_interaction_writes createMarket (marketParams : MarketParams) local_obligations [create_market_irm_init := assumed "Morpho.sol initializes stateful IRMs with a post-create borrowRate call; caller must verify the IRM call ABI and returned rate boundary."] : Unit := do
+    let _ignoredMarketParams := marketParams
+    let id ← _marketParamsId marketParams
     let irmEnabled <- getMapping isIrmEnabledSlot marketParams.irm
     require (irmEnabled == 1) "IRM not enabled"
     let lltvEnabled <- getMappingUint isLltvEnabledSlot marketParams.lltv
@@ -580,13 +592,15 @@ verity_contract Morpho where
     let maxBorrow := mulDivDown collateralQuoted marketParams.lltv 1000000000000000000
     return (maxBorrow >= borrowedAmt)
 
+  function internal _oraclePrice (oracle : IOracle) : Uint256 := do
+    let collateralPrice ← oracle.price
+    return collateralPrice
+
   function _isHealthy (marketParams : MarketParams, id : Bytes32, borrower : Address) : Bool := do
     -- Internal helper mirroring Morpho.sol `_isHealthy(marketParams, id, borrower)`.
     let borrowShares_ <- structMember2 "positionSlot" id borrower "borrowShares"
     if borrowShares_ > ZERO then
-      let collateralPrice ← ecmCall
-        (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
-        [addressToWord marketParams.oracle]
+      let collateralPrice ← _oraclePrice marketParams.oracle
       let healthy ← _isHealthyWithPrice marketParams id borrower collateralPrice
       return healthy
     else
@@ -597,10 +611,7 @@ verity_contract Morpho where
     let currentOwner <- getStorageAddr ownerSlot
     require (sender == currentOwner) "not owner"
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     let currentFeeBefore <- structMember "marketSlot" id "fee"
@@ -612,10 +623,7 @@ verity_contract Morpho where
 
   function allow_post_interaction_writes accrueInterest (marketParams : MarketParams) : Unit := do
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     let _accrued ← _accrueInterest marketParams id
@@ -749,7 +757,7 @@ verity_contract Morpho where
       [addressToWord marketParams.loanToken, addressToWord receiver, finalAssets]
     return (finalAssets, finalShares)
 
-  function allow_post_interaction_writes _borrowCommitAndCheck (marketParams : MarketParams, id : Bytes32, finalAssets : Uint256, finalShares : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
+  function internal allow_post_interaction_writes _borrowCommitAndCheck (marketParams : MarketParams, id : Bytes32, finalAssets : Uint256, finalShares : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
     let currentBorrowShares <- structMember2 "positionSlot" id onBehalf "borrowShares"
     let newPosBorrowShares ← addPanic currentBorrowShares finalShares
     let newTotalBorrowShares ← addPanic totalBorrowShares_ finalShares
@@ -769,7 +777,7 @@ verity_contract Morpho where
       [addressToWord marketParams.loanToken, addressToWord receiver, finalAssets]
     return (finalAssets, finalShares)
 
-  function allow_post_interaction_writes _borrowAssetsMode (marketParams : MarketParams, id : Bytes32, assets : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
+  function internal allow_post_interaction_writes _borrowAssetsMode (marketParams : MarketParams, id : Bytes32, assets : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
     let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
     let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
     let finalShares := mulDivUp assets totalBorrowSharesWithVirtual totalBorrowAssetsWithVirtual
@@ -778,7 +786,7 @@ verity_contract Morpho where
         totalBorrowAssets_ totalBorrowShares_
     return (finalAssets, checkedShares)
 
-  function allow_post_interaction_writes _borrowSharesMode (marketParams : MarketParams, id : Bytes32, shares : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
+  function internal allow_post_interaction_writes _borrowSharesMode (marketParams : MarketParams, id : Bytes32, shares : Uint256, onBehalf : Address, receiver : Address, sender : Address, totalBorrowAssets_ : Uint256, totalBorrowShares_ : Uint256) : Tuple [Uint256, Uint256] := do
     let totalBorrowAssetsWithVirtual ← addPanic totalBorrowAssets_ 1
     let totalBorrowSharesWithVirtual ← addPanic totalBorrowShares_ 1000000
     let finalAssets := mulDivDown shares totalBorrowAssetsWithVirtual totalBorrowSharesWithVirtual
@@ -787,7 +795,7 @@ verity_contract Morpho where
         totalBorrowAssets_ totalBorrowShares_
     return (checkedAssets, finalShares)
 
-  function allow_post_interaction_writes _borrowAfterAccrue (marketParams : MarketParams, id : Bytes32, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address, sender : Address) : Tuple [Uint256, Uint256] := do
+  function internal allow_post_interaction_writes _borrowAfterAccrue (marketParams : MarketParams, id : Bytes32, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address, sender : Address) : Tuple [Uint256, Uint256] := do
     let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
     let totalBorrowShares_ <- structMember "marketSlot" id "totalBorrowShares"
     if assets > 0 then
@@ -868,9 +876,7 @@ verity_contract Morpho where
     require (currentLastUpdate != ZERO) "market not created"
     require ((seizedAssets == 0) != (repaidShares == 0)) "inconsistent input"
     let _accrued ← _accrueInterest marketParams id
-    let collateralPrice ← ecmCall
-      (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar oraclePriceSelector 0)
-      [addressToWord marketParams.oracle]
+    let collateralPrice ← _oraclePrice marketParams.oracle
     let healthy ← _isHealthyWithPrice marketParams id borrower collateralPrice
     require (healthy == false) "position is healthy"
     -- LIF computation
