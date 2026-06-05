@@ -28,11 +28,11 @@ open Morpho.Contract.Morpho
   real executable entrypoint runs projected into `HealthState`; the named
   discipline facts are explicit local obligations over those generated bodies.
 
-  Earlier versions tried to discharge these obligations by deeply traversing the
-  generated Lean terms in this file. That proof search currently overflows Lean's
-  stack before the module finishes elaborating, so the generated-body obligations
-  are kept as typed axioms here until the traversal is factored into smaller
-  lemmas or a dedicated symbolic executor.
+  The generated-body obligations are factored into smaller structural lemmas
+  below and into `Refinement.lean`. In particular, the `liquidate` pre-state
+  unhealthy bridge is no longer an axiom: the generated guard is extracted after
+  `_accrueInterest`, then the no-accrual identity carries the projected state
+  back to the original pre-state.
 -/
 
 structure Position where
