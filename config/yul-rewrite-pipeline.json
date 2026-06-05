@@ -2,6 +2,26 @@
   "version": "rewrite-pipeline-v1",
   "stages": [
     {
+      "rewritePass": "verity-full-mul-div-canonicalization",
+      "families": [
+        "__verity_full_mul_div"
+      ],
+      "proofRefs": [
+        "rewrite.verity_full_mul_div.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "verity-full-mul-div-up-canonicalization",
+      "families": [
+        "__verity_full_mul_div_up"
+      ],
+      "proofRefs": [
+        "rewrite.verity_full_mul_div_up.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
       "rewritePass": "abi-decode-helper-canonicalization",
       "families": [
         "abi_decode_address"
@@ -282,6 +302,46 @@
       "implemented": false
     },
     {
+      "rewritePass": "internal_internal_private_borrowafteraccrue-canonicalization",
+      "families": [
+        "internal_internal__borrowAfterAccrue"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowafteraccrue.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_borrowassetsmode-canonicalization",
+      "families": [
+        "internal_internal__borrowAssetsMode"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowassetsmode.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_borrowcommitandcheck-canonicalization",
+      "families": [
+        "internal_internal__borrowCommitAndCheck"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowcommitandcheck.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_borrowsharesmode-canonicalization",
+      "families": [
+        "internal_internal__borrowSharesMode"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowsharesmode.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
       "rewritePass": "internal_internal_private_ishealthy-canonicalization",
       "families": [
         "internal_internal__isHealthy"
@@ -308,6 +368,26 @@
       ],
       "proofRefs": [
         "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_marketparamsid-canonicalization",
+      "families": [
+        "internal_internal__marketParamsId"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_marketparamsid.semantic_eq"
+      ],
+      "implemented": false
+    },
+    {
+      "rewritePass": "internal_internal_private_oracleprice-canonicalization",
+      "families": [
+        "internal_internal__oraclePrice"
+      ],
+      "proofRefs": [
+        "rewrite.internal_internal_private_oracleprice.semantic_eq"
       ],
       "implemented": false
     },
