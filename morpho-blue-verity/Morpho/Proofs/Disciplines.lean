@@ -4895,7 +4895,7 @@ theorem generatedLiquidateAfterAccrue_guardUnhealthy
             liquidateAfterUnhealthyGuard P.mp P.id P.account seized repaid data (0 : Uint256))
           cs csHealth msg hhealth out cs' hafterOracleRun)
 
-theorem generatedLiquidateAfterMarketId_guardUnhealthy
+theorem generatedLiquidateAfterMarketId_accrueGuardUnhealthy
     (P : Position) (id : Bytes32) (seized repaid : Uint256) (data : Bytes)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
     (hprice : OraclePriceAligned P)
@@ -4903,7 +4903,8 @@ theorem generatedLiquidateAfterMarketId_guardUnhealthy
     (hrun :
       (generatedLiquidateAfterMarketId P.mp id P.account seized repaid data).run cs =
         ContractResult.success out cs') :
-    ∃ stPostAccrue stHealth,
+    ∃ accrued stPostAccrue stHealth,
+      (_accrueInterest P.mp id) cs = ContractResult.success accrued stPostAccrue ∧
       (_isHealthyWithPrice P.mp P.id P.account P.price).run stPostAccrue =
         ContractResult.success false stHealth := by
   unfold generatedLiquidateAfterMarketId at hrun
@@ -4969,7 +4970,7 @@ theorem generatedLiquidateAfterMarketId_guardUnhealthy
                       rcases generatedLiquidateAfterAccrue_guardUnhealthy P id P.account
                           seized repaid data out csAccrued cs' hprice hid rfl hafterAccrueRun with
                         ⟨stHealth, hhealth⟩
-                      exact ⟨csAccrued, stHealth, hhealth⟩
+                      exact ⟨accrued, csAccrued, stHealth, rfl, hhealth⟩
                   | «revert» msg csAccrued =>
                       exact False.elim
                         (bind_run_success_revert_absurd
@@ -5006,6 +5007,22 @@ theorem generatedLiquidateAfterMarketId_guardUnhealthy
             let _accrued ← _accrueInterest P.mp id
             generatedLiquidateAfterAccrue P.mp id P.account seized repaid data)
           cs csLast msg hlast out cs' hrun)
+
+theorem generatedLiquidateAfterMarketId_guardUnhealthy
+    (P : Position) (id : Bytes32) (seized repaid : Uint256) (data : Bytes)
+    (out : Uint256 × Uint256) (cs cs' : ContractState)
+    (hprice : OraclePriceAligned P)
+    (hid : id = P.id)
+    (hrun :
+      (generatedLiquidateAfterMarketId P.mp id P.account seized repaid data).run cs =
+        ContractResult.success out cs') :
+    ∃ stPostAccrue stHealth,
+      (_isHealthyWithPrice P.mp P.id P.account P.price).run stPostAccrue =
+        ContractResult.success false stHealth := by
+  rcases generatedLiquidateAfterMarketId_accrueGuardUnhealthy P id seized repaid data
+      out cs cs' hprice hid hrun with
+    ⟨_, stPostAccrue, stHealth, _, hhealth⟩
+  exact ⟨stPostAccrue, stHealth, hhealth⟩
 
 theorem guardedDiscipline_borrow (P : Position)
     (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
@@ -5136,15 +5153,5 @@ theorem liquidate_guardUnhealthy_afterAccrue_price (P : Position)
       cs (0 : Uint256) hecm out cs' hrun
   exact generatedLiquidateAfterMarketId_guardUnhealthy P (0 : Uint256) seized repaid data
     out cs cs' hprice hid0 hafterIdRun
-
-axiom liquidate_preStateUnhealthy_of_accrueInterest_identity (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
-    (hnoAccrual : AccrueInterestIdentityFor P) :
-    ∀ seized repaid data out cs cs',
-      (liquidate P.mp P.account seized repaid data).run cs
-          = Verity.ContractResult.success out cs' →
-        ∃ csHealth,
-          (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
-            = Verity.ContractResult.success false csHealth
 
 end Morpho.Proofs.Disciplines

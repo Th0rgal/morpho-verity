@@ -282,9 +282,9 @@ theorem refines_withdrawCollateral (P : Position)
   discharged from a proved structural guard extraction plus the no-accrual
   contract-side discipline. `GuardUnhealthy` is the contract's own
   `require(!_isHealthy)`: a successful run forces the post-accrual health test to
-  have returned `false`. `liquidate_preStateUnhealthy_of_accrueInterest_identity`
-  relates that generated post-accrual guard back to the original projected
-  pre-state under the no-accrual assumption.
+  have returned `false`. The generated extraction exposes the actual
+  `_accrueInterest` state, so the no-accrual identity carries that guard back to
+  the original projected pre-state.
 -/
 
 /-- `liquidate`: the generated `require(!_isHealthy)` guard, read off a
@@ -304,26 +304,79 @@ theorem guardUnhealthy_liquidate (P : Position)
     GuardUnhealthy P :=
   liquidate_guardUnhealthy_afterAccrue_price P hid hprice
 
-/-- Post-accrual/pre-state bridge from a successful `liquidate` run back to the
-    original projected pre-state. The generated guard itself fires after
-    `_accrueInterest`, while this proposition records the no-accrual consequence
-    needed by the model-level classifier. -/
+/-- Model-level post-accrual/pre-state bridge from a successful `liquidate` run
+    back to the original projected pre-state. The generated guard fires after
+    `_accrueInterest`; no-accrual equates that projected state with the original
+    one, and health faithfulness turns the contract's `false` result into
+    model-level unhealthiness. -/
 def LiquidatePreStateUnhealthy (P : Position) : Prop :=
   ∀ seized repaid data out cs cs',
     (liquidate P.mp P.account seized repaid data).run cs
         = Verity.ContractResult.success out cs' →
-      ∃ csHealth,
-      (_isHealthyWithPrice P.mp P.id P.account P.price).run cs
-        = Verity.ContractResult.success false csHealth
+      ¬ healthy (project P.mp P.id P.account P.price cs)
 
 /-- The post-accrual/pre-state bridge follows from the generated body and
     no-accrual: `_accrueInterest` leaves the local state unchanged, so the
-    generated unhealthy guard can be replayed on the original pre-state. -/
+    generated unhealthy guard classifies the original pre-state. -/
 theorem liquidatePreStateUnhealthy_of_accrueInterestIdentity (P : Position)
     (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
-    (hnoAccrual : AccrueInterestIdentityFor P) :
-    LiquidatePreStateUnhealthy P :=
-  liquidate_preStateUnhealthy_of_accrueInterest_identity P hid hprice hnoAccrual
+    (hnoAccrual : AccrueInterestIdentityFor P)
+    (horacleFits : LocalNoOverflowFor P) :
+    LiquidatePreStateUnhealthy P := by
+  intro seized repaid data out cs cs' hrun
+  unfold liquidate at hrun
+  change
+    (do
+      let _ignoredMarketParams := P.mp
+      let id ← ecmCall
+        (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+        [addressToWord P.mp.loanToken, addressToWord P.mp.collateralToken,
+          addressToWord P.mp.oracle, addressToWord P.mp.irm, P.mp.lltv]
+      generatedLiquidateAfterMarketId P.mp id P.account seized repaid data).run cs =
+        Verity.ContractResult.success out cs' at hrun
+  have hecm :
+      (ecmCall
+        (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+        [addressToWord P.mp.loanToken, addressToWord P.mp.collateralToken,
+          addressToWord P.mp.oracle, addressToWord P.mp.irm, P.mp.lltv] :
+          _root_.Verity.Contract _root_.Verity.Core.Uint256) cs =
+        Verity.ContractResult.success (0 : _root_.Verity.Core.Uint256) cs := by
+    rfl
+  have hmarketRun : (marketIdRead P.mp).run cs =
+      Verity.ContractResult.success (0 : _root_.Verity.Core.Uint256) cs := by
+    unfold marketIdRead
+    rfl
+  have hid0 : (0 : _root_.Verity.Core.Uint256) = P.id :=
+    hid cs (0 : _root_.Verity.Core.Uint256) cs hmarketRun
+  have hafterIdRun :=
+    bind_run_success_same_state
+      (ecmCall
+        (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
+        [addressToWord P.mp.loanToken, addressToWord P.mp.collateralToken,
+          addressToWord P.mp.oracle, addressToWord P.mp.irm, P.mp.lltv] :
+          _root_.Verity.Contract _root_.Verity.Core.Uint256)
+      (fun id => generatedLiquidateAfterMarketId P.mp id P.account seized repaid data)
+      cs (0 : _root_.Verity.Core.Uint256) hecm out cs' hrun
+  rcases _root_.Morpho.Proofs.Disciplines.generatedLiquidateAfterMarketId_accrueGuardUnhealthy
+      P (0 : _root_.Verity.Core.Uint256)
+      seized repaid data out cs cs' hprice hid0 hafterIdRun with
+    ⟨accrued, csAccrued, csHealth, haccrue, hbool⟩
+  have hproj : project P.mp P.id P.account P.price csAccrued =
+      project P.mp P.id P.account P.price cs := by
+    exact hnoAccrual accrued cs csAccrued (by
+      have haccrueP :
+          (_root_.Morpho.Contract.Morpho._accrueInterest P.mp P.id) cs =
+            Verity.ContractResult.success accrued csAccrued := by
+        simpa [← hid0] using haccrue
+      rw [_root_.Verity.Contract.run]
+      rw [haccrueP])
+  have hfaith :=
+    Morpho.Proofs.HealthFaithful.healthFaithful_of_noOverflow
+      P.mp P.id P.account P.price csAccrued
+        (noOverflow_of_localNoOverflow P csAccrued (horacleFits csAccrued))
+  have hiff := hfaith false csHealth hbool
+  rw [hproj] at hiff
+  exact fun hh => Bool.false_ne_true (hiff.mpr hh)
 
 /-- `liquidate` refines `¬ healthy s` from its generated guard plus no-accrual:
     the guard makes the contract health test `false` on the pre-state, and
@@ -336,16 +389,11 @@ theorem refines_liquidate (P : Position)
     Refines .liquidate (liquidateStep P) := by
   intro _ s s' h
   obtain ⟨seized, repaid, data, out, cs, cs', hs, _, hrun⟩ := h
-  obtain ⟨csHealth, hbool⟩ :=
+  have hunhealthy :=
     liquidatePreStateUnhealthy_of_accrueInterestIdentity P hid hprice hnoAccrual
-      seized repaid data out cs cs' hrun
-  have hfaith :=
-    Morpho.Proofs.HealthFaithful.healthFaithful_of_noOverflow
-      P.mp P.id P.account P.price cs
-        (noOverflow_of_localNoOverflow P cs (horacleFits cs))
-  have hiff := hfaith false csHealth hbool
+      horacleFits seized repaid data out cs cs' hrun
   simp only [classify, hs]
-  exact fun hh => Bool.false_ne_true (hiff.mpr hh)
+  exact hunhealthy
 
 end Contract
 
