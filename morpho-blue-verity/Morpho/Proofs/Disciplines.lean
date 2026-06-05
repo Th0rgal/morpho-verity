@@ -1600,7 +1600,8 @@ theorem supplyCollateral_success_shape
       cs'.storage = csSet.storage := by
   unfold supplyCollateral at hrun
   simp [Contract.run, instMonadContract, Verity.bind, Verity.pure,
-    Morpho.Contract.contractAddress, Verity.contractAddress] at hrun
+    Morpho.Contract.contractAddress, Verity.contractAddress,
+    Morpho.Contract.Morpho._marketParamsId] at hrun
   cases hlast :
       ((Morpho.Contract.Morpho.structMember "marketSlot" (0 : Bytes32) "lastUpdate" :
         Contract Uint256) cs) with

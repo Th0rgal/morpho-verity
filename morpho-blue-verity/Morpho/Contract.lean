@@ -631,10 +631,7 @@ verity_contract Morpho where
   function allow_post_interaction_writes supplyCollateral (marketParams : MarketParams, assets : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_collateral_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Unit := do
     let thisAddress ← contractAddress
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require (assets > 0) "zero assets"
@@ -652,10 +649,7 @@ verity_contract Morpho where
 
   function allow_post_interaction_writes withdrawCollateral (marketParams : MarketParams, assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require (assets > 0) "zero assets"
@@ -677,10 +671,7 @@ verity_contract Morpho where
   function allow_post_interaction_writes supply (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Tuple [Uint256, Uint256] := do
     let thisAddress ← contractAddress
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((assets == 0) != (shares == 0)) "inconsistent input"
@@ -718,10 +709,7 @@ verity_contract Morpho where
 
   function allow_post_interaction_writes withdraw (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((assets == 0) != (shares == 0)) "inconsistent input"
@@ -807,10 +795,7 @@ verity_contract Morpho where
 
   function allow_post_interaction_writes borrow (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, receiver : Address) : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((assets == 0) != (shares == 0)) "inconsistent input"
@@ -826,10 +811,7 @@ verity_contract Morpho where
   function allow_post_interaction_writes repay (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [repay_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Tuple [Uint256, Uint256] := do
     let thisAddress ← contractAddress
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((assets == 0) != (shares == 0)) "inconsistent input"
@@ -868,10 +850,7 @@ verity_contract Morpho where
 
   function allow_post_interaction_writes liquidate (marketParams : MarketParams, borrower : Address, seizedAssets : Uint256, repaidShares : Uint256, data : Bytes) local_obligations [liquidate_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Tuple [Uint256, Uint256] := do
     let _ignoredMarketParams := marketParams
-    let id ← ecmCall
-      (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 5)
-      [addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
-        addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
+    let id ← _marketParamsId marketParams
     let currentLastUpdate <- structMember "marketSlot" id "lastUpdate"
     require (currentLastUpdate != ZERO) "market not created"
     require ((seizedAssets == 0) != (repaidShares == 0)) "inconsistent input"
