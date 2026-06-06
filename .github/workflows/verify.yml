@@ -96,7 +96,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
@@ -111,8 +111,6 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Build compiler executable (FFI link)
         run: ./scripts/run_with_timeout.sh MORPHO_COMPILER_LINK_TIMEOUT_SEC 19800 "Build compiler executable (FFI link)" -- lake build morpho-verity-compiler
@@ -449,8 +447,6 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
