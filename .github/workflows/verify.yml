@@ -96,7 +96,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Load CI timeout defaults
         run: cat config/ci-timeout-defaults.env >> "$GITHUB_ENV"
