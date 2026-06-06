@@ -485,6 +485,7 @@ jobs:
           LEAN_NUM_THREADS: 4
           MORPHO_VERITY_PARITY_OUT_DIR: out/parity-shared
           MORPHO_VERITY_SKIP_BUILD: "1"
+          MORPHO_VERITY_COMPILER_BIN: .lake/build/bin/morpho-verity-compiler
 
       - name: Validate prepared EDSL artifact bundle
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
