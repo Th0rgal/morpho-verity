@@ -22,6 +22,7 @@ FOCUSED_MANIFEST = FOCUSED_DIR / "MidnightRCF.artifact-manifest.env"
 FOCUSED_README = FOCUSED_DIR / "README.md"
 FORBIDDEN_FOCUSED_FULL_NAME = FOCUSED_DIR / "Midnight.bin.raw"
 FULL_BIN = ROOT / "artifacts" / "midnight" / "Midnight.bin.raw"
+FULL_MANIFEST = ROOT / "artifacts" / "midnight" / "Midnight.artifact-manifest.env"
 PARITY_SCRIPT = ROOT / "scripts" / "run_morpho_midnight_parity.sh"
 HARNESS = ROOT / "morpho-midnight" / "test" / "BaseTest.sol"
 
@@ -58,6 +59,27 @@ def compute_focused_input_digest() -> str:
         path = ROOT / rel
         require_nonempty(path, "focused artifact input")
     return compute_canonical_focused_input_digest(ROOT)
+
+
+def compute_complete_input_digest() -> str:
+    files = [
+        "lean-toolchain",
+        "lake-manifest.json",
+        "lakefile.lean",
+        "morpho-midnight-verity/Midnight.lean",
+        "morpho-midnight-verity/Midnight/Contract.lean",
+        "morpho-midnight-verity/Midnight/Compiler/ArtifactConfig.lean",
+        "morpho-midnight-verity/Midnight/Compiler/Main.lean",
+        "morpho-midnight-verity/MidnightCompiler.lean",
+        "scripts/prepare_midnight_artifact.sh",
+        "scripts/uniquify_yul_shadows.py",
+    ]
+    h = hashlib.sha256()
+    for rel in files:
+        path = ROOT / rel
+        require_nonempty(path, "complete artifact input")
+        h.update(f"{sha256(path)}  {rel}\n".encode("utf-8"))
+    return h.hexdigest()
 
 
 def parse_manifest(text: str) -> dict[str, str]:
@@ -112,6 +134,22 @@ def validate_complete_artifact_boundary() -> None:
     if not FULL_BIN.exists():
         return
     require_nonempty(FULL_BIN, "complete Midnight bytecode")
+    require_nonempty(FULL_MANIFEST, "complete Midnight artifact manifest")
+    manifest = parse_manifest(read_text(FULL_MANIFEST))
+    if manifest.get("artifact_scope") != "midnight-full-imidnight":
+        raise MidnightArtifactBoundaryError("complete artifact manifest has wrong artifact_scope")
+    if manifest.get("contract_name") != "Midnight":
+        raise MidnightArtifactBoundaryError("complete artifact manifest has wrong contract_name")
+    if manifest.get("complete_imidnight_artifact") != "1":
+        raise MidnightArtifactBoundaryError("complete artifact manifest must mark complete_imidnight_artifact=1")
+    if manifest.get("parity_ready") != "1":
+        raise MidnightArtifactBoundaryError("complete artifact manifest must mark parity_ready=1")
+    expected_digest = compute_complete_input_digest()
+    if manifest.get("input_digest") != expected_digest:
+        raise MidnightArtifactBoundaryError(
+            "complete artifact manifest input_digest is stale; rerun "
+            "./scripts/prepare_midnight_artifact.sh"
+        )
     if sha256(FULL_BIN) == sha256(FOCUSED_BIN):
         raise MidnightArtifactBoundaryError(
             "complete Midnight.bin.raw must not be a copy of focused MidnightRCF.bin.raw"

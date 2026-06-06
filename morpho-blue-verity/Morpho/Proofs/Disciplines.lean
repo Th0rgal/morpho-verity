@@ -52,15 +52,30 @@ def oraclePriceRead (mp : MarketParams) : Contract Uint256 := do
     (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar 0xa035b1fe 0)
     [addressToWord mp.oracle]
 
-def MarketIdAligned (P : Position) : Prop :=
+/-- Executable ECM boundary consumed by generated-body proofs.
+
+The current Lean execution model for ECMs is a stub. This predicate names the
+explicit bridge from the stubbed contract run used in `rfl` proofs to the
+source-level projected id. It is intentionally not called `MarketIdAligned`,
+because the source statement is `MarketParamsLib.id(P.mp) = P.id`; that hash is
+still an ECM/compiler boundary in this proof layer. -/
+def ExecutableMarketIdReadAligned (P : Position) : Prop :=
   ∀ cs id cs',
     (marketIdRead P.mp).run cs = ContractResult.success id cs' →
       id = P.id
 
-def OraclePriceAligned (P : Position) : Prop :=
+/-- Executable ECM boundary consumed by generated-body proofs.
+
+Kept explicit for the same reason as `ExecutableMarketIdReadAligned`: the
+executable ECM run is not itself a proof of the source oracle value. -/
+def ExecutableOraclePriceReadAligned (P : Position) : Prop :=
   ∀ cs price cs',
     (oraclePriceRead P.mp).run cs = ContractResult.success price cs' →
       price = P.price
+
+/- Short aliases for theorem sites that discuss the ECM boundary directly. -/
+abbrev MarketIdEcmAligned := ExecutableMarketIdReadAligned
+abbrev OraclePriceEcmAligned := ExecutableOraclePriceReadAligned
 
 def OraclePriceNoOverflow (P : Position) (cs : ContractState) : Prop :=
   let s := project P.mp P.id P.account P.price cs
@@ -596,7 +611,7 @@ theorem bind_pure_run_success_source {α : Type}
 
 theorem isHealthy_success_true_implies_healthy
     (P : Position) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (hno : NoOverflow P.mp P.id P.account P.price cs)
     (hrun :
       (_isHealthy P.mp P.id P.account).run cs =
@@ -2834,7 +2849,7 @@ theorem withdrawCollateralAfterHealthTail_preserves_healthy
 theorem withdrawCollateralAfterWrite_guarded
     (P : Position) (id assets : Uint256) (onBehalf receiver sender : Address)
     (out : Unit) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (withdrawCollateralAfterWrite P.mp id assets onBehalf receiver sender).run cs =
@@ -2881,7 +2896,7 @@ theorem withdrawCollateralAfterWrite_guarded
 theorem generatedWithdrawCollateralAfterAccrue_guarded
     (P : Position) (id assets : Uint256) (onBehalf receiver sender : Address)
     (out : Unit) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (generatedWithdrawCollateralAfterAccrue P.mp id assets onBehalf receiver sender).run cs =
@@ -2996,7 +3011,7 @@ theorem borrowHealthAndTail_guarded
     (P : Position) (id finalAssets finalShares : Uint256)
     (onBehalf receiver sender : Address) (newTotalBorrowAssets : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
@@ -3050,7 +3065,7 @@ theorem borrowAfterFirstUintCheck_guarded
     (onBehalf receiver sender : Address)
     (newPosBorrowShares newTotalBorrowShares newTotalBorrowAssets : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
@@ -3229,7 +3244,7 @@ theorem borrowCommitAndCheck_guarded
     (P : Position) (id finalAssets finalShares : Uint256)
     (onBehalf receiver sender : Address) (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
@@ -3514,7 +3529,7 @@ theorem generated_borrowCommitAndCheck_guarded
     (P : Position) (id finalAssets finalShares : Uint256)
     (onBehalf receiver sender : Address) (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
@@ -3532,7 +3547,7 @@ theorem generated_borrowAssetsMode_guarded
     (P : Position) (id assets : Uint256) (onBehalf receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (_borrowAssetsMode P.mp id assets onBehalf receiver sender
@@ -3621,7 +3636,7 @@ theorem generated_borrowSharesMode_guarded
     (P : Position) (id shares : Uint256) (onBehalf receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (_borrowSharesMode P.mp id shares onBehalf receiver sender
@@ -3709,7 +3724,7 @@ theorem generated_borrowSharesMode_guarded
 theorem generated_borrowAfterAccrue_guarded
     (P : Position) (id assets shares : Uint256) (onBehalf receiver sender : Address)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (_borrowAfterAccrue P.mp id assets shares onBehalf receiver sender).run cs =
@@ -3849,7 +3864,7 @@ theorem generated_borrowAfterAccrue_guarded
 theorem generatedBorrowAfterAccrueReturn_guarded
     (P : Position) (id assets shares : Uint256) (onBehalf receiver sender : Address)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (generatedBorrowAfterAccrueReturn P.mp id assets shares onBehalf receiver sender).run cs =
@@ -3867,7 +3882,7 @@ theorem borrowAssetsMode_guarded
     (P : Position) (id assets : Uint256) (onBehalf receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (borrowAssetsMode P.mp id assets onBehalf receiver sender
@@ -3939,7 +3954,7 @@ theorem borrowSharesMode_guarded
     (P : Position) (id shares : Uint256) (onBehalf receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (borrowSharesMode P.mp id shares onBehalf receiver sender
@@ -4011,7 +4026,7 @@ theorem borrowAfterTotals_guarded
     (P : Position) (id assets shares : Uint256) (onBehalf receiver sender : Address)
     (totalBorrowAssets_ totalBorrowShares_ : Uint256)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (borrowAfterTotals P.mp id assets shares onBehalf receiver sender
@@ -4030,7 +4045,7 @@ theorem borrowAfterTotals_guarded
 theorem borrowAfterAccrue_guarded
     (P : Position) (id assets shares : Uint256) (onBehalf receiver sender : Address)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (borrowAfterAccrue P.mp id assets shares onBehalf receiver sender).run cs =
@@ -4100,7 +4115,7 @@ theorem borrowAfterAccrue_guarded
 theorem borrowAfterMarketId_guarded
     (P : Position) (id assets shares : Uint256) (onBehalf receiver : Address)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (borrowAfterMarketId P.mp id assets shares onBehalf receiver).run cs =
@@ -4341,7 +4356,7 @@ theorem borrowAfterMarketId_guarded
 theorem generatedBorrowAfterMarketId_guarded
     (P : Position) (id assets shares : Uint256) (onBehalf receiver : Address)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (generatedBorrowAfterMarketId P.mp id assets shares onBehalf receiver).run cs =
@@ -4593,7 +4608,7 @@ theorem generatedBorrowAfterMarketId_guarded
 theorem generatedWithdrawCollateralAfterMarketId_guarded
     (P : Position) (id assets : Uint256) (onBehalf receiver : Address)
     (out : Unit) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P) (horacleFits : LocalNoOverflowFor P)
+    (hprice : ExecutableOraclePriceReadAligned P) (horacleFits : LocalNoOverflowFor P)
     (hid : id = P.id) (honBehalf : onBehalf = P.account)
     (hrun :
       (generatedWithdrawCollateralAfterMarketId P.mp id assets onBehalf receiver).run cs =
@@ -4837,7 +4852,7 @@ theorem generatedLiquidateAfterAccrue_guardUnhealthy
     (P : Position) (id : Bytes32) (borrower : Address)
     (seized repaid : Uint256) (data : Bytes)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (hid : id = P.id) (hborrower : borrower = P.account)
     (hrun :
       (generatedLiquidateAfterAccrue P.mp id borrower seized repaid data).run cs =
@@ -4903,7 +4918,7 @@ theorem generatedLiquidateAfterAccrue_guardUnhealthy
 theorem generatedLiquidateAfterMarketId_accrueGuardUnhealthy
     (P : Position) (id : Bytes32) (seized repaid : Uint256) (data : Bytes)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (hid : id = P.id)
     (hrun :
       (generatedLiquidateAfterMarketId P.mp id P.account seized repaid data).run cs =
@@ -5016,7 +5031,7 @@ theorem generatedLiquidateAfterMarketId_accrueGuardUnhealthy
 theorem generatedLiquidateAfterMarketId_guardUnhealthy
     (P : Position) (id : Bytes32) (seized repaid : Uint256) (data : Bytes)
     (out : Uint256 × Uint256) (cs cs' : ContractState)
-    (hprice : OraclePriceAligned P)
+    (hprice : ExecutableOraclePriceReadAligned P)
     (hid : id = P.id)
     (hrun :
       (generatedLiquidateAfterMarketId P.mp id P.account seized repaid data).run cs =
@@ -5030,7 +5045,7 @@ theorem generatedLiquidateAfterMarketId_guardUnhealthy
   exact ⟨stPostAccrue, stHealth, hhealth⟩
 
 theorem guardedDiscipline_borrow (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P) :
     GuardedDiscipline (borrowStep P) := by
   intro s s' hstep
@@ -5073,7 +5088,7 @@ theorem guardedDiscipline_borrow (P : Position)
     out cs cs' hprice horacleFits hid0 rfl hafterIdRun
 
 theorem guardedDiscipline_withdrawCollateral (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P) :
     GuardedDiscipline (withdrawCollateralStep P) := by
   intro s s' hstep
@@ -5116,7 +5131,7 @@ theorem guardedDiscipline_withdrawCollateral (P : Position)
     out cs cs' hprice horacleFits hid0 rfl hafterIdRun
 
 theorem liquidate_guardUnhealthy_afterAccrue_price (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) :
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P) :
     ∀ seized repaid data out cs cs',
       (liquidate P.mp P.account seized repaid data).run cs
           = Verity.ContractResult.success out cs' →

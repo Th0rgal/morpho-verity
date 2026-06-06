@@ -264,13 +264,13 @@ theorem refines_repay (P : Position) :
     Refines .repay (repayStep P) := refines_of_monotone rfl (monotoneDiscipline_repay P)
 
 theorem refines_borrow (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P) :
     Refines .borrow (borrowStep P) :=
   refines_of_guarded rfl (guardedDiscipline_borrow P hid hprice horacleFits)
 
 theorem refines_withdrawCollateral (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P)
     (horacleFits : LocalNoOverflowFor P) :
     Refines .withdrawCollateral (withdrawCollateralStep P) :=
   refines_of_guarded rfl (guardedDiscipline_withdrawCollateral P hid hprice horacleFits)
@@ -300,7 +300,7 @@ def GuardUnhealthy (P : Position) : Prop :=
 
 /-- The structural `liquidate` guard is proved from the generated body. -/
 theorem guardUnhealthy_liquidate (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P) :
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P) :
     GuardUnhealthy P :=
   liquidate_guardUnhealthy_afterAccrue_price P hid hprice
 
@@ -319,7 +319,7 @@ def LiquidatePreStateUnhealthy (P : Position) : Prop :=
     no-accrual: `_accrueInterest` leaves the local state unchanged, so the
     generated unhealthy guard classifies the original pre-state. -/
 theorem liquidatePreStateUnhealthy_of_accrueInterestIdentity (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P)
     (hnoAccrual : AccrueInterestIdentityFor P)
     (horacleFits : LocalNoOverflowFor P) :
     LiquidatePreStateUnhealthy P := by
@@ -383,7 +383,7 @@ theorem liquidatePreStateUnhealthy_of_accrueInterestIdentity (P : Position)
     `healthFaithful_of_noOverflow` carries that to the model's `healthy`
     predicate on the projection. -/
 theorem refines_liquidate (P : Position)
-    (hid : MarketIdAligned P) (hprice : OraclePriceAligned P)
+    (hid : ExecutableMarketIdReadAligned P) (hprice : ExecutableOraclePriceReadAligned P)
     (hnoAccrual : AccrueInterestIdentityFor P)
     (horacleFits : LocalNoOverflowFor P) :
     Refines .liquidate (liquidateStep P) := by
