@@ -478,7 +478,7 @@ verity_contract Morpho where
     setMapping2 isAuthorizedSlot authorizer authorized isAuthorizedWord
     emit "SetAuthorization" [sender, authorizer, authorized, newIsAuthorized]
 
-  function _marketParamsId (marketParams : MarketParams) : Bytes32 := do
+  function internal _marketParamsId (marketParams : MarketParams) : Bytes32 := do
     -- Internal helper mirroring `MarketParamsLib.id(marketParams)`.
     -- The static ABI Keccak lowering remains a Verity trust-report boundary.
     let id ← ecmCall

@@ -2892,11 +2892,39 @@ verity_contract Midnight where
         pure ())
     return count
 
-  function toId (market : Market) : Bytes32 := do
+  function internal collateralBitMask (index : Uint256) : Uint256 := do
+    return shl index ONE
+
+  function internal collateralBitmapSetBit (bitmap : Uint256, index : Uint256) :
+      Uint256 := do
+    let mask ← collateralBitMask index
+    return bitOr bitmap mask
+
+  function internal collateralBitmapClearBit (bitmap : Uint256, index : Uint256) :
+      Uint256 := do
+    let mask ← collateralBitMask index
+    return bitAnd bitmap (bitNot mask)
+
+  function internal collateralBitmapIsSet (bitmap : Uint256, index : Uint256) :
+      Bool := do
+    let mask ← collateralBitMask index
+    return bitAnd bitmap mask > ZERO
+
+  function internal codeDataMarketId (market : Market) : Bytes32 := do
     let initialChainId ← getStorage initialChainIdSlot
     let self ← contractAddress
     let id ← ecmCall (fun resultVar => marketIdModule resultVar)
       [initialChainId, addressToWord self]
+    return id
+
+  function internal codeDataStoreMarket (market : Market, salt : Uint256) :
+      Address := do
+    let pointer ← ecmCall (fun resultVar => storeMarketInCodeModule resultVar)
+      [salt]
+    return wordToAddress pointer
+
+  function toId (market : Market) : Bytes32 := do
+    let id ← codeDataMarketId market
     return id
 
   function toMarket (id : Bytes32) : Unit := do
@@ -3233,8 +3261,7 @@ verity_contract Midnight where
       requireError (market.maturity <= add now HUNDRED_YEARS) MaturityTooFar()
       let _collateralParamsValid ← validateCollateralParams market.collateralParams
       let salt ← getStorage initialChainIdSlot
-      let _marketPointer ← ecmCall (fun resultVar => storeMarketInCodeModule resultVar)
-        [salt]
+      let _marketPointer ← codeDataStoreMarket market salt
       setStructMember "marketStateSlot" id "tickSpacing" DEFAULT_TICK_SPACING
       let settlementFeeCbp0 ← defaultSettlementFeeCbp market.loanToken ZERO
       let settlementFeeCbp1 ← defaultSettlementFeeCbp market.loanToken ONE
@@ -4574,8 +4601,8 @@ verity_contract Midnight where
     let mut maxDebtValue := ZERO
     let mut badDebt := originalDebt
     forEach "i" collateralCount (do
-      let mask := shl i ONE
-      if bitAnd collateralBitmapValue mask > ZERO then
+      let active ← collateralBitmapIsSet collateralBitmapValue i
+      if active then
         let activeCollateral ← collateralAmount id borrower i
         let collateralParamOffset := add (add collateralParamsOffset 32)
           (mul i 128)
@@ -5142,9 +5169,9 @@ verity_contract Midnight where
     let collateralParamsOffset := add marketDataOffset
       (calldataload (add marketDataOffset 32))
     let collateralBitmapValue ← structMember2 "positionSlot" id borrower "collateralBitmap"
-    let collateralMask := shl collateralIndex ONE
+    let collateralActive ← collateralBitmapIsSet collateralBitmapValue collateralIndex
     if seizedAssets > ZERO || repaidUnits > ZERO then
-      require (bitAnd collateralBitmapValue collateralMask > ZERO) "inactive collateral"
+      require collateralActive "inactive collateral"
     else
       pure ()
     let originalDebt := debt
@@ -5250,8 +5277,7 @@ verity_contract Midnight where
       if newCollateral == ZERO then
         if outSeizedAssets > ZERO then
           let oldBitmap ← structMember2 "positionSlot" id borrower "collateralBitmap"
-          let mask := shl collateralIndex ONE
-          let newBitmap := bitAnd oldBitmap (bitNot mask)
+          let newBitmap ← collateralBitmapClearBit oldBitmap collateralIndex
           setStructMember2 "positionSlot" id borrower "collateralBitmap" newBitmap
         else
           pure ()
@@ -5306,8 +5332,8 @@ verity_contract Midnight where
     let collateralBitmapValue ← structMember2 "positionSlot" id borrower "collateralBitmap"
     let mut maxDebt := ZERO
     forEach "i" collateralCount (do
-      let mask := shl i ONE
-      if bitAnd collateralBitmapValue mask > ZERO then
+      let active ← collateralBitmapIsSet collateralBitmapValue i
+      if active then
         let activeCollateral ← collateralAmount id borrower i
         let oracle ← collateralOracleAt market.collateralParams i
         let price ← oraclePrice oracle
@@ -5334,10 +5360,9 @@ verity_contract Midnight where
     let newCollateral := add oldCollateral assets
     requireError (newCollateral <= MAX_LOSS_FACTOR) CastOverflow()
     let oldBitmap ← structMember2 "positionSlot" id onBehalf "collateralBitmap"
-    let mask := shl collateralIndex ONE
     if oldCollateral == ZERO then
       if assets > ZERO then
-        let newBitmap := bitOr oldBitmap mask
+        let newBitmap ← collateralBitmapSetBit oldBitmap collateralIndex
         setStructMember2 "positionSlot" id onBehalf "collateralBitmap" newBitmap
         let activeCount ← countBits128 newBitmap
         requireError (activeCount <= MAX_COLLATERALS_PER_BORROWER) TooManyActivatedCollaterals()
@@ -5369,8 +5394,7 @@ verity_contract Midnight where
     if newCollateral == ZERO then
       if assets > ZERO then
         let oldBitmap ← structMember2 "positionSlot" id onBehalf "collateralBitmap"
-        let mask := shl collateralIndex ONE
-        let newBitmap := bitAnd oldBitmap (bitNot mask)
+        let newBitmap ← collateralBitmapClearBit oldBitmap collateralIndex
         setStructMember2 "positionSlot" id onBehalf "collateralBitmap" newBitmap
       else
         pure ()

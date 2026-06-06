@@ -456,7 +456,26 @@ object "Midnight" {
             __ret0 := count
             leave
         }
-        function internal_internal_toId(market_data_offset) -> __ret0 {
+        function internal_internal_collateralBitMask(index) -> __ret0 {
+            __ret0 := shl(index, 1)
+            leave
+        }
+        function internal_internal_collateralBitmapSetBit(bitmap, index) -> __ret0 {
+            let mask := internal_internal_collateralBitMask(index)
+            __ret0 := or(bitmap, mask)
+            leave
+        }
+        function internal_internal_collateralBitmapClearBit(bitmap, index) -> __ret0 {
+            let mask := internal_internal_collateralBitMask(index)
+            __ret0 := and(bitmap, not(mask))
+            leave
+        }
+        function internal_internal_collateralBitmapIsSet(bitmap, index) -> __ret0 {
+            let mask := internal_internal_collateralBitMask(index)
+            __ret0 := gt(and(bitmap, mask), 0)
+            leave
+        }
+        function internal_internal_codeDataMarketId(market_data_offset) -> __ret0 {
             let initialChainId := sload(1024)
             let self := address()
             let id := 0
@@ -487,6 +506,42 @@ object "Midnight" {
                 id := keccak256(__midnight_id_outer_ptr, 85)
                 mstore(64, add(__midnight_id_outer_ptr, 96))
             }
+            __ret0 := id
+            leave
+        }
+        function internal_internal_codeDataStoreMarket(market_data_offset, salt) -> __ret0 {
+            let pointer := 0
+            {
+                let __midnight_store_ptr := mload(64)
+                mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                mstore(add(__midnight_store_ptr, 11), 32)
+                let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
+                mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                pointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                if iszero(pointer) {
+                    mstore(0, shl(224, 0x4e487b71))
+                    mstore(4, 81)
+                    revert(0, 36)
+                }
+                mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+            }
+            __ret0 := pointer
+            leave
+        }
+        function internal_internal_toId(market_data_offset) -> __ret0 {
+            let id := internal_internal_codeDataMarketId(market_data_offset)
             __ret0 := id
             leave
         }
@@ -1317,33 +1372,7 @@ object "Midnight" {
                 }
                 let _collateralParamsValid := internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
                 let salt := sload(1024)
-                let _marketPointer := 0
-                {
-                    let __midnight_store_ptr := mload(64)
-                    mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
-                    mstore(add(__midnight_store_ptr, 11), 32)
-                    let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
-                    mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
-                    mstore(add(__midnight_store_tuple_ptr, 32), 192)
-                    mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
-                    mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
-                    mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
-                    mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
-                    let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
-                    let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
-                    let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
-                    mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
-                    calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
-                    let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
-                    let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                    _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
-                    if iszero(_marketPointer) {
-                        mstore(0, shl(224, 0x4e487b71))
-                        mstore(4, 81)
-                        revert(0, 36)
-                    }
-                    mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
-                }
+                let _marketPointer := internal_internal_codeDataStoreMarket(market_data_offset, salt)
                 {
                     let __compat_value := 4
                     let __compat_packed := and(__compat_value, 255)
@@ -3619,8 +3648,8 @@ object "Midnight" {
                 __forEach_idx := add(__forEach_idx, 1)
             } {
                 i := __forEach_idx
-                let mask := shl(i, 1)
-                if gt(and(collateralBitmapValue, mask), 0) {
+                let active := internal_internal_collateralBitmapIsSet(collateralBitmapValue, i)
+                if active {
                     let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
                     let collateralParamOffset := add(add(collateralParamsOffset, 32), mul(i, 128))
                     let oracle := calldataload(add(collateralParamOffset, 96))
@@ -4088,9 +4117,9 @@ object "Midnight" {
             let marketDataOffset := add(calldataload(4), 4)
             let collateralParamsOffset := add(marketDataOffset, calldataload(add(marketDataOffset, 32)))
             let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
-            let collateralMask := shl(collateralIndex, 1)
+            let collateralActive := internal_internal_collateralBitmapIsSet(collateralBitmapValue, collateralIndex)
             if or(iszero(iszero(gt(seizedAssets, 0))), iszero(iszero(gt(repaidUnits, 0)))) {
-                if iszero(gt(and(collateralBitmapValue, collateralMask), 0)) {
+                if iszero(collateralActive) {
                     mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                     mstore(4, 32)
                     mstore(36, 19)
@@ -4252,8 +4281,7 @@ object "Midnight" {
                 if eq(newCollateral, 0) {
                     if gt(outSeizedAssets, 0) {
                         let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
-                        let mask := shl(collateralIndex, 1)
-                        let newBitmap := and(oldBitmap, not(mask))
+                        let newBitmap := internal_internal_collateralBitmapClearBit(oldBitmap, collateralIndex)
                         {
                             let __compat_value := newBitmap
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -4450,8 +4478,8 @@ object "Midnight" {
                 __forEach_idx := add(__forEach_idx, 1)
             } {
                 i := __forEach_idx
-                let mask := shl(i, 1)
-                if gt(and(collateralBitmapValue, mask), 0) {
+                let active := internal_internal_collateralBitmapIsSet(collateralBitmapValue, i)
+                if active {
                     let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
                     let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
                     let price := internal_internal_oraclePrice(oracle)
@@ -4496,10 +4524,9 @@ object "Midnight" {
                 }
             }
             let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
-            let mask := shl(collateralIndex, 1)
             if eq(oldCollateral, 0) {
                 if gt(assets, 0) {
-                    let newBitmap := or(oldBitmap, mask)
+                    let newBitmap := internal_internal_collateralBitmapSetBit(oldBitmap, collateralIndex)
                     {
                         let __compat_value := newBitmap
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -4596,8 +4623,7 @@ object "Midnight" {
             if eq(newCollateral, 0) {
                 if gt(assets, 0) {
                     let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
-                    let mask := shl(collateralIndex, 1)
-                    let newBitmap := and(oldBitmap, not(mask))
+                    let newBitmap := internal_internal_collateralBitmapClearBit(oldBitmap, collateralIndex)
                     {
                         let __compat_value := newBitmap
                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -5326,7 +5352,26 @@ object "Midnight" {
                 __ret0 := count
                 leave
             }
-            function internal_internal_toId(market_data_offset) -> __ret0 {
+            function internal_internal_collateralBitMask(index) -> __ret0 {
+                __ret0 := shl(index, 1)
+                leave
+            }
+            function internal_internal_collateralBitmapSetBit(bitmap, index) -> __ret0 {
+                let mask := internal_internal_collateralBitMask(index)
+                __ret0 := or(bitmap, mask)
+                leave
+            }
+            function internal_internal_collateralBitmapClearBit(bitmap, index) -> __ret0 {
+                let mask := internal_internal_collateralBitMask(index)
+                __ret0 := and(bitmap, not(mask))
+                leave
+            }
+            function internal_internal_collateralBitmapIsSet(bitmap, index) -> __ret0 {
+                let mask := internal_internal_collateralBitMask(index)
+                __ret0 := gt(and(bitmap, mask), 0)
+                leave
+            }
+            function internal_internal_codeDataMarketId(market_data_offset) -> __ret0 {
                 let initialChainId := sload(1024)
                 let self := address()
                 let id := 0
@@ -5357,6 +5402,42 @@ object "Midnight" {
                     id := keccak256(__midnight_id_outer_ptr, 85)
                     mstore(64, add(__midnight_id_outer_ptr, 96))
                 }
+                __ret0 := id
+                leave
+            }
+            function internal_internal_codeDataStoreMarket(market_data_offset, salt) -> __ret0 {
+                let pointer := 0
+                {
+                    let __midnight_store_ptr := mload(64)
+                    mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                    mstore(add(__midnight_store_ptr, 11), 32)
+                    let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                    mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
+                    mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                    mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
+                    mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
+                    mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
+                    mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
+                    let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
+                    let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                    let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                    mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                    calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                    let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                    let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                    pointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                    if iszero(pointer) {
+                        mstore(0, shl(224, 0x4e487b71))
+                        mstore(4, 81)
+                        revert(0, 36)
+                    }
+                    mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                }
+                __ret0 := pointer
+                leave
+            }
+            function internal_internal_toId(market_data_offset) -> __ret0 {
+                let id := internal_internal_codeDataMarketId(market_data_offset)
                 __ret0 := id
                 leave
             }
@@ -6187,33 +6268,7 @@ object "Midnight" {
                     }
                     let _collateralParamsValid := internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
                     let salt := sload(1024)
-                    let _marketPointer := 0
-                    {
-                        let __midnight_store_ptr := mload(64)
-                        mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
-                        mstore(add(__midnight_store_ptr, 11), 32)
-                        let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
-                        mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
-                        mstore(add(__midnight_store_tuple_ptr, 32), 192)
-                        mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
-                        mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
-                        mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
-                        mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
-                        let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
-                        let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
-                        let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
-                        mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
-                        calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
-                        let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
-                        let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                        _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
-                        if iszero(_marketPointer) {
-                            mstore(0, shl(224, 0x4e487b71))
-                            mstore(4, 81)
-                            revert(0, 36)
-                        }
-                        mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
-                    }
+                    let _marketPointer := internal_internal_codeDataStoreMarket(market_data_offset, salt)
                     {
                         let __compat_value := 4
                         let __compat_packed := and(__compat_value, 255)
@@ -8489,8 +8544,8 @@ object "Midnight" {
                     __forEach_idx := add(__forEach_idx, 1)
                 } {
                     i := __forEach_idx
-                    let mask := shl(i, 1)
-                    if gt(and(collateralBitmapValue, mask), 0) {
+                    let active := internal_internal_collateralBitmapIsSet(collateralBitmapValue, i)
+                    if active {
                         let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
                         let collateralParamOffset := add(add(collateralParamsOffset, 32), mul(i, 128))
                         let oracle := calldataload(add(collateralParamOffset, 96))
@@ -8958,9 +9013,9 @@ object "Midnight" {
                 let marketDataOffset := add(calldataload(4), 4)
                 let collateralParamsOffset := add(marketDataOffset, calldataload(add(marketDataOffset, 32)))
                 let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
-                let collateralMask := shl(collateralIndex, 1)
+                let collateralActive := internal_internal_collateralBitmapIsSet(collateralBitmapValue, collateralIndex)
                 if or(iszero(iszero(gt(seizedAssets, 0))), iszero(iszero(gt(repaidUnits, 0)))) {
-                    if iszero(gt(and(collateralBitmapValue, collateralMask), 0)) {
+                    if iszero(collateralActive) {
                         mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                         mstore(4, 32)
                         mstore(36, 19)
@@ -9122,8 +9177,7 @@ object "Midnight" {
                     if eq(newCollateral, 0) {
                         if gt(outSeizedAssets, 0) {
                             let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
-                            let mask := shl(collateralIndex, 1)
-                            let newBitmap := and(oldBitmap, not(mask))
+                            let newBitmap := internal_internal_collateralBitmapClearBit(oldBitmap, collateralIndex)
                             {
                                 let __compat_value := newBitmap
                                 let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -9320,8 +9374,8 @@ object "Midnight" {
                     __forEach_idx := add(__forEach_idx, 1)
                 } {
                     i := __forEach_idx
-                    let mask := shl(i, 1)
-                    if gt(and(collateralBitmapValue, mask), 0) {
+                    let active := internal_internal_collateralBitmapIsSet(collateralBitmapValue, i)
+                    if active {
                         let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
                         let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
                         let price := internal_internal_oraclePrice(oracle)
@@ -9366,10 +9420,9 @@ object "Midnight" {
                     }
                 }
                 let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
-                let mask := shl(collateralIndex, 1)
                 if eq(oldCollateral, 0) {
                     if gt(assets, 0) {
-                        let newBitmap := or(oldBitmap, mask)
+                        let newBitmap := internal_internal_collateralBitmapSetBit(oldBitmap, collateralIndex)
                         {
                             let __compat_value := newBitmap
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -9466,8 +9519,7 @@ object "Midnight" {
                 if eq(newCollateral, 0) {
                     if gt(assets, 0) {
                         let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
-                        let mask := shl(collateralIndex, 1)
-                        let newBitmap := and(oldBitmap, not(mask))
+                        let newBitmap := internal_internal_collateralBitmapClearBit(oldBitmap, collateralIndex)
                         {
                             let __compat_value := newBitmap
                             let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -10191,36 +10243,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let market_data_offset := market_abs_offset
-                        let initialChainId := sload(1024)
-                        let self := address()
-                        let id := 0
-                        {
-                            let __midnight_id_ptr := mload(64)
-                            mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
-                            mstore(add(__midnight_id_ptr, 11), 32)
-                            let __midnight_id_tuple_ptr := add(__midnight_id_ptr, 43)
-                            mstore(__midnight_id_tuple_ptr, calldataload(market_data_offset))
-                            mstore(add(__midnight_id_tuple_ptr, 32), 192)
-                            mstore(add(__midnight_id_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
-                            mstore(add(__midnight_id_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
-                            mstore(add(__midnight_id_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
-                            mstore(add(__midnight_id_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
-                            let __midnight_id_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
-                            let __midnight_id_collateral_length := calldataload(__midnight_id_collateral_offset)
-                            let __midnight_id_collateral_bytes := mul(__midnight_id_collateral_length, 128)
-                            mstore(add(__midnight_id_tuple_ptr, 192), __midnight_id_collateral_length)
-                            calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
-                            let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
-                            let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
-                            let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
-                            let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
-                            mstore(__midnight_id_outer_ptr, shl(248, 255))
-                            mstore(add(__midnight_id_outer_ptr, 1), shl(96, self))
-                            mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
-                            mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
-                            id := keccak256(__midnight_id_outer_ptr, 85)
-                            mstore(64, add(__midnight_id_outer_ptr, 96))
-                        }
+                        let id := internal_internal_codeDataMarketId(market_data_offset)
                         mstore(0, id)
                         return(0, 32)
                     }
@@ -11311,33 +11334,7 @@ object "Midnight" {
                             }
                             let _collateralParamsValid := internal_internal_validateCollateralParams(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1))
                             let salt := sload(1024)
-                            let _marketPointer := 0
-                            {
-                                let __midnight_store_ptr := mload(64)
-                                mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
-                                mstore(add(__midnight_store_ptr, 11), 32)
-                                let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
-                                mstore(__midnight_store_tuple_ptr, calldataload(market_data_offset))
-                                mstore(add(__midnight_store_tuple_ptr, 32), 192)
-                                mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(market_data_offset, 64)))
-                                mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(market_data_offset, 96)))
-                                mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(market_data_offset, 128)))
-                                mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(market_data_offset, 160)))
-                                let __midnight_store_collateral_offset := add(market_data_offset, calldataload(add(market_data_offset, 32)))
-                                let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
-                                let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
-                                mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
-                                calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
-                                let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
-                                let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                                _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
-                                if iszero(_marketPointer) {
-                                    mstore(0, shl(224, 0x4e487b71))
-                                    mstore(4, 81)
-                                    revert(0, 36)
-                                }
-                                mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
-                            }
+                            let _marketPointer := internal_internal_codeDataStoreMarket(market_data_offset, salt)
                             {
                                 let __compat_value := 4
                                 let __compat_packed := and(__compat_value, 255)
@@ -14125,8 +14122,8 @@ object "Midnight" {
                             __forEach_idx := add(__forEach_idx, 1)
                         } {
                             i := __forEach_idx
-                            let mask := shl(i, 1)
-                            if gt(and(collateralBitmapValue, mask), 0) {
+                            let active := internal_internal_collateralBitmapIsSet(collateralBitmapValue, i)
+                            if active {
                                 let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
                                 let collateralParamOffset := add(add(collateralParamsOffset, 32), mul(i, 128))
                                 let oracle := calldataload(add(collateralParamOffset, 96))
@@ -14649,9 +14646,9 @@ object "Midnight" {
                         let marketDataOffset := add(calldataload(4), 4)
                         let collateralParamsOffset := add(marketDataOffset, calldataload(add(marketDataOffset, 32)))
                         let collateralBitmapValue := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
-                        let collateralMask := shl(collateralIndex, 1)
+                        let collateralActive := internal_internal_collateralBitmapIsSet(collateralBitmapValue, collateralIndex)
                         if or(iszero(iszero(gt(seizedAssets, 0))), iszero(iszero(gt(repaidUnits, 0)))) {
-                            if iszero(gt(and(collateralBitmapValue, collateralMask), 0)) {
+                            if iszero(collateralActive) {
                                 mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
                                 mstore(4, 32)
                                 mstore(36, 19)
@@ -14813,8 +14810,7 @@ object "Midnight" {
                             if eq(newCollateral, 0) {
                                 if gt(outSeizedAssets, 0) {
                                     let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), borrower), 2))), 340282366920938463463374607431768211455)
-                                    let mask := shl(collateralIndex, 1)
-                                    let newBitmap := and(oldBitmap, not(mask))
+                                    let newBitmap := internal_internal_collateralBitmapClearBit(oldBitmap, collateralIndex)
                                     {
                                         let __compat_value := newBitmap
                                         let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -15032,8 +15028,8 @@ object "Midnight" {
                             __forEach_idx := add(__forEach_idx, 1)
                         } {
                             i := __forEach_idx
-                            let mask := shl(i, 1)
-                            if gt(and(collateralBitmapValue, mask), 0) {
+                            let active := internal_internal_collateralBitmapIsSet(collateralBitmapValue, i)
+                            if active {
                                 let activeCollateral := internal_internal_collateralAmount(id, borrower, i)
                                 let oracle := internal_internal_collateralOracleAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), i)
                                 let price := internal_internal_oraclePrice(oracle)
@@ -15114,10 +15110,9 @@ object "Midnight" {
                             }
                         }
                         let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
-                        let mask := shl(collateralIndex, 1)
                         if eq(oldCollateral, 0) {
                             if gt(assets, 0) {
-                                let newBitmap := or(oldBitmap, mask)
+                                let newBitmap := internal_internal_collateralBitmapSetBit(oldBitmap, collateralIndex)
                                 {
                                     let __compat_value := newBitmap
                                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
@@ -15237,8 +15232,7 @@ object "Midnight" {
                         if eq(newCollateral, 0) {
                             if gt(assets, 0) {
                                 let oldBitmap := and(shr(128, sload(add(mappingSlot(mappingSlot(0, id), onBehalf), 2))), 340282366920938463463374607431768211455)
-                                let mask := shl(collateralIndex, 1)
-                                let newBitmap := and(oldBitmap, not(mask))
+                                let newBitmap := internal_internal_collateralBitmapClearBit(oldBitmap, collateralIndex)
                                 {
                                     let __compat_value := newBitmap
                                     let __compat_packed := and(__compat_value, 340282366920938463463374607431768211455)
