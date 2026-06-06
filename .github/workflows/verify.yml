@@ -18,7 +18,7 @@ jobs:
   verity-build:
     name: Lean build (Verity)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -65,6 +65,9 @@ jobs:
       - name: Build Midnight Verity contract
         run: env -u CI ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build Midnight Verity contract" -- lake build Midnight
 
+      - name: Build compiler executable (FFI link)
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build compiler executable (FFI link)" -- lake build morpho-verity-compiler
+
       - name: Upload built Lean workspace
         uses: actions/upload-artifact@v4
         with:
@@ -107,13 +110,10 @@ jobs:
           name: lean-workspace
           path: .lake
 
-      - name: Install Lean toolchain
-        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
-      - name: Add elan bin to PATH
-        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-
-      - name: Build compiler executable (FFI link)
-        run: ./scripts/run_with_timeout.sh MORPHO_COMPILER_LINK_TIMEOUT_SEC 19800 "Build compiler executable (FFI link)" -- lake build morpho-verity-compiler
+      - name: Validate compiler executable
+        run: |
+          test -f .lake/build/bin/morpho-verity-compiler
+          chmod +x .lake/build/bin/morpho-verity-compiler
 
       - name: Upload compiler executable
         uses: actions/upload-artifact@v4
