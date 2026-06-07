@@ -10,8 +10,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGETS = [
-  ROOT / "Morpho" / "Compiler" / "Main.lean",
-  ROOT / "Morpho" / "Compiler" / "MainTest.lean",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "Main.lean",
+  ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "MainTest.lean",
   ROOT / "scripts" / "prepare_verity_morpho_artifact.sh",
   ROOT / "scripts" / "run_morpho_blue_parity.sh",
   ROOT / "scripts" / "report_yul_identity_gap.py",

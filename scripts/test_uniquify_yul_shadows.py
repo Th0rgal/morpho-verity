@@ -88,7 +88,7 @@ def test_sibling_blocks_no_rename():
         }
     """)
     out = run_uniquify(src)
-    # Sibling blocks can reuse names — no rename needed
+    # Sibling blocks can reuse names - no rename needed
     lines = [l for l in out.splitlines() if "let x" in l]
     assert len(lines) == 2
 

@@ -25,9 +25,9 @@ EOF_INNER
 setup_fake_repo() {
   local fake_root="$1"
   local target_json_content="${2:-{\"verity\":{\"parityPackId\":\"test-pack\"}}}"
-  mkdir -p "${fake_root}/scripts" "${fake_root}/config" "${fake_root}/artifacts/inputs"
-  printf '%s\n' 'import Morpho.Contract' > "${fake_root}/Morpho.lean"
-  printf '%s\n' 'import Morpho.Compiler.Main' > "${fake_root}/MorphoCompiler.lean"
+  mkdir -p "${fake_root}/scripts" "${fake_root}/config" "${fake_root}/artifacts/inputs" "${fake_root}/morpho-blue-verity"
+  printf '%s\n' 'import Morpho.Contract' > "${fake_root}/morpho-blue-verity/Morpho.lean"
+  printf '%s\n' 'import Morpho.Compiler.Main' > "${fake_root}/morpho-blue-verity/MorphoCompiler.lean"
   cp "${SCRIPT_UNDER_TEST}" "${fake_root}/scripts/prepare_verity_morpho_artifact.sh"
   cp "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" "${fake_root}/scripts/apply_yul_rewrite_pipeline.py"
   cp "${ROOT_DIR}/scripts/uniquify_yul_shadows.py" "${fake_root}/scripts/uniquify_yul_shadows.py"

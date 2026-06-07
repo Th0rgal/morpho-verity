@@ -21,6 +21,24 @@
   },
   "families": [
     {
+      "family": "__verity_full_mul_div",
+      "rewritePass": "verity-full-mul-div-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only full precision mulDiv helper delta is semantics-preserving relative to Solidity's generated arithmetic helpers.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.verity_full_mul_div.semantic_eq"
+      ]
+    },
+    {
+      "family": "__verity_full_mul_div_up",
+      "rewritePass": "verity-full-mul-div-up-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only full precision mulDivUp helper delta is semantics-preserving relative to Solidity's generated arithmetic helpers.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.verity_full_mul_div_up.semantic_eq"
+      ]
+    },
+    {
       "family": "abi_decode_address",
       "rewritePass": "abi-decode-helper-canonicalization",
       "proofObligation": "Prove address decoder helper rewrites preserve decoded values, revert conditions, and memory cursor movement.",
@@ -291,6 +309,42 @@
       ]
     },
     {
+      "family": "internal_internal__borrowAfterAccrue",
+      "rewritePass": "internal_internal_private_borrowafteraccrue-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_borrowAfterAccrue` helper-family delta introduced by source-shaped borrow splitting is semantics-preserving relative to Solidity's borrow body.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowafteraccrue.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__borrowAssetsMode",
+      "rewritePass": "internal_internal_private_borrowassetsmode-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_borrowAssetsMode` helper-family delta introduced by source-shaped borrow splitting is semantics-preserving relative to Solidity's borrow assets branch.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowassetsmode.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__borrowCommitAndCheck",
+      "rewritePass": "internal_internal_private_borrowcommitandcheck-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_borrowCommitAndCheck` helper-family delta introduced by source-shaped borrow splitting is semantics-preserving relative to Solidity's borrow commit and health-check region.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowcommitandcheck.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__borrowSharesMode",
+      "rewritePass": "internal_internal_private_borrowsharesmode-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_borrowSharesMode` helper-family delta introduced by source-shaped borrow splitting is semantics-preserving relative to Solidity's borrow shares branch.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_borrowsharesmode.semantic_eq"
+      ]
+    },
+    {
       "family": "internal_internal__isHealthy",
       "rewritePass": "internal_internal_private_ishealthy-canonicalization",
       "proofObligation": "Classify and prove the Verity-only `_isHealthy` helper-family delta introduced by the source-shaped Morpho contract is semantics-preserving relative to Solidity's internal `_isHealthy` helper.",
@@ -315,6 +369,24 @@
       "status": "planned",
       "proofRefs": [
         "rewrite.internal_internal_private_issenderauthorized.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__marketParamsId",
+      "rewritePass": "internal_internal_private_marketparamsid-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_marketParamsId` helper-family delta introduced by source-shaped market-id computation is semantics-preserving relative to Solidity's market params id computation.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_marketparamsid.semantic_eq"
+      ]
+    },
+    {
+      "family": "internal_internal__oraclePrice",
+      "rewritePass": "internal_internal_private_oracleprice-canonicalization",
+      "proofObligation": "Classify and prove the Verity-only `_oraclePrice` helper-family delta introduced by typed oracle access is semantics-preserving relative to Solidity's oracle price call path.",
+      "status": "planned",
+      "proofRefs": [
+        "rewrite.internal_internal_private_oracleprice.semantic_eq"
       ]
     },
     {

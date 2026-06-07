@@ -1074,6 +1074,141 @@ object "M" {
       self.assertIn("failed to create report output directory", proc.stderr)
       self.assertNotIn("Traceback", proc.stderr)
 
+  def _write_midnight_manifest(
+      self,
+      tmp: pathlib.Path,
+      *,
+      solidity_artifact: pathlib.Path,
+      artifact_candidates: list[pathlib.Path],
+  ) -> pathlib.Path:
+    manifest = tmp / "midnight-yul-identity.json"
+    manifest.write_text(
+      json.dumps(
+        {
+          "id": "test-midnight-exact",
+          "gateMode": "exact",
+          "soliditySource": "morpho-midnight/src/Midnight.sol",
+          "solidityArtifact": str(solidity_artifact),
+          "artifactCandidates": [str(candidate) for candidate in artifact_candidates],
+        }
+      ),
+      encoding="utf-8",
+    )
+    return manifest
+
+  def test_midnight_cli_fails_closed_when_artifact_missing(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      solidity_artifact = tmp / "Midnight.json"
+      solidity_artifact.write_text(
+        json.dumps({"irOptimized": 'object "Midnight" { code { function f() { leave } } }\n'}),
+        encoding="utf-8",
+      )
+      manifest = self._write_midnight_manifest(
+        tmp,
+        solidity_artifact=solidity_artifact,
+        artifact_candidates=[tmp / "missing" / "Midnight.yul"],
+      )
+      proc = subprocess.run(
+        [
+          "python3",
+          "scripts/report_yul_identity_gap.py",
+          "--subject",
+          "midnight",
+          "--skip-build",
+          "--enforce-configured-gate",
+          "--midnight-manifest",
+          str(manifest),
+          "--out-dir",
+          str(tmp / "out"),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("Missing Midnight Yul artifact", proc.stderr)
+      self.assertNotIn("Traceback", proc.stderr)
+
+  def test_midnight_cli_enforces_clean_exact_equality(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      yul = 'object "Midnight" { code { function f() { leave } } }\n'
+      solidity_artifact = tmp / "Midnight.json"
+      midnight_artifact = tmp / "Midnight.yul"
+      solidity_artifact.write_text(json.dumps({"irOptimized": yul}), encoding="utf-8")
+      midnight_artifact.write_text(yul, encoding="utf-8")
+      manifest = self._write_midnight_manifest(
+        tmp,
+        solidity_artifact=solidity_artifact,
+        artifact_candidates=[midnight_artifact],
+      )
+      proc = subprocess.run(
+        [
+          "python3",
+          "scripts/report_yul_identity_gap.py",
+          "--midnight",
+          "--skip-build",
+          "--enforce-configured-gate",
+          "--midnight-manifest",
+          str(manifest),
+          "--out-dir",
+          str(tmp / "out"),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      self.assertIn("subject: midnight", proc.stdout)
+      self.assertIn("fullyExact: True", proc.stdout)
+      report = json.loads((tmp / "out" / "report.json").read_text(encoding="utf-8"))
+      self.assertTrue(report["exactness"]["fullyExact"])
+      self.assertEqual(report["midnightManifest"]["selectedArtifact"], str(midnight_artifact))
+
+  def test_midnight_cli_configured_exact_gate_fails_on_drift(self) -> None:
+    with tempfile.TemporaryDirectory() as d:
+      tmp = pathlib.Path(d)
+      solidity_artifact = tmp / "Midnight.json"
+      midnight_artifact = tmp / "Midnight.rewritten.yul"
+      solidity_artifact.write_text(
+        json.dumps({"irOptimized": 'object "Midnight" { code { function f() { pop(1) } } }\n'}),
+        encoding="utf-8",
+      )
+      midnight_artifact.write_text(
+        'object "Midnight" { code { function f() { pop(2) } } }\n',
+        encoding="utf-8",
+      )
+      manifest = self._write_midnight_manifest(
+        tmp,
+        solidity_artifact=solidity_artifact,
+        artifact_candidates=[midnight_artifact],
+      )
+      proc = subprocess.run(
+        [
+          "python3",
+          "scripts/report_yul_identity_gap.py",
+          "--subject",
+          "midnight",
+          "--skip-build",
+          "--enforce-configured-gate",
+          "--midnight-manifest",
+          str(manifest),
+          "--out-dir",
+          str(tmp / "out"),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+      )
+      self.assertEqual(proc.returncode, 1)
+      self.assertIn("configured exact Yul parity gate not reached", proc.stderr)
+      report = json.loads((tmp / "out" / "report.json").read_text(encoding="utf-8"))
+      self.assertFalse(report["exactness"]["fullyExact"])
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -36,6 +36,10 @@ SOLIDITY_ARTIFACT = ROOT / "morpho-blue" / "out" / "Morpho.sol" / "Morpho.json"
 RUN_WITH_TIMEOUT = ROOT / "scripts" / "run_with_timeout.sh"
 DEFAULT_OUT_DIR = ROOT / "out" / "parity-target"
 DEFAULT_UNSUPPORTED_MANIFEST = ROOT / "config" / "yul-identity-unsupported.json"
+DEFAULT_MIDNIGHT_MANIFEST = ROOT / "config" / "midnight-yul-identity.json"
+DEFAULT_MIDNIGHT_UNSUPPORTED_MANIFEST = ROOT / "config" / "midnight-yul-identity-unsupported.json"
+MIDNIGHT_SOLIDITY_SOURCE = ROOT / "morpho-midnight" / "src" / "Midnight.sol"
+MIDNIGHT_SOLIDITY_ARTIFACT = ROOT / "morpho-midnight" / "out" / "Midnight.sol" / "Midnight.json"
 REWRITE_PLAN_DEFAULT_KINDS = frozenset({"renameOnly", "renameAmbiguous"})
 
 
@@ -884,16 +888,7 @@ def load_parity_target(path: pathlib.Path) -> dict[str, Any]:
 
 
 def extract_solidity_ir_optimized() -> str:
-  data = read_json(SOLIDITY_ARTIFACT)
-  if not isinstance(data, dict):
-    raise YulIdentityGapError(f"Solidity artifact must be a JSON object: {SOLIDITY_ARTIFACT}")
-  ir = data.get("irOptimized")
-  if not isinstance(ir, str) or not ir.strip():
-    raise YulIdentityGapError(
-      f"Missing `irOptimized` in {SOLIDITY_ARTIFACT}. "
-      "Run forge with `--extra-output irOptimized`."
-    )
-  return ir
+  return extract_ir_optimized_from_artifact(SOLIDITY_ARTIFACT, contract_label="Morpho")
 
 
 def compile_solidity_ir() -> None:
@@ -915,6 +910,33 @@ def compile_solidity_ir() -> None:
       "-q",
     ],
     cwd=ROOT / "morpho-blue",
+  )
+
+
+def compile_midnight_solidity_ir() -> None:
+  solc_bin = shutil.which("solc")
+  if solc_bin is None:
+    raise YulIdentityGapError("solc is required to build Midnight Solidity IR")
+  run_with_timeout(
+    "MIDNIGHT_SOLIDITY_IR_BUILD_TIMEOUT_SEC",
+    1200,
+    "Build Midnight Solidity IR for Yul identity report",
+    [
+      "forge",
+      "build",
+      "--force",
+      "--skip",
+      "test",
+      "script",
+      "--contracts",
+      "src/Midnight.sol",
+      "--extra-output",
+      "irOptimized",
+      "--use",
+      solc_bin,
+      "-q",
+    ],
+    cwd=ROOT / "morpho-midnight",
   )
 
 
@@ -1032,6 +1054,8 @@ def build_report(
     solc_ir: str,
     max_diff_lines: int,
     rewrite_proof_manifest: dict[str, Any] | None = None,
+    solidity_label: str = "solidity/Morpho.irOptimized.normalized.yul",
+    verity_label: str = "verity/Morpho.normalized.yul",
 ) -> tuple[dict[str, Any], str]:
   normalized_verity = normalize_yul(verity_yul)
   normalized_solc = normalize_yul(solc_ir)
@@ -1064,8 +1088,8 @@ def build_report(
       difflib.unified_diff(
         normalized_solc.splitlines(),
         normalized_verity.splitlines(),
-        fromfile="solidity/Morpho.irOptimized.normalized.yul",
-        tofile="verity/Morpho.normalized.yul",
+        fromfile=solidity_label,
+        tofile=verity_label,
         lineterm="",
       )
     )
@@ -1135,6 +1159,21 @@ def build_report(
 def parse_args() -> argparse.Namespace:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
+    "--subject",
+    choices=("morpho", "midnight"),
+    default="morpho",
+    help=(
+      "Yul identity target to report. `morpho` preserves the existing Morpho Blue "
+      "Solidity-vs-Verity artifact flow; `midnight` compares Midnight.sol Solidity "
+      "Yul against the checked Midnight Yul artifact manifest."
+    ),
+  )
+  parser.add_argument(
+    "--midnight",
+    action="store_true",
+    help="Shortcut for --subject midnight.",
+  )
+  parser.add_argument(
     "--out-dir",
     default=str(DEFAULT_OUT_DIR),
     help="Output directory for generated fixtures/report (default: out/parity-target).",
@@ -1195,11 +1234,208 @@ def parse_args() -> argparse.Namespace:
     action="store_true",
     help="Do not rebuild Solidity/Verity artifacts before generating the report.",
   )
+  parser.add_argument(
+    "--midnight-manifest",
+    default=str(DEFAULT_MIDNIGHT_MANIFEST),
+    help=(
+      "Checked manifest for Midnight Yul identity gating "
+      "(default: config/midnight-yul-identity.json)."
+    ),
+  )
   return parser.parse_args()
+
+
+def _manifest_repo_path(manifest: dict[str, Any], key: str, manifest_path: pathlib.Path) -> pathlib.Path:
+  value = manifest.get(key)
+  if not isinstance(value, str) or not value.strip():
+    raise YulIdentityGapError(f"Midnight manifest key `{key}` must be a non-empty string: {manifest_path}")
+  path = pathlib.Path(value)
+  return path if path.is_absolute() else ROOT / path
+
+
+def load_midnight_manifest(path: pathlib.Path) -> dict[str, Any]:
+  data = read_json(path)
+  if not isinstance(data, dict):
+    raise YulIdentityGapError(f"Midnight manifest must be a JSON object: {path}")
+  manifest_id = data.get("id")
+  if not isinstance(manifest_id, str) or not manifest_id.strip():
+    raise YulIdentityGapError(f"Midnight manifest key `id` must be a non-empty string: {path}")
+  gate_mode = data.get("gateMode")
+  if gate_mode not in {"exact", "unsupported-manifest"}:
+    raise YulIdentityGapError(
+      f"Midnight manifest key `gateMode` must be `exact` or `unsupported-manifest`: {path}"
+    )
+  solidity_source = _manifest_repo_path(data, "soliditySource", path)
+  if solidity_source.resolve() != MIDNIGHT_SOLIDITY_SOURCE.resolve():
+    raise YulIdentityGapError(
+      "Midnight manifest `soliditySource` must point to "
+      f"{display_path(MIDNIGHT_SOLIDITY_SOURCE)}: {path}"
+    )
+  solidity_artifact = _manifest_repo_path(data, "solidityArtifact", path)
+  artifact_candidates = data.get("artifactCandidates")
+  if (
+      not isinstance(artifact_candidates, list)
+      or not artifact_candidates
+      or not all(isinstance(item, str) and item.strip() for item in artifact_candidates)
+  ):
+    raise YulIdentityGapError(
+      f"Midnight manifest key `artifactCandidates` must be a non-empty list of strings: {path}"
+    )
+  normalized_candidates = []
+  allowed = {
+    (ROOT / "artifacts" / "midnight" / "Midnight.yul").resolve(),
+    (ROOT / "artifacts" / "midnight" / "Midnight.rewritten.yul").resolve(),
+  }
+  for item in artifact_candidates:
+    candidate = pathlib.Path(item)
+    normalized_candidate = candidate if candidate.is_absolute() else ROOT / candidate
+    normalized_candidates.append(normalized_candidate)
+    if not candidate.is_absolute() and normalized_candidate.resolve() not in allowed:
+      raise YulIdentityGapError(
+        "Midnight manifest artifact candidates must be artifacts/midnight/Midnight.yul "
+        f"or artifacts/midnight/Midnight.rewritten.yul: {path}"
+      )
+  return {
+    "id": manifest_id,
+    "gateMode": gate_mode,
+    "soliditySource": solidity_source,
+    "solidityArtifact": solidity_artifact,
+    "artifactCandidates": normalized_candidates,
+    "unsupportedManifest": (
+      _manifest_repo_path(data, "unsupportedManifest", path)
+      if gate_mode == "unsupported-manifest" and isinstance(data.get("unsupportedManifest"), str)
+      else DEFAULT_MIDNIGHT_UNSUPPORTED_MANIFEST
+    ),
+    **({"notes": data["notes"]} if isinstance(data.get("notes"), str) else {}),
+  }
+
+
+def resolve_midnight_yul_artifact(candidates: list[pathlib.Path]) -> pathlib.Path:
+  for candidate in candidates:
+    if candidate.is_file():
+      return candidate
+  candidate_list = ", ".join(display_path(candidate) for candidate in candidates)
+  raise YulIdentityGapError(f"Missing Midnight Yul artifact; checked candidates: {candidate_list}")
+
+
+def extract_ir_optimized_from_artifact(path: pathlib.Path, *, contract_label: str) -> str:
+  data = read_json(path)
+  if not isinstance(data, dict):
+    raise YulIdentityGapError(f"{contract_label} Solidity artifact must be a JSON object: {path}")
+  ir = data.get("irOptimized")
+  if not isinstance(ir, str) or not ir.strip():
+    raise YulIdentityGapError(
+      f"Missing `irOptimized` in {path}. Run forge with `--extra-output irOptimized`."
+    )
+  return ir
+
+
+def run_midnight_report(args: argparse.Namespace) -> int:
+  out_dir = pathlib.Path(args.out_dir).resolve()
+  manifest_path = pathlib.Path(args.midnight_manifest).resolve()
+  solidity_dir = out_dir / "solidity"
+  midnight_dir = out_dir / "midnight"
+  ensure_directory(out_dir, context="report output")
+  ensure_directory(solidity_dir, context="Solidity output")
+  ensure_directory(midnight_dir, context="Midnight output")
+
+  manifest = load_midnight_manifest(manifest_path)
+  if not args.skip_build:
+    compile_midnight_solidity_ir()
+
+  midnight_artifact_path = resolve_midnight_yul_artifact(manifest["artifactCandidates"])
+  solc_ir = extract_ir_optimized_from_artifact(
+    manifest["solidityArtifact"],
+    contract_label="Midnight",
+  )
+  midnight_yul = read_text(midnight_artifact_path)
+
+  write_text(solidity_dir / "Midnight.irOptimized.yul", solc_ir)
+  write_text(midnight_dir / "Midnight.yul", midnight_yul)
+  write_text(solidity_dir / "Midnight.irOptimized.normalized.yul", normalize_yul(solc_ir))
+  write_text(midnight_dir / "Midnight.normalized.yul", normalize_yul(midnight_yul))
+
+  report, diff_text = build_report(
+    midnight_yul,
+    solc_ir,
+    args.max_diff_lines,
+    solidity_label="solidity/Midnight.irOptimized.normalized.yul",
+    verity_label=f"midnight/{midnight_artifact_path.name}.normalized.yul",
+  )
+  report["subject"] = "midnight"
+  report["midnightManifest"] = {
+    "path": display_path(manifest_path),
+    "id": manifest["id"],
+    "gateMode": manifest["gateMode"],
+    "soliditySource": display_path(manifest["soliditySource"]),
+    "solidityArtifact": display_path(manifest["solidityArtifact"]),
+    "artifactCandidates": [display_path(candidate) for candidate in manifest["artifactCandidates"]],
+    "selectedArtifact": display_path(midnight_artifact_path),
+  }
+  report["exactness"] = build_exactness_summary(report)
+  report["unsupportedManifest"] = {"path": display_path(manifest["unsupportedManifest"]), "found": False, "check": None}
+  if manifest["gateMode"] == "unsupported-manifest" and manifest["unsupportedManifest"].exists():
+    unsupported_manifest = load_unsupported_manifest(manifest["unsupportedManifest"])
+    report["unsupportedManifest"]["found"] = True
+    report["unsupportedManifest"]["check"] = evaluate_unsupported_manifest(
+      report["functionBlocks"], unsupported_manifest, manifest["id"]
+    )
+  report["paths"] = {
+    "solidityRaw": display_path(solidity_dir / "Midnight.irOptimized.yul"),
+    "midnightRaw": display_path(midnight_dir / "Midnight.yul"),
+    "diff": display_path(out_dir / "normalized.diff"),
+  }
+
+  write_text(out_dir / "normalized.diff", diff_text)
+  write_text(out_dir / "report.json", json.dumps(report, indent=2) + "\n")
+  shutil.copy2(manifest_path, out_dir / "midnight-yul-identity.json")
+
+  print("subject: midnight")
+  print(f"midnightManifest: {display_path(manifest_path)}")
+  print(f"midnightArtifact: {display_path(midnight_artifact_path)}")
+  print(f"status: {report['status']}")
+  print(f"rawEqual: {report['rawEqual']}")
+  print(f"normalizedEqual: {report['normalizedEqual']}")
+  print(f"astEqual: {report['astEqual']}")
+  print(f"functionLevelExact: {report['exactness']['functionLevel']}")
+  print(f"fullyExact: {report['exactness']['fullyExact']}")
+  print(f"midnightGateMode: {manifest['gateMode']}")
+  if manifest["gateMode"] == "unsupported-manifest":
+    if report["unsupportedManifest"]["found"]:
+      print(f"unsupportedManifest: {display_path(manifest['unsupportedManifest'])}")
+      print(f"unsupportedManifestOk: {report['unsupportedManifest']['check']['ok']}")
+      print(f"unsupportedManifestTargetOk: {report['unsupportedManifest']['check']['parityTarget']['ok']}")
+    else:
+      print(f"unsupportedManifest: missing ({display_path(manifest['unsupportedManifest'])})")
+  print(f"report: {display_path(out_dir / 'report.json')}")
+  print(f"diff: {display_path(out_dir / 'normalized.diff')}")
+
+  if args.strict and not report["astEqual"]:
+    print("midnight yul-identity check failed in strict mode", file=sys.stderr)
+    return 1
+  if args.exact and not report["exactness"]["fullyExact"]:
+    print("midnight yul-identity check failed: exact Yul parity not reached", file=sys.stderr)
+    return 1
+  if args.enforce_configured_gate and manifest["gateMode"] == "exact" and not report["exactness"]["fullyExact"]:
+    print("midnight yul-identity check failed: configured exact Yul parity gate not reached", file=sys.stderr)
+    return 1
+  if args.enforce_configured_gate and manifest["gateMode"] == "unsupported-manifest":
+    if not report["unsupportedManifest"]["found"]:
+      print("midnight yul-identity check failed: unsupported manifest file is missing", file=sys.stderr)
+      return 1
+    if not report["unsupportedManifest"]["check"]["ok"]:
+      print("midnight yul-identity check failed: unsupported manifest drift detected", file=sys.stderr)
+      return 1
+  return 0
 
 
 def main() -> int:
   args = parse_args()
+  if args.midnight:
+    args.subject = "midnight"
+  if args.subject == "midnight":
+    return run_midnight_report(args)
+
   out_dir = pathlib.Path(args.out_dir).resolve()
   unsupported_manifest_path = pathlib.Path(args.unsupported_manifest).resolve()
   rewrite_proof_manifest_path = pathlib.Path(args.rewrite_proof_manifest).resolve()

@@ -12,12 +12,13 @@ needs the first two groups; the rest support CI.
 |--------|---------|
 | `prepare_verity_morpho_artifact.sh` | Build `Morpho.yul`, `Morpho.bin`, `Morpho.abi.json`. |
 | `run_morpho_blue_parity.sh` | Run the Morpho Blue suite against both Solidity and the Verity artifact. |
+| `run_morpho_midnight_parity.sh` | Run the Morpho Midnight suite against upstream Solidity or a supplied Verity artifact. |
 | `report_yul_identity_gap.py` | Generate the Solidity-vs-Verity Yul identity report. |
 | `apply_yul_rewrite_pipeline.py` | Apply the configured Yul rewrite stages to raw Verity Yul. |
 | `check_prepared_verity_artifact_bundle.py` | Validate a prepared artifact bundle before reuse. |
 | `check_parity_target.py` | Validate the pinned solc + Foundry parity tuple. |
 | `check_input_mode_parity.sh` | Enforce that all three artifacts exist and are non-empty. |
-| `uniquify_yul_shadows.py`, `fix_market_params_hash.py`, `keccak256.py`, `parity_target_config.py`, `patch_morpho_blue_harness.py` | Supporting helpers for the steps above. |
+| `uniquify_yul_shadows.py`, `fix_market_params_hash.py`, `keccak256.py`, `parity_target_config.py`, `patch_morpho_blue_harness.py`, `patch_morpho_midnight_harness.py` | Supporting helpers for the steps above. |
 
 See [`../docs/CI.md`](../docs/CI.md) for the environment and timeout knobs these
 scripts read, and [`../docs/PARITY_TARGET.md`](../docs/PARITY_TARGET.md) for the

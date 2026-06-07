@@ -2,7 +2,8 @@
 
 Operational reference for building the Verity artifact, running the parity and
 Yul-identity gates, and the environment/timeout knobs CI uses. None of this is
-needed to verify the proofs — for that see the top-level `README.md`.
+needed to verify the proofs - for that see the top-level `README.md`. The
+Midnight-specific completion checklist lives in `docs/MIDNIGHT_VERITY_PLAN.md`.
 
 ## Artifact build
 
@@ -66,6 +67,31 @@ Enforce artifact readiness (all three artifacts must exist and be non-empty):
 ./scripts/check_input_mode_parity.sh
 ```
 
+Build the focused Morpho Midnight proof-model artifact
+(`MidnightRCF.yul`, `MidnightRCF.bin.raw`, `MidnightRCF.abi.json`):
+
+```bash
+./scripts/prepare_focused_midnight_artifact.sh
+```
+
+This artifact is intentionally written under `artifacts/midnight-focused/`.
+It is separate from the full `IMidnight` artifact consumed by
+`MORPHO_MIDNIGHT_PARITY_MODE=verity ./scripts/run_morpho_midnight_parity.sh`.
+
+Build the full Midnight Verity artifact:
+
+```bash
+./scripts/prepare_midnight_artifact.sh
+```
+
+Then run the original upstream Midnight suite against it:
+
+```bash
+MORPHO_MIDNIGHT_PARITY_MODE=verity ./scripts/run_morpho_midnight_parity.sh
+```
+
+The current expected result is 373 passing tests, 0 failures, and 0 skipped.
+
 ## Parity target and Yul identity
 
 Validate the pinned parity tuple (solc + Foundry profile):
@@ -79,6 +105,14 @@ Generate Solidity-vs-Verity Yul identity report artifacts (under `out/parity-tar
 ```bash
 python3 scripts/report_yul_identity_gap.py
 ```
+
+Generate and enforce the Midnight-specific Yul drift report:
+
+```bash
+python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate
+```
+
+This gate is a manifest drift gate, not strict Yul equivalence.
 
 Validate that current function-level Yul gaps match the tracked unsupported manifest:
 

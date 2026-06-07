@@ -7,17 +7,31 @@ health properties. Everything below is what those claims rest on.
 
 ## Artifact Packaging
 
-`Morpho/Compiler/ArtifactConfig.lean` is not a second contract definition. The
-single Morpho source of truth is `Morpho/Contract.lean`, where
+`morpho-blue-verity/Morpho/Compiler/ArtifactConfig.lean` is not a second contract definition. The
+single Morpho source of truth is `morpho-blue-verity/Morpho/Contract.lean`, where
 `verity_contract Morpho` produces `Morpho.Contract.Morpho.spec`.
 
 `ArtifactConfig.lean` adapts that macro-produced spec for the standalone compiler
 CLI by setting the emitted artifact name, filtering internal helper functions
 out of the external selector/ABI surface, and making the linked external
 dependency set explicit. That dependency set is empty: `keccakMarketParams`,
-`borrowRate`, and `oraclePrice` are implemented in `Morpho/Contract.lean`
+`borrowRate`, and `oraclePrice` are implemented in `morpho-blue-verity/Morpho/Contract.lean`
 through Verity ECM modules. CI enforces this boundary through
 `scripts/check_morpho_artifact_boundary.py`.
+
+## Verity Dependency Pin
+
+The Morpho packages are pinned through `lakefile.lean` and
+`lake-manifest.json` to:
+
+- repository: `https://github.com/Th0rgal/verity.git`
+- revision: `c02c2c15c2ba536a71c993b7a086fee6a5a8e7e6`
+
+That revision includes the source-faithfulness features this branch relies on:
+source-level internal functions, typed interface calls, ABI-frame lowering,
+typed linked-external declarations, standard ERC-20/callback ECMs, and
+CREATE2/SSTORE2 code-as-data modules. `scripts/check_verity_pin_sync.py` fails
+closed if the Lake manifest and lakefile disagree about this pin.
 
 ## Local Obligations
 
@@ -26,11 +40,23 @@ crosses a low-level or external boundary:
 
 | Local obligation | Usage |
 |------------------|-------|
-| `set_authorization_event` | `SetAuthorization` raw-log memory encoding in `setAuthorization`. |
 | `authorization_post_ecrecover_write` | Intentional nonce increment before signature recovery and authorization write after ecrecover, matching Solidity ordering. |
 | `create_market_irm_init` | Post-create IRM initialization call in `createMarket`. |
 | `supply_callback`, `repay_callback`, `supply_collateral_callback`, `liquidate_callback` | Morpho callback ordering plus token transfer mechanics around the callback boundary. |
 | `flash_loan_transfers` | Flash-loan token transfer and callback mechanics. |
+
+## Retained Morpho Blue ECMs
+
+The Blue contract keeps ECMs only where the current source-level surface would
+either change Morpho v1 behavior or hide lower-level Solidity mechanics:
+
+| ECM axiom | Solidity construct represented | Why it remains an ECM |
+|-----------|--------------------------------|------------------------|
+| `morpho_safe_transfer_interface` | `SafeTransferLib.safeTransfer` in `morpho-blue/src/libraries/SafeTransferLib.sol`. | Morpho requires `code.length > 0` and exact revert strings (`"no code"`, `"transfer reverted"`, `"transfer returned false"`). The standard Verity Solmate helper intentionally accepts empty returndata without the Morpho code-length guard and uses different failure payloads. |
+| `morpho_safe_transfer_from_interface` | `SafeTransferLib.safeTransferFrom`. | Same reason as `safeTransfer`, with Morpho's `transferFrom`-specific revert strings. |
+| `optional_callback_target_interface` | `IMorphoSupplyCallback`, `IMorphoRepayCallback`, `IMorphoSupplyCollateralCallback`, and `IMorphoLiquidateCallback` guarded by `data.length > 0`. | The call mechanics are source-ordered and selector-specific, but callback target behavior and dynamic `bytes` forwarding remain an external ABI boundary. |
+| `oracle_read_uint256_interface` | `IIrm.borrowRate(...)` / `borrowRateView(...)`-shaped single-word reads. | `IOracle.price()` is now expressed as a typed Verity interface call. IRM calls still use the current Verity helper because the exact Morpho Blue struct ABI selector and mock behavior need a dedicated source-level interface path. |
+| Hashing ECM assumptions from `Compiler.Modules.Hashing` | `keccak256(abi.encode(...))` for EIP-712 and `MarketParamsLib.id`. | Static ABI Keccak is source-shaped in the contract but remains a compiler/EVM trust-report boundary until the proof stack models memory-slice Keccak completely. |
 
 ## Still Assumed At The Current Pin
 
@@ -65,33 +91,28 @@ operations or explicit guards.
 
 ## Refinement Proof Status
 
-The refinement layer now assembles generated-body steps from
-`Morpho/Proofs/Disciplines.lean` instead of keeping all entrypoint obligations as
-opaque assumptions:
+The refinement layer assembles generated-body steps from
+`morpho-blue-verity/Morpho/Proofs/Disciplines.lean`, but the current Blue
+entrypoint-to-projection discipline is still a named Lean boundary rather than a
+fully discharged generated-body traversal:
 
-- `supply`, `withdraw`, `supplyCollateral`, and `repay` discharge their monotone
-  field discipline in Lean through storage-framing and packed-field lemmas.
-- `withdrawCollateral` and `borrow` discharge their generated `_isHealthy` guards
-  in Lean, assuming explicit market-id alignment, oracle-price alignment, and the
-  local oracle-price/collateral-fit domain required by `healthFaithful_of_noOverflow`. The `borrow`
-  proof factors the post-accrual commit-and-health-check block and both amount
-  modes as `guardedDiscipline_borrowCommitAndCheck`,
-  `guardedDiscipline_borrowAssetsMode`, and
-  `guardedDiscipline_borrowSharesMode`, then connects the public entrypoint
-  through `guardedDiscipline_borrow`.
-- `liquidate` no longer carries the structural generated-guard boundary:
-  `guardUnhealthy_liquidate` proves that a successful generated body reached
-  `require(!_isHealthy)` after `_accrueInterest` and that the health check
-  returned `false`. The post-accrual/pre-state bridge is also proved in Lean:
-  `liquidate_preStateUnhealthy_of_accrueInterest_identity` uses the explicit
-  contract-side no-accrual discipline `AccrueInterestIdentityFor` to replay the
-  generated guard on the original projected pre-state.
-- Health arithmetic now exposes `LocalNoOverflowFor` with only the oracle-price
-  multiplication bounds explicit: the watched collateral times oracle price, and
-  that quoted collateral times LLTV, must fit in `uint256`. The borrow-side
-  share/asset conversion uses the full-precision `mulDiv512Up` helper, and its
-  quotient-fit proof is derived from the packed `uint128` storage reads at the
-  `healthFaithful_of_noOverflow` call site.
+- `supply`, `withdraw`, `supplyCollateral`, and `repay` expose typed
+  `MonotoneDiscipline` obligations over the real generated entrypoint runs.
+- `withdrawCollateral` and `borrow` expose typed `GuardedDiscipline` obligations
+  over the generated `_isHealthy` guard, assuming explicit market-id alignment,
+  oracle-price alignment, and `LocalNoOverflowFor`.
+- `liquidate` exposes typed obligations for the post-accrual unhealthy guard and
+  the no-accrual bridge back to the projected pre-state.
+- Health arithmetic now exposes `LocalNoOverflowFor` as the exact four-field
+  domain required by `healthFaithful_of_noOverflow`: `totalBorrowAssets + 1`,
+  `totalBorrowShares + 1000000`, watched collateral times oracle price, and
+  quoted collateral times LLTV must fit in `uint256`. `Disciplines.lean` proves
+  `noOverflow_of_localNoOverflow` from that local domain instead of assuming it.
+  The borrow-side share/asset conversion uses the full-precision `mulDiv512Up`
+  helper, and its quotient-fit proof is derived from the packed `uint128`
+  storage reads at the `healthFaithful_of_noOverflow` call site.
+- `StorageFrame.lean` still isolates the keccak/layout slot-injectivity fact as
+  the single direct storage-frame axiom.
 
 ## Current Gates
 

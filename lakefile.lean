@@ -5,10 +5,11 @@ package «morpho-verity» where
   version := v!"0.1.0"
 
 require verity from git
-  "https://github.com/Th0rgal/verity.git" @ "540c9f3dfdb3749110666abc619581e528e41bc9"
+  "https://github.com/Th0rgal/verity.git" @ "c02c2c15c2ba536a71c993b7a086fee6a5a8e7e6"
 
 @[default_target]
 lean_lib «Morpho» where
+  srcDir := "morpho-blue-verity"
   -- Keep the Morpho library explicit so no hand-written compiler model can
   -- become a second source of truth by glob expansion.
   globs := #[
@@ -23,12 +24,20 @@ lean_lib «Morpho» where
   ]
 
 lean_lib «Midnight» where
+  srcDir := "morpho-midnight-verity"
   globs := #[
     .one `Midnight,
     .one `Midnight.Contract,
+    .one `Midnight.Compiler.ArtifactConfig,
+    .one `Midnight.Compiler.Main,
     .one `Midnight.Proofs,
     .submodules `Midnight.Proofs
   ]
 
 lean_exe «morpho-verity-compiler» where
+  srcDir := "morpho-blue-verity"
   root := `MorphoCompiler
+
+lean_exe «midnight-verity-compiler» where
+  srcDir := "morpho-midnight-verity"
+  root := `MidnightCompiler

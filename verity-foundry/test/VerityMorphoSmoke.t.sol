@@ -622,7 +622,7 @@ contract VerityMorphoSmokeTest {
         morpho.createMarket(params);
         require(morpho.lastUpdate(id) == 1234567890, "lastUpdate after create mismatch");
 
-        // Advance time — setFee should accrue interest first and update lastUpdate
+        // Advance time - setFee should accrue interest first and update lastUpdate
         vm.warp(1234567900);
         vm.prank(OWNER);
         morpho.setFee(params, 0.1 ether);
@@ -1194,7 +1194,7 @@ contract VerityMorphoSmokeTest {
         morpho.setAuthorizationWithSig(authorization, signature);
         require(morpho.nonce(authorizer) == 1, "nonce should increment");
 
-        // Replay the same signature — nonce is now 1 but authorization.nonce is still 0
+        // Replay the same signature - nonce is now 1 but authorization.nonce is still 0
         (bool ok,) = address(morpho).call(
             abi.encodeWithSelector(
                 IMorphoSubset.setAuthorizationWithSig.selector, authorization, signature

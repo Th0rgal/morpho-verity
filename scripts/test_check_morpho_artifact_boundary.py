@@ -13,8 +13,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check_morpho_artifact_boundary.py"
-MAIN_PATH = ROOT / "Morpho" / "Compiler" / "Main.lean"
-ARTIFACT_CONFIG_PATH = ROOT / "Morpho" / "Compiler" / "ArtifactConfig.lean"
+MAIN_PATH = ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "Main.lean"
+ARTIFACT_CONFIG_PATH = ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "ArtifactConfig.lean"
 TRUST_DOC_PATH = ROOT / "docs" / "TRUST_BOUNDARIES.md"
 
 
@@ -50,7 +50,7 @@ class CheckMorphoArtifactBoundaryTests(unittest.TestCase):
       MAIN_PATH.write_text(original, encoding="utf-8")
 
   def test_detects_legacy_compiler_model_file(self) -> None:
-    legacy_path = ROOT / "Morpho" / "Compiler" / "Spec.lean"
+    legacy_path = ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "Spec.lean"
     self.assertFalse(legacy_path.exists(), "repo must not ship the legacy Spec.lean")
     try:
       legacy_path.write_text("def morphoSpec := 0\n", encoding="utf-8")
@@ -63,12 +63,12 @@ class CheckMorphoArtifactBoundaryTests(unittest.TestCase):
       )
       self.assertNotEqual(proc.returncode, 0)
       self.assertIn("legacy Morpho compiler model files must not exist", proc.stderr)
-      self.assertIn("Morpho/Compiler/Spec.lean", proc.stderr)
+      self.assertIn("morpho-blue-verity/Morpho/Compiler/Spec.lean", proc.stderr)
     finally:
       legacy_path.unlink(missing_ok=True)
 
   def test_detects_legacy_protocol_projection_file(self) -> None:
-    legacy_path = ROOT / "Morpho" / "Types.lean"
+    legacy_path = ROOT / "morpho-blue-verity" / "Morpho" / "Types.lean"
     self.assertFalse(legacy_path.exists(), "repo must not ship the legacy Types.lean projection model")
     try:
       legacy_path.write_text("structure MorphoState where\n  owner : Nat\n", encoding="utf-8")
@@ -81,12 +81,12 @@ class CheckMorphoArtifactBoundaryTests(unittest.TestCase):
       )
       self.assertNotEqual(proc.returncode, 0)
       self.assertIn("legacy Morpho compiler model files must not exist", proc.stderr)
-      self.assertIn("Morpho/Types.lean", proc.stderr)
+      self.assertIn("morpho-blue-verity/Morpho/Types.lean", proc.stderr)
     finally:
       legacy_path.unlink(missing_ok=True)
 
   def test_detects_second_model_marker_outside_contract(self) -> None:
-    probe_path = ROOT / "Morpho" / "Compiler" / "SecondModelProbe.lean"
+    probe_path = ROOT / "morpho-blue-verity" / "Morpho" / "Compiler" / "SecondModelProbe.lean"
     try:
       probe_path.write_text("def marketId := 0\n", encoding="utf-8")
       proc = subprocess.run(
@@ -98,7 +98,7 @@ class CheckMorphoArtifactBoundaryTests(unittest.TestCase):
       )
       self.assertNotEqual(proc.returncode, 0)
       self.assertIn("second protocol model marker", proc.stderr)
-      self.assertIn("Morpho/Compiler/SecondModelProbe.lean", proc.stderr)
+      self.assertIn("morpho-blue-verity/Morpho/Compiler/SecondModelProbe.lean", proc.stderr)
     finally:
       probe_path.unlink(missing_ok=True)
 

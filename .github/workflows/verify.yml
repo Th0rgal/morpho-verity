@@ -18,7 +18,7 @@ jobs:
   verity-build:
     name: Lean build (Verity)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -56,11 +56,17 @@ jobs:
 
       # CI is unset for the build so Mathlib's `says` tactic does not switch into
       # verify mode (it keys off the CI env var). says-verify re-runs `simp?` and
-      # fails on upstream simp-set drift in Mathlib's own CauSeq/Basic.lean — a
+      # fails on upstream simp-set drift in Mathlib's own CauSeq/Basic.lean - a
       # failure unrelated to this repo. With CI unset the build matches the local
       # toolchain build, which passes.
       - name: Build Verity contract
         run: env -u CI ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build Verity contract" -- lake build
+
+      - name: Build Midnight Verity contract
+        run: env -u CI ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build Midnight Verity contract" -- lake build Midnight
+
+      - name: Build compiler executable (FFI link)
+        run: ./scripts/run_with_timeout.sh MORPHO_VERITY_BUILD_TIMEOUT_SEC 5100 "Build compiler executable (FFI link)" -- lake build morpho-verity-compiler
 
       - name: Upload built Lean workspace
         uses: actions/upload-artifact@v4
@@ -104,15 +110,10 @@ jobs:
           name: lean-workspace
           path: .lake
 
-      - name: Install Lean toolchain
-        run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
-      - name: Add elan bin to PATH
-        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
-
-      - name: Build compiler executable (FFI link)
-        run: ./scripts/run_with_timeout.sh MORPHO_COMPILER_LINK_TIMEOUT_SEC 19800 "Build compiler executable (FFI link)" -- lake build morpho-verity-compiler
+      - name: Validate compiler executable
+        run: |
+          test -f .lake/build/bin/morpho-verity-compiler
+          chmod +x .lake/build/bin/morpho-verity-compiler
 
       - name: Upload compiler executable
         uses: actions/upload-artifact@v4
@@ -163,6 +164,12 @@ jobs:
 
       - name: Validate morpho event surface sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho event surface sync" -- python3 scripts/check_morpho_event_surface.py
+
+      - name: Validate morpho midnight mapping
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho midnight mapping" -- python3 scripts/check_morpho_midnight_mapping.py
+
+      - name: Validate morpho midnight artifact boundary
+        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate morpho midnight artifact boundary" -- python3 scripts/check_morpho_midnight_artifact_boundary.py
 
       - name: Validate CI timeout defaults sync
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate CI timeout defaults sync" -- python3 scripts/check_ci_timeout_defaults.py
@@ -271,8 +278,7 @@ jobs:
     name: Yul identity gap report (Solidity vs Verity)
     runs-on: ubuntu-latest
     needs: [verity-build, parity-target, verity-compiled-tests]
-    timeout-minutes: 240
-    continue-on-error: true
+    timeout-minutes: 480
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -344,11 +350,19 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate downloaded EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
 
       - name: Generate Yul identity report
-        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 13800 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-configured-gate
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 13800 "Yul identity report" -- python3 scripts/report_yul_identity_gap.py --max-diff-lines 12000 --enforce-configured-gate --out-dir out/parity-target/morpho-blue
         env:
           MORPHO_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "900"
           MORPHO_VERITY_PREP_TIMEOUT_SEC: "13200"
           MORPHO_VERITY_PREPARED_ARTIFACT_DIR: out/parity-shared
+
+      - name: Install Midnight solc
+        run: ./scripts/run_with_timeout.sh MORPHO_SOLC_INSTALL_TIMEOUT_SEC 600 "Install Midnight solc" -- ./scripts/install_solc.sh 0.8.34
+
+      - name: Generate Midnight Yul identity report
+        run: ./scripts/run_with_timeout.sh MORPHO_YUL_IDENTITY_TIMEOUT_SEC 13800 "Midnight Yul identity report" -- python3 scripts/report_yul_identity_gap.py --midnight --max-diff-lines 12000 --enforce-configured-gate --out-dir out/parity-target/morpho-midnight
+        env:
+          MIDNIGHT_SOLIDITY_IR_BUILD_TIMEOUT_SEC: "1200"
 
       - name: Upload Yul identity artifacts
         if: always()
@@ -436,8 +450,6 @@ jobs:
         run: ./scripts/run_with_timeout.sh MORPHO_LEAN_INSTALL_TIMEOUT_SEC 600 "Install Lean toolchain" -- ./scripts/install_lean.sh
       - name: Add elan bin to PATH
         run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Clear stale Lake packages on verity pin change
-        run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Clear stale Lake packages on verity pin change" -- ./scripts/clear_stale_verity_lake_state.sh
 
       - name: Restore Foundry cache
         uses: actions/cache@v4
@@ -476,6 +488,7 @@ jobs:
           LEAN_NUM_THREADS: 4
           MORPHO_VERITY_PARITY_OUT_DIR: out/parity-shared
           MORPHO_VERITY_SKIP_BUILD: "1"
+          MORPHO_VERITY_COMPILER_BIN: .lake/build/bin/morpho-verity-compiler
 
       - name: Validate prepared EDSL artifact bundle
         run: ./scripts/run_with_timeout.sh MORPHO_PARITY_TARGET_VALIDATE_TIMEOUT_SEC 300 "Validate prepared EDSL artifact bundle" -- python3 scripts/check_prepared_verity_artifact_bundle.py --artifact-dir out/parity-shared --require-rewrite
@@ -492,7 +505,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [verity-build, parity-target, verity-compiler-artifacts]
     timeout-minutes: 90
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -584,7 +596,6 @@ jobs:
     # Keep long differential runs behind all long-lane validation gates.
     needs: [verity-build, parity-target, yul-identity-report, solidity-tests, verity-compiled-tests]
     timeout-minutes: 120
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5

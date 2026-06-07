@@ -15,6 +15,7 @@ BORROW_RATE_LIB="${ROOT_DIR}/artifacts/inputs/BorrowRate.yul"
 ORACLE_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/OraclePrice.yul"
 COLLATERAL_PRICE_LIB="${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul"
 TARGET_JSON="${ROOT_DIR}/config/parity-target.json"
+COMPILER_BIN="${MORPHO_VERITY_COMPILER_BIN:-}"
 
 require_command() {
   local cmd="$1"
@@ -85,8 +86,8 @@ compute_input_digest() {
     "${ROOT_DIR}/lean-toolchain" \
     "${ROOT_DIR}/lake-manifest.json" \
     "${ROOT_DIR}/lakefile.lean" \
-    "${ROOT_DIR}/Morpho.lean" \
-    "${ROOT_DIR}/MorphoCompiler.lean" \
+    "${ROOT_DIR}/morpho-blue-verity/Morpho.lean" \
+    "${ROOT_DIR}/morpho-blue-verity/MorphoCompiler.lean" \
     "${ROOT_DIR}/scripts/prepare_verity_morpho_artifact.sh" \
     "${ROOT_DIR}/scripts/apply_yul_rewrite_pipeline.py" \
     "${ROOT_DIR}/config/parity-target.json" \
@@ -95,7 +96,7 @@ compute_input_digest() {
     "${ROOT_DIR}/artifacts/inputs/BorrowRate.yul" \
     "${ROOT_DIR}/artifacts/inputs/OraclePrice.yul" \
     "${ROOT_DIR}/artifacts/inputs/CollateralPrice.yul" \
-    "${ROOT_DIR}/Morpho"; do
+    "${ROOT_DIR}/morpho-blue-verity/Morpho"; do
     if [[ -f "${path}" ]]; then
       files+=("${path}")
     elif [[ -d "${path}" ]]; then
@@ -164,14 +165,22 @@ run_lake_build() {
 run_lake_exe() {
   (
     cd "${ROOT_DIR}"
-    lake exe morpho-verity-compiler "${compiler_args[@]}"
+    if [[ -n "${COMPILER_BIN}" ]]; then
+      "${COMPILER_BIN}" "${compiler_args[@]}"
+    else
+      lake exe morpho-verity-compiler "${compiler_args[@]}"
+    fi
   )
 }
 
 run_list_parity_packs() {
   (
     cd "${ROOT_DIR}"
-    lake exe morpho-verity-compiler --list-parity-packs
+    if [[ -n "${COMPILER_BIN}" ]]; then
+      "${COMPILER_BIN}" --list-parity-packs
+    else
+      lake exe morpho-verity-compiler --list-parity-packs
+    fi
   )
 }
 
@@ -293,7 +302,14 @@ for lib_file in "${HASH_LIB}" "${BORROW_RATE_LIB}" "${ORACLE_PRICE_LIB}" "${COLL
   fi
 done
 
-require_command "lake" "lake is required to build and compile Morpho artifacts"
+if [[ -n "${COMPILER_BIN}" ]]; then
+  if [[ ! -x "${COMPILER_BIN}" ]]; then
+    echo "ERROR: MORPHO_VERITY_COMPILER_BIN must point to an executable file: ${COMPILER_BIN}"
+    exit 2
+  fi
+else
+  require_command "lake" "lake is required to build and compile Morpho artifacts"
+fi
 resolve_parity_pack_support
 
 input_digest="$(compute_input_digest)"
@@ -303,7 +319,7 @@ if manifest_matches "${input_digest}" && artifacts_ready; then
   exit 0
 fi
 
-if [[ "${SKIP_BUILD}" != "1" ]]; then
+if [[ "${SKIP_BUILD}" != "1" && -z "${COMPILER_BIN}" ]]; then
   run_stage "lake-build" run_lake_build
 fi
 
