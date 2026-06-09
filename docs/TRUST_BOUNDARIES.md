@@ -25,13 +25,14 @@ The Morpho packages are pinned through `lakefile.lean` and
 `lake-manifest.json` to:
 
 - repository: `https://github.com/Th0rgal/verity.git`
-- revision: `c02c2c15c2ba536a71c993b7a086fee6a5a8e7e6`
+- revision: `57741a732ec58dc8b3b1b6fc103a50c927fac47e`
 
-That revision includes the source-faithfulness features this branch relies on:
-source-level internal functions, typed interface calls, ABI-frame lowering,
-typed linked-external declarations, standard ERC-20/callback ECMs, and
-CREATE2/SSTORE2 code-as-data modules. `scripts/check_verity_pin_sync.py` fails
-closed if the Lake manifest and lakefile disagree about this pin.
+This revision brings source-level `keccakString` literals and improved typed
+interface support used by the Morpho Blue model (EIP-712 type hashes are now
+expressed with `keccakString` in `Morpho/Contract.lean`; an `IERC20` interface
+is declared for documentation even though transfer calls continue to use the
+Morpho-specific ECMs for exact revert behavior). `scripts/check_verity_pin_sync.py`
+enforces that the Lake manifest and lakefile agree on this pin.
 
 ## Local Obligations
 
@@ -76,11 +77,19 @@ either change Morpho v1 behavior or hide lower-level Solidity mechanics:
 ## Verity Coverage
 
 Verity supplies the EVM-shaped primitives the contract builds on: static ABI
-Keccak helpers, EIP-712 digest helpers, Solmate-compatible ERC-20
-optional-return ECMs, bubbling call/callback modules, raw-log validation, and
-Solidity-0.8 checked-arithmetic helpers. The Morpho source uses these directly
-rather than ad hoc stand-ins, so the remaining trust-report entries stay narrow
-and auditable.
+Keccak helpers (now also used via the `keccakString` macro for the two EIP-712
+typehash constants in the Morpho Blue model), EIP-712 digest helpers, Solmate-
+compatible ERC-20 optional-return ECMs, bubbling call/callback modules, raw-log
+validation, and Solidity-0.8 checked-arithmetic helpers. The Morpho source uses
+these directly rather than ad hoc stand-ins (with the exception of the retained
+Morpho-specific safe transfer ECMs documented above), so the remaining trust-
+report entries stay narrow and auditable.
+
+An `IERC20` typed interface is declared in the model alongside `IOracle`; the
+`safeTransfer` / `safeTransferFrom` call sites continue to use the custom ECMs
+for exact on-chain revert strings and the `code.length > 0` guard. This keeps
+Yul identity and parity while still benefiting from the typed-interface
+infrastructure for other surfaces.
 
 Keccak memory-slice correctness, raw `rawLog` mechanics, low-level call
 execution, and precompile correctness are delegated to Verity and can appear in
