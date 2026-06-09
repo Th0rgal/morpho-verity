@@ -84,8 +84,12 @@ private def requireOptionalBool (returnPtr : YulExpr) (onFalse : List YulStmt) :
 ]
 
 def safeTransferModule : ExternalCallModule where
-  -- Morpho Blue's `SafeTransferLib.safeTransfer`: exact code-length guard and
-  -- revert strings are not the same as Verity's standard Solmate helper.
+  -- Morpho Blue's `SafeTransferLib.safeTransfer`: retained because Morpho
+  -- uses string-based reverts ("no code", "transfer reverted", "transfer
+  -- returned false") rather than OpenZeppelin's `SafeERC20FailedOperation`
+  -- custom error or Solmate's generic `revert(0,0)`. Verity's built-in
+  -- `Compiler.Modules.ERC20.safeTransferModule` uses OZ semantics, so
+  -- it cannot be substituted without breaking parity.
   name := "morphoSafeTransfer"
   numArgs := 3
   writesState := true
@@ -119,6 +123,8 @@ def safeTransferModule : ExternalCallModule where
 def safeTransferFromModule : ExternalCallModule where
   -- Morpho Blue's `SafeTransferLib.safeTransferFrom`: retained as a
   -- source-faithful ECM for exact optional-return and revert-string behavior.
+  -- Cannot use Verity's built-in `Compiler.Modules.ERC20.safeTransferFromModule`
+  -- because Morpho uses string-based reverts instead of OZ custom errors.
   name := "morphoSafeTransferFrom"
   numArgs := 4
   writesState := true
@@ -283,8 +289,16 @@ verity_contract Morpho where
 
   constants
     ZERO : Uint256 := 0
+    DOMAIN_TYPEHASH : Uint256 :=
+      keccakString "EIP712Domain(uint256 chainId,address verifyingContract)"
+    AUTHORIZATION_TYPEHASH : Uint256 :=
+      keccakString "Authorization(address authorizer,address authorized,bool isAuthorized,uint256 nonce,uint256 deadline)"
 
   interfaces
+    interface IERC20 where
+      function transfer(Address, Uint256) returns (Bool)
+      function transferFrom(Address, Address, Uint256) returns (Bool)
+    end
     interface IOracle where
       function price() view returns (Uint256)
     end
@@ -304,9 +318,7 @@ verity_contract Morpho where
     let thisAddress ← contractAddress
     let domainSeparator ← ecmCall
       (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 3)
-      [32523383700587834770323112271211932718128200013265661849047136999858837557784,
-        cid,
-        addressToWord thisAddress]
+      [DOMAIN_TYPEHASH, cid, addressToWord thisAddress]
     return domainSeparator
 
   function owner () : Address := do
@@ -457,7 +469,7 @@ verity_contract Morpho where
       isAuthorizedWord := 0
     let hashStruct ← ecmCall
       (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 6)
-      [58716139875033191547423680425660227735028985010655085009261943264615620979857,
+      [AUTHORIZATION_TYPEHASH,
         authorizer,
         authorized,
         isAuthorizedWord,
@@ -465,9 +477,7 @@ verity_contract Morpho where
         deadline]
     let domainSeparator ← ecmCall
       (fun resultVar => Compiler.Modules.Hashing.abiEncodeStaticWordsModule resultVar 3)
-      [32523383700587834770323112271211932718128200013265661849047136999858837557784,
-        cid,
-        addressToWord thisAddress]
+      [DOMAIN_TYPEHASH, cid, addressToWord thisAddress]
     let digest ← ecmCall
       (fun resultVar => Compiler.Modules.Hashing.eip712DigestModule resultVar)
       [domainSeparator, hashStruct]
