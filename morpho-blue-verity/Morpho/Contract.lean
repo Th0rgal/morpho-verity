@@ -35,129 +35,6 @@ def contractAddress : Contract Address := Verity.contractAddress
 private def borrowRateSelector : Nat := 0x9451fed4
 private def oraclePriceSelector : Nat := 0xa035b1fe
 
-namespace MorphoSafeTransfer
-
-open Compiler.Yul
-open Compiler.ECM
-open Compiler.CompilationModel (freeMemoryPointer)
-
-private def revertString (len : Nat) (dataWord : Nat) : List YulStmt := [
-  YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0,
-    YulExpr.hex 0x08c379a000000000000000000000000000000000000000000000000000000000]),
-  YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]),
-  YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 36, YulExpr.lit len]),
-  YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 68, YulExpr.hex dataWord]),
-  YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 100])
-]
-
-private def revertNoCode : List YulStmt :=
-  revertString 7 0x6e6f20636f646500000000000000000000000000000000000000000000000000
-
-private def revertTransferReverted : List YulStmt :=
-  revertString 17 0x7472616e73666572207265766572746564000000000000000000000000000000
-
-private def revertTransferReturnedFalse : List YulStmt :=
-  revertString 23 0x7472616e736665722072657475726e65642066616c7365000000000000000000
-
-private def revertTransferFromReverted : List YulStmt :=
-  revertString 21 0x7472616e7366657246726f6d2072657665727465640000000000000000000000
-
-private def revertTransferFromReturnedFalse : List YulStmt :=
-  revertString 27 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000
-
-private def codeLengthGuard (tokenExpr : YulExpr) : List YulStmt := [
-  YulStmt.if_ (YulExpr.call "iszero" [
-    YulExpr.call "gt" [YulExpr.call "extcodesize" [tokenExpr], YulExpr.lit 0]
-  ]) revertNoCode
-]
-
-private def requireOptionalBool (returnPtr : YulExpr) (onFalse : List YulStmt) : List YulStmt := [
-  YulStmt.let_ "__mst_rds" (YulExpr.call "returndatasize" []),
-  YulStmt.if_ (YulExpr.ident "__mst_rds") [
-    YulStmt.if_ (YulExpr.call "iszero" [
-      YulExpr.call "and" [
-        YulExpr.call "gt" [YulExpr.ident "__mst_rds", YulExpr.lit 31],
-        YulExpr.call "eq" [YulExpr.call "mload" [returnPtr], YulExpr.lit 1]
-      ]
-    ]) onFalse
-  ]
-]
-
-def safeTransferModule : ExternalCallModule where
-  -- Morpho Blue's `SafeTransferLib.safeTransfer`: retained because Morpho
-  -- uses string-based reverts ("no code", "transfer reverted", "transfer
-  -- returned false") rather than OpenZeppelin's `SafeERC20FailedOperation`
-  -- custom error or Solmate's generic `revert(0,0)`. Verity's built-in
-  -- `Compiler.Modules.ERC20.safeTransferModule` uses OZ semantics, so
-  -- it cannot be substituted without breaking parity.
-  name := "morphoSafeTransfer"
-  numArgs := 3
-  writesState := true
-  readsState := false
-  axioms := ["morpho_safe_transfer_interface"]
-  compile := fun _ctx args => do
-    let (tokenExpr, toExpr, amountExpr) ← match args with
-      | [t, toAddr, a] => pure (t, toAddr, a)
-      | _ => throw "morphoSafeTransfer expects 3 arguments (token, to, amount)"
-    let selectorWord := 0xa9059cbb00000000000000000000000000000000000000000000000000000000
-    pure [YulStmt.block (
-      codeLengthGuard tokenExpr ++ [
-        YulStmt.let_ "__mst_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__mst_ptr", YulExpr.hex selectorWord]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__mst_ptr", YulExpr.lit 4], toExpr]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__mst_ptr", YulExpr.lit 36], amountExpr]),
-        YulStmt.expr (YulExpr.call "mstore" [
-          YulExpr.lit freeMemoryPointer,
-          YulExpr.call "and" [
-            YulExpr.call "add" [YulExpr.call "add" [YulExpr.ident "__mst_ptr", YulExpr.lit 68], YulExpr.lit 31],
-            YulExpr.call "not" [YulExpr.lit 31]
-          ]
-        ]),
-        YulStmt.let_ "__mst_success" (YulExpr.call "call" [
-          YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-          YulExpr.ident "__mst_ptr", YulExpr.lit 68, YulExpr.ident "__mst_ptr", YulExpr.lit 32
-        ]),
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__mst_success"]) revertTransferReverted
-      ] ++ requireOptionalBool (YulExpr.ident "__mst_ptr") revertTransferReturnedFalse)]
-
-def safeTransferFromModule : ExternalCallModule where
-  -- Morpho Blue's `SafeTransferLib.safeTransferFrom`: retained as a
-  -- source-faithful ECM for exact optional-return and revert-string behavior.
-  -- Cannot use Verity's built-in `Compiler.Modules.ERC20.safeTransferFromModule`
-  -- because Morpho uses string-based reverts instead of OZ custom errors.
-  name := "morphoSafeTransferFrom"
-  numArgs := 4
-  writesState := true
-  readsState := false
-  axioms := ["morpho_safe_transfer_from_interface"]
-  compile := fun _ctx args => do
-    let (tokenExpr, fromExpr, toExpr, amountExpr) ← match args with
-      | [t, f, toAddr, a] => pure (t, f, toAddr, a)
-      | _ => throw "morphoSafeTransferFrom expects 4 arguments (token, from, to, amount)"
-    let selectorWord := 0x23b872dd00000000000000000000000000000000000000000000000000000000
-    pure [YulStmt.block (
-      codeLengthGuard tokenExpr ++ [
-        YulStmt.let_ "__mstf_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__mstf_ptr", YulExpr.hex selectorWord]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__mstf_ptr", YulExpr.lit 4], fromExpr]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__mstf_ptr", YulExpr.lit 36], toExpr]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__mstf_ptr", YulExpr.lit 68], amountExpr]),
-        YulStmt.expr (YulExpr.call "mstore" [
-          YulExpr.lit freeMemoryPointer,
-          YulExpr.call "and" [
-            YulExpr.call "add" [YulExpr.call "add" [YulExpr.ident "__mstf_ptr", YulExpr.lit 100], YulExpr.lit 31],
-            YulExpr.call "not" [YulExpr.lit 31]
-          ]
-        ]),
-        YulStmt.let_ "__mstf_success" (YulExpr.call "call" [
-          YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-          YulExpr.ident "__mstf_ptr", YulExpr.lit 100, YulExpr.ident "__mstf_ptr", YulExpr.lit 32
-        ]),
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__mstf_success"]) revertTransferFromReverted
-      ] ++ requireOptionalBool (YulExpr.ident "__mstf_ptr") revertTransferFromReturnedFalse)]
-
-end MorphoSafeTransfer
-
 namespace OptionalCallback
 
 open Compiler.Yul
@@ -654,7 +531,7 @@ verity_contract Morpho where
     emit "SupplyCollateral" [id, sender, onBehalf, assets]
     ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0xb1022fdf 1 "data")
       [addressToWord sender, assets]
-    ecmDo MorphoSafeTransfer.safeTransferFromModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
       [addressToWord marketParams.collateralToken, addressToWord sender, addressToWord thisAddress, assets]
 
   function allow_post_interaction_writes withdrawCollateral (marketParams : MarketParams, assets : Uint256, onBehalf : Address, receiver : Address) : Unit := do
@@ -675,7 +552,7 @@ verity_contract Morpho where
     let healthy ← _isHealthy marketParams id onBehalf
     require healthy "insufficient collateral"
     emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
-    ecmDo MorphoSafeTransfer.safeTransferModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
       [addressToWord marketParams.collateralToken, addressToWord receiver, assets]
 
   function allow_post_interaction_writes supply (marketParams : MarketParams, assets : Uint256, shares : Uint256, onBehalf : Address, data : Bytes) local_obligations [supply_callback := assumed "Non-empty data callback dispatch remains a local ordering obligation; ERC20 transfer mechanics use the Solmate ECM trust boundary."] : Tuple [Uint256, Uint256] := do
@@ -713,7 +590,7 @@ verity_contract Morpho where
     emit "Supply" [id, sender, onBehalf, finalAssets, finalShares]
     ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0x2075be03 1 "data")
       [addressToWord sender, finalAssets]
-    ecmDo MorphoSafeTransfer.safeTransferFromModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
       [addressToWord marketParams.loanToken, addressToWord sender, addressToWord thisAddress, finalAssets]
     return (finalAssets, finalShares)
 
@@ -751,7 +628,7 @@ verity_contract Morpho where
     let totalBorrowAssets_ <- structMember "marketSlot" id "totalBorrowAssets"
     require (totalBorrowAssets_ <= newTotalSupplyAssets) "insufficient liquidity"
     emit "Withdraw" [id, sender, onBehalf, receiver, finalAssets, finalShares]
-    ecmDo MorphoSafeTransfer.safeTransferModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
       [addressToWord marketParams.loanToken, addressToWord receiver, finalAssets]
     return (finalAssets, finalShares)
 
@@ -771,7 +648,7 @@ verity_contract Morpho where
     let totalSupplyAssets_ <- structMember "marketSlot" id "totalSupplyAssets"
     require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
     emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
-    ecmDo MorphoSafeTransfer.safeTransferModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
       [addressToWord marketParams.loanToken, addressToWord receiver, finalAssets]
     return (finalAssets, finalShares)
 
@@ -854,7 +731,7 @@ verity_contract Morpho where
     emit "Repay" [id, sender, onBehalf, finalAssets, finalShares]
     ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0x05b4591c 1 "data")
       [addressToWord sender, finalAssets]
-    ecmDo MorphoSafeTransfer.safeTransferFromModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
       [addressToWord marketParams.loanToken, addressToWord sender, addressToWord thisAddress, finalAssets]
     return (finalAssets, finalShares)
 
@@ -930,12 +807,12 @@ verity_contract Morpho where
       setStructMember "marketSlot" id "totalBorrowAssets" newTotalBorrowAssets
     let sender <- msgSender
     emit "Liquidate" [id, sender, borrower, repaidAssets, finalRepaidShares, finalSeizedAssets, badDebtAssets, badDebtShares]
-    ecmDo MorphoSafeTransfer.safeTransferModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
       [addressToWord marketParams.collateralToken, addressToWord sender, finalSeizedAssets]
     ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0xcf7ea196 1 "data")
       [addressToWord sender, repaidAssets]
     let thisAddress ← contractAddress
-    ecmDo MorphoSafeTransfer.safeTransferFromModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
       [addressToWord marketParams.loanToken, addressToWord sender, addressToWord thisAddress, repaidAssets]
     return (finalSeizedAssets, repaidAssets)
 
@@ -944,11 +821,11 @@ verity_contract Morpho where
     require (assets > 0) "zero assets"
     let sender <- msgSender
     emit "FlashLoan" [sender, token, assets]
-    ecmDo MorphoSafeTransfer.safeTransferModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
       [addressToWord token, addressToWord sender, assets]
     ecmDo (Compiler.Modules.Callbacks.callbackModule 0x31f57072 1 "data")
       [addressToWord sender, assets]
-    ecmDo MorphoSafeTransfer.safeTransferFromModule
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
       [addressToWord token, addressToWord sender, addressToWord thisAddress, assets]
 
 end Morpho.Contract

@@ -10,6 +10,10 @@ protocol-specific ECMs where the current Verity source surface cannot yet expres
 the Solidity construct as typed code without hiding byte-level behavior. These
 are trust-report assumptions, not Lean proof-system axioms.
 
+**Token transfers** in the full artifact now use Verity's
+`legacyStringSafeTransfer` / `legacyStringSafeTransferFrom` modules via a typed
+`IERC20` interface, replacing any custom transfer ECMs that may have existed.
+
 | ECM axiom(s) | Solidity construct represented | Why it remains an ECM |
 |--------------|--------------------------------|------------------------|
 | `midnight_multicall_bytes_array_abi`, `self_delegatecall_storage_context` | `multicall(bytes[] calldata)` self-`delegatecall` loop with revert-data bubbling. | Verity can emit the low-level loop, but `bytes[] calldata` iteration, delegatecall storage context, and returndata bubbling are still low-level mechanics rather than typed source. |
@@ -17,7 +21,7 @@ are trust-report assumptions, not Lean proof-system axioms.
 | `midnight_*_callback_*_dynamic_abi`, `midnight_ratifier_offer_bytes_dynamic_abi` | Buy/sell/repay/liquidate/flash-loan callback interfaces and ratifier call payloads. | Callback ordering is source-shaped at call sites, but nested dynamic ABI payloads (`Market`, `Offer`, `bytes`) still require byte-layout ECMs. |
 | `midnight_liquidation_lock_transient_slot`, `midnight_liquidation_lock_transient_depth_slot` | Transient liquidation-lock reads, swaps, clears, and depth accounting. | The surrounding control flow is source-shaped, but exact transient-slot addressing and exchange/clear sequences remain low-level mechanics. |
 | `midnight_offer_market_isHealthy_helper` | Post-callback seller health check in `take`. | This packages a source-level health call over calldata-derived market fields until nested dynamic calldata projections are typed enough to call the helper directly. |
-| `midnight_idlib_toid_market_abi_create2_preimage`, `midnight_sstore2_market_initcode_layout`, `create2_address_derivation`, `midnight_sstore2_market_runtime_abi_decode`, `midnight_sstore2_market_runtime_abi_return` | `IdLib.toId`, `touchMarket`, and `toMarket` CREATE2/SSTORE2 code-as-data behavior. | The current modules implement the real low-level algorithm, but typed `CodeData.store[Market]` / `CodeData.read[Market]` and dynamic `Market` return support are not yet available as source-level Verity. |
+| `midnight_idlib_toid_market_abi_create2_preimage`, `midnight_sstore2_market_initcode_layout`, `create2_address_derivation`, `midnight_sstore2_market_runtime_abi_decode`, `midnight_sstore2_market_runtime_abi_return` | `IdLib.toId`, `touchMarket`, and `toMarket` CREATE2/SSTORE2 code-as-data behavior. | The current modules implement the real low-level algorithm, but typed `CodeData.store[Market]` / `CodeData.read[Market]` and dynamic `Market` return support are now available as source-level Verity (since lfglabs-dev/verity#1971). These can now replace most SSTORE2/CREATE2 market storage ECMs. |
 | `solidity_panic_revert_payload` | Solidity panic payloads for array bounds and checked arithmetic branches that must revert with standard panic selectors. | The source branches are explicit, but exact panic ABI payload emission is still represented by a small ECM. |
 
 Local obligations in the full `Midnight` contract are intentionally narrower
