@@ -1199,7 +1199,7 @@ def supplyCommit (mp : MarketParams) (id totalSupplyAssets_ totalSupplyShares_
   emit "Supply" [id, sender, onBehalf, finalAssets, finalShares]
   ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0x2075be03 1 "data")
     [addressToWord sender, finalAssets]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferFromModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
     [addressToWord mp.loanToken, addressToWord sender, addressToWord thisAddress, finalAssets]
   return (finalAssets, finalShares)
 
@@ -1381,7 +1381,7 @@ def withdrawCommit (mp : MarketParams) (id totalSupplyAssets_ totalSupplyShares_
   let totalBorrowAssets_ <- Morpho.Contract.Morpho.structMember "marketSlot" id "totalBorrowAssets"
   require (totalBorrowAssets_ <= newTotalSupplyAssets) "insufficient liquidity"
   emit "Withdraw" [id, sender, onBehalf, receiver, finalAssets, finalShares]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
     [addressToWord mp.loanToken, addressToWord receiver, finalAssets]
   return (finalAssets, finalShares)
 
@@ -1555,7 +1555,7 @@ def supplyCollateralCommit (mp : MarketParams) (id assets : Uint256)
   emit "SupplyCollateral" [id, sender, onBehalf, assets]
   ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0xb1022fdf 1 "data")
     [addressToWord sender, assets]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferFromModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
     [addressToWord mp.collateralToken, addressToWord sender, addressToWord thisAddress, assets]
 
 theorem preserves_positionHealthWord_supplyCollateralCommit_of_word_ne
@@ -1774,7 +1774,7 @@ def repayEmitTransferTail (mp : MarketParams) (id finalAssets finalShares : Uint
   emit "Repay" [id, sender, onBehalf, finalAssets, finalShares]
   ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0x05b4591c 1 "data")
     [addressToWord sender, finalAssets]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferFromModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
     [addressToWord mp.loanToken, addressToWord sender, addressToWord thisAddress, finalAssets]
   return (finalAssets, finalShares)
 
@@ -2522,7 +2522,7 @@ def borrowAfterHealthTail (mp : MarketParams) (id finalAssets finalShares : Uint
   let totalSupplyAssets_ <- Morpho.Contract.Morpho.structMember "marketSlot" id "totalSupplyAssets"
   require (newTotalBorrowAssets <= totalSupplyAssets_) "insufficient liquidity"
   emit "Borrow" [id, sender, onBehalf, receiver, finalAssets, finalShares]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
     [addressToWord mp.loanToken, addressToWord receiver, finalAssets]
   return (finalAssets, finalShares)
 
@@ -2615,7 +2615,7 @@ def withdrawCollateralAfterHealthTail (mp : MarketParams) (id assets : Uint256)
     (onBehalf receiver sender : Address) (healthyFlag : Bool) : Contract Unit := do
   require healthyFlag "insufficient collateral"
   emit "WithdrawCollateral" [id, sender, onBehalf, receiver, assets]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
     [addressToWord mp.collateralToken, addressToWord receiver, assets]
 
 def withdrawCollateralAfterWrite (mp : MarketParams) (id assets : Uint256)
@@ -2722,12 +2722,12 @@ def liquidateAfterUnhealthyGuard (mp : MarketParams) (id : Bytes32) (borrower : 
   emit "Liquidate"
     [id, sender, borrower, repaidAssets, finalRepaidShares, finalSeizedAssets,
       badDebtAssets, badDebtShares]
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
     [addressToWord mp.collateralToken, addressToWord sender, finalSeizedAssets]
   ecmDo (_root_.Morpho.Contract.OptionalCallback.optionalCallbackModule 0xcf7ea196 1 "data")
     [addressToWord sender, repaidAssets]
   let thisAddress ← Morpho.Contract.contractAddress
-  ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferFromModule
+  ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule)
     [addressToWord mp.loanToken, addressToWord sender, addressToWord thisAddress, repaidAssets]
   return (finalSeizedAssets, repaidAssets)
 
@@ -2826,7 +2826,7 @@ theorem storagePreserving_withdrawCollateralAfterHealthTail
       (addressToWord onBehalf) (addressToWord receiver) assets)
   intro y
   apply StoragePreserving.bind
-    (StoragePreserving.ecmDo Morpho.Contract.MorphoSafeTransfer.safeTransferModule
+    (StoragePreserving.ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule)
       [addressToWord mp.collateralToken, addressToWord receiver, assets])
   intro y
   exact StoragePreserving.pure _
