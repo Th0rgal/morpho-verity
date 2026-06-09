@@ -52,4 +52,13 @@ if ! has_solc_version; then
 fi
 
 retry 4 solc-select use "${SOLC_VERSION}"
+
+# Ensure the selected solc (and solc-select shims) are on PATH for *subsequent* steps
+# in GitHub Actions (GITHUB_PATH) and the current shell.
+SOLC_SELECT_BIN="$HOME/.solc-select/bin"
+export PATH="$SOLC_SELECT_BIN:$PATH"
+if [[ -n "${GITHUB_PATH:-}" ]]; then
+  echo "$SOLC_SELECT_BIN" >> "$GITHUB_PATH"
+fi
+
 solc --version
