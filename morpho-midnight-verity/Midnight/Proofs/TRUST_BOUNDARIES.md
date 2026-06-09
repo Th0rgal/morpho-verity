@@ -10,10 +10,6 @@ protocol-specific ECMs where the current Verity source surface cannot yet expres
 the Solidity construct as typed code without hiding byte-level behavior. These
 are trust-report assumptions, not Lean proof-system axioms.
 
-**Token transfers** in the full artifact now use Verity's
-`legacyStringSafeTransfer` / `legacyStringSafeTransferFrom` modules via a typed
-`IERC20` interface, replacing any custom transfer ECMs that may have existed.
-
 | ECM axiom(s) | Solidity construct represented | Why it remains an ECM |
 |--------------|--------------------------------|------------------------|
 | `midnight_multicall_bytes_array_abi`, `self_delegatecall_storage_context` | `multicall(bytes[] calldata)` self-`delegatecall` loop with revert-data bubbling. | Verity can emit the low-level loop, but `bytes[] calldata` iteration, delegatecall storage context, and returndata bubbling are still low-level mechanics rather than typed source. |
