@@ -2,6 +2,7 @@ import Contracts.Common
 import Compiler.Modules.Callbacks
 import Compiler.Modules.Calls
 import Compiler.Modules.Create2SSTORE2
+import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
 import Verity.Core
 import Verity.Macro
@@ -1747,10 +1748,6 @@ def marketReturnFromCodeModule : Compiler.ECM.ExternalCallModule where
 def arrayLength {α : Type} (values : Array α) : Uint256 := Contracts.arrayLength values
 def arrayElement {α : Type} [Inhabited α] (values : Array α) (index : Uint256) : α :=
   Contracts.arrayElement values index
-def safeTransfer (token toAddr : Address) (amount : Uint256) : Contract Unit :=
-  Contracts.safeTransfer token toAddr amount
-def safeTransferFrom (token fromAddr toAddr : Address) (amount : Uint256) : Contract Unit :=
-  Contracts.safeTransferFrom token fromAddr toAddr amount
 def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def bitOr (a b : Uint256) : Uint256 := Verity.Core.Uint256.or a b
 def bitNot (a : Uint256) : Uint256 := Verity.Core.Uint256.not a
@@ -2985,7 +2982,7 @@ verity_contract Midnight where
     let claimable ← getMapping claimableSettlementFeeSlot token
     requireError (amount <= claimable) ConsumedAssets()
     setMapping claimableSettlementFeeSlot token (sub claimable amount)
-    safeTransfer token receiver amount
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule) [addressToWord token, addressToWord receiver, amount]
 
   function allow_post_interaction_writes claimContinuousFee
       (market : Market, amount : Uint256, receiver : Address)
@@ -3004,7 +3001,7 @@ verity_contract Midnight where
     let currentWithdrawable ← structMember "marketStateSlot" id "withdrawable"
     setStructMember "marketStateSlot" id "withdrawable" (sub currentWithdrawable amount)
     emit "ClaimContinuousFee" [sender, id, amount, receiver]
-    safeTransfer market.loanToken receiver amount
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule) [addressToWord market.loanToken, addressToWord receiver, amount]
 
   function setMarketTickSpacing (id : Bytes32, newTickSpacing : Uint256)
       : Unit := do
@@ -3555,11 +3552,11 @@ verity_contract Midnight where
     let feeAssets := sub buyerAssets sellerAssets
     if feeAssets > ZERO then
       let self ← contractAddress
-      safeTransferFrom loanToken payer self feeAssets
+      ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule) [addressToWord loanToken, addressToWord payer, addressToWord self, feeAssets]
     else
       pure ()
     if sellerAssets > ZERO then
-      safeTransferFrom loanToken payer receiver sellerAssets
+      ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule) [addressToWord loanToken, addressToWord payer, addressToWord receiver, sellerAssets]
     else
       pure ()
     let mut sellerCallback := offer.callback
@@ -3700,7 +3697,7 @@ verity_contract Midnight where
     let total ← structMember "marketStateSlot" id "totalUnits"
     setStructMember "marketStateSlot" id "totalUnits" (sub total units)
     emit "Withdraw" [sender, id, units, onBehalf, receiver, pendingFeeDecrease]
-    safeTransfer market.loanToken receiver units
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule) [addressToWord market.loanToken, addressToWord receiver, units]
 
   function allow_post_interaction_writes repay
       (market : Market, units : Uint256, onBehalf : Address,
@@ -3721,7 +3718,7 @@ verity_contract Midnight where
     else
       pure ()
     let self ← contractAddress
-    safeTransferFrom market.loanToken payer self units
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule) [addressToWord market.loanToken, addressToWord payer, addressToWord self, units]
 
   function collateralTokenAt
       (collateralParams : Array CollateralParams, index : Uint256) : Address := do
@@ -5142,7 +5139,7 @@ verity_contract Midnight where
         postMaturityMode, receiver, payer, badDebt,
         add latestLossFactorLoaded ZERO,
         add latestContinuousFeeCreditLoaded ZERO]
-    safeTransfer collateralToken receiver outSeizedAssets
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule) [addressToWord collateralToken, addressToWord receiver, outSeizedAssets]
     if callback != 0 then
       ecmDo liquidateCallbackModule
         [addressToWord callback, addressToWord sender, id, collateralIndex,
@@ -5151,7 +5148,7 @@ verity_contract Midnight where
     else
       pure ()
     let self ← contractAddress
-    safeTransferFrom market.loanToken payer self outRepaidUnits
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule) [addressToWord market.loanToken, addressToWord payer, addressToWord self, outRepaidUnits]
     return (outSeizedAssets, outRepaidUnits)
 
   function isHealthy (market : Market, id : Bytes32, borrower : Address) : Bool := do
@@ -5204,7 +5201,7 @@ verity_contract Midnight where
       pure ()
     let collateralToken ← collateralTokenAt market.collateralParams collateralIndex
     let self ← contractAddress
-    safeTransferFrom collateralToken sender self assets
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule) [addressToWord collateralToken, addressToWord sender, addressToWord self, assets]
     setCollateralAmount id onBehalf collateralIndex newCollateral
 
   function allow_post_interaction_writes withdrawCollateral
@@ -5233,7 +5230,7 @@ verity_contract Midnight where
     else
       pure ()
     let collateralToken ← collateralTokenAt market.collateralParams collateralIndex
-    safeTransfer collateralToken receiver assets
+    ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule) [addressToWord collateralToken, addressToWord receiver, assets]
     setCollateralAmount id onBehalf collateralIndex newCollateral
 
   function allow_post_interaction_writes flashLoan
@@ -5243,12 +5240,12 @@ verity_contract Midnight where
     let assetCount := arrayLength assets
     requireError (tokenCount == assetCount) InconsistentInput()
     forEach "i" tokenCount (do
-      safeTransfer (arrayElement tokens i) callback (arrayElement assets i))
+      ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferModule) [addressToWord (arrayElement tokens i), addressToWord callback, arrayElement assets i])
     let sender ← msgSender
     ecmDo flashLoanCallbackModule [addressToWord callback, addressToWord sender]
     forEach "i" tokenCount (do
       let self ← contractAddress
-      safeTransferFrom (arrayElement tokens i) callback self (arrayElement assets i))
+      ecmDo (Compiler.Modules.ERC20.legacyStringSafeTransferFromModule) [addressToWord (arrayElement tokens i), addressToWord callback, addressToWord self, arrayElement assets i])
 
   function collateral (id : Bytes32, user : Address, index : Uint256) : Uint256 := do
     let value ← collateralAmount id user index
