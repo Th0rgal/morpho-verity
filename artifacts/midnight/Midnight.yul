@@ -979,35 +979,34 @@ object "Midnight" {
             }
             sstore(mappingSlot(6, token), sub(claimable, amount))
             {
-                let __st_ptr := mload(64)
-                mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__st_ptr, 4), receiver)
-                mstore(add(__st_ptr, 36), amount)
-                mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                let __st_success := call(gas(), token, 0, __st_ptr, 68, __st_ptr, 32)
-                if iszero(__st_success) {
-                    let __st_rds := returndatasize()
-                    returndatacopy(0, 0, __st_rds)
-                    revert(0, __st_rds)
+                if iszero(gt(extcodesize(token), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(token), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lst_ptr := mload(64)
+                mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lst_ptr, 4), receiver)
+                mstore(add(__lst_ptr, 36), amount)
+                mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                let __lst_success := call(gas(), token, 0, __lst_ptr, 68, __lst_ptr, 32)
+                if iszero(__lst_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 17)
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__st_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 23)
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -1073,35 +1072,34 @@ object "Midnight" {
                 log4(__evt_ptr, 32, __evt_topic0, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             {
-                let __st_ptr := mload(64)
-                mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__st_ptr, 4), receiver)
-                mstore(add(__st_ptr, 36), amount)
-                mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                let __st_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __st_ptr, 68, __st_ptr, 32)
-                if iszero(__st_success) {
-                    let __st_rds := returndatasize()
-                    returndatacopy(0, 0, __st_rds)
-                    revert(0, __st_rds)
+                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lst_ptr := mload(64)
+                mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lst_ptr, 4), receiver)
+                mstore(add(__lst_ptr, 36), amount)
+                mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                let __lst_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lst_ptr, 68, __lst_ptr, 32)
+                if iszero(__lst_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 17)
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__st_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 23)
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -1901,6 +1899,108 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
+                let takeCollateralParamsOffset := add(marketBase, calldataload(add(marketBase, 32)))
+                let takeCollateralCount := calldataload(takeCollateralParamsOffset)
+                if iszero(gt(takeCollateralCount, 0)) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
+                        let __err_hash := keccak256(__err_ptr, 20)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                if gt(takeCollateralCount, 128) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
+                        let __err_hash := keccak256(__err_ptr, 25)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                let previousCollateralToken := 0
+                for {
+                    let __forEach_idx := 0
+                    let __forEach_count := takeCollateralCount
+                    let i := 0
+                } lt(__forEach_idx, __forEach_count) {
+                    __forEach_idx := add(__forEach_idx, 1)
+                } {
+                    i := __forEach_idx
+                    let collateralParamOffset := add(add(takeCollateralParamsOffset, 32), mul(i, 128))
+                    let collateralToken := calldataload(collateralParamOffset)
+                    if iszero(gt(collateralToken, previousCollateralToken)) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
+                            let __err_hash := keccak256(__err_ptr, 27)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let lltv := calldataload(add(collateralParamOffset, 32))
+                    let allowed := internal_internal_isLltvAllowed(lltv)
+                    if iszero(allowed) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 16)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let lowMaxLif := internal_internal_maxLif(lltv, 250000000000000000)
+                    let highMaxLif := internal_internal_maxLif(lltv, 500000000000000000)
+                    let lif := calldataload(add(collateralParamOffset, 64))
+                    if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 15)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    previousCollateralToken := collateralToken
+                }
+                let _marketPointer := 0
+                {
+                    let __midnight_store_ptr := mload(64)
+                    mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                    mstore(add(__midnight_store_ptr, 11), 32)
+                    let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                    mstore(__midnight_store_tuple_ptr, calldataload(marketBase))
+                    mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                    mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                    mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                    mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                    mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                    let __midnight_store_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                    let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                    let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                    mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                    calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                    let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                    let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                    _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                    if iszero(_marketPointer) {
+                        mstore(0, shl(224, 0x4e487b71))
+                        mstore(4, 81)
+                        revert(0, 36)
+                    }
+                    mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                }
                 {
                     let __compat_value := 4
                     let __compat_packed := and(__compat_value, 255)
@@ -2466,72 +2566,70 @@ object "Midnight" {
             if gt(feeAssets, 0) {
                 let self := address()
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), payer)
-                    mstore(add(__stf_ptr, 36), self)
-                    mstore(add(__stf_ptr, 68), feeAssets)
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    if iszero(gt(extcodesize(loanToken), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(loanToken), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lstf_ptr := mload(64)
+                    mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lstf_ptr, 4), payer)
+                    mstore(add(__lstf_ptr, 36), self)
+                    mstore(add(__lstf_ptr, 68), feeAssets)
+                    mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                    let __lstf_success := call(gas(), loanToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                    if iszero(__lstf_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 21)
+                        mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 27)
+                            mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                            revert(0, 100)
                         }
                     }
                 }
             }
             if gt(sellerAssets, 0) {
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), payer)
-                    mstore(add(__stf_ptr, 36), receiver)
-                    mstore(add(__stf_ptr, 68), sellerAssets)
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    if iszero(gt(extcodesize(loanToken), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(loanToken), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lstf_ptr := mload(64)
+                    mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lstf_ptr, 4), payer)
+                    mstore(add(__lstf_ptr, 36), receiver)
+                    mstore(add(__lstf_ptr, 68), sellerAssets)
+                    mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                    let __lstf_success := call(gas(), loanToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                    if iszero(__lstf_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 21)
+                        mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 27)
+                            mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -2874,35 +2972,34 @@ object "Midnight" {
                 log4(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             {
-                let __st_ptr := mload(64)
-                mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__st_ptr, 4), receiver)
-                mstore(add(__st_ptr, 36), units)
-                mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                let __st_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __st_ptr, 68, __st_ptr, 32)
-                if iszero(__st_success) {
-                    let __st_rds := returndatasize()
-                    returndatacopy(0, 0, __st_rds)
-                    revert(0, __st_rds)
+                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lst_ptr := mload(64)
+                mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lst_ptr, 4), receiver)
+                mstore(add(__lst_ptr, 36), units)
+                mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                let __lst_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lst_ptr, 68, __lst_ptr, 32)
+                if iszero(__lst_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 17)
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__st_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 23)
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -2991,36 +3088,35 @@ object "Midnight" {
             }
             let self := address()
             {
-                let __stf_ptr := mload(64)
-                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__stf_ptr, 4), payer)
-                mstore(add(__stf_ptr, 36), self)
-                mstore(add(__stf_ptr, 68), units)
-                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                let __stf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __stf_ptr, 100, __stf_ptr, 32)
-                if iszero(__stf_success) {
-                    let __stf_rds := returndatasize()
-                    returndatacopy(0, 0, __stf_rds)
-                    revert(0, __stf_rds)
+                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lstf_ptr := mload(64)
+                mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lstf_ptr, 4), payer)
+                mstore(add(__lstf_ptr, 36), self)
+                mstore(add(__lstf_ptr, 68), units)
+                mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                let __lstf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                if iszero(__lstf_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 21)
+                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__stf_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 27)
+                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -4343,35 +4439,34 @@ object "Midnight" {
                 log4(__evt_ptr, 288, __evt_topic0, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
             }
             {
-                let __st_ptr := mload(64)
-                mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__st_ptr, 4), receiver)
-                mstore(add(__st_ptr, 36), outSeizedAssets)
-                mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                let __st_success := call(gas(), collateralToken, 0, __st_ptr, 68, __st_ptr, 32)
-                if iszero(__st_success) {
-                    let __st_rds := returndatasize()
-                    returndatacopy(0, 0, __st_rds)
-                    revert(0, __st_rds)
+                if iszero(gt(extcodesize(collateralToken), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(collateralToken), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lst_ptr := mload(64)
+                mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lst_ptr, 4), receiver)
+                mstore(add(__lst_ptr, 36), outSeizedAssets)
+                mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                let __lst_success := call(gas(), collateralToken, 0, __lst_ptr, 68, __lst_ptr, 32)
+                if iszero(__lst_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 17)
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__st_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 23)
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -4427,36 +4522,35 @@ object "Midnight" {
             }
             let self := address()
             {
-                let __stf_ptr := mload(64)
-                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__stf_ptr, 4), payer)
-                mstore(add(__stf_ptr, 36), self)
-                mstore(add(__stf_ptr, 68), outRepaidUnits)
-                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                let __stf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __stf_ptr, 100, __stf_ptr, 32)
-                if iszero(__stf_success) {
-                    let __stf_rds := returndatasize()
-                    returndatacopy(0, 0, __stf_rds)
-                    revert(0, __stf_rds)
+                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lstf_ptr := mload(64)
+                mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lstf_ptr, 4), payer)
+                mstore(add(__lstf_ptr, 36), self)
+                mstore(add(__lstf_ptr, 68), outRepaidUnits)
+                mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                let __lstf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                if iszero(__lstf_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 21)
+                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__stf_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 27)
+                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -4554,36 +4648,35 @@ object "Midnight" {
             let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
             let self := address()
             {
-                let __stf_ptr := mload(64)
-                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__stf_ptr, 4), sender)
-                mstore(add(__stf_ptr, 36), self)
-                mstore(add(__stf_ptr, 68), assets)
-                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                let __stf_success := call(gas(), collateralToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                if iszero(__stf_success) {
-                    let __stf_rds := returndatasize()
-                    returndatacopy(0, 0, __stf_rds)
-                    revert(0, __stf_rds)
+                if iszero(gt(extcodesize(collateralToken), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(collateralToken), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lstf_ptr := mload(64)
+                mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lstf_ptr, 4), sender)
+                mstore(add(__lstf_ptr, 36), self)
+                mstore(add(__lstf_ptr, 68), assets)
+                mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                let __lstf_success := call(gas(), collateralToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                if iszero(__lstf_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 21)
+                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__stf_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 27)
+                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -4638,35 +4731,34 @@ object "Midnight" {
             }
             let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
             {
-                let __st_ptr := mload(64)
-                mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                mstore(add(__st_ptr, 4), receiver)
-                mstore(add(__st_ptr, 36), assets)
-                mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                let __st_success := call(gas(), collateralToken, 0, __st_ptr, 68, __st_ptr, 32)
-                if iszero(__st_success) {
-                    let __st_rds := returndatasize()
-                    returndatacopy(0, 0, __st_rds)
-                    revert(0, __st_rds)
+                if iszero(gt(extcodesize(collateralToken), 0)) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 7)
+                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                let __erc20_rds := returndatasize()
-                if iszero(__erc20_rds) {
-                    if iszero(gt(extcodesize(collateralToken), 0)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
+                let __lst_ptr := mload(64)
+                mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                mstore(add(__lst_ptr, 4), receiver)
+                mstore(add(__lst_ptr, 36), assets)
+                mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                let __lst_success := call(gas(), collateralToken, 0, __lst_ptr, 68, __lst_ptr, 32)
+                if iszero(__lst_success) {
+                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 17)
+                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                    revert(0, 100)
                 }
-                if __erc20_rds {
-                    if iszero(eq(__erc20_rds, 32)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
-                    }
-                    if iszero(eq(mload(__st_ptr), 1)) {
-                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                        mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                        revert(0, 36)
+                let __lst_rds := returndatasize()
+                if __lst_rds {
+                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 23)
+                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                        revert(0, 100)
                     }
                 }
             }
@@ -4696,35 +4788,34 @@ object "Midnight" {
             } {
                 i := __forEach_idx
                 {
-                    let __st_ptr := mload(64)
-                    mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__st_ptr, 4), callback)
-                    mstore(add(__st_ptr, 36), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
-                    mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                    let __st_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __st_ptr, 68, __st_ptr, 32)
-                    if iszero(__st_success) {
-                        let __st_rds := returndatasize()
-                        returndatacopy(0, 0, __st_rds)
-                        revert(0, __st_rds)
+                    if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lst_ptr := mload(64)
+                    mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lst_ptr, 4), callback)
+                    mstore(add(__lst_ptr, 36), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
+                    mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                    let __lst_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __lst_ptr, 68, __lst_ptr, 32)
+                    if iszero(__lst_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 17)
+                        mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__st_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 23)
+                            mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -4778,36 +4869,35 @@ object "Midnight" {
                 i := __forEach_idx
                 let self := address()
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), callback)
-                    mstore(add(__stf_ptr, 36), self)
-                    mstore(add(__stf_ptr, 68), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lstf_ptr := mload(64)
+                    mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lstf_ptr, 4), callback)
+                    mstore(add(__lstf_ptr, 36), self)
+                    mstore(add(__lstf_ptr, 68), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
+                    mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                    let __lstf_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                    if iszero(__lstf_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 21)
+                        mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 27)
+                            mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -5878,35 +5968,34 @@ object "Midnight" {
                 }
                 sstore(mappingSlot(6, token), sub(claimable, amount))
                 {
-                    let __st_ptr := mload(64)
-                    mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__st_ptr, 4), receiver)
-                    mstore(add(__st_ptr, 36), amount)
-                    mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                    let __st_success := call(gas(), token, 0, __st_ptr, 68, __st_ptr, 32)
-                    if iszero(__st_success) {
-                        let __st_rds := returndatasize()
-                        returndatacopy(0, 0, __st_rds)
-                        revert(0, __st_rds)
+                    if iszero(gt(extcodesize(token), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(token), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lst_ptr := mload(64)
+                    mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lst_ptr, 4), receiver)
+                    mstore(add(__lst_ptr, 36), amount)
+                    mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                    let __lst_success := call(gas(), token, 0, __lst_ptr, 68, __lst_ptr, 32)
+                    if iszero(__lst_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 17)
+                        mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__st_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 23)
+                            mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -5972,35 +6061,34 @@ object "Midnight" {
                     log4(__evt_ptr, 32, __evt_topic0, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 {
-                    let __st_ptr := mload(64)
-                    mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__st_ptr, 4), receiver)
-                    mstore(add(__st_ptr, 36), amount)
-                    mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                    let __st_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __st_ptr, 68, __st_ptr, 32)
-                    if iszero(__st_success) {
-                        let __st_rds := returndatasize()
-                        returndatacopy(0, 0, __st_rds)
-                        revert(0, __st_rds)
+                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lst_ptr := mload(64)
+                    mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lst_ptr, 4), receiver)
+                    mstore(add(__lst_ptr, 36), amount)
+                    mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                    let __lst_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lst_ptr, 68, __lst_ptr, 32)
+                    if iszero(__lst_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 17)
+                        mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__st_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 23)
+                            mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -6800,6 +6888,108 @@ object "Midnight" {
                             revert(0, add(4, __err_tail))
                         }
                     }
+                    let takeCollateralParamsOffset := add(marketBase, calldataload(add(marketBase, 32)))
+                    let takeCollateralCount := calldataload(takeCollateralParamsOffset)
+                    if iszero(gt(takeCollateralCount, 0)) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 20)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    if gt(takeCollateralCount, 128) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
+                            let __err_hash := keccak256(__err_ptr, 25)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let previousCollateralToken := 0
+                    for {
+                        let __forEach_idx := 0
+                        let __forEach_count := takeCollateralCount
+                        let i := 0
+                    } lt(__forEach_idx, __forEach_count) {
+                        __forEach_idx := add(__forEach_idx, 1)
+                    } {
+                        i := __forEach_idx
+                        let collateralParamOffset := add(add(takeCollateralParamsOffset, 32), mul(i, 128))
+                        let collateralToken := calldataload(collateralParamOffset)
+                        if iszero(gt(collateralToken, previousCollateralToken)) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
+                                let __err_hash := keccak256(__err_ptr, 27)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let lltv := calldataload(add(collateralParamOffset, 32))
+                        let allowed := internal_internal_isLltvAllowed(lltv)
+                        if iszero(allowed) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 16)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let lowMaxLif := internal_internal_maxLif(lltv, 250000000000000000)
+                        let highMaxLif := internal_internal_maxLif(lltv, 500000000000000000)
+                        let lif := calldataload(add(collateralParamOffset, 64))
+                        if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 15)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        previousCollateralToken := collateralToken
+                    }
+                    let _marketPointer := 0
+                    {
+                        let __midnight_store_ptr := mload(64)
+                        mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                        mstore(add(__midnight_store_ptr, 11), 32)
+                        let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                        mstore(__midnight_store_tuple_ptr, calldataload(marketBase))
+                        mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                        mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                        mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                        mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                        mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                        let __midnight_store_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                        let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                        let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                        mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                        calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                        let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                        let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                        _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                        if iszero(_marketPointer) {
+                            mstore(0, shl(224, 0x4e487b71))
+                            mstore(4, 81)
+                            revert(0, 36)
+                        }
+                        mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                    }
                     {
                         let __compat_value := 4
                         let __compat_packed := and(__compat_value, 255)
@@ -7365,72 +7555,70 @@ object "Midnight" {
                 if gt(feeAssets, 0) {
                     let self := address()
                     {
-                        let __stf_ptr := mload(64)
-                        mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(__stf_ptr, 4), payer)
-                        mstore(add(__stf_ptr, 36), self)
-                        mstore(add(__stf_ptr, 68), feeAssets)
-                        mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                        let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                        if iszero(__stf_success) {
-                            let __stf_rds := returndatasize()
-                            returndatacopy(0, 0, __stf_rds)
-                            revert(0, __stf_rds)
+                        if iszero(gt(extcodesize(loanToken), 0)) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 7)
+                            mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                            revert(0, 100)
                         }
-                        let __erc20_rds := returndatasize()
-                        if iszero(__erc20_rds) {
-                            if iszero(gt(extcodesize(loanToken), 0)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
+                        let __lstf_ptr := mload(64)
+                        mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                        mstore(add(__lstf_ptr, 4), payer)
+                        mstore(add(__lstf_ptr, 36), self)
+                        mstore(add(__lstf_ptr, 68), feeAssets)
+                        mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                        let __lstf_success := call(gas(), loanToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                        if iszero(__lstf_success) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 21)
+                            mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                            revert(0, 100)
                         }
-                        if __erc20_rds {
-                            if iszero(eq(__erc20_rds, 32)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
-                            if iszero(eq(mload(__stf_ptr), 1)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
+                        let __lst_rds := returndatasize()
+                        if __lst_rds {
+                            if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 27)
+                                mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                revert(0, 100)
                             }
                         }
                     }
                 }
                 if gt(sellerAssets, 0) {
                     {
-                        let __stf_ptr := mload(64)
-                        mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(__stf_ptr, 4), payer)
-                        mstore(add(__stf_ptr, 36), receiver)
-                        mstore(add(__stf_ptr, 68), sellerAssets)
-                        mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                        let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                        if iszero(__stf_success) {
-                            let __stf_rds := returndatasize()
-                            returndatacopy(0, 0, __stf_rds)
-                            revert(0, __stf_rds)
+                        if iszero(gt(extcodesize(loanToken), 0)) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 7)
+                            mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                            revert(0, 100)
                         }
-                        let __erc20_rds := returndatasize()
-                        if iszero(__erc20_rds) {
-                            if iszero(gt(extcodesize(loanToken), 0)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
+                        let __lstf_ptr := mload(64)
+                        mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                        mstore(add(__lstf_ptr, 4), payer)
+                        mstore(add(__lstf_ptr, 36), receiver)
+                        mstore(add(__lstf_ptr, 68), sellerAssets)
+                        mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                        let __lstf_success := call(gas(), loanToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                        if iszero(__lstf_success) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 21)
+                            mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                            revert(0, 100)
                         }
-                        if __erc20_rds {
-                            if iszero(eq(__erc20_rds, 32)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
-                            if iszero(eq(mload(__stf_ptr), 1)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
+                        let __lst_rds := returndatasize()
+                        if __lst_rds {
+                            if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 27)
+                                mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                revert(0, 100)
                             }
                         }
                     }
@@ -7773,35 +7961,34 @@ object "Midnight" {
                     log4(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 {
-                    let __st_ptr := mload(64)
-                    mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__st_ptr, 4), receiver)
-                    mstore(add(__st_ptr, 36), units)
-                    mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                    let __st_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __st_ptr, 68, __st_ptr, 32)
-                    if iszero(__st_success) {
-                        let __st_rds := returndatasize()
-                        returndatacopy(0, 0, __st_rds)
-                        revert(0, __st_rds)
+                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lst_ptr := mload(64)
+                    mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lst_ptr, 4), receiver)
+                    mstore(add(__lst_ptr, 36), units)
+                    mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                    let __lst_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lst_ptr, 68, __lst_ptr, 32)
+                    if iszero(__lst_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 17)
+                        mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__st_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 23)
+                            mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -7890,36 +8077,35 @@ object "Midnight" {
                 }
                 let self := address()
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), payer)
-                    mstore(add(__stf_ptr, 36), self)
-                    mstore(add(__stf_ptr, 68), units)
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lstf_ptr := mload(64)
+                    mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lstf_ptr, 4), payer)
+                    mstore(add(__lstf_ptr, 36), self)
+                    mstore(add(__lstf_ptr, 68), units)
+                    mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                    let __lstf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                    if iszero(__lstf_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 21)
+                        mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 27)
+                            mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -9242,35 +9428,34 @@ object "Midnight" {
                     log4(__evt_ptr, 288, __evt_topic0, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
                 }
                 {
-                    let __st_ptr := mload(64)
-                    mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__st_ptr, 4), receiver)
-                    mstore(add(__st_ptr, 36), outSeizedAssets)
-                    mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                    let __st_success := call(gas(), collateralToken, 0, __st_ptr, 68, __st_ptr, 32)
-                    if iszero(__st_success) {
-                        let __st_rds := returndatasize()
-                        returndatacopy(0, 0, __st_rds)
-                        revert(0, __st_rds)
+                    if iszero(gt(extcodesize(collateralToken), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(collateralToken), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lst_ptr := mload(64)
+                    mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lst_ptr, 4), receiver)
+                    mstore(add(__lst_ptr, 36), outSeizedAssets)
+                    mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                    let __lst_success := call(gas(), collateralToken, 0, __lst_ptr, 68, __lst_ptr, 32)
+                    if iszero(__lst_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 17)
+                        mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__st_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 23)
+                            mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -9326,36 +9511,35 @@ object "Midnight" {
                 }
                 let self := address()
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), payer)
-                    mstore(add(__stf_ptr, 36), self)
-                    mstore(add(__stf_ptr, 68), outRepaidUnits)
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lstf_ptr := mload(64)
+                    mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lstf_ptr, 4), payer)
+                    mstore(add(__lstf_ptr, 36), self)
+                    mstore(add(__lstf_ptr, 68), outRepaidUnits)
+                    mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                    let __lstf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                    if iszero(__lstf_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 21)
+                        mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 27)
+                            mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -9453,36 +9637,35 @@ object "Midnight" {
                 let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                 let self := address()
                 {
-                    let __stf_ptr := mload(64)
-                    mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__stf_ptr, 4), sender)
-                    mstore(add(__stf_ptr, 36), self)
-                    mstore(add(__stf_ptr, 68), assets)
-                    mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                    let __stf_success := call(gas(), collateralToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                    if iszero(__stf_success) {
-                        let __stf_rds := returndatasize()
-                        returndatacopy(0, 0, __stf_rds)
-                        revert(0, __stf_rds)
+                    if iszero(gt(extcodesize(collateralToken), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(collateralToken), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lstf_ptr := mload(64)
+                    mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lstf_ptr, 4), sender)
+                    mstore(add(__lstf_ptr, 36), self)
+                    mstore(add(__lstf_ptr, 68), assets)
+                    mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                    let __lstf_success := call(gas(), collateralToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                    if iszero(__lstf_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 21)
+                        mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__stf_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 27)
+                            mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -9537,35 +9720,34 @@ object "Midnight" {
                 }
                 let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                 {
-                    let __st_ptr := mload(64)
-                    mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                    mstore(add(__st_ptr, 4), receiver)
-                    mstore(add(__st_ptr, 36), assets)
-                    mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                    let __st_success := call(gas(), collateralToken, 0, __st_ptr, 68, __st_ptr, 32)
-                    if iszero(__st_success) {
-                        let __st_rds := returndatasize()
-                        returndatacopy(0, 0, __st_rds)
-                        revert(0, __st_rds)
+                    if iszero(gt(extcodesize(collateralToken), 0)) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 7)
+                        mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    let __erc20_rds := returndatasize()
-                    if iszero(__erc20_rds) {
-                        if iszero(gt(extcodesize(collateralToken), 0)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
+                    let __lst_ptr := mload(64)
+                    mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(__lst_ptr, 4), receiver)
+                    mstore(add(__lst_ptr, 36), assets)
+                    mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                    let __lst_success := call(gas(), collateralToken, 0, __lst_ptr, 68, __lst_ptr, 32)
+                    if iszero(__lst_success) {
+                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                        mstore(4, 32)
+                        mstore(36, 17)
+                        mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                        revert(0, 100)
                     }
-                    if __erc20_rds {
-                        if iszero(eq(__erc20_rds, 32)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
-                        }
-                        if iszero(eq(mload(__st_ptr), 1)) {
-                            mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                            mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                            revert(0, 36)
+                    let __lst_rds := returndatasize()
+                    if __lst_rds {
+                        if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 23)
+                            mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                            revert(0, 100)
                         }
                     }
                 }
@@ -9595,35 +9777,34 @@ object "Midnight" {
                 } {
                     i := __forEach_idx
                     {
-                        let __st_ptr := mload(64)
-                        mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(__st_ptr, 4), callback)
-                        mstore(add(__st_ptr, 36), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
-                        mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                        let __st_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __st_ptr, 68, __st_ptr, 32)
-                        if iszero(__st_success) {
-                            let __st_rds := returndatasize()
-                            returndatacopy(0, 0, __st_rds)
-                            revert(0, __st_rds)
+                        if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 7)
+                            mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                            revert(0, 100)
                         }
-                        let __erc20_rds := returndatasize()
-                        if iszero(__erc20_rds) {
-                            if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
+                        let __lst_ptr := mload(64)
+                        mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                        mstore(add(__lst_ptr, 4), callback)
+                        mstore(add(__lst_ptr, 36), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
+                        mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                        let __lst_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __lst_ptr, 68, __lst_ptr, 32)
+                        if iszero(__lst_success) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 17)
+                            mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                            revert(0, 100)
                         }
-                        if __erc20_rds {
-                            if iszero(eq(__erc20_rds, 32)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
-                            if iszero(eq(mload(__st_ptr), 1)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
+                        let __lst_rds := returndatasize()
+                        if __lst_rds {
+                            if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 23)
+                                mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                revert(0, 100)
                             }
                         }
                     }
@@ -9677,36 +9858,35 @@ object "Midnight" {
                     i := __forEach_idx
                     let self := address()
                     {
-                        let __stf_ptr := mload(64)
-                        mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                        mstore(add(__stf_ptr, 4), callback)
-                        mstore(add(__stf_ptr, 36), self)
-                        mstore(add(__stf_ptr, 68), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
-                        mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                        let __stf_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __stf_ptr, 100, __stf_ptr, 32)
-                        if iszero(__stf_success) {
-                            let __stf_rds := returndatasize()
-                            returndatacopy(0, 0, __stf_rds)
-                            revert(0, __stf_rds)
+                        if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 7)
+                            mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                            revert(0, 100)
                         }
-                        let __erc20_rds := returndatasize()
-                        if iszero(__erc20_rds) {
-                            if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
+                        let __lstf_ptr := mload(64)
+                        mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                        mstore(add(__lstf_ptr, 4), callback)
+                        mstore(add(__lstf_ptr, 36), self)
+                        mstore(add(__lstf_ptr, 68), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
+                        mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                        let __lstf_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                        if iszero(__lstf_success) {
+                            mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                            mstore(4, 32)
+                            mstore(36, 21)
+                            mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                            revert(0, 100)
                         }
-                        if __erc20_rds {
-                            if iszero(eq(__erc20_rds, 32)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
-                            }
-                            if iszero(eq(mload(__stf_ptr), 1)) {
-                                mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                revert(0, 36)
+                        let __lst_rds := returndatasize()
+                        if __lst_rds {
+                            if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 27)
+                                mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                revert(0, 100)
                             }
                         }
                     }
@@ -10870,35 +11050,34 @@ object "Midnight" {
                         }
                         sstore(mappingSlot(6, token), sub(claimable, amount))
                         {
-                            let __st_ptr := mload(64)
-                            mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__st_ptr, 4), receiver)
-                            mstore(add(__st_ptr, 36), amount)
-                            mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                            let __st_success := call(gas(), token, 0, __st_ptr, 68, __st_ptr, 32)
-                            if iszero(__st_success) {
-                                let __st_rds := returndatasize()
-                                returndatacopy(0, 0, __st_rds)
-                                revert(0, __st_rds)
+                            if iszero(gt(extcodesize(token), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(token), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lst_ptr := mload(64)
+                            mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lst_ptr, 4), receiver)
+                            mstore(add(__lst_ptr, 36), amount)
+                            mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                            let __lst_success := call(gas(), token, 0, __lst_ptr, 68, __lst_ptr, 32)
+                            if iszero(__lst_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 17)
+                                mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__st_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(token, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 23)
+                                    mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -10985,35 +11164,34 @@ object "Midnight" {
                             log4(__evt_ptr, 32, __evt_topic0, and(sender, 0xffffffffffffffffffffffffffffffffffffffff), id, and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         {
-                            let __st_ptr := mload(64)
-                            mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__st_ptr, 4), receiver)
-                            mstore(add(__st_ptr, 36), amount)
-                            mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                            let __st_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __st_ptr, 68, __st_ptr, 32)
-                            if iszero(__st_success) {
-                                let __st_rds := returndatasize()
-                                returndatacopy(0, 0, __st_rds)
-                                revert(0, __st_rds)
+                            if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lst_ptr := mload(64)
+                            mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lst_ptr, 4), receiver)
+                            mstore(add(__lst_ptr, 36), amount)
+                            mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                            let __lst_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lst_ptr, 68, __lst_ptr, 32)
+                            if iszero(__lst_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 17)
+                                mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__st_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 23)
+                                    mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -12016,6 +12194,108 @@ object "Midnight" {
                                     revert(0, add(4, __err_tail))
                                 }
                             }
+                            let takeCollateralParamsOffset := add(marketBase, calldataload(add(marketBase, 32)))
+                            let takeCollateralCount := calldataload(takeCollateralParamsOffset)
+                            if iszero(gt(takeCollateralCount, 0)) {
+                                {
+                                    let __err_ptr := mload(64)
+                                    mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
+                                    let __err_hash := keccak256(__err_ptr, 20)
+                                    let __err_selector := shl(224, shr(224, __err_hash))
+                                    mstore(0, __err_selector)
+                                    let __err_tail := 0
+                                    revert(0, add(4, __err_tail))
+                                }
+                            }
+                            if gt(takeCollateralCount, 128) {
+                                {
+                                    let __err_ptr := mload(64)
+                                    mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
+                                    let __err_hash := keccak256(__err_ptr, 25)
+                                    let __err_selector := shl(224, shr(224, __err_hash))
+                                    mstore(0, __err_selector)
+                                    let __err_tail := 0
+                                    revert(0, add(4, __err_tail))
+                                }
+                            }
+                            let previousCollateralToken := 0
+                            for {
+                                let __forEach_idx := 0
+                                let __forEach_count := takeCollateralCount
+                                let i := 0
+                            } lt(__forEach_idx, __forEach_count) {
+                                __forEach_idx := add(__forEach_idx, 1)
+                            } {
+                                i := __forEach_idx
+                                let collateralParamOffset := add(add(takeCollateralParamsOffset, 32), mul(i, 128))
+                                let collateralToken := calldataload(collateralParamOffset)
+                                if iszero(gt(collateralToken, previousCollateralToken)) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
+                                        let __err_hash := keccak256(__err_ptr, 27)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                let lltv := calldataload(add(collateralParamOffset, 32))
+                                let allowed := internal_internal_isLltvAllowed(lltv)
+                                if iszero(allowed) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
+                                        let __err_hash := keccak256(__err_ptr, 16)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                let lowMaxLif := internal_internal_maxLif(lltv, 250000000000000000)
+                                let highMaxLif := internal_internal_maxLif(lltv, 500000000000000000)
+                                let lif := calldataload(add(collateralParamOffset, 64))
+                                if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
+                                        let __err_hash := keccak256(__err_ptr, 15)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                previousCollateralToken := collateralToken
+                            }
+                            let _marketPointer := 0
+                            {
+                                let __midnight_store_ptr := mload(64)
+                                mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                                mstore(add(__midnight_store_ptr, 11), 32)
+                                let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                                mstore(__midnight_store_tuple_ptr, calldataload(marketBase))
+                                mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                                mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                                mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                                mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                                mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                                let __midnight_store_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                                let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                                let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                                mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                                calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                                let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                                let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                                _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                                if iszero(_marketPointer) {
+                                    mstore(0, shl(224, 0x4e487b71))
+                                    mstore(4, 81)
+                                    revert(0, 36)
+                                }
+                                mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                            }
                             {
                                 let __compat_value := 4
                                 let __compat_packed := and(__compat_value, 255)
@@ -12581,72 +12861,70 @@ object "Midnight" {
                         if gt(feeAssets, 0) {
                             let self := address()
                             {
-                                let __stf_ptr := mload(64)
-                                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                                mstore(add(__stf_ptr, 4), payer)
-                                mstore(add(__stf_ptr, 36), self)
-                                mstore(add(__stf_ptr, 68), feeAssets)
-                                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                                let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                                if iszero(__stf_success) {
-                                    let __stf_rds := returndatasize()
-                                    returndatacopy(0, 0, __stf_rds)
-                                    revert(0, __stf_rds)
+                                if iszero(gt(extcodesize(loanToken), 0)) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 7)
+                                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                let __erc20_rds := returndatasize()
-                                if iszero(__erc20_rds) {
-                                    if iszero(gt(extcodesize(loanToken), 0)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
+                                let __lstf_ptr := mload(64)
+                                mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                                mstore(add(__lstf_ptr, 4), payer)
+                                mstore(add(__lstf_ptr, 36), self)
+                                mstore(add(__lstf_ptr, 68), feeAssets)
+                                mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                                let __lstf_success := call(gas(), loanToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                                if iszero(__lstf_success) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 21)
+                                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                if __erc20_rds {
-                                    if iszero(eq(__erc20_rds, 32)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
-                                    if iszero(eq(mload(__stf_ptr), 1)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
+                                let __lst_rds := returndatasize()
+                                if __lst_rds {
+                                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, 32)
+                                        mstore(36, 27)
+                                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                        revert(0, 100)
                                     }
                                 }
                             }
                         }
                         if gt(sellerAssets, 0) {
                             {
-                                let __stf_ptr := mload(64)
-                                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                                mstore(add(__stf_ptr, 4), payer)
-                                mstore(add(__stf_ptr, 36), receiver)
-                                mstore(add(__stf_ptr, 68), sellerAssets)
-                                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                                let __stf_success := call(gas(), loanToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                                if iszero(__stf_success) {
-                                    let __stf_rds := returndatasize()
-                                    returndatacopy(0, 0, __stf_rds)
-                                    revert(0, __stf_rds)
+                                if iszero(gt(extcodesize(loanToken), 0)) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 7)
+                                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                let __erc20_rds := returndatasize()
-                                if iszero(__erc20_rds) {
-                                    if iszero(gt(extcodesize(loanToken), 0)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
+                                let __lstf_ptr := mload(64)
+                                mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                                mstore(add(__lstf_ptr, 4), payer)
+                                mstore(add(__lstf_ptr, 36), receiver)
+                                mstore(add(__lstf_ptr, 68), sellerAssets)
+                                mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                                let __lstf_success := call(gas(), loanToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                                if iszero(__lstf_success) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 21)
+                                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                if __erc20_rds {
-                                    if iszero(eq(__erc20_rds, 32)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
-                                    if iszero(eq(mload(__stf_ptr), 1)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(loanToken, 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
+                                let __lst_rds := returndatasize()
+                                if __lst_rds {
+                                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, 32)
+                                        mstore(36, 27)
+                                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                        revert(0, 100)
                                     }
                                 }
                             }
@@ -13112,35 +13390,34 @@ object "Midnight" {
                             log4(__evt_ptr, 96, __evt_topic0, id, and(onBehalf, 0xffffffffffffffffffffffffffffffffffffffff), and(receiver, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         {
-                            let __st_ptr := mload(64)
-                            mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__st_ptr, 4), receiver)
-                            mstore(add(__st_ptr, 36), units)
-                            mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                            let __st_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __st_ptr, 68, __st_ptr, 32)
-                            if iszero(__st_success) {
-                                let __st_rds := returndatasize()
-                                returndatacopy(0, 0, __st_rds)
-                                revert(0, __st_rds)
+                            if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lst_ptr := mload(64)
+                            mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lst_ptr, 4), receiver)
+                            mstore(add(__lst_ptr, 36), units)
+                            mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                            let __lst_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lst_ptr, 68, __lst_ptr, 32)
+                            if iszero(__lst_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 17)
+                                mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__st_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 23)
+                                    mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -13266,36 +13543,35 @@ object "Midnight" {
                         }
                         let self := address()
                         {
-                            let __stf_ptr := mload(64)
-                            mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__stf_ptr, 4), payer)
-                            mstore(add(__stf_ptr, 36), self)
-                            mstore(add(__stf_ptr, 68), units)
-                            mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                            let __stf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __stf_ptr, 100, __stf_ptr, 32)
-                            if iszero(__stf_success) {
-                                let __stf_rds := returndatasize()
-                                returndatacopy(0, 0, __stf_rds)
-                                revert(0, __stf_rds)
+                            if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lstf_ptr := mload(64)
+                            mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lstf_ptr, 4), payer)
+                            mstore(add(__lstf_ptr, 36), self)
+                            mstore(add(__lstf_ptr, 68), units)
+                            mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                            let __lstf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                            if iszero(__lstf_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 21)
+                                mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__stf_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 27)
+                                    mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -14878,35 +15154,34 @@ object "Midnight" {
                             log4(__evt_ptr, 288, __evt_topic0, id, and(collateralToken, 0xffffffffffffffffffffffffffffffffffffffff), and(borrower, 0xffffffffffffffffffffffffffffffffffffffff))
                         }
                         {
-                            let __st_ptr := mload(64)
-                            mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__st_ptr, 4), receiver)
-                            mstore(add(__st_ptr, 36), outSeizedAssets)
-                            mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                            let __st_success := call(gas(), collateralToken, 0, __st_ptr, 68, __st_ptr, 32)
-                            if iszero(__st_success) {
-                                let __st_rds := returndatasize()
-                                returndatacopy(0, 0, __st_rds)
-                                revert(0, __st_rds)
+                            if iszero(gt(extcodesize(collateralToken), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(collateralToken), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lst_ptr := mload(64)
+                            mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lst_ptr, 4), receiver)
+                            mstore(add(__lst_ptr, 36), outSeizedAssets)
+                            mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                            let __lst_success := call(gas(), collateralToken, 0, __lst_ptr, 68, __lst_ptr, 32)
+                            if iszero(__lst_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 17)
+                                mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__st_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 23)
+                                    mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -14962,36 +15237,35 @@ object "Midnight" {
                         }
                         let self := address()
                         {
-                            let __stf_ptr := mload(64)
-                            mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__stf_ptr, 4), payer)
-                            mstore(add(__stf_ptr, 36), self)
-                            mstore(add(__stf_ptr, 68), outRepaidUnits)
-                            mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                            let __stf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __stf_ptr, 100, __stf_ptr, 32)
-                            if iszero(__stf_success) {
-                                let __stf_rds := returndatasize()
-                                returndatacopy(0, 0, __stf_rds)
-                                revert(0, __stf_rds)
+                            if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0)), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lstf_ptr := mload(64)
+                            mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lstf_ptr, 4), payer)
+                            mstore(add(__lstf_ptr, 36), self)
+                            mstore(add(__lstf_ptr, 68), outRepaidUnits)
+                            mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                            let __lstf_success := call(gas(), __verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                            if iszero(__lstf_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 21)
+                                mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__stf_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(__verity_param_dynamic_head_word_calldata_checked(market_data_offset, 0), 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 27)
+                                    mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -15146,36 +15420,35 @@ object "Midnight" {
                         let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                         let self := address()
                         {
-                            let __stf_ptr := mload(64)
-                            mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__stf_ptr, 4), sender)
-                            mstore(add(__stf_ptr, 36), self)
-                            mstore(add(__stf_ptr, 68), assets)
-                            mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                            let __stf_success := call(gas(), collateralToken, 0, __stf_ptr, 100, __stf_ptr, 32)
-                            if iszero(__stf_success) {
-                                let __stf_rds := returndatasize()
-                                returndatacopy(0, 0, __stf_rds)
-                                revert(0, __stf_rds)
+                            if iszero(gt(extcodesize(collateralToken), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(collateralToken), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lstf_ptr := mload(64)
+                            mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lstf_ptr, 4), sender)
+                            mstore(add(__lstf_ptr, 36), self)
+                            mstore(add(__lstf_ptr, 68), assets)
+                            mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                            let __lstf_success := call(gas(), collateralToken, 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                            if iszero(__lstf_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 21)
+                                mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__stf_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 27)
+                                    mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -15253,35 +15526,34 @@ object "Midnight" {
                         }
                         let collateralToken := internal_internal_collateralTokenAt(__verity_param_dynamic_member_data_offset_calldata_checked(market_data_offset, 1), __verity_param_dynamic_member_length_calldata_checked(market_data_offset, 1), collateralIndex)
                         {
-                            let __st_ptr := mload(64)
-                            mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                            mstore(add(__st_ptr, 4), receiver)
-                            mstore(add(__st_ptr, 36), assets)
-                            mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                            let __st_success := call(gas(), collateralToken, 0, __st_ptr, 68, __st_ptr, 32)
-                            if iszero(__st_success) {
-                                let __st_rds := returndatasize()
-                                returndatacopy(0, 0, __st_rds)
-                                revert(0, __st_rds)
+                            if iszero(gt(extcodesize(collateralToken), 0)) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 7)
+                                mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            let __erc20_rds := returndatasize()
-                            if iszero(__erc20_rds) {
-                                if iszero(gt(extcodesize(collateralToken), 0)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
+                            let __lst_ptr := mload(64)
+                            mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                            mstore(add(__lst_ptr, 4), receiver)
+                            mstore(add(__lst_ptr, 36), assets)
+                            mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                            let __lst_success := call(gas(), collateralToken, 0, __lst_ptr, 68, __lst_ptr, 32)
+                            if iszero(__lst_success) {
+                                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                mstore(4, 32)
+                                mstore(36, 17)
+                                mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                                revert(0, 100)
                             }
-                            if __erc20_rds {
-                                if iszero(eq(__erc20_rds, 32)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
-                                }
-                                if iszero(eq(mload(__st_ptr), 1)) {
-                                    mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                    mstore(4, and(collateralToken, 1461501637330902918203684832716283019655932542975))
-                                    revert(0, 36)
+                            let __lst_rds := returndatasize()
+                            if __lst_rds {
+                                if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 23)
+                                    mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                    revert(0, 100)
                                 }
                             }
                         }
@@ -15367,35 +15639,34 @@ object "Midnight" {
                         } {
                             i := __forEach_idx
                             {
-                                let __st_ptr := mload(64)
-                                mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
-                                mstore(add(__st_ptr, 4), callback)
-                                mstore(add(__st_ptr, 36), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
-                                mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))
-                                let __st_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __st_ptr, 68, __st_ptr, 32)
-                                if iszero(__st_success) {
-                                    let __st_rds := returndatasize()
-                                    returndatacopy(0, 0, __st_rds)
-                                    revert(0, __st_rds)
+                                if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 7)
+                                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                let __erc20_rds := returndatasize()
-                                if iszero(__erc20_rds) {
-                                    if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
+                                let __lst_ptr := mload(64)
+                                mstore(__lst_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+                                mstore(add(__lst_ptr, 4), callback)
+                                mstore(add(__lst_ptr, 36), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
+                                mstore(64, and(add(add(__lst_ptr, 68), 31), not(31)))
+                                let __lst_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __lst_ptr, 68, __lst_ptr, 32)
+                                if iszero(__lst_success) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 17)
+                                    mstore(68, 0x7472616e73666572207265766572746564000000000000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                if __erc20_rds {
-                                    if iszero(eq(__erc20_rds, 32)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
-                                    if iszero(eq(mload(__st_ptr), 1)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
+                                let __lst_rds := returndatasize()
+                                if __lst_rds {
+                                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lst_ptr), 1))) {
+                                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, 32)
+                                        mstore(36, 23)
+                                        mstore(68, 0x7472616e736665722072657475726e65642066616c7365000000000000000000)
+                                        revert(0, 100)
                                     }
                                 }
                             }
@@ -15449,36 +15720,35 @@ object "Midnight" {
                             i := __forEach_idx
                             let self := address()
                             {
-                                let __stf_ptr := mload(64)
-                                mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
-                                mstore(add(__stf_ptr, 4), callback)
-                                mstore(add(__stf_ptr, 36), self)
-                                mstore(add(__stf_ptr, 68), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
-                                mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))
-                                let __stf_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __stf_ptr, 100, __stf_ptr, 32)
-                                if iszero(__stf_success) {
-                                    let __stf_rds := returndatasize()
-                                    returndatacopy(0, 0, __stf_rds)
-                                    revert(0, __stf_rds)
+                                if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 7)
+                                    mstore(68, 0x6e6f20636f646500000000000000000000000000000000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                let __erc20_rds := returndatasize()
-                                if iszero(__erc20_rds) {
-                                    if iszero(gt(extcodesize(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i)), 0)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
+                                let __lstf_ptr := mload(64)
+                                mstore(__lstf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+                                mstore(add(__lstf_ptr, 4), callback)
+                                mstore(add(__lstf_ptr, 36), self)
+                                mstore(add(__lstf_ptr, 68), __verity_array_element_calldata_checked(assets_data_offset, assets_length, i))
+                                mstore(64, and(add(add(__lstf_ptr, 100), 31), not(31)))
+                                let __lstf_success := call(gas(), __verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 0, __lstf_ptr, 100, __lstf_ptr, 32)
+                                if iszero(__lstf_success) {
+                                    mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                    mstore(4, 32)
+                                    mstore(36, 21)
+                                    mstore(68, 0x7472616e7366657246726f6d2072657665727465640000000000000000000000)
+                                    revert(0, 100)
                                 }
-                                if __erc20_rds {
-                                    if iszero(eq(__erc20_rds, 32)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
-                                    }
-                                    if iszero(eq(mload(__stf_ptr), 1)) {
-                                        mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)
-                                        mstore(4, and(__verity_array_element_calldata_checked(tokens_data_offset, tokens_length, i), 1461501637330902918203684832716283019655932542975))
-                                        revert(0, 36)
+                                let __lst_rds := returndatasize()
+                                if __lst_rds {
+                                    if iszero(and(gt(__lst_rds, 31), eq(mload(__lstf_ptr), 1))) {
+                                        mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
+                                        mstore(4, 32)
+                                        mstore(36, 27)
+                                        mstore(68, 0x7472616e7366657246726f6d2072657475726e65642066616c73650000000000)
+                                        revert(0, 100)
                                     }
                                 }
                             }
