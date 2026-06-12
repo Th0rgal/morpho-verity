@@ -1899,6 +1899,108 @@ object "Midnight" {
                         revert(0, add(4, __err_tail))
                     }
                 }
+                let takeCollateralParamsOffset := add(marketBase, calldataload(add(marketBase, 32)))
+                let takeCollateralCount := calldataload(takeCollateralParamsOffset)
+                if iszero(gt(takeCollateralCount, 0)) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
+                        let __err_hash := keccak256(__err_ptr, 20)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                if gt(takeCollateralCount, 128) {
+                    {
+                        let __err_ptr := mload(64)
+                        mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
+                        let __err_hash := keccak256(__err_ptr, 25)
+                        let __err_selector := shl(224, shr(224, __err_hash))
+                        mstore(0, __err_selector)
+                        let __err_tail := 0
+                        revert(0, add(4, __err_tail))
+                    }
+                }
+                let previousCollateralToken := 0
+                for {
+                    let __forEach_idx := 0
+                    let __forEach_count := takeCollateralCount
+                    let i := 0
+                } lt(__forEach_idx, __forEach_count) {
+                    __forEach_idx := add(__forEach_idx, 1)
+                } {
+                    i := __forEach_idx
+                    let collateralParamOffset := add(add(takeCollateralParamsOffset, 32), mul(i, 128))
+                    let collateralToken := calldataload(collateralParamOffset)
+                    if iszero(gt(collateralToken, previousCollateralToken)) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
+                            let __err_hash := keccak256(__err_ptr, 27)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let lltv := calldataload(add(collateralParamOffset, 32))
+                    let allowed := internal_internal_isLltvAllowed(lltv)
+                    if iszero(allowed) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 16)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let lowMaxLif := internal_internal_maxLif(lltv, 250000000000000000)
+                    let highMaxLif := internal_internal_maxLif(lltv, 500000000000000000)
+                    let lif := calldataload(add(collateralParamOffset, 64))
+                    if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 15)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    previousCollateralToken := collateralToken
+                }
+                let _marketPointer := 0
+                {
+                    let __midnight_store_ptr := mload(64)
+                    mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                    mstore(add(__midnight_store_ptr, 11), 32)
+                    let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                    mstore(__midnight_store_tuple_ptr, calldataload(marketBase))
+                    mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                    mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                    mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                    mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                    mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                    let __midnight_store_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                    let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                    let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                    mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                    calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                    let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                    let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                    _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                    if iszero(_marketPointer) {
+                        mstore(0, shl(224, 0x4e487b71))
+                        mstore(4, 81)
+                        revert(0, 36)
+                    }
+                    mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
+                }
                 {
                     let __compat_value := 4
                     let __compat_packed := and(__compat_value, 255)
@@ -6785,6 +6887,108 @@ object "Midnight" {
                             let __err_tail := 0
                             revert(0, add(4, __err_tail))
                         }
+                    }
+                    let takeCollateralParamsOffset := add(marketBase, calldataload(add(marketBase, 32)))
+                    let takeCollateralCount := calldataload(takeCollateralParamsOffset)
+                    if iszero(gt(takeCollateralCount, 0)) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
+                            let __err_hash := keccak256(__err_ptr, 20)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    if gt(takeCollateralCount, 128) {
+                        {
+                            let __err_ptr := mload(64)
+                            mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
+                            let __err_hash := keccak256(__err_ptr, 25)
+                            let __err_selector := shl(224, shr(224, __err_hash))
+                            mstore(0, __err_selector)
+                            let __err_tail := 0
+                            revert(0, add(4, __err_tail))
+                        }
+                    }
+                    let previousCollateralToken := 0
+                    for {
+                        let __forEach_idx := 0
+                        let __forEach_count := takeCollateralCount
+                        let i := 0
+                    } lt(__forEach_idx, __forEach_count) {
+                        __forEach_idx := add(__forEach_idx, 1)
+                    } {
+                        i := __forEach_idx
+                        let collateralParamOffset := add(add(takeCollateralParamsOffset, 32), mul(i, 128))
+                        let collateralToken := calldataload(collateralParamOffset)
+                        if iszero(gt(collateralToken, previousCollateralToken)) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
+                                let __err_hash := keccak256(__err_ptr, 27)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let lltv := calldataload(add(collateralParamOffset, 32))
+                        let allowed := internal_internal_isLltvAllowed(lltv)
+                        if iszero(allowed) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 16)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        let lowMaxLif := internal_internal_maxLif(lltv, 250000000000000000)
+                        let highMaxLif := internal_internal_maxLif(lltv, 500000000000000000)
+                        let lif := calldataload(add(collateralParamOffset, 64))
+                        if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
+                            {
+                                let __err_ptr := mload(64)
+                                mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
+                                let __err_hash := keccak256(__err_ptr, 15)
+                                let __err_selector := shl(224, shr(224, __err_hash))
+                                mstore(0, __err_selector)
+                                let __err_tail := 0
+                                revert(0, add(4, __err_tail))
+                            }
+                        }
+                        previousCollateralToken := collateralToken
+                    }
+                    let _marketPointer := 0
+                    {
+                        let __midnight_store_ptr := mload(64)
+                        mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                        mstore(add(__midnight_store_ptr, 11), 32)
+                        let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                        mstore(__midnight_store_tuple_ptr, calldataload(marketBase))
+                        mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                        mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                        mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                        mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                        mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                        let __midnight_store_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                        let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                        let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                        mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                        calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                        let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                        let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                        _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                        if iszero(_marketPointer) {
+                            mstore(0, shl(224, 0x4e487b71))
+                            mstore(4, 81)
+                            revert(0, 36)
+                        }
+                        mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
                     }
                     {
                         let __compat_value := 4
@@ -11989,6 +12193,108 @@ object "Midnight" {
                                     let __err_tail := 0
                                     revert(0, add(4, __err_tail))
                                 }
+                            }
+                            let takeCollateralParamsOffset := add(marketBase, calldataload(add(marketBase, 32)))
+                            let takeCollateralCount := calldataload(takeCollateralParamsOffset)
+                            if iszero(gt(takeCollateralCount, 0)) {
+                                {
+                                    let __err_ptr := mload(64)
+                                    mstore(add(__err_ptr, 0), 0x4e6f436f6c6c61746572616c506172616d732829000000000000000000000000)
+                                    let __err_hash := keccak256(__err_ptr, 20)
+                                    let __err_selector := shl(224, shr(224, __err_hash))
+                                    mstore(0, __err_selector)
+                                    let __err_tail := 0
+                                    revert(0, add(4, __err_tail))
+                                }
+                            }
+                            if gt(takeCollateralCount, 128) {
+                                {
+                                    let __err_ptr := mload(64)
+                                    mstore(add(__err_ptr, 0), 0x546f6f4d616e79436f6c6c61746572616c506172616d73282900000000000000)
+                                    let __err_hash := keccak256(__err_ptr, 25)
+                                    let __err_selector := shl(224, shr(224, __err_hash))
+                                    mstore(0, __err_selector)
+                                    let __err_tail := 0
+                                    revert(0, add(4, __err_tail))
+                                }
+                            }
+                            let previousCollateralToken := 0
+                            for {
+                                let __forEach_idx := 0
+                                let __forEach_count := takeCollateralCount
+                                let i := 0
+                            } lt(__forEach_idx, __forEach_count) {
+                                __forEach_idx := add(__forEach_idx, 1)
+                            } {
+                                i := __forEach_idx
+                                let collateralParamOffset := add(add(takeCollateralParamsOffset, 32), mul(i, 128))
+                                let collateralToken := calldataload(collateralParamOffset)
+                                if iszero(gt(collateralToken, previousCollateralToken)) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x436f6c6c61746572616c506172616d734e6f74536f7274656428290000000000)
+                                        let __err_hash := keccak256(__err_ptr, 27)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                let lltv := calldataload(add(collateralParamOffset, 32))
+                                let allowed := internal_internal_isLltvAllowed(lltv)
+                                if iszero(allowed) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x4c6c74764e6f74416c6c6f776564282900000000000000000000000000000000)
+                                        let __err_hash := keccak256(__err_ptr, 16)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                let lowMaxLif := internal_internal_maxLif(lltv, 250000000000000000)
+                                let highMaxLif := internal_internal_maxLif(lltv, 500000000000000000)
+                                let lif := calldataload(add(collateralParamOffset, 64))
+                                if iszero(or(iszero(iszero(eq(lif, lowMaxLif))), iszero(iszero(eq(lif, highMaxLif))))) {
+                                    {
+                                        let __err_ptr := mload(64)
+                                        mstore(add(__err_ptr, 0), 0x496e76616c69644d61784c696628290000000000000000000000000000000000)
+                                        let __err_hash := keccak256(__err_ptr, 15)
+                                        let __err_selector := shl(224, shr(224, __err_hash))
+                                        mstore(0, __err_selector)
+                                        let __err_tail := 0
+                                        revert(0, add(4, __err_tail))
+                                    }
+                                }
+                                previousCollateralToken := collateralToken
+                            }
+                            let _marketPointer := 0
+                            {
+                                let __midnight_store_ptr := mload(64)
+                                mstore(__midnight_store_ptr, shl(168, 0x600b380380600b5f395ff3))
+                                mstore(add(__midnight_store_ptr, 11), 32)
+                                let __midnight_store_tuple_ptr := add(__midnight_store_ptr, 43)
+                                mstore(__midnight_store_tuple_ptr, calldataload(marketBase))
+                                mstore(add(__midnight_store_tuple_ptr, 32), 192)
+                                mstore(add(__midnight_store_tuple_ptr, 64), calldataload(add(marketBase, 64)))
+                                mstore(add(__midnight_store_tuple_ptr, 96), calldataload(add(marketBase, 96)))
+                                mstore(add(__midnight_store_tuple_ptr, 128), calldataload(add(marketBase, 128)))
+                                mstore(add(__midnight_store_tuple_ptr, 160), calldataload(add(marketBase, 160)))
+                                let __midnight_store_collateral_offset := add(marketBase, calldataload(add(marketBase, 32)))
+                                let __midnight_store_collateral_length := calldataload(__midnight_store_collateral_offset)
+                                let __midnight_store_collateral_bytes := mul(__midnight_store_collateral_length, 128)
+                                mstore(add(__midnight_store_tuple_ptr, 192), __midnight_store_collateral_length)
+                                calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
+                                let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
+                                let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
+                                _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                                if iszero(_marketPointer) {
+                                    mstore(0, shl(224, 0x4e487b71))
+                                    mstore(4, 81)
+                                    revert(0, 36)
+                                }
+                                mstore(64, add(__midnight_store_ptr, and(add(__midnight_store_initcode_length, 31), not(31))))
                             }
                             {
                                 let __compat_value := 4

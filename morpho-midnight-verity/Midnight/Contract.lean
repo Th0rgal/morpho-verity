@@ -1451,8 +1451,12 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
   axioms := ["midnight_sstore2_market_initcode_layout", "create2_address_derivation"]
   compile := fun _ctx args => do
     match args with
-    | [salt] =>
-        let marketDataOffset := YulExpr.ident "market_data_offset"
+    | salt :: rest =>
+        let marketDataOffset ←
+          match rest with
+          | [] => pure (YulExpr.ident "market_data_offset")
+          | [offset] => pure offset
+          | _ => throw s!"midnightStoreMarketInCode expects 1 or 2 arguments, got {args.length}"
         let ptr := YulExpr.ident "__midnight_store_ptr"
         let tuplePtr := YulExpr.ident "__midnight_store_tuple_ptr"
         let collateralOffset := YulExpr.ident "__midnight_store_collateral_offset"
@@ -1544,7 +1548,17 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
           ]
         ]
     | _ =>
-        throw s!"midnightStoreMarketInCode expects 1 argument, got {args.length}"
+        throw s!"midnightStoreMarketInCode expects 1 or 2 arguments, got {args.length}"
+
+def storeMarketInCodeAtOffsetModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
+  name := "midnightStoreMarketInCodeAtOffset"
+  numArgs := 2
+  resultVars := [resultVar]
+  writesState := true
+  readsState := false
+  axioms := ["midnight_sstore2_market_initcode_layout", "create2_address_derivation"]
+  compile := fun ctx args =>
+    (storeMarketInCodeModule resultVar).compile ctx args
 
 def marketFromCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
   -- SSTORE2 runtime-code decode for Market payloads. Kept separate from source
@@ -3386,6 +3400,28 @@ verity_contract Midnight where
     if currentMarketTickSpacing == ZERO then
       let now ← blockTimestamp
       requireError (maturity <= add now HUNDRED_YEARS) MaturityTooFar()
+      let takeCollateralParamsOffset := add marketBase
+        (calldataload (add marketBase 32))
+      let takeCollateralCount := calldataload takeCollateralParamsOffset
+      requireError (takeCollateralCount > ZERO) NoCollateralParams()
+      requireError (takeCollateralCount <= MAX_COLLATERALS) TooManyCollateralParams()
+      let mut previousCollateralToken := 0
+      forEach "i" takeCollateralCount (do
+        let collateralParamOffset := add (add takeCollateralParamsOffset 32)
+          (mul i 128)
+        let collateralToken := calldataload collateralParamOffset
+        requireError (collateralToken > previousCollateralToken)
+          CollateralParamsNotSorted()
+        let lltv := calldataload (add collateralParamOffset 32)
+        let allowed ← isLltvAllowed lltv
+        requireError allowed LltvNotAllowed()
+        let lowMaxLif ← maxLif lltv LIQUIDATION_CURSOR_LOW
+        let highMaxLif ← maxLif lltv LIQUIDATION_CURSOR_HIGH
+        let lif := calldataload (add collateralParamOffset 64)
+        requireError (lif == lowMaxLif || lif == highMaxLif) InvalidMaxLif()
+        previousCollateralToken := collateralToken)
+      let _marketPointer ← ecmCall (fun resultVar => storeMarketInCodeAtOffsetModule resultVar)
+        [initialChainId, marketBase]
       setStructMember "marketStateSlot" id "tickSpacing" DEFAULT_TICK_SPACING
       let settlementFeeCbp0 ← defaultSettlementFeeCbp loanToken ZERO
       let settlementFeeCbp1 ← defaultSettlementFeeCbp loanToken ONE
