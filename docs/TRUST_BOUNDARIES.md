@@ -25,7 +25,7 @@ The Morpho packages are pinned through `lakefile.lean` and
 `lake-manifest.json` to:
 
 - repository: `https://github.com/Th0rgal/verity.git`
-- revision: `def6b60575c2dc27a21853036b4bed6786931bef`
+- revision: `760e9feb7161c6a4f26f8bad4bbcfb3950ff02ce`
 
 This revision brings source-level `keccakString` literals, improved typed
 interface support, and — crucially — the `legacyStringSafeTransfer` /
