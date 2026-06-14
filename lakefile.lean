@@ -5,7 +5,7 @@ package «morpho-verity» where
   version := v!"0.1.0"
 
 require verity from git
-  "https://github.com/Th0rgal/verity.git" @ "760e9feb7161c6a4f26f8bad4bbcfb3950ff02ce"
+  "https://github.com/Th0rgal/verity.git" @ "c3bed0e51ba963bd0bd28a7b7ca87a325f575dee"
 
 @[default_target]
 lean_lib «Morpho» where
