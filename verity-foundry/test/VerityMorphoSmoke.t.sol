@@ -20,6 +20,7 @@ interface Vm {
     function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
     function assume(bool condition) external;
     function label(address a, string calldata name) external;
+    function etch(address target, bytes calldata newRuntimeBytecode) external;
 }
 
 interface IMorphoSubset {
@@ -248,6 +249,8 @@ contract VerityMorphoSmokeTest {
         keccak256("Authorization(address authorizer,address authorized,bool isAuthorized,uint256 nonce,uint256 deadline)");
 
     address internal constant OWNER = address(0xBEEF);
+    address internal constant DUMMY_IRM = address(0x1111);
+    address internal constant HIGH_BIT_IRM = address(0xc7183455a4C133Ae270771860664b6B7ec320bB1);
     IMorphoSubset internal morpho;
 
     event SetAuthorization(
@@ -263,6 +266,8 @@ contract VerityMorphoSmokeTest {
         }
         require(deployed != address(0), "deploy failed");
         morpho = IMorphoSubset(deployed);
+
+        vm.etch(DUMMY_IRM, type(MockIRM).runtimeCode);
     }
 
     function testOwnerInitialized() public view {
@@ -271,7 +276,7 @@ contract VerityMorphoSmokeTest {
     }
 
     function testOwnerCanEnableAndCreateMarket() public {
-        address irm = address(0x1111);
+        address irm = DUMMY_IRM;
         uint256 lltv = 0.8 ether;
         vm.prank(OWNER);
         morpho.enableIrm(irm);
@@ -323,7 +328,8 @@ contract VerityMorphoSmokeTest {
     }
 
     function testCreateMarketWithHighBitAddresses() public {
-        address irm = address(0xc7183455a4C133Ae270771860664b6B7ec320bB1);
+        address irm = HIGH_BIT_IRM;
+        vm.etch(irm, type(MockIRM).runtimeCode);
         uint256 lltv = 0.8 ether;
         vm.prank(OWNER);
         morpho.enableIrm(irm);
@@ -422,7 +428,7 @@ contract VerityMorphoSmokeTest {
         MockERC20 loanToken = new MockERC20();
         address collateralToken = address(0x3333);
         address oracle = address(0x4444);
-        address irm = address(0x1111);
+        address irm = DUMMY_IRM;
         uint256 lltv = 0.8 ether;
 
         vm.prank(OWNER);

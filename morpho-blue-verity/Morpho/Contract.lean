@@ -1,5 +1,6 @@
 import Compiler.CompilationModel
 import Compiler.Modules.Callbacks
+import Compiler.Modules.Calls
 import Compiler.Modules.ERC20
 import Compiler.Modules.Hashing
 import Compiler.Modules.Oracle
@@ -374,7 +375,7 @@ verity_contract Morpho where
         addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv]
     return id
 
-  function allow_post_interaction_writes createMarket (marketParams : MarketParams) local_obligations [create_market_irm_init := assumed "Morpho.sol initializes stateful IRMs with a post-create borrowRate call; caller must verify the IRM call ABI and returned rate boundary."] : Unit := do
+  function allow_post_interaction_writes createMarket (marketParams : MarketParams) : Unit := do
     let _ignoredMarketParams := marketParams
     let id ← _marketParamsId marketParams
     let irmEnabled <- getMapping isIrmEnabledSlot marketParams.irm
@@ -396,11 +397,16 @@ verity_contract Morpho where
     setStructMember "idToMarketParamsSlot" id "irm" marketParams.irm
     setStructMember "idToMarketParamsSlot" id "lltv" marketParams.lltv
     emit "CreateMarket" [id, marketParams]
-    -- Morpho.sol performs a post-create `borrowRate` initialization call here.
-    -- The current compiled smoke surface keeps that interaction as a local
-    -- obligation until the tuple-typed IRM ECM can execute against Foundry
-    -- mocks without invalid-opcode failures.
-    require (marketParams.irm == marketParams.irm) "irm initialized"
+    if marketParams.irm != 0 then
+      let _initRate ← ecmCall
+        (fun resultVar => Compiler.Modules.Calls.withReturnModule resultVar borrowRateSelector 11 false)
+        [addressToWord marketParams.irm,
+          addressToWord marketParams.loanToken, addressToWord marketParams.collateralToken,
+          addressToWord marketParams.oracle, addressToWord marketParams.irm, marketParams.lltv,
+          ZERO, ZERO, ZERO, ZERO, currentTimestamp, ZERO]
+      pure ()
+    else
+      pure ()
 
   function allow_post_interaction_writes _accrueInterest (marketParams : MarketParams, id : Bytes32) : Uint256 := do
     -- Internal helper mirroring Morpho.sol `_accrueInterest`.
