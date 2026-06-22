@@ -1450,8 +1450,9 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
         let collateralBytes := YulExpr.ident "__midnight_store_collateral_bytes"
         let abiLength := YulExpr.ident "__midnight_store_abi_length"
         let initcodeLength := YulExpr.ident "__midnight_store_initcode_length"
+        let create2ResultVar := "__midnight_store_create2_result"
         let deployStmts ←
-          (Compiler.Modules.Create2SSTORE2.deployModule resultVar).compile {}
+          (Compiler.Modules.Create2SSTORE2.deployModule create2ResultVar).compile {}
             [YulExpr.lit 0, ptr, initcodeLength, salt]
         pure [
           YulStmt.let_ resultVar (YulExpr.lit 0),
@@ -1514,6 +1515,7 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
             YulStmt.let_ "__midnight_store_initcode_length"
               (YulExpr.call "add" [YulExpr.lit 11, abiLength])
           ] ++ deployStmts ++ [
+            YulStmt.assign resultVar (YulExpr.ident create2ResultVar),
             YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident resultVar])
               [
                 YulStmt.expr (YulExpr.call "mstore" [

@@ -537,8 +537,9 @@ object "Midnight" {
                 calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                 let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                 let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                let pointer_1 := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
-                if iszero(pointer_1) {
+                let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                pointer := __midnight_store_create2_result
+                if iszero(pointer) {
                     mstore(0, shl(224, 0x4e487b71))
                     mstore(4, 81)
                     revert(0, 36)
@@ -2009,8 +2010,9 @@ object "Midnight" {
                     calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                     let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                     let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                    let _marketPointer_1 := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
-                    if iszero(_marketPointer_1) {
+                    let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                    _marketPointer := __midnight_store_create2_result
+                    if iszero(_marketPointer) {
                         mstore(0, shl(224, 0x4e487b71))
                         mstore(4, 81)
                         revert(0, 36)
@@ -5542,8 +5544,9 @@ object "Midnight" {
                     calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                     let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                     let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                    let pointer_2 := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
-                    if iszero(pointer_2) {
+                    let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                    pointer := __midnight_store_create2_result
+                    if iszero(pointer) {
                         mstore(0, shl(224, 0x4e487b71))
                         mstore(4, 81)
                         revert(0, 36)
@@ -7014,8 +7017,9 @@ object "Midnight" {
                         calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                         let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                         let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                        let _marketPointer_2 := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
-                        if iszero(_marketPointer_2) {
+                        let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                        _marketPointer := __midnight_store_create2_result
+                        if iszero(_marketPointer) {
                             mstore(0, shl(224, 0x4e487b71))
                             mstore(4, 81)
                             revert(0, 36)
@@ -12328,8 +12332,9 @@ object "Midnight" {
                                 calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                                 let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                                 let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                                let _marketPointer_3 := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
-                                if iszero(_marketPointer_3) {
+                                let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                                _marketPointer := __midnight_store_create2_result
+                                if iszero(_marketPointer) {
                                     mstore(0, shl(224, 0x4e487b71))
                                     mstore(4, 81)
                                     revert(0, 36)

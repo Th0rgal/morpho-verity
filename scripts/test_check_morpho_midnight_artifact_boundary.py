@@ -31,6 +31,40 @@ class CheckMorphoMidnightArtifactBoundaryTest(unittest.TestCase):
         with self.assertRaises(check.MidnightArtifactBoundaryError):
             check.parse_manifest("input_digest=a\ninput_digest=b\n")
 
+    def test_store_market_create2_result_rejects_shadowed_return(self) -> None:
+        yul = """
+        function internal_internal_codeDataStoreMarket(market_data_offset, salt) -> __ret0 {
+            let pointer := 0
+            {
+                let __midnight_store_ptr := mload(64)
+                let __midnight_store_initcode_length := 267
+                let pointer_1 := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                if iszero(pointer_1) { revert(0, 0) }
+            }
+            __ret0 := pointer
+            leave
+        }
+        """
+        with self.assertRaises(check.MidnightArtifactBoundaryError):
+            check.validate_store_market_create2_result(yul)
+
+    def test_store_market_create2_result_accepts_assigned_return(self) -> None:
+        yul = """
+        function internal_internal_codeDataStoreMarket(market_data_offset, salt) -> __ret0 {
+            let pointer := 0
+            {
+                let __midnight_store_ptr := mload(64)
+                let __midnight_store_initcode_length := 267
+                let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                pointer := __midnight_store_create2_result
+                if iszero(pointer) { revert(0, 0) }
+            }
+            __ret0 := pointer
+            leave
+        }
+        """
+        check.validate_store_market_create2_result(yul)
+
     def test_repo_boundary_is_clean(self) -> None:
         self.assertEqual(check.main(), 0)
 
