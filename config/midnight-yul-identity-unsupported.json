@@ -306,5 +306,30 @@
     "mappingSlot#0",
     "mappingSlot#1"
   ],
-  "notes": "Mechanical drift manifest for Midnight Solidity irOptimized Yul versus artifacts/midnight/Midnight.yul. This is a fail-closed drift gate, not a Yul equivalence proof."
+  "closedFeatureGaps": [
+    {
+      "feature": "Direct CREATE2/SSTORE2-style Midnight market code emission",
+      "status": "closed",
+      "evidence": "artifacts/midnight/Midnight.yul is generated directly from the Verity Midnight contract without the previous Midnight-specific Yul patch, and the current drift report has zero hash-mismatched function blocks.",
+      "remainingDrift": "Solc still emits distinct fun_touchMarket/toId/toMarket-adjacent helper blocks that are tracked under allowedOnlyInSolidityKeys until solc-shaped helper outlining lands."
+    }
+  ],
+  "openFeatureGaps": [
+    {
+      "feature": "Solc-shaped internal helper outlining/inlining for Yul identity targets",
+      "issue": "https://github.com/lfglabs-dev/verity/issues/2058",
+      "driftSurface": "180 internal_internal_* or modifier helper functions plus duplicate ordinals in allowedOnlyInVerityKeys."
+    },
+    {
+      "feature": "Solc-shaped ABI, allocation, arithmetic, and library helper emission",
+      "issue": "https://github.com/lfglabs-dev/verity/issues/2059",
+      "driftSurface": "The largest allowedOnlyInSolidity families: fun, abi_decode/encode, finalize_allocation, array_allocation_size, checked arithmetic, and memory/calldata access helpers."
+    },
+    {
+      "feature": "Solidity-compatible packed storage lowering for Midnight storage layouts",
+      "issue": "https://github.com/lfglabs-dev/verity/issues/2060",
+      "driftSurface": "update_storage_value_offset_*, storage_array_index_access_*, and packed uint16/uint32/uint128 helper drift."
+    }
+  ],
+  "notes": "Mechanical drift manifest for Midnight Solidity irOptimized Yul versus artifacts/midnight/Midnight.yul. This is a fail-closed drift gate, not a Yul equivalence proof. Extra metadata keys document closed/open Verity feature gaps and are intentionally ignored by the fail-closed key comparison."
 }

@@ -9,6 +9,36 @@ properties.
 Complete artifact status: present
 Focused artifact status: present
 
+## Yul Identity Drift Reduction
+
+Current Midnight Yul identity gate:
+
+```bash
+python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate
+```
+
+Current function-level drift surface:
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Hash mismatches | 0 | Closed for the current direct Verity Midnight artifact. |
+| Solidity-only helpers | 75 | Tracked in `config/midnight-yul-identity-unsupported.json`; requires solc-shaped helper emission. |
+| Verity-only helpers | 226 | Tracked in `config/midnight-yul-identity-unsupported.json`; dominated by internal/helper outlining drift. |
+
+Closed Verity feature gap:
+
+| Feature | Evidence |
+|---------|----------|
+| Direct CREATE2/SSTORE2-style Midnight market code emission | `artifacts/midnight/Midnight.yul` is emitted directly by Verity, without a Midnight-specific Yul patch; the function-level report has no hash-mismatched function blocks. |
+
+Open Verity feature gaps filed from this drift pass:
+
+| Gap | Issue | Drift surface |
+|-----|-------|---------------|
+| Solc-shaped internal helper outlining/inlining for Yul identity targets | [lfglabs-dev/verity#2058](https://github.com/lfglabs-dev/verity/issues/2058) | 180 `internal_internal_*` or modifier helper functions plus duplicate ordinals in Verity-only drift. |
+| Solc-shaped ABI, allocation, arithmetic, and library helper emission | [lfglabs-dev/verity#2059](https://github.com/lfglabs-dev/verity/issues/2059) | Solidity-only `fun`, ABI encode/decode, allocation, checked arithmetic, memory, and calldata helper families. |
+| Solidity-compatible packed storage lowering for Midnight storage layouts | [lfglabs-dev/verity#2060](https://github.com/lfglabs-dev/verity/issues/2060) | `update_storage_value_offset_*`, storage array access, and packed narrow-integer helper drift. |
+
 ## Source Pair
 
 | Upstream source | Current Verity artifact |
