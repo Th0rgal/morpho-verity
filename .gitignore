@@ -6,3 +6,4 @@ verity-foundry/cache/
 verity-foundry/out/
 __pycache__/
 .pytest_cache/
+build-*.log

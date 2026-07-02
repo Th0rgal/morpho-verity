@@ -3,6 +3,7 @@ import Compiler.Modules.Callbacks
 import Compiler.Modules.Calls
 import Compiler.Modules.Create2SSTORE2
 import Compiler.Modules.ERC20
+import Compiler.Modules.Hashing
 import Compiler.Modules.Oracle
 import Verity.Core
 import Verity.Macro
@@ -1310,7 +1311,7 @@ def marketIdModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
   resultVars := [resultVar]
   writesState := false
   readsState := true
-  axioms := ["midnight_idlib_toid_market_abi_create2_preimage"]
+  axioms := ["midnight_idlib_market_initcode_abi_hash"]
   compile := fun _ctx args => do
     match args with
     | initialChainId :: selfAddress :: rest =>
@@ -1326,9 +1327,13 @@ def marketIdModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
         let collateralBytes := YulExpr.ident "__midnight_id_collateral_bytes"
         let abiLength := YulExpr.ident "__midnight_id_abi_length"
         let initcodeLength := YulExpr.ident "__midnight_id_initcode_length"
-        let outerPtr := YulExpr.ident "__midnight_id_outer_ptr"
-        pure [
-          YulStmt.let_ resultVar (YulExpr.lit 0),
+        let innerHash := YulExpr.ident "__midnight_id_inner_hash"
+        let hashStmts ←
+          (Compiler.Modules.Hashing.abiEncodePackedStaticSegmentsModule resultVar [1, 20, 32, 32]).compile {}
+            [YulExpr.lit 255, selfAddress, initialChainId, innerHash]
+        pure (
+          [
+          YulStmt.let_ "__midnight_id_inner_hash" (YulExpr.lit 0),
           YulStmt.block [
             YulStmt.let_ "__midnight_id_ptr"
               (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
@@ -1393,39 +1398,20 @@ def marketIdModule (resultVar : String) : Compiler.ECM.ExternalCallModule where
               YulExpr.lit 11,
               abiLength
             ]),
-            YulStmt.let_ "__midnight_id_inner_hash"
+            YulStmt.assign "__midnight_id_inner_hash"
               (YulExpr.call "keccak256" [ptr, initcodeLength]),
-            YulStmt.let_ "__midnight_id_outer_ptr" (YulExpr.call "add" [
-              ptr,
-              YulExpr.call "and" [
-                YulExpr.call "add" [initcodeLength, YulExpr.lit 31],
-                YulExpr.call "not" [YulExpr.lit 31]
-              ]
-            ]),
-            YulStmt.expr (YulExpr.call "mstore" [
-              outerPtr,
-              YulExpr.call "shl" [YulExpr.lit 248, YulExpr.lit 255]
-            ]),
-            YulStmt.expr (YulExpr.call "mstore" [
-              YulExpr.call "add" [outerPtr, YulExpr.lit 1],
-              YulExpr.call "shl" [YulExpr.lit 96, selfAddress]
-            ]),
-            YulStmt.expr (YulExpr.call "mstore" [
-              YulExpr.call "add" [outerPtr, YulExpr.lit 21],
-              initialChainId
-            ]),
-            YulStmt.expr (YulExpr.call "mstore" [
-              YulExpr.call "add" [outerPtr, YulExpr.lit 53],
-              YulExpr.ident "__midnight_id_inner_hash"
-            ]),
-            YulStmt.assign resultVar
-              (YulExpr.call "keccak256" [outerPtr, YulExpr.lit 85]),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.lit Compiler.CompilationModel.freeMemoryPointer,
-              YulExpr.call "add" [outerPtr, YulExpr.lit 96]
+              YulExpr.call "add" [
+                ptr,
+                YulExpr.call "and" [
+                  YulExpr.call "add" [initcodeLength, YulExpr.lit 31],
+                  YulExpr.call "not" [YulExpr.lit 31]
+                ]
+              ]
             ])
           ]
-        ]
+          ] ++ hashStmts)
     | _ =>
         throw s!"midnightMarketId expects 2 or 3 arguments, got {args.length}"
 
@@ -1435,7 +1421,7 @@ def marketIdAtOffsetModule (resultVar : String) : Compiler.ECM.ExternalCallModul
   resultVars := [resultVar]
   writesState := false
   readsState := true
-  axioms := ["midnight_idlib_toid_market_abi_create2_preimage"]
+  axioms := ["midnight_idlib_market_initcode_abi_hash"]
   compile := fun ctx args =>
     (marketIdModule resultVar).compile ctx args
 
@@ -1448,7 +1434,7 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
   resultVars := [resultVar]
   writesState := true
   readsState := false
-  axioms := ["midnight_sstore2_market_initcode_layout", "create2_address_derivation"]
+  axioms := ["midnight_sstore2_market_initcode_layout"]
   compile := fun _ctx args => do
     match args with
     | salt :: rest =>
@@ -1464,9 +1450,13 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
         let collateralBytes := YulExpr.ident "__midnight_store_collateral_bytes"
         let abiLength := YulExpr.ident "__midnight_store_abi_length"
         let initcodeLength := YulExpr.ident "__midnight_store_initcode_length"
+        let create2ResultVar := "__midnight_store_create2_result"
+        let deployStmts ←
+          (Compiler.Modules.Create2SSTORE2.deployModule create2ResultVar).compile {}
+            [YulExpr.lit 0, ptr, initcodeLength, salt]
         pure [
           YulStmt.let_ resultVar (YulExpr.lit 0),
-          YulStmt.block [
+          YulStmt.block ([
             YulStmt.let_ "__midnight_store_ptr"
               (YulExpr.call "mload" [YulExpr.lit Compiler.CompilationModel.freeMemoryPointer]),
             YulStmt.expr (YulExpr.call "mstore" [
@@ -1523,9 +1513,9 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
             YulStmt.let_ "__midnight_store_abi_length"
               (YulExpr.call "add" [YulExpr.lit 256, collateralBytes]),
             YulStmt.let_ "__midnight_store_initcode_length"
-              (YulExpr.call "add" [YulExpr.lit 11, abiLength]),
-            YulStmt.assign resultVar
-              (YulExpr.call "create2" [YulExpr.lit 0, ptr, initcodeLength, salt]),
+              (YulExpr.call "add" [YulExpr.lit 11, abiLength])
+          ] ++ deployStmts ++ [
+            YulStmt.assign resultVar (YulExpr.ident create2ResultVar),
             YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident resultVar])
               [
                 YulStmt.expr (YulExpr.call "mstore" [
@@ -1545,7 +1535,7 @@ def storeMarketInCodeModule (resultVar : String) : Compiler.ECM.ExternalCallModu
                 ]
               ]
             ])
-          ]
+          ])
         ]
     | _ =>
         throw s!"midnightStoreMarketInCode expects 1 or 2 arguments, got {args.length}"
@@ -1556,7 +1546,7 @@ def storeMarketInCodeAtOffsetModule (resultVar : String) : Compiler.ECM.External
   resultVars := [resultVar]
   writesState := true
   readsState := false
-  axioms := ["midnight_sstore2_market_initcode_layout", "create2_address_derivation"]
+  axioms := ["midnight_sstore2_market_initcode_layout"]
   compile := fun ctx args =>
     (storeMarketInCodeModule resultVar).compile ctx args
 

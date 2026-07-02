@@ -478,7 +478,7 @@ object "Midnight" {
         function internal_internal_codeDataMarketId(market_data_offset) -> __ret0 {
             let initialChainId := sload(1024)
             let self := address()
-            let id := 0
+            let __midnight_id_inner_hash := 0
             {
                 let __midnight_id_ptr := mload(64)
                 mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
@@ -497,14 +497,22 @@ object "Midnight" {
                 calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
                 let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
                 let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
-                let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
-                let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
-                mstore(__midnight_id_outer_ptr, shl(248, 255))
-                mstore(add(__midnight_id_outer_ptr, 1), shl(96, self))
-                mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
-                mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
-                id := keccak256(__midnight_id_outer_ptr, 85)
-                mstore(64, add(__midnight_id_outer_ptr, 96))
+                __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                mstore(64, add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31))))
+            }
+            let id := 0
+            {
+                let __packed_word_0 := 255
+                let __packed_word_1 := self
+                let __packed_word_2 := initialChainId
+                let __packed_word_3 := __midnight_id_inner_hash
+                let __id_packed_segments_ptr := mload(64)
+                mstore(add(__id_packed_segments_ptr, 0), shl(248, and(__packed_word_0, 0xff)))
+                mstore(add(__id_packed_segments_ptr, 1), shl(96, and(__packed_word_1, 0xffffffffffffffffffffffffffffffffffffffff)))
+                mstore(add(__id_packed_segments_ptr, 21), __packed_word_2)
+                mstore(add(__id_packed_segments_ptr, 53), __packed_word_3)
+                mstore(64, add(__id_packed_segments_ptr, 96))
+                id := keccak256(__id_packed_segments_ptr, 85)
             }
             __ret0 := id
             leave
@@ -529,7 +537,8 @@ object "Midnight" {
                 calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                 let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                 let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                pointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                pointer := __midnight_store_create2_result
                 if iszero(pointer) {
                     mstore(0, shl(224, 0x4e487b71))
                     mstore(4, 81)
@@ -1857,7 +1866,7 @@ object "Midnight" {
             let enterGate := calldataload(add(marketBase, 128))
             let initialChainId := sload(1024)
             let contractSelf := address()
-            let id := 0
+            let __midnight_id_inner_hash := 0
             {
                 let __midnight_id_ptr := mload(64)
                 mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
@@ -1876,14 +1885,22 @@ object "Midnight" {
                 calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
                 let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
                 let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
-                let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
-                let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
-                mstore(__midnight_id_outer_ptr, shl(248, 255))
-                mstore(add(__midnight_id_outer_ptr, 1), shl(96, contractSelf))
-                mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
-                mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
-                id := keccak256(__midnight_id_outer_ptr, 85)
-                mstore(64, add(__midnight_id_outer_ptr, 96))
+                __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                mstore(64, add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31))))
+            }
+            let id := 0
+            {
+                let __packed_word_0 := 255
+                let __packed_word_1 := contractSelf
+                let __packed_word_2 := initialChainId
+                let __packed_word_3 := __midnight_id_inner_hash
+                let __id_packed_segments_ptr := mload(64)
+                mstore(add(__id_packed_segments_ptr, 0), shl(248, and(__packed_word_0, 0xff)))
+                mstore(add(__id_packed_segments_ptr, 1), shl(96, and(__packed_word_1, 0xffffffffffffffffffffffffffffffffffffffff)))
+                mstore(add(__id_packed_segments_ptr, 21), __packed_word_2)
+                mstore(add(__id_packed_segments_ptr, 53), __packed_word_3)
+                mstore(64, add(__id_packed_segments_ptr, 96))
+                id := keccak256(__id_packed_segments_ptr, 85)
             }
             let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
             if eq(currentMarketTickSpacing, 0) {
@@ -1993,7 +2010,8 @@ object "Midnight" {
                     calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                     let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                     let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                    _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                    let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                    _marketPointer := __midnight_store_create2_result
                     if iszero(_marketPointer) {
                         mstore(0, shl(224, 0x4e487b71))
                         mstore(4, 81)
@@ -5467,7 +5485,7 @@ object "Midnight" {
             function internal_internal_codeDataMarketId(market_data_offset) -> __ret0 {
                 let initialChainId := sload(1024)
                 let self := address()
-                let id := 0
+                let __midnight_id_inner_hash := 0
                 {
                     let __midnight_id_ptr := mload(64)
                     mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
@@ -5486,14 +5504,22 @@ object "Midnight" {
                     calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
                     let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
                     let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
-                    let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
-                    let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
-                    mstore(__midnight_id_outer_ptr, shl(248, 255))
-                    mstore(add(__midnight_id_outer_ptr, 1), shl(96, self))
-                    mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
-                    mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
-                    id := keccak256(__midnight_id_outer_ptr, 85)
-                    mstore(64, add(__midnight_id_outer_ptr, 96))
+                    __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                    mstore(64, add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31))))
+                }
+                let id := 0
+                {
+                    let __packed_word_0 := 255
+                    let __packed_word_1 := self
+                    let __packed_word_2 := initialChainId
+                    let __packed_word_3 := __midnight_id_inner_hash
+                    let __id_packed_segments_ptr := mload(64)
+                    mstore(add(__id_packed_segments_ptr, 0), shl(248, and(__packed_word_0, 0xff)))
+                    mstore(add(__id_packed_segments_ptr, 1), shl(96, and(__packed_word_1, 0xffffffffffffffffffffffffffffffffffffffff)))
+                    mstore(add(__id_packed_segments_ptr, 21), __packed_word_2)
+                    mstore(add(__id_packed_segments_ptr, 53), __packed_word_3)
+                    mstore(64, add(__id_packed_segments_ptr, 96))
+                    id := keccak256(__id_packed_segments_ptr, 85)
                 }
                 __ret0 := id
                 leave
@@ -5518,7 +5544,8 @@ object "Midnight" {
                     calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                     let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                     let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                    pointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                    let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, salt)
+                    pointer := __midnight_store_create2_result
                     if iszero(pointer) {
                         mstore(0, shl(224, 0x4e487b71))
                         mstore(4, 81)
@@ -6846,7 +6873,7 @@ object "Midnight" {
                 let enterGate := calldataload(add(marketBase, 128))
                 let initialChainId := sload(1024)
                 let contractSelf := address()
-                let id := 0
+                let __midnight_id_inner_hash := 0
                 {
                     let __midnight_id_ptr := mload(64)
                     mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
@@ -6865,14 +6892,22 @@ object "Midnight" {
                     calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
                     let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
                     let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
-                    let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
-                    let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
-                    mstore(__midnight_id_outer_ptr, shl(248, 255))
-                    mstore(add(__midnight_id_outer_ptr, 1), shl(96, contractSelf))
-                    mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
-                    mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
-                    id := keccak256(__midnight_id_outer_ptr, 85)
-                    mstore(64, add(__midnight_id_outer_ptr, 96))
+                    __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                    mstore(64, add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31))))
+                }
+                let id := 0
+                {
+                    let __packed_word_0 := 255
+                    let __packed_word_1 := contractSelf
+                    let __packed_word_2 := initialChainId
+                    let __packed_word_3 := __midnight_id_inner_hash
+                    let __id_packed_segments_ptr := mload(64)
+                    mstore(add(__id_packed_segments_ptr, 0), shl(248, and(__packed_word_0, 0xff)))
+                    mstore(add(__id_packed_segments_ptr, 1), shl(96, and(__packed_word_1, 0xffffffffffffffffffffffffffffffffffffffff)))
+                    mstore(add(__id_packed_segments_ptr, 21), __packed_word_2)
+                    mstore(add(__id_packed_segments_ptr, 53), __packed_word_3)
+                    mstore(64, add(__id_packed_segments_ptr, 96))
+                    id := keccak256(__id_packed_segments_ptr, 85)
                 }
                 let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                 if eq(currentMarketTickSpacing, 0) {
@@ -6982,7 +7017,8 @@ object "Midnight" {
                         calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                         let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                         let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                        _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                        let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                        _marketPointer := __midnight_store_create2_result
                         if iszero(_marketPointer) {
                             mstore(0, shl(224, 0x4e487b71))
                             mstore(4, 81)
@@ -12152,7 +12188,7 @@ object "Midnight" {
                         let enterGate := calldataload(add(marketBase, 128))
                         let initialChainId := sload(1024)
                         let contractSelf := address()
-                        let id := 0
+                        let __midnight_id_inner_hash := 0
                         {
                             let __midnight_id_ptr := mload(64)
                             mstore(__midnight_id_ptr, shl(168, 0x600b380380600b5f395ff3))
@@ -12171,14 +12207,22 @@ object "Midnight" {
                             calldatacopy(add(__midnight_id_tuple_ptr, 224), add(__midnight_id_collateral_offset, 32), __midnight_id_collateral_bytes)
                             let __midnight_id_abi_length := add(256, __midnight_id_collateral_bytes)
                             let __midnight_id_initcode_length := add(11, __midnight_id_abi_length)
-                            let __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
-                            let __midnight_id_outer_ptr := add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31)))
-                            mstore(__midnight_id_outer_ptr, shl(248, 255))
-                            mstore(add(__midnight_id_outer_ptr, 1), shl(96, contractSelf))
-                            mstore(add(__midnight_id_outer_ptr, 21), initialChainId)
-                            mstore(add(__midnight_id_outer_ptr, 53), __midnight_id_inner_hash)
-                            id := keccak256(__midnight_id_outer_ptr, 85)
-                            mstore(64, add(__midnight_id_outer_ptr, 96))
+                            __midnight_id_inner_hash := keccak256(__midnight_id_ptr, __midnight_id_initcode_length)
+                            mstore(64, add(__midnight_id_ptr, and(add(__midnight_id_initcode_length, 31), not(31))))
+                        }
+                        let id := 0
+                        {
+                            let __packed_word_0 := 255
+                            let __packed_word_1 := contractSelf
+                            let __packed_word_2 := initialChainId
+                            let __packed_word_3 := __midnight_id_inner_hash
+                            let __id_packed_segments_ptr := mload(64)
+                            mstore(add(__id_packed_segments_ptr, 0), shl(248, and(__packed_word_0, 0xff)))
+                            mstore(add(__id_packed_segments_ptr, 1), shl(96, and(__packed_word_1, 0xffffffffffffffffffffffffffffffffffffffff)))
+                            mstore(add(__id_packed_segments_ptr, 21), __packed_word_2)
+                            mstore(add(__id_packed_segments_ptr, 53), __packed_word_3)
+                            mstore(64, add(__id_packed_segments_ptr, 96))
+                            id := keccak256(__id_packed_segments_ptr, 85)
                         }
                         let currentMarketTickSpacing := and(shr(144, sload(add(mappingSlot(1, id), 2))), 255)
                         if eq(currentMarketTickSpacing, 0) {
@@ -12288,7 +12332,8 @@ object "Midnight" {
                                 calldatacopy(add(__midnight_store_tuple_ptr, 224), add(__midnight_store_collateral_offset, 32), __midnight_store_collateral_bytes)
                                 let __midnight_store_abi_length := add(256, __midnight_store_collateral_bytes)
                                 let __midnight_store_initcode_length := add(11, __midnight_store_abi_length)
-                                _marketPointer := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                                let __midnight_store_create2_result := create2(0, __midnight_store_ptr, __midnight_store_initcode_length, initialChainId)
+                                _marketPointer := __midnight_store_create2_result
                                 if iszero(_marketPointer) {
                                     mstore(0, shl(224, 0x4e487b71))
                                     mstore(4, 81)
