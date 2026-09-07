@@ -19,6 +19,34 @@ dependency set explicit. That dependency set is empty: `keccakMarketParams`,
 through Verity ECM modules. CI enforces this boundary through
 `scripts/check_morpho_artifact_boundary.py`.
 
+### Midnight deterministic admin import
+
+The complete Midnight artifact is hybrid for `setRoleSetter(address)`,
+`setFeeSetter(address)`, and `setFeeClaimer(address)`. Those three external
+functions and their referenced fields, `OnlyRoleSetter` error, and indexed
+events are mechanically lowered from the typed Sol-C AST into
+`Compiler.CompilationModel` declarations by
+`scripts/import_midnight_admin_slice.mjs`. All other Midnight definitions
+remain in `morpho-midnight-verity/Midnight/Contract.lean`.
+
+The import is pinned to Midnight commit
+`a7c6da7e70cb216982f6c5d20b46f40b943e67e4` and Sol-C
+`0.8.34+commit.80d5c536` (Linux AMD64 SHA-256
+`d40adc6f9fdbb22a97d32a02fa05688bf2ee7886affc48c9851b0afd4a726b39`).
+Selection checks canonical signatures and AST declaration IDs. Unsupported AST
+shapes, pin drift, missing replacements, duplicates, and storage/type or
+declaration conflicts abort artifact generation. The generated manifest records
+source hashes and per-declaration provenance. The trusted boundary is therefore
+the pinned Sol-C AST schema/compiler plus the small deterministic importer and
+hybrid assembler, rather than an LLM or unchecked source translation.
+
+`scripts/prepare_midnight_artifact.sh` regenerates the imported slice before
+compilation and uses that same pinned Sol-C binary for Yul-to-bytecode. The
+complete-artifact boundary check covers the generated source, manifest,
+importer, configuration, and hybrid assembler. This changes no Lean theorem or
+proof assumption; it narrows the implementation-fidelity boundary for these
+three functions.
+
 ## Verity Dependency Pin
 
 The Morpho packages are pinned through `lakefile.lean` and

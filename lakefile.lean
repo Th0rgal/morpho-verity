@@ -29,7 +29,9 @@ lean_lib «Midnight» where
     .one `Midnight,
     .one `Midnight.Contract,
     .one `Midnight.Compiler.ArtifactConfig,
+    .one `Midnight.Compiler.AdminSliceHybrid,
     .one `Midnight.Compiler.Main,
+    .one `Midnight.Generated.AdminSlice,
     .one `Midnight.Proofs,
     .submodules `Midnight.Proofs
   ]

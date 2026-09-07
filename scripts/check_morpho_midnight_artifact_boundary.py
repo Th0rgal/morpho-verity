@@ -68,10 +68,15 @@ def compute_complete_input_digest() -> str:
         "lakefile.lean",
         "morpho-midnight-verity/Midnight.lean",
         "morpho-midnight-verity/Midnight/Contract.lean",
+        "morpho-midnight-verity/Midnight/Generated/AdminSlice.lean",
+        "morpho-midnight-verity/Midnight/Generated/AdminSlice.manifest.json",
+        "morpho-midnight-verity/Midnight/Compiler/AdminSliceHybrid.lean",
         "morpho-midnight-verity/Midnight/Compiler/ArtifactConfig.lean",
         "morpho-midnight-verity/Midnight/Compiler/Main.lean",
         "morpho-midnight-verity/MidnightCompiler.lean",
         "scripts/prepare_midnight_artifact.sh",
+        "scripts/import_midnight_admin_slice.mjs",
+        "config/midnight-admin-import.json",
         "scripts/uniquify_yul_shadows.py",
     ]
     h = hashlib.sha256()

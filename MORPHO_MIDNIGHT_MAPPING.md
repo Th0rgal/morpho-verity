@@ -17,6 +17,7 @@ Focused artifact status: present
 | `morpho-midnight/src/interfaces/IMidnight.sol` | `morpho-midnight-verity/Midnight/Proofs/Storage.lean` |
 | `morpho-midnight/src/libraries/UtilsLib.sol` | `morpho-midnight-verity/Midnight/Proofs/Basic.lean` and `morpho-midnight-verity/Midnight/Contract.lean` |
 | `morpho-midnight/src/libraries/ConstantsLib.sol` | constants in `morpho-midnight-verity/Midnight/Contract.lean` and proof files |
+| `setRoleSetter(address)`, `setFeeSetter(address)`, `setFeeClaimer(address)` and their referenced declarations | Sol-C 0.8.34 AST import in `Midnight/Generated/AdminSlice.lean`, assembled with the remaining handwritten model by `Midnight/Compiler/AdminSliceHybrid.lean` |
 
 ## Artifact Outputs
 
@@ -24,7 +25,7 @@ Focused artifact status: present
 |----------|--------|-------|
 | `artifacts/midnight-focused/MidnightRCF.yul` | Present after `./scripts/prepare_focused_midnight_artifact.sh` | Focused proof-model Yul for `MidnightRCF`. |
 | `artifacts/midnight-focused/MidnightRCF.bin.raw` | Present after `./scripts/prepare_focused_midnight_artifact.sh` | Executable focused proof-model creation bytecode. |
-| `artifacts/midnight/Midnight.bin.raw` | Present full parity artifact | Generated from `verity_contract Midnight`; `MORPHO_MIDNIGHT_PARITY_MODE=verity ./scripts/run_morpho_midnight_parity.sh` reports 373 passing tests, 0 failures, 0 skipped. |
+| `artifacts/midnight/Midnight.bin.raw` | Present full parity artifact | Hybrid `CompilationModel`: the three selected admin setters are generated from the pinned Sol-C AST, while the remaining `verity_contract Midnight` model is unchanged; `MORPHO_MIDNIGHT_PARITY_MODE=verity ./scripts/run_morpho_midnight_parity.sh` runs the upstream suite. |
 
 ## Function Surface
 
@@ -43,9 +44,9 @@ Focused artifact status: present
 | `feeClaimer()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
 | `tickSpacingSetter()` | Full test-parity getter and setter storage. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
 | `multicall()` | Full test-parity coverage in the executable artifact. | Low: behavior/artifact path present, but source still relies on scaffold or low-level ECM boundary. | `MulticallTest` passes under `MIDNIGHT_IMPL=verity`. |
-| `setRoleSetter()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
-| `setFeeSetter()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
-| `setFeeClaimer()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
+| `setRoleSetter()` | Full test-parity role check, storage write, and indexed event. | High: deterministically lowered from the pinned typed Sol-C AST into `CompilationModel.FunctionSpec`. | `SettersTest`; `Midnight/Generated/AdminSlice.manifest.json` |
+| `setFeeSetter()` | Full test-parity role check, storage write, and indexed event. | High: deterministically lowered from the pinned typed Sol-C AST into `CompilationModel.FunctionSpec`. | `SettersTest`; `Midnight/Generated/AdminSlice.manifest.json` |
+| `setFeeClaimer()` | Full test-parity role check, storage write, and indexed event. | High: deterministically lowered from the pinned typed Sol-C AST into `CompilationModel.FunctionSpec`. | `SettersTest`; `Midnight/Generated/AdminSlice.manifest.json` |
 | `setTickSpacingSetter()` | Full test-parity role check and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
 | `setMarketTickSpacing()` | Full test-parity role, market-created, and uint8-bound checks. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
 | `setMarketSettlementFee()` | Full test-parity role, index, fee-bound, CBP-multiple, market-created checks and storage write. | High: source-shaped scalar getter/setter or helper under current Verity surface. | `SettersTest` |
@@ -98,6 +99,7 @@ Focused artifact status: present
 Run:
 
 ```bash
+node scripts/import_midnight_admin_slice.mjs --check
 python3 scripts/check_morpho_midnight_mapping.py
 python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate
 ```

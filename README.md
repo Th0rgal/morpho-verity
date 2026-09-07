@@ -126,6 +126,7 @@ Start from these files:
 | Morpho upstream | Verity implementation |
 |-----------------|-----------------------|
 | `morpho-midnight/src/Midnight.sol` | `morpho-midnight-verity/Midnight/Contract.lean` |
+| its three administrative role setters | deterministic Sol-C AST import in `morpho-midnight-verity/Midnight/Generated/AdminSlice.lean`, hybridized by `Midnight/Compiler/AdminSliceHybrid.lean` |
 | `morpho-midnight/src/interfaces/IMidnight.sol` | `morpho-midnight-verity/Midnight/Proofs/Storage.lean` |
 | `morpho-midnight/src/libraries/ConstantsLib.sol` | constants in `morpho-midnight-verity/Midnight/Contract.lean` and proof files |
 | `morpho-midnight/src/libraries/UtilsLib.sol` | arithmetic lemmas in `morpho-midnight-verity/Midnight/Proofs/Basic.lean` |

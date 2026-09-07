@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "sourceRoot": "morpho-midnight",
+  "entrySource": "src/Midnight.sol",
+  "contract": "Midnight",
+  "midnightCommit": "a7c6da7e70cb216982f6c5d20b46f40b943e67e4",
+  "solc": {
+    "version": "0.8.34+commit.80d5c536",
+    "sha256": "d40adc6f9fdbb22a97d32a02fa05688bf2ee7886affc48c9851b0afd4a726b39",
+    "linuxAmd64Url": "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.34+commit.80d5c536"
+  },
+  "functions": [
+    { "signature": "setRoleSetter(address)", "declarationId": 175 },
+    { "signature": "setFeeSetter(address)", "declarationId": 200 },
+    { "signature": "setFeeClaimer(address)", "declarationId": 225 }
+  ],
+  "leanOutput": "morpho-midnight-verity/Midnight/Generated/AdminSlice.lean",
+  "manifestOutput": "morpho-midnight-verity/Midnight/Generated/AdminSlice.manifest.json"
+}

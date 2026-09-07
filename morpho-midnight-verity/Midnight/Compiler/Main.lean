@@ -71,8 +71,9 @@ def main (args : List String) : IO Unit := do
 
     let (spec, selectors) ←
       if cfg.artifact == "full" then
-        let selectors ← Midnight.Compiler.ArtifactConfig.fullArtifactSelectors
-        pure (Midnight.Compiler.ArtifactConfig.fullArtifactSpec, selectors)
+        let spec ← orThrow Midnight.Compiler.ArtifactConfig.fullArtifactSpec
+        let selectors ← Midnight.Compiler.ArtifactConfig.fullArtifactSelectors spec
+        pure (spec, selectors)
       else
         let selectors ← Midnight.Compiler.ArtifactConfig.artifactSelectors
         pure (Midnight.Compiler.ArtifactConfig.artifactSpec, selectors)

@@ -9,6 +9,7 @@ BIN="${OUT_DIR}/Midnight.bin"
 BIN_RAW="${OUT_DIR}/Midnight.bin.raw"
 MANIFEST="${OUT_DIR}/Midnight.artifact-manifest.env"
 UNIQUIFY_YUL_SHADOWS="${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
+SOLC_0_8_34="${ROOT_DIR}/.cache/solc-0.8.34+commit.80d5c536"
 
 compute_input_digest() {
   local -a files=(
@@ -17,10 +18,15 @@ compute_input_digest() {
     "${ROOT_DIR}/lakefile.lean"
     "${ROOT_DIR}/morpho-midnight-verity/Midnight.lean"
     "${ROOT_DIR}/morpho-midnight-verity/Midnight/Contract.lean"
+    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Generated/AdminSlice.lean"
+    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Generated/AdminSlice.manifest.json"
+    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/AdminSliceHybrid.lean"
     "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/ArtifactConfig.lean"
     "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/Main.lean"
     "${ROOT_DIR}/morpho-midnight-verity/MidnightCompiler.lean"
     "${ROOT_DIR}/scripts/prepare_midnight_artifact.sh"
+    "${ROOT_DIR}/scripts/import_midnight_admin_slice.mjs"
+    "${ROOT_DIR}/config/midnight-admin-import.json"
     "${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
   )
 
@@ -39,8 +45,8 @@ if ! command -v lake >/dev/null 2>&1; then
   echo "ERROR: lake is required to build the Midnight artifact."
   exit 2
 fi
-if ! command -v solc >/dev/null 2>&1; then
-  echo "ERROR: solc is required to compile the Midnight artifact."
+if ! command -v node >/dev/null 2>&1; then
+  echo "ERROR: node is required to import the pinned Midnight Sol-C AST."
   exit 2
 fi
 if ! command -v awk >/dev/null 2>&1; then
@@ -57,6 +63,15 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 mkdir -p "${OUT_DIR}"
+
+(
+  cd "${ROOT_DIR}"
+  node scripts/import_midnight_admin_slice.mjs
+)
+if [[ ! -x "${SOLC_0_8_34}" ]]; then
+  echo "ERROR: pinned solc was not materialized at ${SOLC_0_8_34}." >&2
+  exit 2
+fi
 INPUT_DIGEST="$(compute_input_digest)"
 
 (
@@ -72,7 +87,7 @@ fi
 
 python3 "${UNIQUIFY_YUL_SHADOWS}" --input "${YUL}" --output "${YUL}"
 
-solc --strict-assembly --evm-version osaka --bin "${YUL}" \
+"${SOLC_0_8_34}" --strict-assembly --evm-version osaka --bin "${YUL}" \
   | awk '/Binary representation:/{getline; print; exit}' \
   > "${BIN}"
 python3 - "${BIN}" "${BIN_RAW}" <<'PY'

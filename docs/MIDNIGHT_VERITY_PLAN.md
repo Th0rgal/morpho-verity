@@ -38,6 +38,12 @@ Full Midnight artifact:
 ./scripts/prepare_midnight_artifact.sh
 ```
 
+Before compiling the full artifact, this command deterministically imports the
+three administrative role setters from the pinned Midnight Sol-C AST and
+assembles them with the remaining handwritten `CompilationModel`. The import
+configuration is `config/midnight-admin-import.json`; generated declarations
+and provenance are under `Midnight/Generated/AdminSlice.*`.
+
 This emits:
 
 - `artifacts/midnight/Midnight.yul`

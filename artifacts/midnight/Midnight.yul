@@ -10705,9 +10705,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let newRoleSetter := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let sender := caller()
-                        let currentRoleSetter := sload(7)
-                        if iszero(eq(sender, currentRoleSetter)) {
+                        if iszero(eq(caller(), sload(7))) {
                             {
                                 let __err_ptr := mload(64)
                                 mstore(add(__err_ptr, 0), 0x4f6e6c79526f6c65536574746572282900000000000000000000000000000000)
@@ -10719,6 +10717,12 @@ object "Midnight" {
                             }
                         }
                         sstore(7, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x536574526f6c6553657474657228616464726573732900000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 22)
+                            log2(__evt_ptr, 0, __evt_topic0, and(newRoleSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        }
                         stop()
                     }
                     case 0xb19805af {
@@ -10733,9 +10737,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let newFeeSetter := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let sender := caller()
-                        let currentRoleSetter := sload(7)
-                        if iszero(eq(sender, currentRoleSetter)) {
+                        if iszero(eq(caller(), sload(7))) {
                             {
                                 let __err_ptr := mload(64)
                                 mstore(add(__err_ptr, 0), 0x4f6e6c79526f6c65536574746572282900000000000000000000000000000000)
@@ -10747,6 +10749,12 @@ object "Midnight" {
                             }
                         }
                         sstore(8, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x5365744665655365747465722861646472657373290000000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 21)
+                            log2(__evt_ptr, 0, __evt_topic0, and(newFeeSetter, 0xffffffffffffffffffffffffffffffffffffffff))
+                        }
                         stop()
                     }
                     case 0xc3accd48 {
@@ -10761,9 +10769,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let newFeeClaimer := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        let sender := caller()
-                        let currentRoleSetter := sload(7)
-                        if iszero(eq(sender, currentRoleSetter)) {
+                        if iszero(eq(caller(), sload(7))) {
                             {
                                 let __err_ptr := mload(64)
                                 mstore(add(__err_ptr, 0), 0x4f6e6c79526f6c65536574746572282900000000000000000000000000000000)
@@ -10775,6 +10781,12 @@ object "Midnight" {
                             }
                         }
                         sstore(9, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
+                        {
+                            let __evt_ptr := mload(64)
+                            mstore(add(__evt_ptr, 0), 0x536574466565436c61696d657228616464726573732900000000000000000000)
+                            let __evt_topic0 := keccak256(__evt_ptr, 22)
+                            log2(__evt_ptr, 0, __evt_topic0, and(newFeeClaimer, 0xffffffffffffffffffffffffffffffffffffffff))
+                        }
                         stop()
                     }
                     case 0xf3ad575e {
