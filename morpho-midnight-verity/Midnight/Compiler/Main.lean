@@ -71,18 +71,21 @@ def main (args : List String) : IO Unit := do
 
     let (spec, selectors) ←
       if cfg.artifact == "full" then
-        let spec ← orThrow Midnight.Compiler.ArtifactConfig.fullArtifactSpec
-        let selectors ← Midnight.Compiler.ArtifactConfig.fullArtifactSelectors spec
+        let spec := Midnight.Compiler.ArtifactConfig.fullArtifactSpec
+        let selectors ← Midnight.Compiler.ArtifactConfig.fullArtifactSelectors
         pure (spec, selectors)
       else
         let selectors ← Midnight.Compiler.ArtifactConfig.artifactSelectors
         pure (Midnight.Compiler.ArtifactConfig.artifactSpec, selectors)
-    let ir ← orThrow (compile spec selectors)
+    let ir ← orThrow (compile spec selectors (if cfg.artifact == "full" then .osaka else .cancun))
     writeContract cfg.outDir ir
     match cfg.abiOutDir with
     | some dir =>
         IO.FS.createDirAll dir
-        Compiler.ABI.writeContractABIFile dir spec
+        if cfg.artifact == "full" then
+          IO.FS.writeFile s!"{dir}/{ir.name}.abi.json" Midnight.Generated.Full.sourceAbiJSON
+        else
+          Compiler.ABI.writeContractABIFile dir spec
         if cfg.verbose then
           IO.println s!"✓ Wrote {dir}/{ir.name}.abi.json"
     | none => pure ()

@@ -1,0 +1,45 @@
+{
+  "files": {
+    "scripts/lib/midnight-lowering.mjs": "23ff5ee9f90236763ef0c24bef55b925df2b4a8d697d6a85c9759796158f4a9c",
+    "scripts/lib/midnight-abi.mjs": "a383d7a1a27b9f01a203266664007e02af0652980eec57290d4965f203f7a257",
+    "scripts/lib/midnight-builtins.mjs": "8ae89a8fba8a760365a56654e1f502f91ae29c6347fe6bdbd56860a18bec8879",
+    "scripts/lib/midnight-source.mjs": "fa102571ddc0046074e1f5f403b0e47449f8d548adce00372a7e81427f96e597",
+    "scripts/lib/midnight-cei.mjs": "6ac910f51908a41107af0f63ac55a1fd3d4e8b6e94fa278977e625fa4e1b8fdc",
+    "scripts/compile_midnight_yul.py": "50b5700ac55a5c1db456073a086385698e8b90add7b1f8aa70c8541bcbec3dee",
+    "scripts/audit_midnight_memory.mjs": "77b1a82cfbf9d6c6a429221e068c3617efed4cacfe628600488f2d4bde5ff4fe",
+    "scripts/import_midnight_full.mjs": "183346cb0e317386b6cf75bfe08c4eab9dcf343f913fe2c5717bfca99cbb3a0d",
+    "scripts/prepare_midnight_artifact.sh": "33e268dbae8dcde9f82477dc16ded803e567c075b82863f586f7c7e98f02adae",
+    "scripts/full_midnight_digest.py": "6b8d1829513e38f56e15f2607ac3673f68fef9218be3169f71a87df54838c5cc",
+    "morpho-midnight-verity/Midnight/Generated/FullModel.lean": "fbdc4f78cde8484c71d930989176d1739af750ed37769763bc2c909a016e28f5",
+    "artifacts/midnight/Midnight.yul": "344aa81aa837e3f61cb15ba2184d6e572b0d91e6880232850ec6cc8f12e49706",
+    "artifacts/midnight/Midnight.stack.yul": "ea32579de7aab42bc01cf8a1388d6bcf6a5db13a0730032dc0555bb9d8b867fd",
+    "artifacts/midnight/Midnight.bin.raw": "afc65cdb8a1bd3e116967b9e2d032afd0b1ccc59d96c8ca362be9c87738c62e4"
+  },
+  "backend": {
+    "policy": "midnight-reviewed-allocator-solc-stack-v1",
+    "proofStatus": "assumed-memory-contract-not-a-theorem",
+    "optimizerSteps": "u",
+    "evmVersion": "osaka",
+    "scratchBytes": 416,
+    "initializers": 46,
+    "inputYulSha256": "344aa81aa837e3f61cb15ba2184d6e572b0d91e6880232850ec6cc8f12e49706",
+    "loweredYulSha256": "ea32579de7aab42bc01cf8a1388d6bcf6a5db13a0730032dc0555bb9d8b867fd",
+    "solcSha256": "d40adc6f9fdbb22a97d32a02fa05688bf2ee7886affc48c9851b0afd4a726b39",
+    "bytecodeSha256": "afc65cdb8a1bd3e116967b9e2d032afd0b1ccc59d96c8ca362be9c87738c62e4",
+    "creationBytes": 232028,
+    "standardEthereumDeploymentSizeCompliant": false,
+    "note": "Size and gas limits are not established by Foundry parity. Dynamic allocation correctness remains a translation obligation."
+  },
+  "parity": {
+    "summary": "Ran 25 test suites in 209.52s (912.58s CPU time): 373 tests passed, 0 failed, 0 skipped (373 total tests)",
+    "log": "/tmp/midnight-getter-fixed-parity.log",
+    "logSha256": "852e38852f220f90960a441d8314db562972f9c471c7d023c85d8162f43a50ba",
+    "artifactVerifiedIdenticalToIntegratedOutput": true
+  },
+  "lakeBuild": {
+    "success": true,
+    "log": "/tmp/midnight-final-lake-build.log"
+  },
+  "proofEquivalenceEstablished": false,
+  "productionDeploymentReady": false
+}

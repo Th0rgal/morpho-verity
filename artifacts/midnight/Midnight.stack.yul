@@ -1,6 +1,6 @@
 object "Midnight" {
     code {
-        mstore(64, 128)
+        mstore(64, memoryguard(416))
         if callvalue() {
             revert(0, 0)
         }
@@ -5950,7 +5950,7 @@ object "Midnight" {
             __ret0 := local_6070
             leave
         }
-        mstore(64, 128)
+        mstore(64, memoryguard(416))
         let v_109_0_snapshot := caller()
         {
             let __compat_value := and(and(v_109_0_snapshot, 1461501637330902918203684832716283019655932542975), 0xffffffffffffffffffffffffffffffffffffffff)
@@ -5976,8 +5976,8 @@ object "Midnight" {
             mstore(add(__evt_ptr, 0), v_109_3_snapshot)
             log2(__evt_ptr, 32, __evt_topic0, and(v_109_2_snapshot, 0xffffffffffffffffffffffffffffffffffffffff))
         }
-        datacopy(0, dataoffset("runtime"), datasize("runtime"))
-        return(0, datasize("runtime"))
+        datacopy(mload(64), dataoffset("runtime"), datasize("runtime"))
+        return(mload(64), datasize("runtime"))
     }
     object "runtime" {
         code {
@@ -11927,7 +11927,7 @@ object "Midnight" {
                 __ret0 := local_6070
                 leave
             }
-            mstore(64, 128)
+            mstore(64, memoryguard(416))
             {
                 let __has_selector := iszero(lt(calldatasize(), 4))
                 if iszero(__has_selector) {
@@ -12220,7 +12220,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_113_data_offset := arg_113_tail_head_end
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_113 := 0
                         local_113 := add(4, calldataload(4))
                         let v_149_0_snapshot := 0
@@ -12462,7 +12462,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_152 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_152 := and(arg_152, 1461501637330902918203684832716283019655932542975)
                         let v_175_0_snapshot := caller()
                         let v_175_1_lhs := v_175_0_snapshot
@@ -12506,7 +12506,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_177 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_177 := and(arg_177, 1461501637330902918203684832716283019655932542975)
                         let v_200_0_snapshot := caller()
                         let v_200_1_lhs := v_200_0_snapshot
@@ -12550,7 +12550,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_202 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_202 := and(arg_202, 1461501637330902918203684832716283019655932542975)
                         let v_225_0_snapshot := caller()
                         let v_225_1_lhs := v_225_0_snapshot
@@ -12594,7 +12594,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_227 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_227 := and(arg_227, 1461501637330902918203684832716283019655932542975)
                         let v_250_0_snapshot := caller()
                         let v_250_1_lhs := v_250_0_snapshot
@@ -12639,7 +12639,7 @@ object "Midnight" {
                         }
                         let arg_253 := calldataload(4)
                         let arg_255 := calldataload(36)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_253 := arg_253
                         let local_255 := arg_255
                         let v_313_0_snapshot := caller()
@@ -12742,7 +12742,7 @@ object "Midnight" {
                         let arg_315 := calldataload(4)
                         let arg_317 := calldataload(36)
                         let arg_319 := calldataload(68)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_315 := arg_315
                         let local_317 := arg_317
                         let local_319 := arg_319
@@ -12998,7 +12998,7 @@ object "Midnight" {
                         let arg_465 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_467 := calldataload(36)
                         let arg_469 := calldataload(68)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_465 := and(arg_465, 1461501637330902918203684832716283019655932542975)
                         let local_467 := arg_467
                         let local_469 := arg_469
@@ -13193,7 +13193,7 @@ object "Midnight" {
                         }
                         let arg_533 := calldataload(4)
                         let arg_535 := calldataload(36)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_533 := arg_533
                         let local_535 := arg_535
                         let v_588_0_index := local_533
@@ -13271,7 +13271,7 @@ object "Midnight" {
                         }
                         let arg_590 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_592 := calldataload(36)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_590 := and(arg_590, 1461501637330902918203684832716283019655932542975)
                         let local_592 := arg_592
                         let v_629_0_snapshot := caller()
@@ -13336,7 +13336,7 @@ object "Midnight" {
                         let arg_631 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_633 := calldataload(36)
                         let arg_635 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_631 := and(arg_631, 1461501637330902918203684832716283019655932542975)
                         let local_633 := arg_633
                         let local_635 := and(arg_635, 1461501637330902918203684832716283019655932542975)
@@ -13416,7 +13416,7 @@ object "Midnight" {
                         let arg_675_data_offset := arg_675_abs_offset
                         let arg_677 := calldataload(36)
                         let arg_679 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_675 := 0
                         local_675 := add(4, calldataload(4))
                         let local_677 := arg_677
@@ -13984,7 +13984,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_776_data_offset := arg_776_tail_head_end
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_764 := 0
                         local_764 := add(4, calldataload(4))
                         let local_766 := 0
@@ -20808,7 +20808,7 @@ object "Midnight" {
                         let arg_1536 := calldataload(36)
                         let arg_1538 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_1540 := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_1534 := 0
                         local_1534 := add(4, calldataload(4))
                         let local_1536 := arg_1536
@@ -21770,7 +21770,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_1675_data_offset := arg_1675_tail_head_end
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_1667 := 0
                         local_1667 := add(4, calldataload(4))
                         let local_1669 := arg_1669
@@ -22983,7 +22983,7 @@ object "Midnight" {
                         let arg_1791 := calldataload(36)
                         let arg_1793 := calldataload(68)
                         let arg_1795 := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_1789 := 0
                         local_1789 := add(4, calldataload(4))
                         let local_1791 := arg_1791
@@ -25123,7 +25123,7 @@ object "Midnight" {
                         let arg_1924 := calldataload(68)
                         let arg_1926 := and(calldataload(100), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_1928 := and(calldataload(132), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_1920 := 0
                         local_1920 := add(4, calldataload(4))
                         let local_1922 := arg_1922
@@ -27653,7 +27653,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_2060_data_offset := arg_2060_tail_head_end
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_2044 := 0
                         local_2044 := add(4, calldataload(4))
                         let local_2046 := arg_2046
@@ -32855,7 +32855,7 @@ object "Midnight" {
                         let arg_2646 := calldataload(4)
                         let arg_2648 := calldataload(36)
                         let arg_2650 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_2646 := arg_2646
                         let local_2648 := arg_2648
                         let local_2650 := and(arg_2650, 1461501637330902918203684832716283019655932542975)
@@ -32932,7 +32932,7 @@ object "Midnight" {
                         let arg_2703 := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_2705 := iszero(iszero(calldataload(36)))
                         let arg_2707 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_2703 := and(arg_2703, 1461501637330902918203684832716283019655932542975)
                         let local_2705 := iszero(iszero(arg_2705))
                         let local_2707 := and(arg_2707, 1461501637330902918203684832716283019655932542975)
@@ -33036,7 +33036,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_2755_data_offset := arg_2755_tail_head_end
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_2748 := 0
                         local_2748 := add(4, calldataload(4))
                         let local_2751 := 0
@@ -34192,7 +34192,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_2854_data_offset := arg_2854_abs_offset
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_2854 := 0
                         local_2854 := add(4, calldataload(4))
                         let v_3092_0_abi_add := add(local_2854, 32)
@@ -36384,7 +36384,7 @@ object "Midnight" {
                         let arg_3096_data_offset := arg_3096_abs_offset
                         let arg_3098 := calldataload(36)
                         let arg_3100 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3096 := 0
                         local_3096 := add(4, calldataload(4))
                         let local_3098 := arg_3098
@@ -36658,7 +36658,7 @@ object "Midnight" {
                         }
                         let arg_3239_data_offset := arg_3239_abs_offset
                         let arg_3241 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3239 := 0
                         local_3239 := add(4, calldataload(4))
                         let local_3241 := and(arg_3241, 1461501637330902918203684832716283019655932542975)
@@ -37445,7 +37445,7 @@ object "Midnight" {
                         }
                         let arg_3405 := calldataload(4)
                         let arg_3407 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3405 := arg_3405
                         let local_3407 := and(arg_3407, 1461501637330902918203684832716283019655932542975)
                         let v_3420_0_index := local_3405
@@ -37466,7 +37466,7 @@ object "Midnight" {
                         }
                         let arg_3422 := calldataload(4)
                         let arg_3424 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3422 := arg_3422
                         let local_3424 := and(arg_3424, 1461501637330902918203684832716283019655932542975)
                         let v_3437_0_index := local_3422
@@ -37488,7 +37488,7 @@ object "Midnight" {
                         let arg_3439 := calldataload(4)
                         let arg_3441 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
                         let arg_3443 := calldataload(68)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3439 := arg_3439
                         let local_3441 := and(arg_3441, 1461501637330902918203684832716283019655932542975)
                         let local_3443 := arg_3443
@@ -37915,7 +37915,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3461_data_offset := arg_3461_abs_offset
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3461 := 0
                         local_3461 := add(4, calldataload(4))
                         let v_3477_0_snapshot := and(shr(0, sload(1024)), 115792089237316195423570985008687907853269984665640564039457584007913129639935)
@@ -38308,7 +38308,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3480 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3480 := arg_3480
                         let v_3519_0_index := local_3480
                         let v_3519_1_snapshot := and(and(shr(144, sload(add(mappingSlot(1, v_3519_0_index), 2))), 255), 255)
@@ -38996,7 +38996,7 @@ object "Midnight" {
                         }
                         let arg_3521 := calldataload(4)
                         let arg_3523 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3521 := arg_3521
                         let local_3523 := and(arg_3523, 1461501637330902918203684832716283019655932542975)
                         let v_3536_0_index := local_3521
@@ -39017,7 +39017,7 @@ object "Midnight" {
                         }
                         let arg_3538 := calldataload(4)
                         let arg_3540 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3538 := arg_3538
                         let local_3540 := and(arg_3540, 1461501637330902918203684832716283019655932542975)
                         let v_3553_0_index := local_3538
@@ -39037,7 +39037,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3555 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3555 := arg_3555
                         let v_3566_0_index := local_3555
                         mstore(0, and(and(and(shr(0, sload(mappingSlot(1, v_3566_0_index))), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455))
@@ -39055,7 +39055,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3568 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3568 := arg_3568
                         let v_3579_0_index := local_3568
                         mstore(0, and(and(and(shr(128, sload(mappingSlot(1, v_3579_0_index))), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455))
@@ -39073,7 +39073,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3581 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3581 := arg_3581
                         let v_3592_0_index := local_3581
                         mstore(0, and(and(and(shr(144, sload(add(mappingSlot(1, v_3592_0_index), 2))), 255), 255), 255))
@@ -39091,7 +39091,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3594 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3594 := arg_3594
                         let v_3605_0_index := local_3594
                         mstore(0, and(and(and(shr(0, sload(add(mappingSlot(1, v_3605_0_index), 1))), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455))
@@ -39109,7 +39109,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3608 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3608 := arg_3608
                         let v_3646_0_index := local_3608
                         let v_3646_1_snapshot := and(and(shr(0, sload(add(mappingSlot(1, v_3646_0_index), 2))), 65535), 65535)
@@ -39279,7 +39279,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3649 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3649 := arg_3649
                         let v_3660_0_index := local_3649
                         mstore(0, and(and(and(shr(112, sload(add(mappingSlot(1, v_3660_0_index), 2))), 4294967295), 4294967295), 4294967295))
@@ -39297,7 +39297,7 @@ object "Midnight" {
                             revert(0, 0)
                         }
                         let arg_3662 := calldataload(4)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3662 := arg_3662
                         let v_3673_0_index := local_3662
                         mstore(0, and(and(and(shr(128, sload(add(mappingSlot(1, v_3673_0_index), 1))), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455), 340282366920938463463374607431768211455))
@@ -39316,7 +39316,7 @@ object "Midnight" {
                         }
                         let arg_3675 := calldataload(4)
                         let arg_3677 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3675 := arg_3675
                         let local_3677 := and(arg_3677, 1461501637330902918203684832716283019655932542975)
                         let v_3690_0_index := local_3675
@@ -39337,7 +39337,7 @@ object "Midnight" {
                         }
                         let arg_3692 := calldataload(4)
                         let arg_3694 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3692 := arg_3692
                         let local_3694 := and(arg_3694, 1461501637330902918203684832716283019655932542975)
                         let v_3707_0_index := local_3692
@@ -39358,7 +39358,7 @@ object "Midnight" {
                         }
                         let arg_3709 := calldataload(4)
                         let arg_3711 := and(calldataload(36), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3709 := arg_3709
                         let local_3711 := and(arg_3711, 1461501637330902918203684832716283019655932542975)
                         let v_3724_0_snapshot := 65530685186148139943160654700974242543032290443373287283358098694458470976932
@@ -39390,7 +39390,7 @@ object "Midnight" {
                         let arg_3728_data_offset := arg_3728_abs_offset
                         let arg_3730 := calldataload(36)
                         let arg_3732 := and(calldataload(68), 0xffffffffffffffffffffffffffffffffffffffff)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3728 := 0
                         local_3728 := add(4, calldataload(4))
                         let local_3730 := arg_3730
@@ -40273,7 +40273,7 @@ object "Midnight" {
                         }
                         let arg_3824 := calldataload(4)
                         let arg_3826 := calldataload(36)
-                        mstore(64, 128)
+                        mstore(64, memoryguard(416))
                         let local_3824 := arg_3824
                         let local_3826 := arg_3826
                         let v_3972_0_index := local_3824

@@ -25,6 +25,9 @@ lean_lib «Morpho» where
 
 lean_lib «Midnight» where
   srcDir := "morpho-midnight-verity"
+  -- Resource limit only: elaborating the generated source model needs a larger
+  -- thread stack on pinned Lean 4.22. No proof or compiler check is disabled.
+  moreLeanArgs := #["-s", "65536"]
   globs := #[
     .one `Midnight,
     .one `Midnight.Contract,
@@ -32,6 +35,7 @@ lean_lib «Midnight» where
     .one `Midnight.Compiler.AdminSliceHybrid,
     .one `Midnight.Compiler.Main,
     .one `Midnight.Generated.AdminSlice,
+    .one `Midnight.Generated.FullModel,
     .one `Midnight.Proofs,
     .submodules `Midnight.Proofs
   ]

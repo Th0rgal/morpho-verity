@@ -12,33 +12,7 @@ UNIQUIFY_YUL_SHADOWS="${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
 SOLC_0_8_34="${ROOT_DIR}/.cache/solc-0.8.34+commit.80d5c536"
 
 compute_input_digest() {
-  local -a files=(
-    "${ROOT_DIR}/lean-toolchain"
-    "${ROOT_DIR}/lake-manifest.json"
-    "${ROOT_DIR}/lakefile.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Contract.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Generated/AdminSlice.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Generated/AdminSlice.manifest.json"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/AdminSliceHybrid.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/ArtifactConfig.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/Midnight/Compiler/Main.lean"
-    "${ROOT_DIR}/morpho-midnight-verity/MidnightCompiler.lean"
-    "${ROOT_DIR}/scripts/prepare_midnight_artifact.sh"
-    "${ROOT_DIR}/scripts/import_midnight_admin_slice.mjs"
-    "${ROOT_DIR}/config/midnight-admin-import.json"
-    "${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
-  )
-
-  {
-    for path in "${files[@]}"; do
-      if [[ ! -f "${path}" ]]; then
-        echo "ERROR: missing Midnight artifact input: ${path}" >&2
-        return 2
-      fi
-      printf '%s  %s\n' "$(sha256sum "${path}" | awk '{print $1}')" "${path#${ROOT_DIR}/}"
-    done
-  } | sha256sum | awk '{print $1}'
+  python3 "${ROOT_DIR}/scripts/full_midnight_digest.py" "${ROOT_DIR}"
 }
 
 if ! command -v lake >/dev/null 2>&1; then
@@ -66,7 +40,9 @@ mkdir -p "${OUT_DIR}"
 
 (
   cd "${ROOT_DIR}"
-  node scripts/import_midnight_admin_slice.mjs
+  node scripts/import_midnight_full.mjs
+  node scripts/import_midnight_full.mjs --check
+  node scripts/audit_midnight_memory.mjs
 )
 if [[ ! -x "${SOLC_0_8_34}" ]]; then
   echo "ERROR: pinned solc was not materialized at ${SOLC_0_8_34}." >&2
@@ -76,8 +52,11 @@ INPUT_DIGEST="$(compute_input_digest)"
 
 (
   cd "${ROOT_DIR}"
-  lake build midnight-verity-compiler
-  lake exe midnight-verity-compiler --artifact full --output "${OUT_DIR}" --abi-output "${OUT_DIR}"
+  # Execute the same compiler Main via Lean after kernel-checking its modules.
+  # Compiling thousands of generated data constants to a native C object adds
+  # substantial cost without adding a model-validation or semantic check.
+  lake build +Midnight.Compiler.Main:olean
+  lake env lean -s 65536 --run morpho-midnight-verity/MidnightCompiler.lean --artifact full --output "${OUT_DIR}" --abi-output "${OUT_DIR}"
 )
 
 if [[ ! -s "${YUL}" || ! -s "${ABI}" ]]; then
@@ -87,17 +66,9 @@ fi
 
 python3 "${UNIQUIFY_YUL_SHADOWS}" --input "${YUL}" --output "${YUL}"
 
-"${SOLC_0_8_34}" --strict-assembly --evm-version osaka --bin "${YUL}" \
-  | awk '/Binary representation:/{getline; print; exit}' \
-  > "${BIN}"
-python3 - "${BIN}" "${BIN_RAW}" <<'PY'
-import pathlib
-import sys
-
-hex_path = pathlib.Path(sys.argv[1])
-raw_path = pathlib.Path(sys.argv[2])
-raw_path.write_bytes(bytes.fromhex(hex_path.read_text(encoding="utf-8").strip()))
-PY
+# Explicit, recorded consumer-owned memory/stack policy; no default optimizer
+# inlining. This does not certify standard-network deployment size or proofs.
+python3 "${ROOT_DIR}/scripts/compile_midnight_yul.py" --input "${YUL}" --output-dir "${OUT_DIR}"
 
 if [[ ! -s "${BIN_RAW}" ]]; then
   echo "ERROR: solc did not emit Midnight bytecode."
