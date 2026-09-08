@@ -1,47 +1,88 @@
 #!/usr/bin/env node
-// Conservative review inventory, not a semantic proof or a new compiler.
+// Explicit emission-policy ledger, not an AST-keyword colour heuristic.
 import { generateFull } from './import_midnight_full.mjs'
-import { walk } from './lib/midnight-source.mjs'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import assert from 'node:assert/strict'
-const { source, manifest } = generateFull()
-const graph = source.callGraph()
-const ids = new Set(graph.map(x => x.declaration))
-const rows = graph.map(row => {
-  const decl = source.declaration(row.declaration)
-  const reasons = new Set()
-  walk(decl, node => {
-    if (node.nodeType === 'InlineAssembly') reasons.add('inline-Yul semantics boundary')
-    if (node.nodeType === 'WhileStatement') reasons.add('specialized bounded-loop justification')
-    if (node.nodeType === 'MemberAccess' && node.memberName === 'code') reasons.add('external-code memory boundary')
+
+export function buildSupportReport(root, generated, registry) {
+  const { source, manifest } = generated
+  const features = registry.features
+  assert.equal(registry.schemaVersion, 1)
+  assert(Array.isArray(features))
+  const known = new Map(features.map(f => [f.id, f]))
+  assert.equal(known.size, features.length, 'duplicate policy ID')
+  const backend = readFileSync(resolve(root, 'scripts/compile_midnight_yul.py'), 'utf8').match(/policy='([^']+)'/)
+  assert(backend, 'backend must declare a policy ID')
+  const required = [...manifest.policies, backend[1]]
+  for (const id of required) assert(known.has(id), `unregistered emitted policy: ${id}`)
+  for (const f of features) {
+    assert(['native','adapted','unsupported'].includes(f.translation), 'unknown translation grade')
+    assert(['unproved','assumed','semantics-gap','not-applicable'].includes(f.proof), 'unreviewed proof claim')
+    assert(['model-wide','cei-exception','mutability-adaptation','capability','rejection'].includes(f.scope), 'unknown scope')
+    if (f.translation === 'adapted') assert(required.includes(f.id), `policy no longer emitted: ${f.id}`)
+    assert(f.reason && f.nextStep && f.implementation.length && f.tests.length)
+    for (const file of [...f.implementation, ...f.tests]) {
+      assert(!file.startsWith('/') && !file.split('/').includes('..'), 'nonportable evidence reference')
+      assert(existsSync(resolve(root, file)), `missing evidence reference: ${file}`)
+    }
+  }
+  const entries = [...manifest.declarations.filter(d => d.kind === 'function'), manifest.constructor]
+  const graph = new Map(source.callGraph().map(f => [f.declaration, f.calls]))
+  const sourceIds = new Set(entries.map(e => e.declaration))
+  const own = new Map([...sourceIds].map(id => [id, new Set()]))
+  const global = features.filter(f => f.scope === 'model-wide').map(f => f.id)
+  for (const e of entries) {
+    if (e.ceiPolicy?.allowPostInteractionWrites) own.get(e.declaration).add(e.ceiPolicy.policy)
+    if (e.mutability?.sourceMutability !== e.mutability?.modelMutability)
+      if (e.mutability) own.get(e.declaration).add(e.mutability.policy)
+  }
+  const functions = entries.map(e => {
+    const visited = new Set()
+    const visit = id => {
+      if (visited.has(id)) return
+      visited.add(id)
+      for (const call of graph.get(id) ?? []) {
+        if (call.kind === 'FunctionDefinition' && graph.has(call.target)) {
+          assert(sourceIds.has(call.target), `unrepresented source dependency ${call.target}`)
+          visit(call.target)
+        }
+      }
+    }
+    visit(e.declaration)
+    const local = [...new Set([...visited].flatMap(id => [...(own.get(id) ?? [])]))].sort()
+    for (const id of local) assert(known.has(id), `unregistered local policy ${id}`)
+    return { name: e.compilationModelName, declaration: e.declaration, origin: e.origin,
+      internal: e.internal, dependencies: [...visited].filter(id => id !== e.declaration).sort((a,b)=>a-b),
+      inheritedModelPolicies: global, sourceDependencyPolicies: local,
+      translation: 'adapted', proof: 'not-established' }
   })
-  for (const p of [...(decl.parameters?.parameters ?? []), ...(decl.returnParameters?.parameters ?? [])]) {
-    const t = p.typeDescriptions?.typeString ?? ''
-    if (/\[|\bstruct\b|\bbytes\b|\bstring\b/.test(t)) reasons.add('composite ABI/memory representation')
-  }
-  for (const call of row.calls) {
-    if (call.target != null && !ids.has(call.target) && call.kind === 'FunctionDefinition') reasons.add('external typed-call boundary')
-    if (call.kind === 'builtin-or-low-level') reasons.add('builtin/low-level call requires individual review')
-  }
-  return { declaration: row.declaration, name: decl.name || '<constructor>', origin: row.origin,
-    dependencies: [...new Set(row.calls.filter(x => ids.has(x.target)).map(x => x.target))].sort((a,b)=>a-b),
-    directReviewReasons: [...reasons].sort() }
-})
-const byId = new Map(rows.map(r => [r.declaration,r]))
-for (const row of rows) {
-  const seen = new Set()
-  const visit = id => { if (seen.has(id)) return; seen.add(id); for (const d of byId.get(id).dependencies) visit(d) }
-  visit(row.declaration)
-  row.boundaryDependencies = [...seen].filter(id => byId.get(id).directReviewReasons.length).sort((a,b)=>a-b)
-  row.status = row.boundaryDependencies.length ? 'excluded-from-unconditional-proof-scope-pending-boundary-review' : 'candidate-for-focused-review-not-yet-proved'
+  return { schemaVersion: 2, sourceCommit: manifest.sourceCommit, compiler: manifest.compiler,
+    scopeNote: registry.scopeNote, proofEquivalenceEstablished: false,
+    generatedLeanSha256: manifest.generatedLeanSha256,
+    features: features.map(f => ({ ...f, affectedEntries: f.translation === 'adapted' ? functions.filter(e => [...e.inheritedModelPolicies,...e.sourceDependencyPolicies].includes(f.id)).map(e=>e.name) : [],
+      applicability: ['capability','rejection'].includes(f.scope) ? 'capability/rejection catalogue, not function certification' : f.scope })),
+    functions, syntheticDeclarations: manifest.declarations.filter(d=>d.kind !== 'function').length }
 }
-assert.equal(rows.length, ids.size)
-for (const row of rows) for (const id of row.dependencies) assert(byId.has(id), 'unresolved source dependency')
-const report = { schemaVersion: 1, sourceCommit: manifest.sourceCommit, compiler: manifest.compiler,
-  policy: 'Conservative source-AST triage. No approved proof scope yet. No claim that excluded functions are unmodelable. Bytecode stack limits do not determine semantic scope.',
-  fullReplacementApproved: false, sourceToModelEquivalenceProved: false, functions: rows }
-const text = JSON.stringify(report, null, 2) + '\n'
-const args = process.argv.slice(2)
-if (args.length === 2 && args[0] === '--output') writeFileSync(args[1], text)
-else if (args.length) throw Error('usage: report_midnight_support.mjs [--output PATH]')
-else process.stdout.write(text)
+
+function main(args) {
+  let output = null, json = false
+  while (args.length) {
+    const arg = args.shift()
+    if (arg === '--json' && !json) json = true
+    else if (arg === '--output' && !output && args[0] && !args[0].startsWith('--')) output = args.shift()
+    else throw Error('usage: report_midnight_support.mjs [--json] [--output PATH]')
+  }
+  const root = process.cwd()
+  const report = buildSupportReport(root, generateFull(root), JSON.parse(readFileSync(resolve(root,'config/midnight-support-policies.json'),'utf8')))
+  const text = json || output ? JSON.stringify(report,null,2)+'\n' : [
+    'FEATURE | TRANSLATION | PROOF | APPLICABILITY',
+    ...report.features.map(f => `${f.feature} | ${f.translation} | ${f.proof} | ${f.scope==='model-wide' ? 'shared model contract' : f.translation==='adapted' ? `${f.affectedEntries.length} entries including callers` : 'catalogue'}`),
+    '', report.scopeNote,
+    'Use --json for source origins, callers, implementation/test links and follow-up actions.',
+  ].join('\n')+'\n'
+  if (output) writeFileSync(output,text)
+  else process.stdout.write(text)
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main(process.argv.slice(2))

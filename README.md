@@ -50,62 +50,32 @@ skipped on 2026-06-05 17:54 Europe/Berlin. The mechanical review manifest is
 
 ## Verify Morpho Midnight
 
-Build the focused Midnight proof package:
+Pinned Solidity → typed solc AST/storage layout → generated Lean model → Yul →
+bytecode. The full artifact uses `Midnight/Generated/FullModel.lean`, not a merge
+of handwritten bodies. Prerequisites: Node 20+, Python 3, Lean (repository pin),
+Foundry, and initialized submodules (`git submodule update --init --recursive`).
+The importer fetches and checksum-verifies its pinned solc.
 
 ```bash
-lake build Midnight.Proofs
+node scripts/report_midnight_support.mjs          # representation / proof gaps
+node scripts/report_midnight_support.mjs --json   # origins, callers, tests, actions
+python3 scripts/verify_midnight_pipeline.py       # rebuild + test fresh bytecode
 ```
 
-Build the executable artifact for the focused `MidnightRCF` proof model:
+The verifier writes `out/midnight-evidence/`: command logs, support report, source
+and compiler pins, bytecode hashes/size, and actual test results. CI uploads this
+bundle as `midnight-evidence`, including failure evidence. No checked-in test
+snapshot is a substitute for rerunning it.
 
-```bash
-./scripts/prepare_focused_midnight_artifact.sh
-```
+**Limits:** test success is not source-to-model equivalence. Custom ABI/memory,
+opcode and compiler-check policies remain conditional; current bytecode exceeds
+normal Ethereum deployment limits. See the Midnight section of
+[`docs/TRUST_BOUNDARIES.md`](docs/TRUST_BOUNDARIES.md).
 
-This emits `artifacts/midnight-focused/MidnightRCF.yul`,
-`MidnightRCF.abi.json`, and `MidnightRCF.bin.raw`. It is executable bytecode for
-the focused proof model, not a full `IMidnight` implementation.
-
-Run Morpho Midnight's original Foundry tests against upstream Solidity:
-
-```bash
-MORPHO_MIDNIGHT_PARITY_MODE=solidity ./scripts/run_morpho_midnight_parity.sh
-```
-
-Build the complete Verity-compiled Midnight artifact:
-
-```bash
-./scripts/prepare_midnight_artifact.sh
-```
-
-Run the same original tests against that Verity artifact:
-
-```bash
-MORPHO_MIDNIGHT_PARITY_MODE=verity ./scripts/run_morpho_midnight_parity.sh
-```
-
-That command expects `artifacts/midnight/Midnight.bin.raw`, or a file supplied
-through `MORPHO_MIDNIGHT_ARTIFACT_RAW`. The current local parity evidence is
-green: both Solidity and Verity Midnight modes report 373 passing tests, 0
-failures, and 0 skipped.
-
-Midnight Yul identity is not exact. The checked gate is a fail-closed drift
-manifest:
-
-```bash
-python3 scripts/report_yul_identity_gap.py --midnight --enforce-configured-gate
-```
-
-That report compares Solidity `Midnight.sol` `irOptimized` Yul with
-`artifacts/midnight/Midnight.yul` and requires the function-level drift to match
-`config/midnight-yul-identity-unsupported.json`.
-
-The current Midnight mapping manifest is `MORPHO_MIDNIGHT_MAPPING.md`; validate
-it with:
-
-```bash
-python3 scripts/check_morpho_midnight_mapping.py
-```
+The separate focused proofs remain available via `lake build Midnight.Proofs`
+and `./scripts/prepare_focused_midnight_artifact.sh`; they do not prove the full
+generated implementation. To prepare only the full artifact, run
+`./scripts/prepare_midnight_artifact.sh`.
 
 ## Compare With Morpho Blue
 
@@ -125,11 +95,9 @@ Start from these files:
 
 | Morpho upstream | Verity implementation |
 |-----------------|-----------------------|
-| `morpho-midnight/src/Midnight.sol` | `morpho-midnight-verity/Midnight/Contract.lean` |
-| its three administrative role setters | deterministic Sol-C AST import in `morpho-midnight-verity/Midnight/Generated/AdminSlice.lean`, hybridized by `Midnight/Compiler/AdminSliceHybrid.lean` |
-| `morpho-midnight/src/interfaces/IMidnight.sol` | `morpho-midnight-verity/Midnight/Proofs/Storage.lean` |
-| `morpho-midnight/src/libraries/ConstantsLib.sol` | constants in `morpho-midnight-verity/Midnight/Contract.lean` and proof files |
-| `morpho-midnight/src/libraries/UtilsLib.sol` | arithmetic lemmas in `morpho-midnight-verity/Midnight/Proofs/Basic.lean` |
+| `morpho-midnight/src/Midnight.sol` and reachable libraries | `morpho-midnight-verity/Midnight/Generated/FullModel.lean` and its source manifest |
+| `morpho-midnight/src/interfaces/IMidnight.sol` | `morpho-midnight-verity/Midnight/Generated/FullModel.abi.json` |
+| Focused liquidation/accounting properties (separate model) | `morpho-midnight-verity/Midnight/Proofs/` |
 
 Proof entrypoints:
 

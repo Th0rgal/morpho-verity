@@ -7,3 +7,4 @@ verity-foundry/out/
 __pycache__/
 .pytest_cache/
 .cache/
+out/midnight-evidence/

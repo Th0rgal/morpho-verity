@@ -3,7 +3,7 @@
 
 Reserve all statically addressed scratch/return words below the optimizer's
 spill region. Dynamic writes must belong to the reviewed monotonic ABI allocator
-contract (see docs/MIDNIGHT_TRANSLATION_REVIEW.md). This remains an explicit
+contract (see the Midnight section of docs/TRUST_BOUNDARIES.md). This remains an explicit
 consumer-owned assumption, not a proof supplied by Verity.
 """
 import argparse
