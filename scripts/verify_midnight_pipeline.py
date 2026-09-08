@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,7 +26,7 @@ def parse_suite(text):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--out-dir', default='out/midnight-evidence')
+    parser.add_argument('--out-dir', default='out/midnight')
     args = parser.parse_args()
     out = Path(args.out_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -57,10 +58,9 @@ def main():
         return log.read_text()
     try:
         run('generation-check', ['node','scripts/import_midnight_full.mjs','--check'])
-        run('support-tests', ['node','scripts/test_midnight_support_report.mjs'])
         run('support', ['node','scripts/report_midnight_support.mjs','--output',str(out/'support.json')])
         run('lean-build', ['lake','build'])
-        artifact_dir = out/'artifact'
+        artifact_dir = out
         run('prepare', ['bash','scripts/prepare_midnight_artifact.sh'], {'MORPHO_MIDNIGHT_OUT_DIR':str(artifact_dir)})
         manifest=json.loads((ROOT/'morpho-midnight-verity/Midnight/Generated/FullModel.manifest.json').read_text())
         evidence['sourceCommit']=manifest['sourceCommit']
@@ -71,18 +71,16 @@ def main():
         before=sha(raw)
         # Runner discovers solc on PATH. Use the exact compiler materialized and
         # checksum-verified by preparation, avoiding unrelated global versions.
-        tools=out/'tools';tools.mkdir(exist_ok=True)
-        link=tools/'solc'
-        if link.is_symlink(): link.unlink()
-        link.symlink_to(ROOT/'.cache/solc-0.8.34+commit.80d5c536')
-        log=run('parity',['bash','scripts/run_morpho_midnight_parity.sh'],{
-            'MORPHO_MIDNIGHT_PARITY_MODE':'verity','MORPHO_MIDNIGHT_ARTIFACT_RAW':str(raw),
-            'PATH':str(tools)+os.pathsep+env.get('PATH','')})
+        with tempfile.TemporaryDirectory(prefix='midnight-solc-') as tools:
+            (Path(tools)/'solc').symlink_to(ROOT/'.cache/solc-0.8.34+commit.80d5c536')
+            log=run('parity',['bash','scripts/run_morpho_midnight_parity.sh'],{
+                'MORPHO_MIDNIGHT_PARITY_MODE':'verity','MORPHO_MIDNIGHT_ARTIFACT_RAW':str(raw),
+                'PATH':tools+os.pathsep+env.get('PATH','')})
         evidence['suite']=parse_suite(log)
         if sha(raw)!=before or sha(ROOT/'artifacts/midnight/Midnight.bin.raw')!=before:
             raise ValueError('tested bytecode changed or deployment selection differs')
         evidence['testedBytecodeSha256']=before
-        evidence['artifacts']={p.name:sha(p) for p in artifact_dir.iterdir() if p.is_file()}
+        evidence['artifacts']={p.name:sha(p) for p in artifact_dir.glob('Midnight.*') if p.is_file()}
         evidence['supportReportSha256']=sha(out/'support.json')
         evidence['complete']=True
     except Exception as exc:

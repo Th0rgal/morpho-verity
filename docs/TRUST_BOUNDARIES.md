@@ -24,12 +24,13 @@ through Verity ECM modules. CI enforces this boundary through
 The full artifact is generated from the pinned Solidity AST and storage layout
 by `scripts/import_midnight_full.mjs`. Source/compiler pins and declaration
 origins live in `config/midnight-full-import.json` and the generated
-`Midnight/Generated/FullModel.manifest.json`. The original admin slice remains a
-separate example; it is not the full artifact's implementation source.
+`Midnight/Generated/FullModel.manifest.json`. Source origins are
+interned in the schema-3 `origins` table; `originRef` resolves to the complete
+file/declaration/span/hash record, including any synthetic policy.
 
 `config/midnight-support-policies.json` is the maintained representation ledger.
 Run `node scripts/report_midnight_support.mjs --json` for native/adapted/rejected
-features, separate proof status, implementation/test links, affected generated
+features, separate proof status, implementation links, affected generated
 entries and source-call dependencies. Unknown emitted policies or missing
 references fail the report. Model-wide obligations are inherited conservatively;
 they are not evidence that every function exercises that feature.

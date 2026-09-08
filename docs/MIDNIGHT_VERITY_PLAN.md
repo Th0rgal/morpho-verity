@@ -16,4 +16,4 @@ Priorities:
    focused projections are not whole-implementation equivalence proofs.
 
 A fresh evidence bundle, not a prose checklist, records build and runtime status:
-`python3 scripts/verify_midnight_pipeline.py` → `out/midnight-evidence/`.
+`python3 scripts/verify_midnight_pipeline.py` → `out/midnight/`.

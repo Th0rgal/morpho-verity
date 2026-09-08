@@ -5,7 +5,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${MORPHO_MIDNIGHT_OUT_DIR:-${ROOT_DIR}/artifacts/midnight}"
 YUL="${OUT_DIR}/Midnight.yul"
 ABI="${OUT_DIR}/Midnight.abi.json"
-BIN="${OUT_DIR}/Midnight.bin"
 BIN_RAW="${OUT_DIR}/Midnight.bin.raw"
 MANIFEST="${OUT_DIR}/Midnight.artifact-manifest.env"
 UNIQUIFY_YUL_SHADOWS="${ROOT_DIR}/scripts/uniquify_yul_shadows.py"
@@ -21,10 +20,6 @@ if ! command -v lake >/dev/null 2>&1; then
 fi
 if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: node is required to import the pinned Midnight Sol-C AST."
-  exit 2
-fi
-if ! command -v awk >/dev/null 2>&1; then
-  echo "ERROR: awk is required to extract solc binary output."
   exit 2
 fi
 if ! command -v sha256sum >/dev/null 2>&1; then

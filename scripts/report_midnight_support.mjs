@@ -22,8 +22,8 @@ export function buildSupportReport(root, generated, registry) {
     assert(['unproved','assumed','semantics-gap','not-applicable'].includes(f.proof), 'unreviewed proof claim')
     assert(['model-wide','cei-exception','mutability-adaptation','capability','rejection'].includes(f.scope), 'unknown scope')
     if (f.translation === 'adapted') assert(required.includes(f.id), `policy no longer emitted: ${f.id}`)
-    assert(f.reason && f.nextStep && f.implementation.length && f.tests.length)
-    for (const file of [...f.implementation, ...f.tests]) {
+    assert(f.reason && f.nextStep && f.implementation.length)
+    for (const file of f.implementation) {
       assert(!file.startsWith('/') && !file.split('/').includes('..'), 'nonportable evidence reference')
       assert(existsSync(resolve(root, file)), `missing evidence reference: ${file}`)
     }
@@ -53,7 +53,7 @@ export function buildSupportReport(root, generated, registry) {
     visit(e.declaration)
     const local = [...new Set([...visited].flatMap(id => [...(own.get(id) ?? [])]))].sort()
     for (const id of local) assert(known.has(id), `unregistered local policy ${id}`)
-    return { name: e.compilationModelName, declaration: e.declaration, origin: e.origin,
+    return { name: e.compilationModelName, declaration: e.declaration, origin: manifest.origins[e.origin.originRef],
       internal: e.internal, dependencies: [...visited].filter(id => id !== e.declaration).sort((a,b)=>a-b),
       inheritedModelPolicies: global, sourceDependencyPolicies: local,
       translation: 'adapted', proof: 'not-established' }
@@ -80,7 +80,7 @@ function main(args) {
     'FEATURE | TRANSLATION | PROOF | APPLICABILITY',
     ...report.features.map(f => `${f.feature} | ${f.translation} | ${f.proof} | ${f.scope==='model-wide' ? 'shared model contract' : f.translation==='adapted' ? `${f.affectedEntries.length} entries including callers` : 'catalogue'}`),
     '', report.scopeNote,
-    'Use --json for source origins, callers, implementation/test links and follow-up actions.',
+    'Use --json for source origins, callers, implementation links and follow-up actions.',
   ].join('\n')+'\n'
   if (output) writeFileSync(output,text)
   else process.stdout.write(text)

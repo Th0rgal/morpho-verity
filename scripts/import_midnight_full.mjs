@@ -27,7 +27,7 @@ export function fullLowering(source) {
   return new MidnightLowering(source, {
     abi, call: lowerCall, member: lowerMember, statement: lowerAssembly, supportDefinitions,
     // Transparent statement definitions keep the pinned Lean elaborator's work
-    // bounded per term; exact expansion equivalence is checked by the native gate.
+    // bounded per term without making their definitions opaque.
     factorStatements: true,
     abiRequire(condition, ctx) {
       ctx.emit(`.ite (.logicalNot ${condition}) [.unsafeYul (UnsafeYulFragment.rawRevert (.lit 0) (.lit 0) { name := ${JSON.stringify(ctx.fresh('abi_decode_failure'))}, obligation := "Malformed ABI input reverts with the empty memory slice; this boundary terminates and is not an external interaction.", proofStatus := .assumed })] []`)
@@ -78,6 +78,24 @@ function captureDeclarations(lowering, source) {
     return code
   }
   return { functions, constructors, statements }
+}
+
+// Schema 3 interns complete source origins, including synthetic policies. Every
+// declaration retains its own code hash; references resolve through `origins`.
+function normalizeOrigins(manifest) {
+  const origins = [], ids = new Map()
+  const visit = value => {
+    if (Array.isArray(value)) return value.map(visit)
+    if (!value || typeof value !== 'object') return value
+    if (['file','sourceId','astNodeId','span','sourceSha256','spanSha256'].every(k => Object.hasOwn(value,k))) {
+      const key = json(value)
+      if (!ids.has(key)) { ids.set(key, origins.length); origins.push(value) }
+      return { originRef: ids.get(key) }
+    }
+    return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,visit(v)]))
+  }
+  const normalized = visit(manifest)
+  return { ...normalized, origins }
 }
 
 export function generateFull(root = process.cwd()) {
@@ -141,7 +159,7 @@ export function generateFull(root = process.cwd()) {
   }))
   ensure(fields.length === result.fields.length, 'storage provenance/emission count drift')
   const manifest = {
-    ...base, schemaVersion: 2, stage: 'complete-source-derived-compilation-model',
+    ...base, schemaVersion: 3, stage: 'complete-source-derived-compilation-model',
     verificationClaim: 'Generation only; compiler, parity and semantic review are separate gates. No Solidity-equivalence theorem is claimed.',
     generatorInputs,
     compilerInputSha256: hash(json(source.compilation.input)),
@@ -157,7 +175,7 @@ export function generateFull(root = process.cwd()) {
       signature: byId.get(entry.declaration).signature, selector: byId.get(entry.declaration).selector,
       compilationModelName: entry.compilationModelName, value: selectors[i] })),
   }
-  return { source, result, config, manifest: JSON.parse(json(manifest)) }
+  return { source, result, config, manifest: JSON.parse(json(normalizeOrigins(manifest))) }
 }
 
 function main(args) {

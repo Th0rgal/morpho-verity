@@ -62,9 +62,9 @@ node scripts/report_midnight_support.mjs --json   # origins, callers, tests, act
 python3 scripts/verify_midnight_pipeline.py       # rebuild + test fresh bytecode
 ```
 
-The verifier writes `out/midnight-evidence/`: command logs, support report, source
+The verifier writes `out/midnight/`: command logs, support report, source
 and compiler pins, bytecode hashes/size, and actual test results. CI uploads this
-bundle as `midnight-evidence`, including failure evidence. No checked-in test
+bundle as `midnight-build`, including failure evidence. No checked-in test
 snapshot is a substitute for rerunning it.
 
 **Limits:** test success is not source-to-model equivalence. Custom ABI/memory,

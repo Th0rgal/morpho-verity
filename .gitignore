@@ -7,4 +7,7 @@ verity-foundry/out/
 __pycache__/
 .pytest_cache/
 .cache/
-out/midnight-evidence/
+out/midnight/
+artifacts/midnight/Midnight.stack.yul
+artifacts/midnight/Midnight.bin
+artifacts/midnight/Midnight.abi.json

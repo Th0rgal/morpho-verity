@@ -10,7 +10,7 @@ Focused artifact status: present
 This table is the existing CI interface-completeness index, not a support score
 or a test-results snapshot. IDs refer to the pinned typed AST recorded in
 `Midnight/Generated/FullModel.manifest.json`. Representation policies, caller
-obligations and tests come from `node scripts/report_midnight_support.mjs --json`.
+obligations come from `node scripts/report_midnight_support.mjs --json`.
 Fresh execution evidence: `python3 scripts/verify_midnight_pipeline.py`.
 
 | Interface function | Source declaration ID | Full implementation |

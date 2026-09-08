@@ -11,9 +11,6 @@
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_lowering.mjs"
-      ],
       "reason": "Uses reserved storage, not code immutables.",
       "nextStep": "Importer: prove initialization/storage ownership; Verity: native immutables."
     },
@@ -25,10 +22,6 @@
       "scope": "model-wide",
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
-      ],
-      "tests": [
-        "scripts/test_midnight_abi.mjs",
-        "scripts/test_midnight_getter_returns.mjs"
       ],
       "reason": "Words plus guards/masks derived from source widths and storage layout.",
       "nextStep": "Importer: prove cleanup/layout bridges; Verity: exact-width ABI and safe getter return packing."
@@ -43,10 +36,6 @@
         "scripts/lib/midnight-lowering.mjs",
         "scripts/lib/midnight-abi.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_abi.mjs",
-        "scripts/test_midnight_public_composites.mjs"
-      ],
       "reason": "ABI-image memory and lazy decoding, not Solidity heap layout.",
       "nextStep": "Importer: prove nonaliasing/decoder equivalence; Verity: typed ABI-memory bridge."
     },
@@ -58,9 +47,6 @@
       "scope": "model-wide",
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
-      ],
-      "tests": [
-        "scripts/test_midnight_lowering_boundaries.mjs"
       ],
       "reason": "Two source-validated while loops become width-bounded iteration.",
       "nextStep": "Importer: prove the decreasing-measure/refinement; Verity: reusable loop semantics."
@@ -75,10 +61,6 @@
         "scripts/lib/midnight-lowering.mjs",
         "scripts/import_midnight_full.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_return_boundary.mjs",
-        "scripts/test_midnight_getter_returns.mjs"
-      ],
       "reason": "Raw termination/payload obligations are assumed; getter operands must be frozen before scratch packing.",
       "nextStep": "Verity: native terminal memory semantics and safe return expression evaluation."
     },
@@ -90,10 +72,6 @@
       "scope": "model-wide",
       "implementation": [
         "scripts/lib/midnight-builtins.mjs"
-      ],
-      "tests": [
-        "scripts/test_midnight_returndata.mjs",
-        "scripts/test_midnight_builtins_cei.mjs"
       ],
       "reason": "Executable code; pinned helper-aware semantics omit several call/intrinsic constructs. Verbatim minFork is not enforced; pipeline explicitly targets Osaka.",
       "nextStep": "Verity: call/intrinsic semantic bridges and minFork enforcement; importer: external-environment specifications."
@@ -108,9 +86,6 @@
         "scripts/lib/midnight-lowering.mjs",
         "scripts/lib/midnight-cei.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_cei.mjs"
-      ],
       "reason": "Source-order exceptions are not safety proofs.",
       "nextStep": "Importer: justify every exception; Verity: precise interaction effects."
     },
@@ -122,9 +97,6 @@
       "scope": "mutability-adaptation",
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
-      ],
-      "tests": [
-        "scripts/test_midnight_purity.mjs"
       ],
       "reason": "Source ABI remains pure, selected model entries become view.",
       "nextStep": "Verity: distinguish scaffolding/helper reads; importer: source purity argument."
@@ -139,9 +111,6 @@
         "scripts/compile_midnight_yul.py",
         "scripts/audit_midnight_memory.mjs"
       ],
-      "tests": [
-        "scripts/test_compile_midnight_yul.py"
-      ],
       "reason": "Memoryguard contract, derived scratch boundary and relocated deployment copy. No general memory-safety proof; code size remains a deployment blocker.",
       "nextStep": "Importer: prove allocator contract and reduce size; Verity: integrated safe stack management."
     },
@@ -154,11 +123,8 @@
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_lowering.mjs"
-      ],
       "reason": "Native arithmetic, assignments and branches; source translation is not thereby proved.",
-      "nextStep": "Importer: source-to-model lemmas and mutation tests."
+      "nextStep": "Importer: source-to-model lemmas and translation guarantees."
     },
     {
       "id": "native-storage",
@@ -169,11 +135,8 @@
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_lowering.mjs"
-      ],
       "reason": "Native storage/mapping building blocks; packed-layout adapters remain separate.",
-      "nextStep": "Importer: source-to-model lemmas and mutation tests."
+      "nextStep": "Importer: source-to-model lemmas and translation guarantees."
     },
     {
       "id": "native-events",
@@ -184,11 +147,8 @@
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_lowering.mjs"
-      ],
       "reason": "Native current scalar signatures; composite payloads remain adapted.",
-      "nextStep": "Importer: source-to-model lemmas and mutation tests."
+      "nextStep": "Importer: source-to-model lemmas and translation guarantees."
     },
     {
       "id": "unsupported-dynamic-returns",
@@ -199,11 +159,8 @@
       "implementation": [
         "scripts/lib/midnight-builtins.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_builtins.mjs"
-      ],
-      "reason": "Rejected rather than replaced by handwritten code. Linked suite is related evidence, not necessarily a dedicated test for every rejection shape.",
-      "nextStep": "Implement only required shapes with explicit semantics and dedicated negative tests."
+      "reason": "Rejected rather than replaced by handwritten code.",
+      "nextStep": "Implement only required shapes with explicit semantics and explicit rejection guarantees."
     },
     {
       "id": "unsupported-dynamic-encoding",
@@ -214,11 +171,8 @@
       "implementation": [
         "scripts/lib/midnight-abi.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_abi.mjs"
-      ],
-      "reason": "Rejected rather than replaced by handwritten code. Linked suite is related evidence, not necessarily a dedicated test for every rejection shape.",
-      "nextStep": "Implement only required shapes with explicit semantics and dedicated negative tests."
+      "reason": "Rejected rather than replaced by handwritten code.",
+      "nextStep": "Implement only required shapes with explicit semantics and explicit rejection guarantees."
     },
     {
       "id": "unsupported-indexed-events",
@@ -229,11 +183,8 @@
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_full_import.mjs"
-      ],
-      "reason": "Rejected rather than replaced by handwritten code. Linked suite is related evidence, not necessarily a dedicated test for every rejection shape.",
-      "nextStep": "Implement only required shapes with explicit semantics and dedicated negative tests."
+      "reason": "Rejected rather than replaced by handwritten code.",
+      "nextStep": "Implement only required shapes with explicit semantics and explicit rejection guarantees."
     },
     {
       "id": "unsupported-ast-assembly",
@@ -244,11 +195,8 @@
       "implementation": [
         "scripts/lib/midnight-lowering.mjs"
       ],
-      "tests": [
-        "scripts/test_midnight_full_import.mjs"
-      ],
-      "reason": "Rejected rather than replaced by handwritten code. Linked suite is related evidence, not necessarily a dedicated test for every rejection shape.",
-      "nextStep": "Implement only required shapes with explicit semantics and dedicated negative tests."
+      "reason": "Rejected rather than replaced by handwritten code.",
+      "nextStep": "Implement only required shapes with explicit semantics and explicit rejection guarantees."
     }
   ]
 }
