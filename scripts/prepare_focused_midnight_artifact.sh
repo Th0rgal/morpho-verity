@@ -36,8 +36,8 @@ INPUT_DIGEST="$(compute_input_digest)"
 
 (
   cd "${ROOT_DIR}"
-  lake build midnight-verity-compiler
-  lake exe midnight-verity-compiler --output "${OUT_DIR}" --abi-output "${OUT_DIR}"
+  lake build +Midnight.Compiler.Main:olean
+  lake env lean -s 65536 --run morpho-midnight-verity/MidnightCompiler.lean --output "${OUT_DIR}" --abi-output "${OUT_DIR}"
 )
 
 if [[ ! -s "${YUL}" || ! -s "${ABI}" ]]; then

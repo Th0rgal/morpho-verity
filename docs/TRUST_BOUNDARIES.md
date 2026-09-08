@@ -19,6 +19,37 @@ dependency set explicit. That dependency set is empty: `keccakMarketParams`,
 through Verity ECM modules. CI enforces this boundary through
 `scripts/check_morpho_artifact_boundary.py`.
 
+### Midnight deterministic source import
+
+The full artifact is generated from the pinned Solidity AST and storage layout
+by `scripts/import_midnight_full.mjs`. Source/compiler pins and declaration
+origins live in `config/midnight-full-import.json` and the generated
+`Midnight/Generated/FullModel.manifest.json`. Source origins are
+interned in the schema-3 `origins` table; `originRef` resolves to the complete
+file/declaration/span/hash record, including any synthetic policy.
+
+`config/midnight-support-policies.json` is the maintained representation ledger.
+Run `node scripts/report_midnight_support.mjs --json` for native/adapted/rejected
+features, separate proof status, implementation links, affected generated
+entries and source-call dependencies. Unknown emitted policies or missing
+references fail the report. Model-wide obligations are inherited conservatively;
+they are not evidence that every function exercises that feature.
+
+Key assumptions: ABI-image memory rather than Solidity heap layout; immutables
+represented in reserved storage; specialized bounded loops; low-level
+call/return/opcode semantics; explicit purity/CEI exceptions. The backend also
+uses a consumer-owned memoryguard contract: dynamic writes must remain in fresh
+allocations, static scratch/return words below the spill boundary, and the
+terminating deployment copy outside spill space. Source-side write checks and
+regressions do not prove this allocator contract. The pinned backend does not
+enforce verbatim intrinsic minimum forks; the pipeline explicitly targets Osaka.
+
+Tests are finite evidence, not full Solidity-to-model equivalence. Several
+call/intrinsic constructors lack helper-aware formal semantics in the pinned
+Verity version. Focused Midnight proofs remain separate. Bytecode size remains
+a normal-network deployment blocker. Fresh measurements and test logs come from
+`python3 scripts/verify_midnight_pipeline.py`, not this document.
+
 ## Verity Dependency Pin
 
 The Morpho packages are pinned through `lakefile.lean` and

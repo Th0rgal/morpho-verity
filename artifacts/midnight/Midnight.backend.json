@@ -1,0 +1,15 @@
+{
+  "policy": "midnight-reviewed-allocator-solc-stack-v1",
+  "proofStatus": "assumed-memory-contract-not-a-theorem",
+  "optimizerSteps": "u",
+  "evmVersion": "osaka",
+  "scratchBytes": 416,
+  "initializers": 46,
+  "inputYulSha256": "344aa81aa837e3f61cb15ba2184d6e572b0d91e6880232850ec6cc8f12e49706",
+  "loweredYulSha256": "ea32579de7aab42bc01cf8a1388d6bcf6a5db13a0730032dc0555bb9d8b867fd",
+  "solcSha256": "d40adc6f9fdbb22a97d32a02fa05688bf2ee7886affc48c9851b0afd4a726b39",
+  "bytecodeSha256": "afc65cdb8a1bd3e116967b9e2d032afd0b1ccc59d96c8ca362be9c87738c62e4",
+  "creationBytes": 232028,
+  "standardEthereumDeploymentSizeCompliant": false,
+  "note": "Size and gas limits are not established by Foundry parity. Dynamic allocation correctness remains a translation obligation."
+}

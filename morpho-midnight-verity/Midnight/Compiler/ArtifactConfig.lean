@@ -1,6 +1,7 @@
 import Compiler.CompilationModel
 import Compiler.Selector
 import Midnight.Contract
+import Midnight.Generated.FullModel
 
 namespace Midnight.Compiler.ArtifactConfig
 
@@ -21,20 +22,15 @@ def artifactSpec : CompilationModel :=
 def artifactSelectors : IO (List Nat) :=
   _root_.Compiler.Selector.computeSelectors artifactSpec
 
-/--
-Artifact packaging for the full `Midnight` contract surface.
-
-This is the beginning of the full `IMidnight` parity artifact. It is named
-`Midnight` and is emitted under `artifacts/midnight/`, but the implementation
-is still partial until the remaining behavioral entrypoints in
-`docs/MIDNIGHT_VERITY_PLAN.md` are implemented.
+/-- Complete model generated exclusively from the pinned Solidity AST and layout.
+The handwritten contract above is used only by the separate focused proof artifact.
 -/
 def fullArtifactSpec : CompilationModel :=
-  { _root_.Midnight.Contract.Midnight.spec with
-      name := "Midnight"
-      externals := [] }
+  _root_.Midnight.Generated.Full.spec
 
+/-- Source selectors are authoritative: the pinned backend represents some narrow
+return words using uint256, which must not rewrite the Solidity ABI metadata. -/
 def fullArtifactSelectors : IO (List Nat) :=
-  _root_.Compiler.Selector.computeSelectors fullArtifactSpec
+  pure _root_.Midnight.Generated.Full.selectors
 
 end Midnight.Compiler.ArtifactConfig

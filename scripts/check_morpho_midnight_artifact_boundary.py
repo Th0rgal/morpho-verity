@@ -7,6 +7,8 @@ import hashlib
 import pathlib
 import sys
 
+from full_midnight_digest import FULL_INPUTS, compute_full_input_digest
+
 from focused_midnight_digest import (
     FOCUSED_INPUTS,
     compute_focused_input_digest as compute_canonical_focused_input_digest,
@@ -62,24 +64,9 @@ def compute_focused_input_digest() -> str:
 
 
 def compute_complete_input_digest() -> str:
-    files = [
-        "lean-toolchain",
-        "lake-manifest.json",
-        "lakefile.lean",
-        "morpho-midnight-verity/Midnight.lean",
-        "morpho-midnight-verity/Midnight/Contract.lean",
-        "morpho-midnight-verity/Midnight/Compiler/ArtifactConfig.lean",
-        "morpho-midnight-verity/Midnight/Compiler/Main.lean",
-        "morpho-midnight-verity/MidnightCompiler.lean",
-        "scripts/prepare_midnight_artifact.sh",
-        "scripts/uniquify_yul_shadows.py",
-    ]
-    h = hashlib.sha256()
-    for rel in files:
-        path = ROOT / rel
-        require_nonempty(path, "complete artifact input")
-        h.update(f"{sha256(path)}  {rel}\n".encode("utf-8"))
-    return h.hexdigest()
+    for rel in FULL_INPUTS:
+        require_nonempty(ROOT / rel, "complete artifact input")
+    return compute_full_input_digest(ROOT)
 
 
 def parse_manifest(text: str) -> dict[str, str]:
